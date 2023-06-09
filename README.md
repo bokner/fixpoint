@@ -1,2 +1,2 @@
-# cpsolver
-cpsolver
+# Constraint Programming Solver
+
