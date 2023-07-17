@@ -21,7 +21,8 @@ defmodule Cpsolver.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:libgraph, "~> 0.16.0"}
+      {:libgraph, "~> 0.16.0"},
+      {:ebus, "~> 0.3", hex: :erlbus}
     ]
   end
 end
