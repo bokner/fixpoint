@@ -1,4 +1,5 @@
 defmodule CPSolver.Examples.GraphColoring do
+  alias CPSolver.Constraint
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.IntVariable
 
@@ -13,7 +14,7 @@ defmodule CPSolver.Examples.GraphColoring do
 
     edge_color_constraints =
       Enum.map(data.edges, fn [v1, v2] ->
-        NotEqual.post(Enum.at(color_vars, v1), Enum.at(color_vars, v2))
+        Constraint.new(NotEqual, [Enum.at(color_vars, v1), Enum.at(color_vars, v2)])
       end)
 
     model = %{

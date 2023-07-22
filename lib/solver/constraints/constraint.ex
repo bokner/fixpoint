@@ -1,4 +1,7 @@
 defmodule CPSolver.Constraint do
-  @callback post() :: boolean()
-  @callback propagate() :: boolean()
+  @callback propagators() :: [function()]
+
+  def new(constraint_impl, args) do
+    %{propagators: constraint_impl.propagators(args)}
+  end
 end

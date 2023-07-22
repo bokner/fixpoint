@@ -82,7 +82,11 @@ defmodule CPSolver.Space do
     :keep_state_and_data
   end
 
-  defp start_propagation(space_data) do
+  defp start_propagation(propagator_threads) do
     Logger.debug("Start propagation")
+
+    Enum.each(propagator_threads, fn thread ->
+      nil
+    end)
   end
 end

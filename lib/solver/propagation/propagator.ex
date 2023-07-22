@@ -1,6 +1,5 @@
 defmodule CPSolver.Propagator do
-  @callback variables() :: list()
-  @callback filter(variables :: list()) :: map()
+  @callback filter(variables :: list()) :: map() | :stable | :failure
 
   @behaviour GenServer
 
