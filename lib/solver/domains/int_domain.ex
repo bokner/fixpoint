@@ -33,4 +33,7 @@ defmodule CPSolver.IntDomain do
 
   def removeAllBut(variable, value) do
   end
+
+  def fix(variable, value) do
+  end
 end

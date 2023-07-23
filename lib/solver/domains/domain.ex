@@ -8,4 +8,5 @@ defmodule CPSolver.Domain do
   @callback removeAbove(variable :: any(), value :: number()) :: any()
   @callback removeBelow(variable :: any(), value :: number()) :: any()
   @callback removeAllBut(variable :: any(), value :: number()) :: any()
+  @callback fix(variable :: any(), value :: number()) :: any()
 end

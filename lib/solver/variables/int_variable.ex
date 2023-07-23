@@ -8,6 +8,8 @@ defmodule CPSolver.IntVariable do
   defdelegate removeAbove(var, val), to: IntDomain
   defdelegate removeBelow(var, val), to: IntDomain
 
+  defdelegate fix(var, val), to: IntDomain
+
   def make(domain) do
   end
 
