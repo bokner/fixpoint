@@ -6,6 +6,7 @@ defmodule CPSolver.Space do
   """
 
   alias __MODULE__, as: Space
+  alias CPSolver.ConstraintStore, as: Store
   require Logger
 
   @behaviour :gen_statem
@@ -15,11 +16,11 @@ defmodule CPSolver.Space do
             propagator_threads: [],
             constraint_store: nil
 
-  def create(variables, propagators, space_opts, gen_statem_opts \\ []) do
+  def create(variables, propagators, space_opts, search \\ nil, gen_statem_opts \\ []) do
     {:ok, _space} =
       :gen_statem.start_link(
         __MODULE__,
-        [variables: variables, propagators: propagators, space_opts: space_opts],
+        [variables: variables, propagators: propagators, search: search, space_opts: space_opts],
         gen_statem_opts
       )
   end
@@ -40,15 +41,19 @@ defmodule CPSolver.Space do
   end
 
   @impl true
-  def init(space_args) do
-    variables = Keyword.get(space_args, :variables)
-    propagators = Keyword.get(space_args, :propagators)
+  def init(args) do
+    variables = Keyword.get(args, :variables)
+    propagators = Keyword.get(args, :propagators)
+
+    store_backend =
+      Keyword.get(args, :space_opts)
+      |> Keyword.get(:store_backend, CPSolver.ConstraintStore.default_backend())
 
     space_data = %Space{
       variables: variables,
       propagators: propagators,
       propagator_threads: create_propagator_threads(propagators),
-      constraint_store: create_constraint_store(variables)
+      constraint_store: Store.create(variables, store_backend)
     }
 
     {:ok, :start_propagation, space_data, [{:next_event, :internal, :propagate}]}
@@ -57,10 +62,6 @@ defmodule CPSolver.Space do
   @impl true
   def callback_mode() do
     [:state_functions, :state_enter]
-  end
-
-  defp create_constraint_store(variables) do
-    :todo
   end
 
   defp create_propagator_threads(propagators) do

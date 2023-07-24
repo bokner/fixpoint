@@ -10,7 +10,7 @@ defmodule CPSolver.Examples.GraphColoring do
   end
 
   def solve(data) do
-    color_vars = Enum.map(1..data.vertices, fn _idx -> IntVariable.make(1..data.max_color) end)
+    color_vars = Enum.map(1..data.vertices, fn _idx -> IntVariable.new(1..data.max_color) end)
 
     edge_color_constraints =
       Enum.map(data.edges, fn [v1, v2] ->

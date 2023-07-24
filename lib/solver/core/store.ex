@@ -1,39 +1,21 @@
 defmodule CPSolver.ConstraintStore do
-  @behaviour GenServer
-
-  ### GenServer callbacks
-  @impl true
-  def init([space, variables, opts] = _args) do
-    backend = Keyword.get(opts, :backend, CPSolver.Store.ETS)
-    {:ok, %{space: space, variables: tell_variables(variables, space, backend), backend: backend}}
-  end
-
-  @impl true
-  def handle_info({:filter, propagator, remove_op, variable, value}, state) when remove_op in [:remove, :removeAbove, :removeBelow, :removeAllBut, :fix] do
-    process_remove(propagator, remove_op, variable, value, state)
-    {:noreply, state}
-  end
-
-  def handle_info({:subscribe, propagator, variables}, %{space: space} = state) do
-    Enum.each(variables, fn var -> :ebus.sub(propagator, variable_topic(var, space)) end)
-    {:noreply, state}
-  end
-
   #################
+  def default_backend() do
+    CPSolver.Store.ETS
+  end
 
   ## Write initial domains
-  defp tell_variables(variables, space, backend) do
+  def create(variables, backend) do
   end
 
   defp process_remove(propagator, remove_op, variable, value, %{space: space} = state)
        when remove_op in [:remove, :removeAbove, :removeBelow, :removeAllBut, :fix] do
-        case apply(state.backend, remove_op, [variable, value]) do
-          :ok -> continue_propagation(variable, space)
-          :not_changed -> deactivate_propagator(propagator, space)
-          :fixed -> maybe_entail_propagator(propagator, space)
-          :failure -> fail_propagator(propagator, space)
-
-        end
+    case apply(state.backend, remove_op, [variable, value]) do
+      :ok -> continue_propagation(variable, space)
+      :not_changed -> deactivate_propagator(propagator, space)
+      :fixed -> maybe_entail_propagator(propagator, space)
+      :failure -> fail_propagator(propagator, space)
+    end
   end
 
   ### API

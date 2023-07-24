@@ -1,5 +1,6 @@
 defmodule CPSolver.IntVariable do
   alias CPSolver.IntDomain
+  alias CPSolver.Variable
 
   defdelegate dom(var), to: IntDomain
   defdelegate min(var), to: IntDomain
@@ -10,8 +11,7 @@ defmodule CPSolver.IntVariable do
 
   defdelegate fix(var, val), to: IntDomain
 
-  def make(domain) do
-  end
+  defdelegate new(domain), to: Variable
 
   def fixed?(variable) do
     IntDomain.size(variable) == 1

@@ -3,66 +3,43 @@ defmodule CPSolver do
   Solver API.
   """
 
+  alias CPSolver.Space
   use GenServer
+
+  require Logger
 
   @doc """
 
   """
   @spec solve(module(), module(), Keyword.t()) :: any()
   def solve(model, search, opts \\ []) do
-    solver = make_solver(opts)
-    post_model(solver, model)
-    do_solve(solver, search)
+    {:ok, solver} = make_solver(model, search, opts)
+    solve(solver)
   end
 
-  def make_solver(opts \\ []) do
-    {:ok, solver} = GenServer.start_link(CPSolver, opts)
+  def make_solver(model, search, opts \\ []) do
+    {:ok, _solver} = GenServer.start_link(CPSolver, [model, search, opts])
   end
 
-  defp post_model(solver, model) do
-    for constraint <- model.constraints do
-      post(solver, constraint)
-    end
-  end
-
-  defp do_solve(solver, search) do
-    :todo
-  end
-
-  ## Constraint is a {ConstraintImpl, arg1, arg2, ...} tuple
-  ## We run post() on the constraints and then store a propagator
-  ## fn -> ConstraintImpl.propagate(arg1, arg2, ....) end
-  ## Propagators will be called by fixpoint algorithm.
-  ##
-  def post(solver, constraint) do
-    [impl_mod | args] = Tuple.to_list(constraint)
-    apply(impl_mod, :post, args)
-    propagator = fn -> apply(impl_mod, :propagate, args) end
-    add_propagator(solver, propagator)
-  end
-
-  def add_propagator(solver, propagator) do
-    GenServer.cast(solver, {:add_propagator, propagator})
-  end
-
-  def get_propagators(solver) do
-    GenServer.call(solver, :get_propagators)
+  def solve(solver) do
+    send(solver, :start)
   end
 
   ## GenServer callbacks
 
   @impl true
-  def init(solver_opts) do
-    {:ok, %{propagators: [], variables: [], solver_opts: solver_opts}}
+  def init([model, search, solver_opts]) do
+    top_space = Space.create(model.variables, model.constraints, search, solver_opts)
+    {:ok, %{space: top_space, solver_opts: solver_opts}}
   end
 
   @impl true
-  def handle_call(:get_propagators, _from, state) do
-    {:reply, Map.get(state, :propagators), state}
+  def handle_info(event, state) do
+    {:noreply, handle_event(event, state)}
   end
 
-  @impl true
-  def handle_cast({:add_propagator, propagator}, state) do
-    {:noreply, Map.update(state, :propagators, [], fn plist -> [propagator | plist] end)}
+  defp handle_event(event, state) do
+    Logger.debug("Solver process event: #{inspect(event)}")
+    state
   end
 end

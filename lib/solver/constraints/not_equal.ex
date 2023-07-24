@@ -1,12 +1,12 @@
 defmodule CPSolver.Constraint.NotEqual do
-  @behaviour CPSolver.Constraint
-  alias CPSolver.Propagator.NotEqual
+  use CPSolver.Constraint
+  alias CPSolver.Propagator.NotEqual, as: NotEqualPropagator
 
-  def propagators(args) do
-    [
-      fn ->
-        NotEqual.filter(args)
-      end
-    ]
+  def propagators(_args) do
+    [NotEqualPropagator]
+  end
+
+  def variables(args) do
+    args
   end
 end
