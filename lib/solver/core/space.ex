@@ -7,6 +7,7 @@ defmodule CPSolver.Space do
 
   alias __MODULE__, as: Space
   alias CPSolver.ConstraintStore, as: Store
+  alias CPSolver.Propagator, as: Propagator
   require Logger
 
   @behaviour :gen_statem
@@ -52,7 +53,6 @@ defmodule CPSolver.Space do
     space_data = %Space{
       variables: variables,
       propagators: propagators,
-      propagator_threads: create_propagator_threads(propagators),
       constraint_store: Store.create(variables, store_backend)
     }
 
@@ -62,10 +62,6 @@ defmodule CPSolver.Space do
   @impl true
   def callback_mode() do
     [:state_functions, :state_enter]
-  end
-
-  defp create_propagator_threads(propagators) do
-    :todo
   end
 
   ## Callbacks
@@ -83,11 +79,113 @@ defmodule CPSolver.Space do
     :keep_state_and_data
   end
 
-  defp start_propagation(propagator_threads) do
+  def propagating(:info, :fail, data) do
+    Logger.debug("Constraint store inconsistent")
+    {:next_state, :failed, data}
+  end
+
+  def propagating(:info, :solved, data) do
+    Logger.debug("The space is solved")
+    {:next_state, :solved, data}
+  end
+
+  def propagating(:info, {propagator_event, propagator}, data)
+      when propagator_event in [:stable, :awake] do
+    {next_state, new_data} = update_active_propagators({propagator_event, propagator}, data)
+    {:next_state, next_state, new_data}
+  end
+
+  def propagating(:info, {variable, :fixed}, data) do
+    {next_state, new_data} = remove_variable(variable, data)
+    {:next_state, next_state, new_data}
+  end
+
+  def failed(:enter, :propagating, data) do
+    handle_failure(data)
+    :keep_state_and_data
+  end
+
+  def solved(:enter, :propagating, data) do
+    handle_solved(data)
+    :keep_state_and_data
+  end
+
+  def stable(:enter, :propagating, data) do
+    handle_stable(data)
+    :keep_state_and_data
+  end
+
+  defp start_propagation(propagator) do
     Logger.debug("Start propagation")
 
-    Enum.each(propagator_threads, fn thread ->
-      nil
+    Enum.each(propagator, fn thread ->
+      Propagator.filter(propagator)
     end)
+  end
+
+  defp update_active_propagators({:stable, propagator}, data) do
+    new_data = remove_from_active_list(propagator, data)
+
+    next_state =
+      if active_propagators_count(new_data) > 0 do
+        :propagating
+      else
+        :stable
+      end
+
+    {next_state, new_data}
+  end
+
+  defp update_active_propagators({:awake, propagator}, data) do
+    data = add_to_active_list(propagator, data)
+    {:propagating, data}
+  end
+
+  defp active_propagators_count(data) do
+    length(data.propagators)
+  end
+
+  defp add_to_active_list(propagator, data) do
+    :todo
+    data
+  end
+
+  defp remove_from_active_list(propagator, data) do
+    :todo
+    data
+  end
+
+  defp remove_variable(variable, data) do
+    new_data = remove_variable_impl(variable, data)
+
+    next_state =
+      if variable_count(new_data) == 0 do
+        :solved
+      else
+        :propagating
+      end
+
+    {next_state, new_data}
+  end
+
+  defp remove_variable_impl(variable, data) do
+    :todo
+    data
+  end
+
+  defp variable_count(data) do
+    length(data.variables)
+  end
+
+  defp handle_failure(data) do
+    :todo
+  end
+
+  defp handle_solved(data) do
+    :todo
+  end
+
+  defp handle_stable(data) do
+    :todo
   end
 end
