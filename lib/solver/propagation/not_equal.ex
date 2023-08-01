@@ -1,5 +1,5 @@
 defmodule CPSolver.Propagator.NotEqual do
-  @behaviour CPSolver.Propagator
+  use CPSolver.Propagator
 
   import CPSolver.IntVariable
 

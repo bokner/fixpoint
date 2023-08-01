@@ -115,11 +115,11 @@ defmodule CPSolver.Space do
     :keep_state_and_data
   end
 
-  defp start_propagation(propagator) do
+  defp start_propagation(%{propagators: propagators, space: space} = _space_state) do
     Logger.debug("Start propagation")
 
-    Enum.each(propagator, fn thread ->
-      Propagator.filter(propagator)
+    Enum.each(propagators, fn p ->
+      Propagator.create_thread(space, p)
     end)
   end
 

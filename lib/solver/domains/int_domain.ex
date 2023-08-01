@@ -1,7 +1,7 @@
 defmodule CPSolver.IntDomain do
   @behaviour CPSolver.Domain
 
-  @impl
+  @impl true
   def dom(variable) do
     []
   end
