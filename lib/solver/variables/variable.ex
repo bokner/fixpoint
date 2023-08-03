@@ -1,6 +1,83 @@
 defmodule CPSolver.Variable do
-  defstruct [:id, :name, :space, :domain]
-  @type t :: %__MODULE__{id: reference(), name: String.t(), space: any(), domain: any()}
+  defstruct [:id, :name, :space, :backend, :domain]
+
+  @type t :: %__MODULE__{
+          id: reference(),
+          name: String.t(),
+          space: any(),
+          backend: atom(),
+          domain: any()
+        }
+
+  @callback domain(variable :: Variable.t()) :: list()
+  @callback contains?(variable :: Variable.t(), value :: number()) :: boolean()
+  @callback size(variable :: Variable.t()) :: integer()
+  @callback min(variable :: Variable.t()) :: number()
+  @callback max(variable :: Variable.t()) :: number()
+  @callback remove(variable :: Variable.t(), value :: number()) :: any()
+  @callback removeAbove(variable :: Variable.t(), value :: number()) :: any()
+  @callback removeBelow(variable :: Variable.t(), value :: number()) :: any()
+  @callback fix(variable :: Variable.t(), value :: number()) :: any()
+  @callback fixed?(variable :: Variable.t()) :: boolean()
+
+  defmacro __using__(_) do
+    quote do
+      @behaviour CPSolver.Variable
+      import CPSolver.Variable
+      def domain(variable) do
+        backend_op(:dom, variable)
+      end
+
+      def size(variable) do
+        length(domain(variable))
+      end
+
+      def fixed?(variable) do
+        size(variable) == 1
+      end
+
+      def min(variable) do
+        Enum.min(domain(variable))
+      end
+
+      def max(variable) do
+        Enum.max(domain(variable))
+      end
+
+      def contains?(variable, value) do
+        backend_op(:contains?, variable, value)
+      end
+
+      def remove(variable, value) do
+        backend_op(:remove, variable, value)
+      end
+
+      def removeAbove(variable, value) do
+        backend_op(:removeAbove, variable, value)
+      end
+
+      def removeBelow(variable, value) do
+        backend_op(:removeBelow, variable, value)
+      end
+
+      def fix(variable, value) do
+        backend_op(:fix, variable, value)
+      end
+
+
+
+      defoverridable domain: 1
+      defoverridable size: 1
+      defoverridable fixed?: 1
+      defoverridable min: 1
+      defoverridable max: 1
+      defoverridable contains?: 2
+      defoverridable remove: 2
+      defoverridable removeAbove: 2
+      defoverridable removeBelow: 2
+      defoverridable fix: 2
+    end
+  end
 
   def new(domain, name \\ nil, space \\ nil) do
     %__MODULE__{id: make_ref(), domain: domain, name: name, space: space}
@@ -16,5 +93,18 @@ defmodule CPSolver.Variable do
 
   def bind(variable, space) do
     Map.put(variable, :space, space)
+  end
+
+  def set_backend(variable, backend) do
+    Map.put(variable, :backend, backend)
+  end
+
+  def backend_op(op, variable) do
+    apply(variable.backend, op, [variable.space, variable.id])
+  end
+
+  def backend_op(op, variable, value)
+       when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
+    apply(variable.backend, op, [variable.space, variable.id, value])
   end
 end
