@@ -23,10 +23,10 @@ defmodule CPSolver.Variable do
   defmacro __using__(_) do
     quote do
       @behaviour CPSolver.Variable
-      import CPSolver.Variable
+      alias CPSolver.Variable
 
       def new(values, name \\ nil, space \\ nil) do
-        %CPSolver.Variable{id: make_ref(), domain: domain(values), name: name, space: space}
+        %Variable{id: make_ref(), domain: domain(values), name: name, space: space}
       end
 
       def domain(values) do
@@ -69,6 +69,15 @@ defmodule CPSolver.Variable do
         backend_op(:fix, variable, value)
       end
 
+      defp backend_op(op, variable) do
+        apply(variable.backend, op, [variable.space, variable.id])
+      end
+
+      defp backend_op(op, variable, value)
+          when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
+        apply(variable.backend, op, [variable.space, variable.id, value])
+      end
+
       defoverridable domain: 1
       defoverridable size: 1
       defoverridable fixed?: 1
@@ -98,12 +107,5 @@ defmodule CPSolver.Variable do
     Map.put(variable, :backend, backend)
   end
 
-  def backend_op(op, variable) do
-    apply(variable.backend, op, [variable.space, variable.id])
-  end
 
-  def backend_op(op, variable, value)
-      when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
-    apply(variable.backend, op, [variable.space, variable.id, value])
-  end
 end
