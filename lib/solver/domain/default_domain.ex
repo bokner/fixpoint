@@ -2,6 +2,10 @@ defmodule CPSolver.DefaultDomain do
   @type domain_change :: :fixed | :domain_change | :min_change | :max_change
 
   @spec new(Enum.t()) :: :gb_sets.set(number())
+  def new([]) do
+    throw(:empty_domain)
+  end
+
   def new(values) do
     Enum.reduce(values, :gb_sets.new(), fn v, acc -> :gb_sets.add_element(v, acc) end)
   end
@@ -75,8 +79,8 @@ defmodule CPSolver.DefaultDomain do
 
       new_size ->
         case size(domain) do
-          old_size when old_size == new_size -> {:none, domain}
-          old_size when old_size < new_size -> {change_kind, domain}
+          old_size when old_size == new_size -> :none
+          old_size when old_size > new_size -> {change_kind, new_domain}
         end
     end
   end
