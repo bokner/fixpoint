@@ -9,7 +9,7 @@ defmodule CPSolver.Variable do
           domain: any()
         }
 
-  @callback domain(variable :: Variable.t()) :: list()
+  @callback domain(values :: Enum.t()) :: any()
   @callback contains?(variable :: Variable.t(), value :: number()) :: boolean()
   @callback size(variable :: Variable.t()) :: integer()
   @callback min(variable :: Variable.t()) :: number()
@@ -24,8 +24,13 @@ defmodule CPSolver.Variable do
     quote do
       @behaviour CPSolver.Variable
       import CPSolver.Variable
-      def domain(variable) do
-        backend_op(:dom, variable)
+
+      def new(values, name \\ nil, space \\ nil) do
+        %CPSolver.Variable{id: make_ref(), domain: domain(values), name: name, space: space}
+      end
+
+      def domain(values) do
+        Enum.reduce(values, :gb_sets.new(), fn v, acc -> :gb_sets.add_element(v, acc) end)
       end
 
       def size(variable) do
@@ -64,8 +69,6 @@ defmodule CPSolver.Variable do
         backend_op(:fix, variable, value)
       end
 
-
-
       defoverridable domain: 1
       defoverridable size: 1
       defoverridable fixed?: 1
@@ -77,10 +80,6 @@ defmodule CPSolver.Variable do
       defoverridable removeBelow: 2
       defoverridable fix: 2
     end
-  end
-
-  def new(domain, name \\ nil, space \\ nil) do
-    %__MODULE__{id: make_ref(), domain: domain, name: name, space: space}
   end
 
   def topic(variable) do
@@ -104,7 +103,7 @@ defmodule CPSolver.Variable do
   end
 
   def backend_op(op, variable, value)
-       when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
+      when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
     apply(variable.backend, op, [variable.space, variable.id, value])
   end
 end
