@@ -33,24 +33,24 @@ defmodule CPSolver.Variable do
         Enum.reduce(values, :gb_sets.new(), fn v, acc -> :gb_sets.add_element(v, acc) end)
       end
 
-      def size(variable) do
-        length(domain(variable))
+      def size(%Variable{domain: domain}) do
+        :gb_sets.size(domain)
       end
 
       def fixed?(variable) do
         size(variable) == 1
       end
 
-      def min(variable) do
-        Enum.min(domain(variable))
+      def min(%Variable{domain: domain}) do
+        :gb_sets.smallest(domain)
       end
 
-      def max(variable) do
-        Enum.max(domain(variable))
+      def max(%Variable{domain: domain}) do
+        :gb_sets.largest(domain)
       end
 
-      def contains?(variable, value) do
-        backend_op(:contains?, variable, value)
+      def contains?(%Variable{domain: domain}, value) do
+        :gb_sets.is_member(value, domain)
       end
 
       def remove(variable, value) do
@@ -74,7 +74,7 @@ defmodule CPSolver.Variable do
       end
 
       defp backend_op(op, variable, value)
-          when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
+           when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
         apply(variable.backend, op, [variable.space, variable.id, value])
       end
 
@@ -106,6 +106,4 @@ defmodule CPSolver.Variable do
   def set_backend(variable, backend) do
     Map.put(variable, :backend, backend)
   end
-
-
 end
