@@ -34,19 +34,19 @@ defmodule CPSolver.DefaultDomain do
     :gb_sets.is_member(value, domain)
   end
 
-  @spec remove(:gb_sets.set(any), any) ::
+  @spec remove(:gb_sets.set(number()), number()) ::
           :fail
           | :none
-          | {domain_change(), :gb_sets.set(any)}
+          | {domain_change(), :gb_sets.set(number())}
   def remove(domain, value) do
     :gb_sets.delete_any(value, domain)
     |> post_remove(domain, :domain_change)
   end
 
-  @spec removeAbove(:gb_sets.set(any), any) ::
+  @spec removeAbove(:gb_sets.set(number()), number()) ::
           :fail
           | :none
-          | {domain_change(), :gb_sets.set(any)}
+          | {domain_change(), :gb_sets.set(number())}
 
   def removeAbove(domain, value) do
     :gb_sets.filter(fn v -> v <= value end, domain)
