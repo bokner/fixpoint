@@ -1,7 +1,7 @@
 defmodule CPSolver.Propagator.NotEqual do
   use CPSolver.Propagator
 
-  import CPSolver.IntVariable
+  import CPSolver.Variable
 
   @impl true
   def filter([x, y] = _args) do

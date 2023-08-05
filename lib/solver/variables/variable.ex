@@ -9,86 +9,76 @@ defmodule CPSolver.Variable do
           domain: any()
         }
 
-  @callback domain(values :: Enum.t()) :: any()
-  @callback contains?(variable :: Variable.t(), value :: number()) :: boolean()
-  @callback size(variable :: Variable.t()) :: integer()
-  @callback min(variable :: Variable.t()) :: number()
-  @callback max(variable :: Variable.t()) :: number()
-  @callback remove(variable :: Variable.t(), value :: number()) :: any()
-  @callback removeAbove(variable :: Variable.t(), value :: number()) :: any()
-  @callback removeBelow(variable :: Variable.t(), value :: number()) :: any()
-  @callback fix(variable :: Variable.t(), value :: number()) :: any()
-  @callback fixed?(variable :: Variable.t()) :: boolean()
+  alias CPSolver.Variable
+
+  @callback new(values :: Enum.t(), opts :: Keyword.t()) :: Variable.t()
 
   defmacro __using__(_) do
     quote do
       @behaviour CPSolver.Variable
-      alias CPSolver.Variable
 
-      def new(values, name \\ nil, space \\ nil) do
-        %Variable{id: make_ref(), domain: domain(values), name: name, space: space}
+      def new(values, opts \\ default_opts()) do
+        domain_impl = Keyword.get(opts, :domain_impl)
+
+        %Variable{
+          id: make_ref(),
+          domain: domain_impl.new(values),
+          name: Keyword.get(opts, :name),
+          space: Keyword.get(opts, :space)
+        }
       end
 
-      def domain(values) do
-        Enum.reduce(values, :gb_sets.new(), fn v, acc -> :gb_sets.add_element(v, acc) end)
+      defp default_opts() do
+        [domain_impl: CPSolver.DefaultDomain]
       end
 
-      def size(%Variable{domain: domain}) do
-        :gb_sets.size(domain)
-      end
-
-      def fixed?(variable) do
-        size(variable) == 1
-      end
-
-      def min(%Variable{domain: domain}) do
-        :gb_sets.smallest(domain)
-      end
-
-      def max(%Variable{domain: domain}) do
-        :gb_sets.largest(domain)
-      end
-
-      def contains?(%Variable{domain: domain}, value) do
-        :gb_sets.is_member(value, domain)
-      end
-
-      def remove(variable, value) do
-        backend_op(:remove, variable, value)
-      end
-
-      def removeAbove(variable, value) do
-        backend_op(:removeAbove, variable, value)
-      end
-
-      def removeBelow(variable, value) do
-        backend_op(:removeBelow, variable, value)
-      end
-
-      def fix(variable, value) do
-        backend_op(:fix, variable, value)
-      end
-
-      defp backend_op(op, variable) do
-        apply(variable.backend, op, [variable.space, variable.id])
-      end
-
-      defp backend_op(op, variable, value)
-           when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
-        apply(variable.backend, op, [variable.space, variable.id, value])
-      end
-
-      defoverridable domain: 1
-      defoverridable size: 1
-      defoverridable fixed?: 1
-      defoverridable min: 1
-      defoverridable max: 1
-      defoverridable contains?: 2
-      defoverridable remove: 2
-      defoverridable removeAbove: 2
-      defoverridable removeBelow: 2
-      defoverridable fix: 2
+      defoverridable new: 2
     end
+  end
+
+  def size(variable) do
+    backend_op(:size, variable)
+  end
+
+  def fixed?(variable) do
+    backend_op(:fixed?, variable)
+  end
+
+  def min(variable) do
+    backend_op(:min, variable)
+  end
+
+  def max(variable) do
+    backend_op(:max, variable)
+  end
+
+  def contains?(variable, value) do
+    backend_op(:contains?, variable, value)
+  end
+
+  def remove(variable, value) do
+    backend_op(:remove, variable, value)
+  end
+
+  def removeAbove(variable, value) do
+    backend_op(:removeAbove, variable, value)
+  end
+
+  def removeBelow(variable, value) do
+    backend_op(:removeBelow, variable, value)
+  end
+
+  def fix(variable, value) do
+    backend_op(:fix, variable, value)
+  end
+
+  defp backend_op(op, variable) do
+    apply(variable.backend, op, [variable.space, variable.id])
+  end
+
+  defp backend_op(op, variable, value)
+       when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
+    apply(variable.backend, op, [variable.space, variable.id, value])
   end
 
   def topic(variable) do
