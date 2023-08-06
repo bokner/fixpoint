@@ -1,5 +1,5 @@
 defmodule CPSolver.DefaultDomain do
-  @type domain_change :: :fixed | :domain_change | :min_change | :max_change
+  alias CPSolver.Common
 
   @spec new(Enum.t()) :: :gb_sets.set(number())
   def new([]) do
@@ -25,6 +25,7 @@ defmodule CPSolver.DefaultDomain do
     :gb_sets.smallest(domain)
   end
 
+  @spec max(:gb_sets.set(number())) :: number()
   def max(domain) do
     :gb_sets.largest(domain)
   end
@@ -37,7 +38,7 @@ defmodule CPSolver.DefaultDomain do
   @spec remove(:gb_sets.set(number()), number()) ::
           :fail
           | :none
-          | {domain_change(), :gb_sets.set(number())}
+          | {Common.domain_change(), :gb_sets.set(number())}
   def remove(domain, value) do
     :gb_sets.delete_any(value, domain)
     |> post_remove(domain, :domain_change)
@@ -46,7 +47,7 @@ defmodule CPSolver.DefaultDomain do
   @spec removeAbove(:gb_sets.set(number()), number()) ::
           :fail
           | :none
-          | {domain_change(), :gb_sets.set(number())}
+          | {Common.domain_change(), :gb_sets.set(number())}
 
   def removeAbove(domain, value) do
     :gb_sets.filter(fn v -> v <= value end, domain)
@@ -54,7 +55,7 @@ defmodule CPSolver.DefaultDomain do
   end
 
   @spec removeBelow(:gb_sets.set(number()), number()) ::
-          :fail | :none | {domain_change(), :gb_sets.set(number())}
+          :fail | :none | {Common.domain_change(), :gb_sets.set(number())}
   def removeBelow(domain, value) do
     :gb_sets.filter(fn v -> v >= value end, domain)
     |> post_remove(domain, :min_change)

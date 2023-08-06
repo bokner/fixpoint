@@ -1,11 +1,11 @@
 defmodule CPSolver.Variable do
-  defstruct [:id, :name, :space, :backend, :domain, :domain_impl]
+  defstruct [:id, :name, :space, :store, :domain, :domain_impl]
 
   @type t :: %__MODULE__{
           id: reference(),
           name: String.t(),
           space: any(),
-          backend: atom(),
+          store: atom(),
           domain: any(),
           domain_impl: module()
         }
@@ -39,83 +39,51 @@ defmodule CPSolver.Variable do
   end
 
   def size(variable) do
-    backend_op(:size, variable)
+    store_op(:size, variable)
   end
 
   def fixed?(variable) do
-    backend_op(:fixed?, variable)
+    store_op(:fixed?, variable)
   end
 
   def min(variable) do
-    backend_op(:min, variable)
+    store_op(:min, variable)
   end
 
   def max(variable) do
-    backend_op(:max, variable)
+    store_op(:max, variable)
   end
 
   def contains?(variable, value) do
-    backend_op(:contains?, variable, value)
+    store_op(:contains?, variable, value)
   end
 
   def remove(variable, value) do
-    backend_op(:remove, variable, value)
+    store_op(:remove, variable, value)
   end
 
   def removeAbove(variable, value) do
-    backend_op(:removeAbove, variable, value)
+    store_op(:removeAbove, variable, value)
   end
 
   def removeBelow(variable, value) do
-    backend_op(:removeBelow, variable, value)
+    store_op(:removeBelow, variable, value)
   end
 
   def fix(variable, value) do
-    backend_op(:fix, variable, value)
+    store_op(:fix, variable, value)
   end
 
-  defp backend_op(op, variable) do
-    apply(variable.backend, op, [variable.space, variable.id])
+  defp store_op(op, variable, value) when op in [:remove, :removeAbove, :removeBelow, :fix] do
+    apply(variable.store, :update_domain, [variable.id, {op, value}])
   end
 
-  defp backend_op(
-         op,
-         %Variable{id: var_id, backend: backend, space: space, domain_impl: domain_impl} =
-           variable,
-         value
-       )
-       when op in [:contains?, :remove, :removeAbove, :removeBelow, :fix] do
-    case backend.lookup(space, var_id) do
-      :not_found ->
-        throw({:variable_not_found, variable})
-
-      domain ->
-        domain_op_result = apply(domain_impl, op, [domain, value])
-        handle_domain_result(op, domain_op_result)
-    end
+  defp store_op(op, variable, value) when op in [:contains?] do
+    apply(variable.store, :get, [variable.id, {op, value}])
   end
 
-  defp handle_domain_result(read_op, result)
-       when read_op in [:size, :fixed?, :min, :max, :contains?] do
-    result
-  end
-
-  defp handle_domain_result(write_op, result)
-       when write_op in [:remove, :removeAbove, :removeBelow, :fix] do
-    result
-    |> tap(fn
-      {_write_op, :fail} ->
-        :fail
-
-      {_write_op, :none} ->
-        :stable
-
-      {write_op, result} ->
-        update_store(write_op, result)
-    end)
-  end
-
-  defp update_store(write_op, domain_change) do
+  defp store_op(op, variable) when op in [:size, :fixed?, :min, :max] do
+    apply(variable.store, :get, [variable.id, op])
   end
 
   def topic(variable) do
@@ -130,7 +98,7 @@ defmodule CPSolver.Variable do
     Map.put(variable, :space, space)
   end
 
-  def set_backend(variable, backend) do
-    Map.put(variable, :backend, backend)
+  def set_store(variable, store) do
+    Map.put(variable, :store, store)
   end
 end
