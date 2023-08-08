@@ -20,11 +20,13 @@ defmodule CPSolver.ConstraintStore do
   @callback create(space :: any(), variables :: Enum.t()) :: {:ok, any()} | {:error, any()}
 
   ## Get variable details
-  @callback get(store :: any(), variable_id :: any(), get_operation() | {get_operation(), any()}) ::
+  @callback get(store :: any(), variable_id :: any(), get_operation(), [any()]) ::
               {:ok, any()} | {:error, any()}
 
-  @callback update_domain(store :: any(), variable_id :: any(), {update_operation(), any()}) ::
+  @callback update(store :: any(), variable_id :: any(), update_operation(), [any()]) ::
               any()
+
+  @callback get_variables(space :: any()) :: [any()]
 
   ### API
 end

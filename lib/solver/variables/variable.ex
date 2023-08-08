@@ -19,14 +19,8 @@ defmodule CPSolver.Variable do
       @behaviour CPSolver.Variable
 
       def new(values, opts \\ default_opts()) do
-        domain_impl = Keyword.get(opts, :domain_impl)
-
         %Variable{
-          id: make_ref(),
-          domain: domain_impl.new(values),
-          domain_impl: domain_impl,
-          name: Keyword.get(opts, :name),
-          space: Keyword.get(opts, :space)
+          domain: values
         }
       end
 

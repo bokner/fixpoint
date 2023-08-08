@@ -29,6 +29,7 @@ defmodule CPSolverTest.Domain do
       values = [1, 3, 7, -1, 0, -2, 10]
       domain = Domain.new(values)
       Enum.all?(values, fn v -> Domain.contains?(domain, v) end)
+      refute Domain.contains?(domain, 9)
     end
 
     test "remove, removeBelow, removeAbove" do
