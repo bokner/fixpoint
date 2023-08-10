@@ -11,6 +11,7 @@ defmodule CPSolver.Variable do
         }
 
   alias CPSolver.Variable
+  alias CPSolver.Store.Registry, as: Store
 
   @callback new(values :: Enum.t(), opts :: Keyword.t()) :: Variable.t()
 
@@ -69,15 +70,15 @@ defmodule CPSolver.Variable do
   end
 
   defp store_op(op, variable, value) when op in [:remove, :removeAbove, :removeBelow, :fix] do
-    apply(variable.store, :update_domain, [variable.id, {op, value}])
+    Store.update(variable.space, variable.id, op, [value])
   end
 
   defp store_op(op, variable, value) when op in [:contains?] do
-    apply(variable.store, :get, [variable.id, {op, value}])
+    Store.get(variable.space, variable.id, op, [value])
   end
 
   defp store_op(op, variable) when op in [:size, :fixed?, :min, :max] do
-    apply(variable.store, :get, [variable.id, op])
+    Store.get(variable.space, variable.id, op)
   end
 
   def topic(variable) do

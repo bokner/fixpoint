@@ -70,6 +70,10 @@ defmodule CPSolver.Store.Registry do
               :fail
               |> tap(fn _ -> handle_failure(var_id) end)
 
+            :none ->
+              domain
+              |> tap(fn _ -> handle_domain_no_change(var_id) end)
+
             {domain_change, new_domain} ->
               new_domain
               |> tap(fn _ -> handle_domain_change(domain_change, var_id, new_domain) end)
@@ -80,6 +84,10 @@ defmodule CPSolver.Store.Registry do
 
   defp handle_failure(var_id) do
     Logger.debug("Failure for variable #{inspect(var_id)}")
+  end
+
+  defp handle_domain_no_change(var_id) do
+    Logger.debug("No change for variable #{inspect(var_id)}")
   end
 
   defp handle_domain_change(domain_change, var_id, _domain) do
