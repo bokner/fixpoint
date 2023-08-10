@@ -82,18 +82,40 @@ defmodule CPSolverTest.Store do
       v3_values = 1..2
       values = [v1_values, v2_values, v3_values]
       {:ok, bound_vars} = Store.create(space, Enum.map(values, fn d -> Variable.new(d) end))
+
+      [v1, v2, v3] = bound_vars
       # remove
-      assert Enum.all?(bound_vars, fn var ->
-               Store.update(space, var.id, :remove, [1]) == :ok
-               # Process.sleep(100)
-               # Store.get(space, var.id, :contains?, [1])
+      refute Enum.any?(bound_vars, fn var ->
+               :ok = Store.update(space, var.id, :remove, [1])
+               Store.get(space, var.id, :contains?, [1])
              end)
 
+      assert Store.get(space, v3.id, :fixed?)
+      assert Store.get(space, v3.id, :min) == 2
+
+      # Remove on fixed var
+      :ok = Store.update(space, v3.id, :remove, [2])
+
+      assert :fail == Store.get(space, v3.id, :contains?, [1])
+      assert :ok == Store.update(space, v3.id, :remove, [2])
+      assert :fail == Store.get(space, v3.id, :size)
+
       # removeAbove
+      :ok = Store.update(space, v1.id, :removeAbove, [5])
+      assert Store.get(space, v1.id, :max) == 5
+      assert Store.get(space, v1.id, :min) == 2
 
       # removeBelow
+      :ok = Store.update(space, v2.id, :removeBelow, [0])
+      assert Store.get(space, v2.id, :max) == 5
+      assert Store.get(space, v2.id, :min) == 0
 
       # fix
+      :ok = Store.update(space, v1.id, :fix, [0])
+      assert Store.get(space, v1.id, :max) == :fail
+
+      :ok = Store.update(space, v2.id, :fix, [0])
+      assert Store.get(space, v2.id, :max) == 0
     end
   end
 end
