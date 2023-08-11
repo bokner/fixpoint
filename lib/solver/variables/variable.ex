@@ -13,6 +13,8 @@ defmodule CPSolver.Variable do
   alias CPSolver.Variable
   alias CPSolver.Store.Registry, as: Store
 
+  require Logger
+
   @callback new(values :: Enum.t(), opts :: Keyword.t()) :: Variable.t()
 
   defmacro __using__(_) do

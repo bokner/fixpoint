@@ -1,13 +1,12 @@
-defmodule CPSolverTest.Propagator do
+defmodule CPSolverTest.Propagator.NotEqual do
   use ExUnit.Case
 
   describe "Propagator filtering" do
     alias CPSolver.Store.Registry, as: Store
     alias CPSolver.IntVariable, as: Variable
+    alias CPSolver.Propagator.NotEqual
 
-    test "NotEqual filtering" do
-      alias CPSolver.Propagator.NotEqual
-
+    test "filtering, unfixed domains" do
       space = :top_space
 
       ## Both vars are unfixed
@@ -29,8 +28,27 @@ defmodule CPSolverTest.Propagator do
       ## Fix second var and filter again
       :ok = Store.update(space, y_var, :fix, [4])
       assert :ok == NotEqual.filter(bound_vars)
-      ## Make sure filtering didn't fail
-      assert Enum.all?([x_var, y_var], fn var -> Store.get(space, var, :fixed?) end)
+      ## Make sure filtering doesn't fail on further calls
+      refute Enum.any?(
+               [x_var, y_var],
+               fn var -> :fail == Store.get(space, var, :min) end
+             )
+    end
+
+    test "inconsistency" do
+      space = :top_space
+      x = 0..0
+      y = 0..0
+      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+
+      {:ok, bound_vars} = Store.create(space, variables)
+      assert :ok == NotEqual.filter(bound_vars)
+
+      ## One of variables (depending on filtering implementation) will fail
+      assert Enum.any?(
+               bound_vars,
+               fn var -> :fail == Store.get(space, var, :fixed?) end
+             )
     end
   end
 end

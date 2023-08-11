@@ -17,7 +17,6 @@ defmodule CPSolver.Store.Registry do
      Enum.map(
        variables,
        fn var ->
-
          {:ok, _pid} =
            Agent.start_link(
              fn ->
@@ -46,6 +45,7 @@ defmodule CPSolver.Store.Registry do
       fn
         :fail ->
           :fail
+          |> tap(fn _ -> handle_op_on_failed_var(var, operation) end)
 
         domain ->
           apply(Domain, operation, [domain | args])
@@ -60,7 +60,7 @@ defmodule CPSolver.Store.Registry do
       fn
         :fail ->
           :fail
-          |> tap(fn _ -> Logger.warn("Attempt to update failed variable #{inspect(var.id)}") end)
+          |> tap(fn _ -> handle_op_on_failed_var(var, operation) end)
 
         domain ->
           case apply(Domain, operation, [domain | args]) do
@@ -82,6 +82,10 @@ defmodule CPSolver.Store.Registry do
 
   defp handle_failure(var) do
     Logger.debug("Failure for variable #{inspect(var.id)}")
+  end
+
+  defp handle_op_on_failed_var(var, operation) do
+    Logger.warn("Attempt to request #{inspect operation} on failed variable #{inspect(var.id)}")
   end
 
   defp handle_domain_no_change(var) do
