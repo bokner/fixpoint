@@ -17,34 +17,32 @@ defmodule CPSolver.Store.Registry do
      Enum.map(
        variables,
        fn var ->
-         variable_id = make_ref()
 
          {:ok, _pid} =
            Agent.start_link(
              fn ->
                Domain.new(var.domain)
                |> tap(fn _ ->
-                 {:ok, _} = Registry.register(@variable_registry, variable_id, space)
+                 {:ok, _} = Registry.register(@variable_registry, var.id, space)
                end)
              end,
-             name: variable_proc_id(variable_id)
+             name: variable_proc_id(var)
            )
 
          var
          |> Map.put(:space, space)
-         |> Map.put(:id, variable_id)
        end
      )}
   end
 
-  def variable_proc_id(variable_id) do
-    {:global, variable_id}
+  def variable_proc_id(variable) do
+    {:global, variable.id}
   end
 
   @impl true
-  def get(_store, var_id, operation, args \\ []) do
+  def get(_store, var, operation, args \\ []) do
     Agent.get(
-      variable_proc_id(var_id),
+      variable_proc_id(var),
       fn
         :fail ->
           :fail
@@ -56,42 +54,42 @@ defmodule CPSolver.Store.Registry do
   end
 
   @impl true
-  def update(_store, var_id, operation, args \\ []) do
+  def update(_store, var, operation, args \\ []) do
     Agent.update(
-      variable_proc_id(var_id),
+      variable_proc_id(var),
       fn
         :fail ->
           :fail
-          |> tap(fn _ -> Logger.warn("Attempt to update failed variable #{inspect(var_id)}") end)
+          |> tap(fn _ -> Logger.warn("Attempt to update failed variable #{inspect(var.id)}") end)
 
         domain ->
           case apply(Domain, operation, [domain | args]) do
             :fail ->
               :fail
-              |> tap(fn _ -> handle_failure(var_id) end)
+              |> tap(fn _ -> handle_failure(var) end)
 
             :none ->
               domain
-              |> tap(fn _ -> handle_domain_no_change(var_id) end)
+              |> tap(fn _ -> handle_domain_no_change(var) end)
 
             {domain_change, new_domain} ->
               new_domain
-              |> tap(fn _ -> handle_domain_change(domain_change, var_id, new_domain) end)
+              |> tap(fn _ -> handle_domain_change(domain_change, var, new_domain) end)
           end
       end
     )
   end
 
-  defp handle_failure(var_id) do
-    Logger.debug("Failure for variable #{inspect(var_id)}")
+  defp handle_failure(var) do
+    Logger.debug("Failure for variable #{inspect(var.id)}")
   end
 
-  defp handle_domain_no_change(var_id) do
-    Logger.debug("No change for variable #{inspect(var_id)}")
+  defp handle_domain_no_change(var) do
+    Logger.debug("No change for variable #{inspect(var.id)}")
   end
 
-  defp handle_domain_change(domain_change, var_id, _domain) do
-    Logger.debug("Domain change (#{domain_change}) for #{inspect(var_id)}")
+  defp handle_domain_change(domain_change, var, _domain) do
+    Logger.debug("Domain change (#{domain_change}) for #{inspect(var.id)}")
   end
 
   @impl true

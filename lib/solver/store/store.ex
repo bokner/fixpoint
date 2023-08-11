@@ -6,6 +6,7 @@ defmodule CPSolver.ConstraintStore do
   """
   #################
   alias CPSolver.Common
+  alias CPSolver.Variable
 
   @type get_operation :: Common.domain_get_operation() | nil
   @type update_operation :: Common.domain_update_operation()
@@ -20,10 +21,10 @@ defmodule CPSolver.ConstraintStore do
   @callback create(space :: any(), variables :: Enum.t()) :: {:ok, any()} | {:error, any()}
 
   ## Get variable details
-  @callback get(store :: any(), variable_id :: any(), get_operation(), [any()]) ::
+  @callback get(store :: any(), variable :: Variable.t(), get_operation(), [any()]) ::
               {:ok, any()} | {:error, any()}
 
-  @callback update(store :: any(), variable_id :: any(), update_operation(), [any()]) ::
+  @callback update(store :: any(), variable :: Variable.t(), update_operation(), [any()]) ::
               any()
 
   @callback get_variables(space :: any()) :: [any()]

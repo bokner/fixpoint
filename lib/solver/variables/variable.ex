@@ -21,6 +21,7 @@ defmodule CPSolver.Variable do
 
       def new(values, opts \\ default_opts()) do
         %Variable{
+          id: make_ref(),
           domain: values
         }
       end
@@ -70,15 +71,15 @@ defmodule CPSolver.Variable do
   end
 
   defp store_op(op, variable, value) when op in [:remove, :removeAbove, :removeBelow, :fix] do
-    Store.update(variable.space, variable.id, op, [value])
+    Store.update(variable.space, variable, op, [value])
   end
 
   defp store_op(op, variable, value) when op in [:contains?] do
-    Store.get(variable.space, variable.id, op, [value])
+    Store.get(variable.space, variable, op, [value])
   end
 
   defp store_op(op, variable) when op in [:size, :fixed?, :min, :max] do
-    Store.get(variable.space, variable.id, op)
+    Store.get(variable.space, variable, op)
   end
 
   def topic(variable) do
