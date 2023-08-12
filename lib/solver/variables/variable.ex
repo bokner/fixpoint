@@ -85,7 +85,11 @@ defmodule CPSolver.Variable do
   end
 
   def topic(variable) do
-    [variable.space, variable.id]
+    {variable.space, variable.id}
+  end
+
+  def subscribers(variable) do
+    :ebus.subscribers(topic(variable))
   end
 
   def bind_variables(space, variables) do

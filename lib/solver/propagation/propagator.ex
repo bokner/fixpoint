@@ -1,8 +1,13 @@
 defmodule CPSolver.Propagator do
   alias CPSolver.Variable
+  alias CPSolver.Common
+
+  require Logger
 
   @callback filter(variables :: list()) :: map() | :stable | :failure
   @callback variables(args :: list()) :: list()
+
+  @domain_changes Common.domain_changes()
 
   defmacro __using__(_) do
     quote do
@@ -22,9 +27,10 @@ defmodule CPSolver.Propagator do
   ##
   ## Propagator thread is a process that handles life cycle of a propagator.
   ## TODO: details to follow.
-  def create_thread(space, {propagator_mod, propagator_args} = _propagator)
+  def create_thread(space, {propagator_mod, propagator_args} = _propagator, opts \\ [])
       when is_atom(propagator_mod) do
-    {:ok, _thread} = GenServer.start_link(__MODULE__, [space, propagator_mod, propagator_args])
+    {:ok, _thread} =
+      GenServer.start_link(__MODULE__, [space, propagator_mod, propagator_args, opts])
   end
 
   ## Subscribe propagator thread to variables' events
@@ -49,24 +55,40 @@ defmodule CPSolver.Propagator do
        args: args,
        variables: bound_vars,
        propagator_opts: opts
-     }, {:continue, :filter}}
+     }
+     |> tap(fn data -> filter(data) end)}
   end
 
   @impl true
-  def handle_continue(:filter, data) do
-    filter(data)
-    {:noreply, data}
+
+  def handle_info({:no_change, var}, data) do
+    Logger.debug("Propagator: no change for #{inspect(var)}")
+    {:noreply, maybe_stable(var, data)}
   end
 
-  @impl true
-  def handle_info(:domain_change, data) do
+  def handle_info({domain_change, var}, data) when domain_change in @domain_changes do
+    Logger.debug("Propagator: #{inspect(domain_change)} for #{inspect(var)}")
     filter(data)
-    {:noreply, data}
+    {:noreply, maybe_entail(domain_change, var, data)}
   end
 
   ### end of GenServer callbacks
 
   defp filter(%{propagator_impl: propagator_mod, args: args} = _data) do
     propagator_mod.filter(args)
+  end
+
+  defp maybe_entail(:fixed, var, data) do
+    :todo
+    data
+  end
+
+  defp maybe_entail(_domain_change, _var, data) do
+    data
+  end
+
+  defp maybe_stable(var, data) do
+    :todo
+    data
   end
 end
