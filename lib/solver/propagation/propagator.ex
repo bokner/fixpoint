@@ -1,4 +1,5 @@
 defmodule CPSolver.Propagator do
+  alias CPSolver.Store.Registry, as: Store
   alias CPSolver.Variable
   alias CPSolver.Common
 
@@ -53,8 +54,12 @@ defmodule CPSolver.Propagator do
        space: space,
        propagator_impl: propagator_mod,
        args: args,
-       variables: bound_vars,
-       propagator_opts: opts
+       unfixed_variables:
+         Enum.reduce(bound_vars, MapSet.new(), fn var, acc ->
+           (Store.get(space, var, :fixed?) && acc) || MapSet.put(acc, var.id)
+         end),
+       propagator_opts: opts,
+       filter_fun: fn -> propagator_mod.filter(args) end
      }
      |> tap(fn data -> filter(data) end)}
   end
@@ -74,13 +79,20 @@ defmodule CPSolver.Propagator do
 
   ### end of GenServer callbacks
 
-  defp filter(%{propagator_impl: propagator_mod, args: args} = _data) do
-    propagator_mod.filter(args)
+  defp filter(%{filter_fun: filter_fun} = _data) do
+    filter_fun.()
   end
 
-  defp maybe_entail(:fixed, var, data) do
-    :todo
-    data
+  defp maybe_entail(:fixed, var, %{unfixed_variables: unfixed} = data) do
+    unfixed
+    |> MapSet.delete(var)
+    |> then(fn new_unfixed ->
+      if MapSet.size(new_unfixed) == 0 do
+        Logger.debug("Propagator is entailed")
+      end
+
+      %{data | unfixed_variables: new_unfixed}
+    end)
   end
 
   defp maybe_entail(_domain_change, _var, data) do

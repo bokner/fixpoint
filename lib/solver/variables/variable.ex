@@ -85,7 +85,7 @@ defmodule CPSolver.Variable do
   end
 
   def topic(variable) do
-    {variable.space, variable.id}
+    variable
   end
 
   def subscribers(variable) do

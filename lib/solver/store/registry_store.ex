@@ -83,6 +83,7 @@ defmodule CPSolver.Store.Registry do
 
   defp handle_failure(var) do
     Logger.debug("Failure for variable #{inspect(var.id)}")
+    publish(var, :fail)
   end
 
   defp handle_op_on_failed_var(var, operation) do
@@ -91,12 +92,16 @@ defmodule CPSolver.Store.Registry do
 
   defp handle_domain_no_change(var) do
     Logger.debug("No change for variable #{inspect(var.id)}")
-    :ebus.pub(Variable.topic(var), {:no_change, var.id})
+    publish(var, {:no_change, var.id})
   end
 
   defp handle_domain_change(domain_change, var, _domain) do
     Logger.debug("Domain change (#{domain_change}) for #{inspect(var.id)}")
-    :ebus.pub(Variable.topic(var), {domain_change, var.id})
+    publish(var, {domain_change, var.id})
+  end
+
+  defp publish(var, message) do
+    :ebus.pub(Variable.topic(var), message)
   end
 
   @impl true
