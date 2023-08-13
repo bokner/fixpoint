@@ -75,13 +75,12 @@ defmodule CPSolver.DefaultDomain do
       0 ->
         :fail
 
-      1 ->
-        {:fixed, new_domain}
-
       new_size ->
         case size(domain) do
           old_size when old_size == new_size -> :none
-          old_size when old_size > new_size -> {change_kind, new_domain}
+          old_size when old_size > new_size ->
+
+            {new_size == 1 && :fixed || change_kind, new_domain}
         end
     end
   end
