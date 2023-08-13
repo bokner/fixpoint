@@ -18,7 +18,7 @@ defmodule CPSolver.Propagator.Thread do
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var] = bound_vars} = Store.create(space, variables)
+      {:ok, [_x_var, y_var] = bound_vars} = Store.create(space, variables)
 
       {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
       ## Propagator thread subscribes to its variables
@@ -28,13 +28,13 @@ defmodule CPSolver.Propagator.Thread do
       ## ...receives variable update notifications
       assert capture_log([level: :debug], fn ->
                Store.update(space, y_var, :removeBelow, [0])
-               Process.sleep(1)
+               Process.sleep(10)
              end) =~ "Propagator: :min_change for #{inspect(y_var.id)}"
 
       ## ...triggers filtering on receiving update notifications
       assert capture_log([level: :debug], fn ->
                Store.update(space, y_var, :fix, [1])
-               Process.sleep(1)
+               Process.sleep(10)
              end) =~ "Failure for variable #{inspect(y_var.id)}"
     end
 
@@ -46,22 +46,25 @@ defmodule CPSolver.Propagator.Thread do
 
       {:ok, [x_var, y_var] = bound_vars} = Store.create(space, variables)
 
-      {:ok, _propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
+      {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
 
       refute capture_log([level: :debug], fn ->
                Store.update(space, x_var, :fix, [1])
-               Process.sleep(50)
+               Process.sleep(10)
              end) =~ @entailment_str
 
       entailment_log =
         capture_log([level: :debug], fn ->
           Store.update(space, y_var, :fix, [2])
-          Process.sleep(50)
+          Process.sleep(10)
         end)
 
       ## An entailment happens exactly once
       assert entailment_log =~ @entailment_str
       refute String.replace(entailment_log, @entailment_str, "") =~ @entailment_str
+      ## Propagator thread discards itself on entailment
+      Process.sleep(10)
+      refute Process.alive?(propagator_thread)
     end
 
     test "entailment with initially fixed variables" do
@@ -71,14 +74,14 @@ defmodule CPSolver.Propagator.Thread do
 
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var] = bound_vars} = Store.create(space, variables)
+      {:ok, bound_vars} = Store.create(space, variables)
 
-      entailment_log =
-        capture_log([level: :debug], fn ->
-          {:ok, _propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
-        end)
-
-      assert entailment_log =~ @entailment_str
+      assert capture_log([level: :debug], fn ->
+               {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
+               ## Propagator thread discards itself on entailment
+               Process.sleep(10)
+               refute Process.alive?(propagator_thread)
+             end) =~ @entailment_str
     end
   end
 end

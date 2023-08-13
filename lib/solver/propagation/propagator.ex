@@ -61,7 +61,17 @@ defmodule CPSolver.Propagator do
        propagator_opts: opts,
        filter_fun: fn -> propagator_mod.filter(args) end
      }
-     |> tap(fn data -> filter(data) end)}
+     |> tap(fn data -> filter(data) end), {:continue, :continue_init}}
+  end
+
+  @impl true
+  def handle_continue(:continue_init, data) do
+    if entailed?(data) do
+      Logger.debug("Propagator is entailed (on a startup)")
+      {:stop, :normal, data}
+    else
+      {:noreply, data}
+    end
   end
 
   @impl true
@@ -71,10 +81,22 @@ defmodule CPSolver.Propagator do
     {:noreply, maybe_stable(var, data)}
   end
 
+  def handle_info({:fixed, var}, data) do
+    new_data = update_unfixed(data, var)
+
+    if entailed?(new_data) do
+      Logger.debug("Propagator is entailed (on filtering)")
+      {:stop, :normal, new_data}
+    else
+      filter(new_data)
+      {:noreply, new_data}
+    end
+  end
+
   def handle_info({domain_change, var}, data) when domain_change in @domain_changes do
     Logger.debug("Propagator: #{inspect(domain_change)} for #{inspect(var)}")
     filter(data)
-    {:noreply, maybe_entail(domain_change, var, data)}
+    {:noreply, data}
   end
 
   ### end of GenServer callbacks
@@ -83,23 +105,19 @@ defmodule CPSolver.Propagator do
     filter_fun.()
   end
 
-  defp maybe_entail(:fixed, var, %{unfixed_variables: unfixed} = data) do
-    unfixed
-    |> MapSet.delete(var)
-    |> then(fn new_unfixed ->
-      if MapSet.size(new_unfixed) == 0 do
-        Logger.debug("Propagator is entailed")
-      end
-
-      %{data | unfixed_variables: new_unfixed}
-    end)
+  defp entailed?(%{unfixed_variables: vars} = _data) do
+    entailed?(vars)
   end
 
-  defp maybe_entail(_domain_change, _var, data) do
-    data
+  defp entailed?(vars) when is_map(vars) do
+    MapSet.size(vars) == 0
   end
 
-  defp maybe_stable(var, data) do
+  defp update_unfixed(%{unfixed_variables: unfixed} = data, var) do
+    %{data | unfixed_variables: MapSet.delete(unfixed, var)}
+  end
+
+  defp maybe_stable(_var, data) do
     :todo
     data
   end

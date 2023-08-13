@@ -87,7 +87,9 @@ defmodule CPSolver.Store.Registry do
   end
 
   defp handle_op_on_failed_var(var, operation) do
-    Logger.warn("Attempt to request #{inspect(operation)} on failed variable #{inspect(var.id)}")
+    Logger.warning(
+      "Attempt to request #{inspect(operation)} on failed variable #{inspect(var.id)}"
+    )
   end
 
   defp handle_domain_no_change(var) do
