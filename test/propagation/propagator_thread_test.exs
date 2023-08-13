@@ -10,6 +10,8 @@ defmodule CPSolver.Propagator.Thread do
     alias CPSolver.Variable
     alias CPSolver.Propagator.NotEqual
 
+    @entailment_str "Propagator is entailed"
+
     test "create propagator thread" do
       space = :top_space
       x = 1..1
@@ -36,7 +38,7 @@ defmodule CPSolver.Propagator.Thread do
              end) =~ "Failure for variable #{inspect(y_var.id)}"
     end
 
-    test "entailment" do
+    test "entailment with initially unfixed variables" do
       space = :top_space
       x = 0..2
       y = -5..5
@@ -49,7 +51,7 @@ defmodule CPSolver.Propagator.Thread do
       refute capture_log([level: :debug], fn ->
                Store.update(space, x_var, :fix, [1])
                Process.sleep(50)
-             end) =~ "Propagator entailed"
+             end) =~ @entailment_str
 
       entailment_log =
         capture_log([level: :debug], fn ->
@@ -58,11 +60,25 @@ defmodule CPSolver.Propagator.Thread do
         end)
 
       ## An entailment happens exactly once
-      entailment_str = "Propagator is entailed"
-      assert entailment_log =~ entailment_str
-      refute String.replace(entailment_log, entailment_str, "") =~ entailment_str
+      assert entailment_log =~ @entailment_str
+      refute String.replace(entailment_log, @entailment_str, "") =~ @entailment_str
+    end
 
+    test "entailment with initially fixed variables" do
+      space = :top_space
+      x = 0..0
+      y = 1..1
 
+      variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
+
+      {:ok, [x_var, y_var] = bound_vars} = Store.create(space, variables)
+
+      entailment_log =
+        capture_log([level: :debug], fn ->
+          {:ok, _propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
+        end)
+
+      assert entailment_log =~ @entailment_str
     end
   end
 end

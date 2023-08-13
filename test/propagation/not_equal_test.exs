@@ -35,11 +35,12 @@ defmodule CPSolverTest.Propagator.NotEqual do
                [x_var, y_var],
                fn var -> :fail == Store.get(space, var, :min) end
              )
+
       ## Consequent filtering does not trigger domain change events
       refute capture_log([level: :debug], fn ->
-        NotEqual.filter(bound_vars)
-        Process.sleep(10)
-      end) =~ "Domain change"
+               NotEqual.filter(bound_vars)
+               Process.sleep(10)
+             end) =~ "Domain change"
     end
 
     test "inconsistency" do
