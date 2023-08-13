@@ -44,7 +44,7 @@ defmodule CPSolver.Propagator.Thread do
 
       {:ok, [x_var, y_var] = bound_vars} = Store.create(space, variables)
 
-      {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
+      {:ok, _propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
 
       refute capture_log([level: :debug], fn ->
                Store.update(space, x_var, :fix, [1])
@@ -57,8 +57,12 @@ defmodule CPSolver.Propagator.Thread do
           Process.sleep(50)
         end)
 
-      ## TODO: check if entailment happens once!
-      assert entailment_log =~ "Propagator is entailed"
+      ## An entailment happens exactly once
+      entailment_str = "Propagator is entailed"
+      assert entailment_log =~ entailment_str
+      refute String.replace(entailment_log, entailment_str, "") =~ entailment_str
+
+
     end
   end
 end

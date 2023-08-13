@@ -1,6 +1,8 @@
 defmodule CPSolverTest.Propagator.NotEqual do
   use ExUnit.Case
 
+  import ExUnit.CaptureLog
+
   describe "Propagator filtering" do
     alias CPSolver.Store.Registry, as: Store
     alias CPSolver.IntVariable, as: Variable
@@ -33,6 +35,11 @@ defmodule CPSolverTest.Propagator.NotEqual do
                [x_var, y_var],
                fn var -> :fail == Store.get(space, var, :min) end
              )
+      ## Consequent filtering does not trigger domain change events
+      refute capture_log([level: :debug], fn ->
+        NotEqual.filter(bound_vars)
+        Process.sleep(10)
+      end) =~ "Domain change"
     end
 
     test "inconsistency" do
