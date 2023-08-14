@@ -93,17 +93,29 @@ defmodule CPSolver.Store.Registry do
   end
 
   defp handle_domain_no_change(var) do
-    Logger.debug("No change for variable #{inspect(var.id)}")
-    publish(var, {:no_change, var.id})
+    ## Publish no_change only once between domain change events
+    changed_before?() &&
+      publish(var, {:no_change, var.id})
+      |> tap(fn _ ->
+        Logger.debug("No change for variable #{inspect(var.id)}")
+        Process.put(:changed_before, false)
+      end)
   end
 
   defp handle_domain_change(domain_change, var, _domain) do
-    Logger.debug("Domain change (#{domain_change}) for #{inspect(var.id)}")
     publish(var, {domain_change, var.id})
+    |> tap(fn _ ->
+      Logger.debug("Domain change (#{domain_change}) for #{inspect(var.id)}")
+      Process.put(:changed_before, true)
+    end)
   end
 
   defp publish(var, message) do
     :ebus.pub(Variable.topic(var), message)
+  end
+
+  defp changed_before?() do
+    Process.get(:changed_before)
   end
 
   @impl true
