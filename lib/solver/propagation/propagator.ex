@@ -76,6 +76,11 @@ defmodule CPSolver.Propagator do
 
   @impl true
 
+  def handle_info({:fail, var}, data) do
+    Logger.debug("Propagator: Failure for #{inspect(var)}")
+    {:stop, :normal, data}
+  end
+
   def handle_info({:no_change, var}, data) do
     Logger.debug("Propagator: no change for #{inspect(var)}")
     {:noreply, maybe_stable(var, data)}
