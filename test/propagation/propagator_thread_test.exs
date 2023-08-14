@@ -83,5 +83,24 @@ defmodule CPSolver.Propagator.Thread do
                refute Process.alive?(propagator_thread)
              end) =~ @entailment_str
     end
+
+    test "Starting/stopping propagator subscribes it to/unsubscribes it from  its variables" do
+      space = :top_space
+      x = 0..2
+      y = -5..5
+      variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
+
+      {:ok, vars} = Store.create(space, variables)
+
+      {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, vars})
+
+      assert Enum.all?(vars, fn v -> propagator_thread in :ebus.subscribers(Variable.topic(v)) end)
+
+      GenServer.stop(propagator_thread)
+      Process.sleep(10)
+      refute Process.alive?(propagator_thread)
+
+      refute Enum.any?(vars, fn v -> propagator_thread in :ebus.subscribers(Variable.topic(v)) end)
+    end
   end
 end
