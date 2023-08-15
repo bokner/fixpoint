@@ -8,6 +8,8 @@ defmodule CPSolver.Space do
   alias __MODULE__, as: Space
   alias CPSolver.ConstraintStore, as: Store
   alias CPSolver.Propagator, as: Propagator
+  import CPSolver.Utils
+
   require Logger
 
   @behaviour :gen_statem
@@ -80,22 +82,36 @@ defmodule CPSolver.Space do
   end
 
   def start_propagation(:internal, :propagate, data) do
-    start_propagation(data)
-    {:next_state, :propagating, data}
+    propagator_threads = start_propagation(data)
+    {:next_state, :propagating, Map.put(data, :propagator_threads, propagator_threads)}
   end
 
   def propagating(:enter, :start_propagation, data) do
-    Logger.debug("Propagating")
+    Logger.debug("Propagation in progress")
     :keep_state_and_data
   end
 
+  def propagating(:info, {:stable, propagator_thread}, data) do
+    updated_data = set_propagator_status(data, propagator_thread, :stable)
+
+    if stable?(updated_data) do
+      {:next_state, :stable, updated_data}
+    else
+      {:keep_state, updated_data}
+    end
+  end
+
+  def propagating(:info, {:running, propagator_thread}, data) do
+    {:keep_state, set_propagator_status(data, propagator_thread, :running)}
+  end
+
   def propagating(:info, :fail, data) do
-    Logger.debug("Constraint store inconsistent")
+    Logger.debug("The space has failed")
     {:next_state, :failed, data}
   end
 
   def propagating(:info, :solved, data) do
-    Logger.debug("The space is solved")
+    Logger.debug("The space has been solved")
     {:next_state, :solved, data}
   end
 
@@ -128,8 +144,10 @@ defmodule CPSolver.Space do
   defp start_propagation(%{propagators: propagators, space: space} = _space_state) do
     Logger.debug("Start propagation")
 
-    Enum.each(propagators, fn p ->
-      Propagator.create_thread(space, p)
+    Enum.reduce(propagators, MapSet.new(), fn p, acc ->
+      {:ok, thread} = Propagator.create_thread(space, p)
+      subscribe(space, thread)
+      MapSet.put(acc, thread)
     end)
   end
 
@@ -149,6 +167,18 @@ defmodule CPSolver.Space do
   defp update_active_propagators({:awake, propagator}, data) do
     data = add_to_active_list(propagator, data)
     {:propagating, data}
+  end
+
+  defp stable?(%{propagator_threads: threads} = _data) do
+    MapSet.size(threads) == 0
+  end
+
+  defp set_propagator_status(%{propagator_threads: threads} = data, propagator_thread, :stable) do
+    %{data | propagator_threads: MapSet.delete(threads, propagator_thread)}
+  end
+
+  defp set_propagator_status(%{propagator_threads: threads} = data, propagator_thread, :running) do
+    %{data | propagator_threads: MapSet.put(threads, propagator_thread)}
   end
 
   defp active_propagators_count(data) do

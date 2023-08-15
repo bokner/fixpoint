@@ -2,6 +2,7 @@ defmodule CPSolver.Propagator do
   alias CPSolver.Store.Registry, as: Store
   alias CPSolver.Variable
   alias CPSolver.Common
+  alias CPSolver.Utils
 
   require Logger
 
@@ -40,7 +41,7 @@ defmodule CPSolver.Propagator do
   end
 
   defp subscribe_to_var(thread, variable) do
-    :ebus.sub(thread, Variable.topic(variable))
+    Utils.subscribe(thread, Variable.topic(variable))
   end
 
   ## GenServer callbacks
@@ -88,7 +89,7 @@ defmodule CPSolver.Propagator do
      update_stable(data, var, true)
      |> tap(fn new_data ->
        if stable?(new_data) do
-         handle_stable()
+         handle_stable(new_data)
        end
      end)}
   end
@@ -113,13 +114,13 @@ defmodule CPSolver.Propagator do
 
   ### end of GenServer callbacks
 
-  defp filter(%{filter_fun: filter_fun} = _data) do
+  defp filter(%{filter_fun: filter_fun} = data) do
     case filter_fun.() do
       :stable ->
-        handle_stable()
+        handle_stable(data)
 
-      res ->
-        res
+      _res ->
+        handle_running(data)
     end
   end
 
@@ -147,7 +148,20 @@ defmodule CPSolver.Propagator do
     Enum.count(unfixed, fn {_k, v} -> !v.stable end) == 0
   end
 
-  defp handle_stable() do
+  defp handle_stable(data) do
     Logger.debug("Propagator #{inspect(self())} is stable")
+    publish(data, :stable)
+  end
+
+  defp handle_running(data) do
+    publish(data, :running)
+  end
+
+  defp publish(data, message) do
+    Utils.publish(propagator_id(data), message)
+  end
+
+  defp propagator_id(_data) do
+    self()
   end
 end

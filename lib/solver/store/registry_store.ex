@@ -2,6 +2,7 @@ defmodule CPSolver.Store.Registry do
   alias CPSolver.ConstraintStore, as: Store
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Variable
+  alias CPSolver.Utils
 
   require Logger
 
@@ -113,7 +114,7 @@ defmodule CPSolver.Store.Registry do
   end
 
   defp publish(var, message) do
-    :ebus.pub(Variable.topic(var), message)
+    Utils.publish(Variable.topic(var), message)
   end
 
   defp fire_on_no_change?() do

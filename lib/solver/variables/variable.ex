@@ -12,6 +12,7 @@ defmodule CPSolver.Variable do
 
   alias CPSolver.Variable
   alias CPSolver.Store.Registry, as: Store
+  alias CPSolver.Utils
 
   require Logger
 
@@ -89,7 +90,7 @@ defmodule CPSolver.Variable do
   end
 
   def subscribers(variable) do
-    :ebus.subscribers(topic(variable))
+    Utils.subscribers(topic(variable))
   end
 
   def bind_variables(space, variables) do

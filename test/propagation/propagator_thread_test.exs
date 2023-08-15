@@ -11,6 +11,7 @@ defmodule CPSolver.Propagator.Thread do
     alias CPSolver.Variable
     alias CPSolver.Propagator.NotEqual
 
+    alias CPSolver.Utils
     @entailment_str "Propagator is entailed"
 
     test "create propagator thread" do
