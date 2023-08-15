@@ -15,15 +15,20 @@ defmodule CPSolver.Space do
   defstruct variables: [],
             propagators: [],
             propagator_threads: [],
-            constraint_store: nil
+            store: nil,
+            space: nil
 
-  def create(variables, propagators, space_opts, search \\ nil, gen_statem_opts \\ []) do
+  def create(variables, propagators, space_opts \\ [], search \\ nil, gen_statem_opts \\ []) do
     {:ok, _space} =
       :gen_statem.start_link(
         __MODULE__,
         [variables: variables, propagators: propagators, search: search, space_opts: space_opts],
         gen_statem_opts
       )
+  end
+
+  def get_state_and_data(space) do
+    {_state, _data} = :sys.get_state(space)
   end
 
   def propagate() do
@@ -46,14 +51,19 @@ defmodule CPSolver.Space do
     variables = Keyword.get(args, :variables)
     propagators = Keyword.get(args, :propagators)
 
-    store_backend =
+    space = self()
+
+    store_impl =
       Keyword.get(args, :space_opts)
-      |> Keyword.get(:store_backend, CPSolver.ConstraintStore.default_backend())
+      |> Keyword.get(:store, Store.default_store())
+
+    {:ok, space_variables} = store_impl.create(space, variables)
 
     space_data = %Space{
-      variables: variables,
+      variables: space_variables,
       propagators: propagators,
-      constraint_store: Store.create(variables, store_backend)
+      store: store_impl,
+      space: space
     }
 
     {:ok, :start_propagation, space_data, [{:next_event, :internal, :propagate}]}
