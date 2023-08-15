@@ -55,8 +55,8 @@ defmodule CPSolver.Propagator do
        propagator_impl: propagator_mod,
        args: args,
        unfixed_variables:
-         Enum.reduce(bound_vars, MapSet.new(), fn var, acc ->
-           (Store.get(space, var, :fixed?) && acc) || MapSet.put(acc, var.id)
+         Enum.reduce(bound_vars, Map.new(), fn var, acc ->
+           (Store.get(space, var, :fixed?) && acc) || Map.put(acc, var.id, %{stable: false})
          end),
        propagator_opts: opts,
        filter_fun: fn -> propagator_mod.filter(args) end
@@ -83,7 +83,14 @@ defmodule CPSolver.Propagator do
 
   def handle_info({:no_change, var}, data) do
     Logger.debug("Propagator: no change for #{inspect(var)}")
-    {:noreply, maybe_stable(var, data)}
+
+    {:noreply,
+     update_stable(data, var, true)
+     |> tap(fn new_data ->
+       if stable?(new_data) do
+         handle_stable()
+       end
+     end)}
   end
 
   def handle_info({:fixed, var}, data) do
@@ -101,13 +108,19 @@ defmodule CPSolver.Propagator do
   def handle_info({domain_change, var}, data) when domain_change in @domain_changes do
     Logger.debug("Propagator: #{inspect(domain_change)} for #{inspect(var)}")
     filter(data)
-    {:noreply, data}
+    {:noreply, update_stable(data, var, false)}
   end
 
   ### end of GenServer callbacks
 
   defp filter(%{filter_fun: filter_fun} = _data) do
-    filter_fun.()
+    case filter_fun.() do
+      :stable ->
+        handle_stable()
+
+      res ->
+        res
+    end
   end
 
   defp entailed?(%{unfixed_variables: vars} = _data) do
@@ -115,15 +128,26 @@ defmodule CPSolver.Propagator do
   end
 
   defp entailed?(vars) when is_map(vars) do
-    MapSet.size(vars) == 0
+    map_size(vars) == 0
   end
 
   defp update_unfixed(%{unfixed_variables: unfixed} = data, var) do
-    %{data | unfixed_variables: MapSet.delete(unfixed, var)}
+    %{data | unfixed_variables: Map.delete(unfixed, var)}
   end
 
-  defp maybe_stable(_var, data) do
-    :todo
-    data
+  defp update_stable(%{unfixed_variables: unfixed} = data, var, stable?) do
+    %{
+      data
+      | unfixed_variables:
+          Map.update!(unfixed, var, fn content -> Map.put(content, :stable, stable?) end)
+    }
+  end
+
+  defp stable?(%{unfixed_variables: unfixed} = _data) do
+    Enum.count(unfixed, fn {_k, v} -> !v.stable end) == 0
+  end
+
+  defp handle_stable() do
+    Logger.debug("Propagator #{inspect(self())} is stable")
   end
 end

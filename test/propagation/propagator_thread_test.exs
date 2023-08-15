@@ -2,6 +2,7 @@ defmodule CPSolver.Propagator.Thread do
   use ExUnit.Case
 
   import ExUnit.CaptureLog
+  import CPSolver.Test.Helpers
 
   describe "Propagator thread" do
     alias CPSolver.Propagator
@@ -60,8 +61,7 @@ defmodule CPSolver.Propagator.Thread do
         end)
 
       ## An entailment happens exactly once
-      assert entailment_log =~ @entailment_str
-      refute String.replace(entailment_log, @entailment_str, "") =~ @entailment_str
+      assert number_of_occurences(entailment_log, @entailment_str) == 1
       ## Propagator thread discards itself on entailment
       Process.sleep(10)
       refute Process.alive?(propagator_thread)
@@ -101,6 +101,35 @@ defmodule CPSolver.Propagator.Thread do
       refute Process.alive?(propagator_thread)
 
       refute Enum.any?(vars, fn v -> propagator_thread in :ebus.subscribers(Variable.topic(v)) end)
+    end
+
+    test "stability" do
+      space = :top_space
+      x = 0..5
+      y = 1..3
+      variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
+
+      {:ok, [x_var, y_var] = vars} = Store.create(space, variables)
+
+      ## Detects stability on a startup
+      assert capture_log([level: :debug], fn ->
+               {:ok, _propagator_thread} = Propagator.create_thread(space, {NotEqual, vars})
+               Process.sleep(10)
+             end) =~ "is stable"
+
+      ## Filtering that leaves unfixed variable(s) (x_var in this case) should
+      ## (eventually) put propagator into 'stable' state
+      assert capture_log([level: :debug], fn ->
+               Store.update(space, y_var, :fix, [1])
+               Process.sleep(10)
+             end) =~ "is stable"
+
+      ## Fixing all variables (i.e., entailment)
+      ## does not result in stability.
+      refute capture_log([level: :debug], fn ->
+               Store.update(space, x_var, :fix, [0])
+               Process.sleep(10)
+             end) =~ "is stable"
     end
   end
 end

@@ -23,6 +23,7 @@ defmodule CPSolver.Store.Registry do
              fn ->
                Domain.new(var.domain)
                |> tap(fn _ ->
+                 Process.put(:fire_on_no_change, true)
                  {:ok, _} = Registry.register(@variable_registry, var.id, space)
                end)
              end,
@@ -95,11 +96,11 @@ defmodule CPSolver.Store.Registry do
 
   defp handle_domain_no_change(var) do
     ## Publish no_change only once between domain change events
-    changed_before?() &&
+    fire_on_no_change?() &&
       publish(var, {:no_change, var.id})
       |> tap(fn _ ->
         Logger.debug("No change for variable #{inspect(var.id)}")
-        Process.put(:changed_before, false)
+        Process.put(:fire_on_no_change, false)
       end)
   end
 
@@ -107,7 +108,7 @@ defmodule CPSolver.Store.Registry do
     publish(var, {domain_change, var.id})
     |> tap(fn _ ->
       Logger.debug("Domain change (#{domain_change}) for #{inspect(var.id)}")
-      Process.put(:changed_before, true)
+      Process.put(:fire_on_no_change, true)
     end)
   end
 
@@ -115,8 +116,8 @@ defmodule CPSolver.Store.Registry do
     :ebus.pub(Variable.topic(var), message)
   end
 
-  defp changed_before?() do
-    Process.get(:changed_before)
+  defp fire_on_no_change?() do
+    Process.get(:fire_on_no_change)
   end
 
   @impl true
