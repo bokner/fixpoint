@@ -76,7 +76,7 @@ defmodule CPSolver.Propagator do
   @impl true
   def handle_continue(:continue_init, data) do
     if entailed?(data) do
-      Logger.debug("Propagator is entailed (on a startup)")
+      Logger.debug("#{data.id} Propagator is entailed (on a startup)")
       {:stop, :normal, data}
     else
       {:noreply, data}
@@ -86,12 +86,12 @@ defmodule CPSolver.Propagator do
   @impl true
 
   def handle_info({:fail, var}, data) do
-    Logger.debug("Propagator: Failure for #{inspect(var)}")
+    Logger.debug("#{data.id} Propagator: Failure for #{inspect(var)}")
     {:stop, :normal, data}
   end
 
   def handle_info({:no_change, var}, data) do
-    Logger.debug("Propagator: no change for #{inspect(var)}")
+    Logger.debug("#{data.id} Propagator: no change for #{inspect(var)}")
 
     {:noreply,
      update_stable(data, var, true)
@@ -106,7 +106,7 @@ defmodule CPSolver.Propagator do
     new_data = update_unfixed(data, var)
 
     if entailed?(new_data) do
-      Logger.debug("Propagator is entailed (on filtering)")
+      Logger.debug("#{data.id} Propagator is entailed (on filtering)")
       {:stop, :normal, new_data}
     else
       filter(new_data)
@@ -115,7 +115,7 @@ defmodule CPSolver.Propagator do
   end
 
   def handle_info({domain_change, var}, data) when domain_change in @domain_changes do
-    Logger.debug("Propagator: #{inspect(domain_change)} for #{inspect(var)}")
+    Logger.debug("#{data.id} Propagator: #{inspect(domain_change)} for #{inspect(var)}")
     filter(data)
     {:noreply, update_stable(data, var, false)}
   end
@@ -157,7 +157,7 @@ defmodule CPSolver.Propagator do
   end
 
   defp handle_stable(data) do
-    Logger.debug("Propagator #{inspect(self())} is stable")
+    Logger.debug("#{data.id} Propagator #{inspect(self())} is stable")
     publish(data, :stable)
   end
 
