@@ -9,7 +9,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
     alias CPSolver.Propagator.NotEqual
 
     test "filtering, unfixed domains" do
-      space = :top_space
+      space = self()
 
       ## Both vars are unfixed
       x = 1..10
@@ -44,7 +44,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
     end
 
     test "inconsistency" do
-      space = :top_space
+      space = self()
       x = 0..0
       y = 0..0
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)

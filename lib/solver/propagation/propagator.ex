@@ -29,7 +29,11 @@ defmodule CPSolver.Propagator do
   ##
   ## Propagator thread is a process that handles life cycle of a propagator.
   ## TODO: details to follow.
-  def create_thread(space, {propagator_mod, propagator_args} = _propagator, opts \\ [])
+  def create_thread(
+        space,
+        {propagator_mod, propagator_args} = _propagator,
+        opts \\ [id: make_ref()]
+      )
       when is_atom(propagator_mod) do
     {:ok, _thread} =
       GenServer.start_link(__MODULE__, [space, propagator_mod, propagator_args, opts])
@@ -52,6 +56,7 @@ defmodule CPSolver.Propagator do
 
     {:ok,
      %{
+       id: opts[:id],
        space: space,
        propagator_impl: propagator_mod,
        args: args,
@@ -62,7 +67,10 @@ defmodule CPSolver.Propagator do
        propagator_opts: opts,
        filter_fun: fn -> propagator_mod.filter(args) end
      }
-     |> tap(fn data -> filter(data) end), {:continue, :continue_init}}
+     |> tap(fn data ->
+       Utils.subscribe(space, data.id)
+       filter(data)
+     end), {:continue, :continue_init}}
   end
 
   @impl true
@@ -145,7 +153,7 @@ defmodule CPSolver.Propagator do
   end
 
   defp stable?(%{unfixed_variables: unfixed} = _data) do
-    Enum.count(unfixed, fn {_k, v} -> !v.stable end) == 0
+    Enum.all?(unfixed, fn {_k, v} -> v.stable end)
   end
 
   defp handle_stable(data) do
@@ -158,10 +166,6 @@ defmodule CPSolver.Propagator do
   end
 
   defp publish(data, message) do
-    Utils.publish(propagator_id(data), message)
-  end
-
-  defp propagator_id(_data) do
-    self()
+    Utils.publish(data.id, {message, data.id})
   end
 end

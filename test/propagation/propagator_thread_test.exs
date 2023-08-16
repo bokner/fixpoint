@@ -15,7 +15,7 @@ defmodule CPSolver.Propagator.Thread do
     @entailment_str "Propagator is entailed"
 
     test "create propagator thread" do
-      space = :top_space
+      space = self()
       x = 1..1
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
@@ -41,7 +41,7 @@ defmodule CPSolver.Propagator.Thread do
     end
 
     test "entailment with initially unfixed variables" do
-      space = :top_space
+      space = self()
       x = 0..2
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
@@ -69,7 +69,7 @@ defmodule CPSolver.Propagator.Thread do
     end
 
     test "entailment with initially fixed variables" do
-      space = :top_space
+      space = self()
       x = 0..0
       y = 1..1
 
@@ -86,7 +86,7 @@ defmodule CPSolver.Propagator.Thread do
     end
 
     test "Starting/stopping propagator subscribes it to/unsubscribes it from  its variables" do
-      space = :top_space
+      space = self()
       x = 0..2
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
@@ -105,7 +105,7 @@ defmodule CPSolver.Propagator.Thread do
     end
 
     test "stability" do
-      space = :top_space
+      space = self()
       x = 0..5
       y = 1..3
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)

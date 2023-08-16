@@ -92,7 +92,8 @@ defmodule CPSolver.Space do
   end
 
   def propagating(:info, {:stable, propagator_thread}, data) do
-    updated_data = set_propagator_status(data, propagator_thread, :stable)
+    Logger.debug("Stable propagator")
+    updated_data = set_propagator_stable(data, propagator_thread, true)
 
     if stable?(updated_data) do
       {:next_state, :stable, updated_data}
@@ -102,7 +103,8 @@ defmodule CPSolver.Space do
   end
 
   def propagating(:info, {:running, propagator_thread}, data) do
-    {:keep_state, set_propagator_status(data, propagator_thread, :running)}
+    Logger.debug("Running propagator")
+    {:keep_state, set_propagator_stable(data, propagator_thread, false)}
   end
 
   def propagating(:info, :fail, data) do
@@ -113,12 +115,6 @@ defmodule CPSolver.Space do
   def propagating(:info, :solved, data) do
     Logger.debug("The space has been solved")
     {:next_state, :solved, data}
-  end
-
-  def propagating(:info, {propagator_event, propagator}, data)
-      when propagator_event in [:stable, :awake] do
-    {next_state, new_data} = update_active_propagators({propagator_event, propagator}, data)
-    {:next_state, next_state, new_data}
   end
 
   def propagating(:info, {variable, :fixed}, data) do
@@ -144,55 +140,23 @@ defmodule CPSolver.Space do
   defp start_propagation(%{propagators: propagators, space: space} = _space_state) do
     Logger.debug("Start propagation")
 
-    Enum.reduce(propagators, MapSet.new(), fn p, acc ->
-      {:ok, thread} = Propagator.create_thread(space, p)
-      subscribe(space, thread)
-      MapSet.put(acc, thread)
+    Enum.reduce(propagators, Map.new(), fn p, acc ->
+      propagator_id = make_ref()
+      {:ok, thread} = Propagator.create_thread(space, p, id: propagator_id)
+      Map.put(acc, propagator_id, %{thread: thread, stable: false})
     end)
   end
 
-  defp update_active_propagators({:stable, propagator}, data) do
-    new_data = remove_from_active_list(propagator, data)
-
-    next_state =
-      if active_propagators_count(new_data) > 0 do
-        :propagating
-      else
-        :stable
-      end
-
-    {next_state, new_data}
-  end
-
-  defp update_active_propagators({:awake, propagator}, data) do
-    data = add_to_active_list(propagator, data)
-    {:propagating, data}
-  end
-
   defp stable?(%{propagator_threads: threads} = _data) do
-    MapSet.size(threads) == 0
+    Enum.all?(threads, fn {_id, thread} -> thread.stable end)
   end
 
-  defp set_propagator_status(%{propagator_threads: threads} = data, propagator_thread, :stable) do
-    %{data | propagator_threads: MapSet.delete(threads, propagator_thread)}
-  end
-
-  defp set_propagator_status(%{propagator_threads: threads} = data, propagator_thread, :running) do
-    %{data | propagator_threads: MapSet.put(threads, propagator_thread)}
-  end
-
-  defp active_propagators_count(data) do
-    length(data.propagators)
-  end
-
-  defp add_to_active_list(propagator, data) do
-    :todo
-    data
-  end
-
-  defp remove_from_active_list(propagator, data) do
-    :todo
-    data
+  defp set_propagator_stable(%{propagator_threads: threads} = data, propagator_id, stable?) do
+    %{
+      data
+      | propagator_threads:
+          Map.update!(threads, propagator_id, fn content -> Map.put(content, :stable, stable?) end)
+    }
   end
 
   defp remove_variable(variable, data) do
@@ -226,6 +190,6 @@ defmodule CPSolver.Space do
   end
 
   defp handle_stable(data) do
-    :todo
+    Logger.debug("Space #{inspect(data.space)} is stable")
   end
 end

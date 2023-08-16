@@ -9,7 +9,7 @@ defmodule CPSolverTest.Store do
     alias CPSolver.IntVariable, as: Variable
 
     test "create variables in the space" do
-      space = :top_space
+      space = self()
       v1_values = 1..10
       v2_values = -5..5
       values = [v1_values, v2_values]
@@ -28,7 +28,7 @@ defmodule CPSolverTest.Store do
     end
 
     test "Space variables" do
-      space = :top_space
+      space = self()
       v1_values = 1..10
       v2_values = -5..5
       v3_values = [0, 3, 6, 9, -1]
@@ -50,7 +50,7 @@ defmodule CPSolverTest.Store do
     end
 
     test "GET operations" do
-      space = :top_space
+      space = self()
       v1_values = 1..10
       v2_values = -5..5
       v3_values = 1..1
@@ -85,7 +85,7 @@ defmodule CPSolverTest.Store do
     end
 
     test "UPDATE operations" do
-      space = :top_space
+      space = self()
       v1_values = 1..10
       v2_values = -5..5
       v3_values = 1..2
@@ -130,7 +130,7 @@ defmodule CPSolverTest.Store do
     end
 
     test "no_change events are not fired more than once in a row" do
-      space = :top_space
+      space = self()
       v1_values = 1..10
       v2_values = -5..5
       values = [v1_values, v2_values]
