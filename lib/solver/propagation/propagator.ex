@@ -65,19 +65,21 @@ defmodule CPSolver.Propagator do
            (Store.get(space, var, :fixed?) && acc) || Map.put(acc, var.id, %{stable: false})
          end),
        propagator_opts: opts,
-       filter_fun: fn -> propagator_mod.filter(args) end
+       filter_fun: fn -> propagator_mod.filter(args) end,
+       on_startup: true
      }
      |> tap(fn data ->
        Utils.subscribe(space, data.id)
        filter(data)
-     end), {:continue, :continue_init}}
+     end)}
   end
 
   @impl true
   def handle_continue(:continue_init, data) do
     if entailed?(data) do
       Logger.debug("#{data.id} Propagator is entailed (on a startup)")
-      {:stop, :normal, data}
+
+      {:noreply, data}
     else
       {:noreply, data}
     end
@@ -91,22 +93,29 @@ defmodule CPSolver.Propagator do
   end
 
   def handle_info({:no_change, var}, data) do
-    Logger.debug("#{data.id} Propagator: no change for #{inspect(var)}")
+    Logger.debug("#{inspect(data.id)} Propagator: no change for #{inspect(var)}")
 
-    {:noreply,
-     update_stable(data, var, true)
-     |> tap(fn new_data ->
-       if stable?(new_data) do
-         handle_stable(new_data)
-       end
-     end)}
+    if data.on_startup && entailed?(data) do
+      Logger.debug("#{inspect(data.id)} Propagator is entailed (on a startup)")
+      {:stop, :normal, data}
+    else
+      {:noreply,
+       data
+       |> Map.put(:on_startup, false)
+       |> update_stable(var, true)
+       |> tap(fn new_data ->
+         if stable?(new_data) do
+           handle_stable(new_data)
+         end
+       end)}
+    end
   end
 
   def handle_info({:fixed, var}, data) do
     new_data = update_unfixed(data, var)
 
     if entailed?(new_data) do
-      Logger.debug("#{data.id} Propagator is entailed (on filtering)")
+      Logger.debug("#{inspect(data.id)} Propagator is entailed (on filtering)")
       {:stop, :normal, new_data}
     else
       filter(new_data)
@@ -115,7 +124,7 @@ defmodule CPSolver.Propagator do
   end
 
   def handle_info({domain_change, var}, data) when domain_change in @domain_changes do
-    Logger.debug("#{data.id} Propagator: #{inspect(domain_change)} for #{inspect(var)}")
+    Logger.debug("#{inspect(data.id)} Propagator: #{inspect(domain_change)} for #{inspect(var)}")
     filter(data)
     {:noreply, update_stable(data, var, false)}
   end
@@ -157,7 +166,7 @@ defmodule CPSolver.Propagator do
   end
 
   defp handle_stable(data) do
-    Logger.debug("#{data.id} Propagator #{inspect(self())} is stable")
+    Logger.debug("#{inspect(data.id)} Propagator #{inspect(self())} is stable")
     publish(data, :stable)
   end
 
