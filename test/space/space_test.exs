@@ -47,17 +47,34 @@ defmodule CPSolverTest.Space do
       assert state == :stable
     end
 
-    test "failing space" do
+    test "solved space" do
       x_values = 1..2
       y_values = 1..1
-      z_values = 1..1
+      z_values = 1..2
+
       values = [x_values, y_values, z_values]
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
       propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
 
       {:ok, space} = Space.create(variables, propagators)
-      Process.sleep(10)
+      Process.sleep(1)
+      {state, _data} = Space.get_state_and_data(space)
+      assert state == :solved
+    end
+
+    test "failing space" do
+      x_values = 1..1
+      y_values = 1..2
+      z_values = 2..2
+
+      values = [x_values, y_values, z_values]
+      [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
+      propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
+
+      {:ok, space} = Space.create(variables, propagators)
+      Process.sleep(1)
+      {state, _data} = Space.get_state_and_data(space)
+      assert state == :failed
     end
   end
-
 end
