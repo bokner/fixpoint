@@ -17,8 +17,9 @@ defmodule CPSolver.Space do
   defstruct variables: [],
             propagators: [],
             propagator_threads: [],
-            store: nil,
-            space: nil
+            store: Store.default_store(),
+            space: nil,
+            solution_handler: CPSolver.Solution.DefaultHandler
 
   def create(variables, propagators, space_opts \\ [], search \\ nil, gen_statem_opts \\ []) do
     {:ok, _space} =
@@ -33,16 +34,13 @@ defmodule CPSolver.Space do
     {_state, _data} = :sys.get_state(space)
   end
 
-  def propagate() do
-  end
-
-  def status() do
-  end
-
   def search() do
   end
 
-  def solutions() do
+  def solution(%{variables: variables, space: space, store: store} = data) do
+    Enum.reduce(variables, Map.new(), fn var, acc ->
+      Map.put(acc, var.id,
+      store.get(space, var, :min)) end)
   end
 
   def stats() do
@@ -177,8 +175,10 @@ defmodule CPSolver.Space do
     :todo
   end
 
-  defp handle_solved(data) do
-    :todo
+  defp handle_solved(%{solution_handler: solution_handler} = data) do
+    data
+    |> solution()
+    |> solution_handler.handle()
   end
 
   defp handle_stable(data) do
