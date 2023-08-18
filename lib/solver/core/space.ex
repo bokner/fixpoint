@@ -117,11 +117,6 @@ defmodule CPSolver.Space do
     {:next_state, :solved, data}
   end
 
-  def propagating(:info, {variable, :fixed}, data) do
-    {next_state, new_data} = remove_variable(variable, data)
-    {:next_state, next_state, new_data}
-  end
-
   def failed(:enter, :propagating, data) do
     handle_failure(data)
     :keep_state_and_data
@@ -157,28 +152,6 @@ defmodule CPSolver.Space do
       | propagator_threads:
           Map.update!(threads, propagator_id, fn content -> Map.put(content, :stable, stable?) end)
     }
-  end
-
-  defp remove_variable(variable, data) do
-    new_data = remove_variable_impl(variable, data)
-
-    next_state =
-      if variable_count(new_data) == 0 do
-        :solved
-      else
-        :propagating
-      end
-
-    {next_state, new_data}
-  end
-
-  defp remove_variable_impl(variable, data) do
-    :todo
-    data
-  end
-
-  defp variable_count(data) do
-    length(data.variables)
   end
 
   defp handle_failure(data) do

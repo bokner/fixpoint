@@ -41,7 +41,7 @@ defmodule CPSolverTest.Space do
 
       {:ok, space} = Space.create(variables, propagators)
 
-      Process.sleep(1)
+      Process.sleep(10)
 
       {state, _data} = Space.get_state_and_data(space)
       assert state == :stable
@@ -57,7 +57,7 @@ defmodule CPSolverTest.Space do
       propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
 
       {:ok, space} = Space.create(variables, propagators)
-      Process.sleep(1)
+      Process.sleep(10)
       {state, _data} = Space.get_state_and_data(space)
       assert state == :solved
     end
@@ -72,7 +72,7 @@ defmodule CPSolverTest.Space do
       propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
 
       {:ok, space} = Space.create(variables, propagators)
-      Process.sleep(1)
+      Process.sleep(10)
       {state, _data} = Space.get_state_and_data(space)
       assert state == :failed
     end

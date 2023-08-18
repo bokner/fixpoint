@@ -88,7 +88,8 @@ defmodule CPSolver.Propagator do
   @impl true
 
   def handle_info({:fail, var}, data) do
-    Logger.debug("#{data.id} Propagator: Failure for #{inspect(var)}")
+    Logger.debug("#{inspect(data.id)} Propagator: Failure for #{inspect(var)}")
+    publish(data, :failed)
     {:stop, :normal, data}
   end
 
@@ -116,6 +117,7 @@ defmodule CPSolver.Propagator do
 
     if entailed?(new_data) do
       Logger.debug("#{inspect(data.id)} Propagator is entailed (on filtering)")
+      publish(data, :entailed)
       {:stop, :normal, new_data}
     else
       filter(new_data)
