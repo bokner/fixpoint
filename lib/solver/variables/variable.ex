@@ -86,7 +86,7 @@ defmodule CPSolver.Variable do
   end
 
   def topic(variable) do
-    variable
+    variable.id
   end
 
   def subscribers(variable) do
