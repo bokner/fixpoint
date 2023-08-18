@@ -5,10 +5,13 @@ defmodule CPSolverTest.Space do
   import CPSolver.Test.Helpers
 
   describe "Computation space" do
+    alias Mix.Utils
     alias CPSolver.Store.Registry, as: Store
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Space, as: Space
     alias CPSolver.Propagator.NotEqual
+
+    alias CPSolver.Utils
 
     test "create space" do
       x_values = 1..10
@@ -29,7 +32,24 @@ defmodule CPSolverTest.Space do
       assert length(propagators) == length(space_propagators)
       assert length(propagators) == map_size(threads)
       assert length(variables) == length(space_variables)
-      # TODO - check subscriptions (propagators -> variables, space -> propagators)
+
+      thread_pids =
+        [x_y_propagator_pid, y_z_propagator_pid] =
+        Enum.map(threads, fn {_id, thread} -> thread.thread end)
+
+      assert Enum.all?(thread_pids, fn pid -> is_pid(pid) end)
+      # Check subscriptions
+
+      ## propagators -> variables
+      [x_space, y_space, z_space] = space_variables
+      assert x_y_propagator_pid in CPSolver.Variable.subscribers(x_space)
+      assert x_y_propagator_pid in CPSolver.Variable.subscribers(y_space)
+      assert y_z_propagator_pid in CPSolver.Variable.subscribers(y_space)
+      assert y_z_propagator_pid in CPSolver.Variable.subscribers(z_space)
+      ## space -> propagators
+      assert Enum.all?(threads, fn {thread_id, _thread} ->
+               space in Utils.subscribers(thread_id)
+             end)
     end
 
     test "stable space" do
@@ -59,8 +79,10 @@ defmodule CPSolverTest.Space do
 
       {:ok, space} = Space.create(variables, propagators)
       Process.sleep(10)
-      {state, _data} = Space.get_state_and_data(space)
+      {state, %{variables: space_variables} = _data} = Space.get_state_and_data(space)
       assert state == :solved
+      ## Check if all space variables are fixed
+      assert Enum.all?(variables, fn var -> Store.get(space, var, :fixed?) end)
     end
 
     test "failing space" do

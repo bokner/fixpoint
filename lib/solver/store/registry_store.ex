@@ -86,7 +86,7 @@ defmodule CPSolver.Store.Registry do
   defp handle_failure(var) do
     Logger.debug("Failure for variable #{inspect(var.id)}")
     ## TODO: notify space (and maybe don't notify propagators)
-    publish(var, {:fail, var})
+    publish(var, {:fail, var.id})
   end
 
   defp handle_op_on_failed_var(var, operation) do
