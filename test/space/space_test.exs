@@ -29,9 +29,10 @@ defmodule CPSolverTest.Space do
       assert length(propagators) == length(space_propagators)
       assert length(propagators) == map_size(threads)
       assert length(variables) == length(space_variables)
+      # TODO - check subscriptions (propagators -> variables, space -> propagators)
     end
 
-    test "stable propagators" do
+    test "stable space" do
       x_values = 1..10
       y_values = -5..5
       z_values = 0..2

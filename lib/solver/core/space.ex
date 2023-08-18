@@ -107,7 +107,18 @@ defmodule CPSolver.Space do
     {:keep_state, set_propagator_stable(data, propagator_thread, false)}
   end
 
-  def propagating(:info, :fail, data) do
+  def propagating(:info, {:entailed, propagator_thread}, data) do
+    Logger.debug("Entailed propagator #{inspect(propagator_thread)}")
+    updated_data = update_entailed(data, propagator_thread)
+
+    if solved?(updated_data) do
+      {:next_state, :solved, updated_data}
+    else
+      {:keep_state, updated_data}
+    end
+  end
+
+  def propagating(:info, {:failed, propagator_thread}, data) do
     Logger.debug("The space has failed")
     {:next_state, :failed, data}
   end
@@ -152,6 +163,14 @@ defmodule CPSolver.Space do
       | propagator_threads:
           Map.update!(threads, propagator_id, fn content -> Map.put(content, :stable, stable?) end)
     }
+  end
+
+  def update_entailed(%{propagator_threads: threads} = data, propagator_thread) do
+    Map.put(data, :propagator_threads, Map.delete(threads, propagator_thread))
+  end
+
+  defp solved?(data) do
+    map_size(data.propagator_threads) == 0
   end
 
   defp handle_failure(data) do
