@@ -11,7 +11,8 @@ defmodule CPSolver.Propagator.Thread do
     alias CPSolver.Variable
     alias CPSolver.Propagator.NotEqual
 
-    alias CPSolver.Utils
+    require Logger
+
     @entailment_str "Propagator is entailed"
 
     test "create propagator thread" do
@@ -131,6 +132,22 @@ defmodule CPSolver.Propagator.Thread do
                Store.update(space, x_var, :fix, [0])
                Process.sleep(10)
              end) =~ "is stable"
+    end
+
+    test "propagator failure" do
+      space = self()
+      x = 1..1
+      y = 1..2
+      z = 2..2
+      variables = Enum.map([x, y, z], fn d -> IntVariable.new(d) end)
+
+      {:ok, [x_var, y_var, z_var] = vars} = Store.create(space, variables)
+      {:ok, _threadXY} = Propagator.create_thread(space, {NotEqual, [x_var, y_var]}, id: "X != Y")
+      {:ok, _threadYZ} = Propagator.create_thread(space, {NotEqual, [y_var, z_var]}, id: "Y != Z")
+      Process.sleep(10)
+      assert 1 == Store.get(space, x_var, :min)
+      assert 2 == Store.get(space, y_var, :min)
+      assert :fail == Store.get(space, z_var, :min)
     end
   end
 end
