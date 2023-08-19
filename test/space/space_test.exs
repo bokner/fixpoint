@@ -5,7 +5,6 @@ defmodule CPSolverTest.Space do
   import CPSolver.Test.Helpers
 
   describe "Computation space" do
-    alias Mix.Utils
     alias CPSolver.Store.Registry, as: Store
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Space, as: Space
