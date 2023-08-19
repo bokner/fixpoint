@@ -8,7 +8,7 @@ defmodule CPSolver.Space do
   alias __MODULE__, as: Space
   alias CPSolver.ConstraintStore, as: Store
   alias CPSolver.Propagator, as: Propagator
-  import CPSolver.Utils
+  alias CPSolver.Solution, as: Solution
 
   require Logger
 
@@ -19,7 +19,7 @@ defmodule CPSolver.Space do
             propagator_threads: [],
             store: Store.default_store(),
             space: nil,
-            solution_handler: CPSolver.Solution.DefaultHandler
+            solution_handler: nil
 
   def create(variables, propagators, space_opts \\ [], search \\ nil, gen_statem_opts \\ []) do
     {:ok, _space} =
@@ -37,10 +37,10 @@ defmodule CPSolver.Space do
   def search() do
   end
 
-  def solution(%{variables: variables, space: space, store: store} = data) do
+  def solution(%{variables: variables, space: space, store: store} = _data) do
     Enum.reduce(variables, Map.new(), fn var, acc ->
-      Map.put(acc, var.id,
-      store.get(space, var, :min)) end)
+      Map.put(acc, var.id, store.get(space, var, :min))
+    end)
   end
 
   def stats() do
@@ -57,13 +57,18 @@ defmodule CPSolver.Space do
       Keyword.get(args, :space_opts)
       |> Keyword.get(:store, Store.default_store())
 
+    solution_handler =
+      Keyword.get(args, :space_opts)
+      |> Keyword.get(:solution_handler, Solution.default_handler())
+
     {:ok, space_variables} = store_impl.create(space, variables)
 
     space_data = %Space{
       variables: space_variables,
       propagators: propagators,
       store: store_impl,
-      space: space
+      space: space,
+      solution_handler: solution_handler
     }
 
     {:ok, :start_propagation, space_data, [{:next_event, :internal, :propagate}]}
@@ -84,7 +89,7 @@ defmodule CPSolver.Space do
     {:next_state, :propagating, Map.put(data, :propagator_threads, propagator_threads)}
   end
 
-  def propagating(:enter, :start_propagation, data) do
+  def propagating(:enter, :start_propagation, _data) do
     Logger.debug("Propagation in progress")
     :keep_state_and_data
   end
@@ -116,8 +121,7 @@ defmodule CPSolver.Space do
     end
   end
 
-  def propagating(:info, {:failed, propagator_thread}, data) do
-    Logger.debug("The space has failed")
+  def propagating(:info, {:failed, _propagator_thread}, data) do
     {:next_state, :failed, data}
   end
 
@@ -171,14 +175,14 @@ defmodule CPSolver.Space do
     map_size(data.propagator_threads) == 0
   end
 
-  defp handle_failure(data) do
-    :todo
+  defp handle_failure(_data) do
+    Logger.debug("The space has failed")
   end
 
   defp handle_solved(%{solution_handler: solution_handler} = data) do
     data
     |> solution()
-    |> solution_handler.handle()
+    |> Solution.run_handler(solution_handler)
   end
 
   defp handle_stable(data) do

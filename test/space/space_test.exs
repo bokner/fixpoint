@@ -10,6 +10,7 @@ defmodule CPSolverTest.Space do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Space, as: Space
     alias CPSolver.Propagator.NotEqual
+    alias CPSolver.Solution
 
     alias CPSolver.Utils
 
@@ -22,6 +23,7 @@ defmodule CPSolverTest.Space do
       propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
 
       {:ok, space} = Space.create(variables, propagators)
+      # Process.sleep(1)
 
       {state,
        %{propagators: space_propagators, variables: space_variables, propagator_threads: threads} =
@@ -29,6 +31,7 @@ defmodule CPSolverTest.Space do
         Space.get_state_and_data(space)
 
       assert state == :propagating
+
       assert length(propagators) == length(space_propagators)
       assert length(propagators) == map_size(threads)
       assert length(variables) == length(space_variables)
@@ -69,20 +72,16 @@ defmodule CPSolverTest.Space do
     end
 
     test "solved space" do
-      x_values = 1..2
-      y_values = 1..1
-      z_values = 1..2
+      %{space: space} = create_solved_space()
+      # Process.sleep(1)
+      {state, _data} = Space.get_state_and_data(space)
+      assert state == :propagating
 
-      values = [x_values, y_values, z_values]
-      [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
-      propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
-
-      {:ok, space} = Space.create(variables, propagators)
       Process.sleep(10)
       {state, %{variables: space_variables} = _data} = Space.get_state_and_data(space)
       assert state == :solved
       ## Check if all space variables are fixed
-      assert Enum.all?(variables, fn var -> Store.get(space, var, :fixed?) end)
+      assert Enum.all?(space_variables, fn var -> Store.get(space, var, :fixed?) end)
     end
 
     test "failing space" do
@@ -98,6 +97,57 @@ defmodule CPSolverTest.Space do
       Process.sleep(10)
       {state, _data} = Space.get_state_and_data(space)
       assert state == :failed
+    end
+
+    test "solution handler as function" do
+      target_pid = self()
+
+      ## The solution will be send to the current process
+      solution_handler = fn solution ->
+        send(target_pid, Enum.sort_by(solution, fn {var, _value} -> var end))
+      end
+
+      ## Create a space with the solution handler as a function
+      %{space: space, variables: space_variables} =
+        create_solved_space(solution_handler: solution_handler)
+
+      Process.sleep(10)
+      ## Check the solution against the store
+      store_vars =
+        Enum.map(space_variables, fn v -> {v.id, Store.get(space, v, :min)} end)
+        |> Enum.sort_by(fn {var, _value} -> var end)
+
+      assert_receive ^store_vars, 10
+    end
+
+    test "solution handler as a module" do
+      solution_handler = Solution.default_handler()
+
+      ## Create a space with the solution handler as a function
+      log =
+        capture_log(fn ->
+          _ =
+            create_solved_space(solution_handler: solution_handler)
+
+          Process.sleep(10)
+        end)
+
+      assert log =~ "Solution found"
+      assert number_of_occurences(log, "<- 2") == 2
+      assert number_of_occurences(log, "<- 1") == 1
+    end
+
+    defp create_solved_space(space_opts \\ []) do
+      x_values = 1..2
+      y_values = 1..1
+      z_values = 1..2
+
+      values = [x_values, y_values, z_values]
+      [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
+      propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
+
+      {:ok, space} = Space.create(variables, propagators, space_opts)
+      %{space: space, propagators: propagators, variables: variables}
     end
   end
 end
