@@ -31,7 +31,8 @@ defmodule CPSolver.Store.Registry do
              name: variable_proc_id(var)
            )
 
-         var
+         %{}
+         |> Map.put(:id, var.id)
          |> Map.put(:space, space)
        end
      )}

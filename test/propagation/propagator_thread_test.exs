@@ -141,7 +141,7 @@ defmodule CPSolver.Propagator.Thread do
       z = 2..2
       variables = Enum.map([x, y, z], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var, z_var] = vars} = Store.create(space, variables)
+      {:ok, [x_var, y_var, z_var] = _vars} = Store.create(space, variables)
       {:ok, _threadXY} = Propagator.create_thread(space, {NotEqual, [x_var, y_var]}, id: "X != Y")
       {:ok, _threadYZ} = Propagator.create_thread(space, {NotEqual, [y_var, z_var]}, id: "Y != Z")
       Process.sleep(10)
