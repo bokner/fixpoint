@@ -9,6 +9,7 @@ defmodule CPSolver.Space do
   alias CPSolver.ConstraintStore, as: Store
   alias CPSolver.Propagator, as: Propagator
   alias CPSolver.Solution, as: Solution
+  alias CPSolver.IntVariable, as: Variable
 
   require Logger
 
@@ -34,16 +35,10 @@ defmodule CPSolver.Space do
     {_state, _data} = :sys.get_state(space)
   end
 
-  def search() do
-  end
-
   def solution(%{variables: variables, space: space, store: store} = _data) do
     Enum.reduce(variables, Map.new(), fn var, acc ->
       Map.put(acc, var.id, store.get(space, var, :min))
     end)
-  end
-
-  def stats() do
   end
 
   @impl true
@@ -142,7 +137,7 @@ defmodule CPSolver.Space do
 
   def stable(:enter, :propagating, data) do
     handle_stable(data)
-    :keep_state_and_data
+    {:keep_state, distribute(data)}
   end
 
   defp start_propagation(%{propagators: propagators, space: space} = _space_state) do
@@ -151,7 +146,7 @@ defmodule CPSolver.Space do
     Enum.reduce(propagators, Map.new(), fn p, acc ->
       propagator_id = make_ref()
       {:ok, thread} = Propagator.create_thread(space, p, id: propagator_id)
-      Map.put(acc, propagator_id, %{thread: thread, stable: false})
+      Map.put(acc, propagator_id, %{thread: thread, propagator: p, stable: false})
     end)
   end
 
@@ -187,5 +182,22 @@ defmodule CPSolver.Space do
 
   defp handle_stable(data) do
     Logger.debug("Space #{inspect(data.space)} is stable")
+  end
+
+  defp distribute(data) do
+    Logger.debug("Distributing the space...")
+    :todo
+    data
+  end
+
+  defp copy_space(%{variables: variables, propagator_threads: threads, space: space} = _data) do
+    var_copies = Enum.map(variables, fn v -> Store.domain(space, v) |> Variable.new() end)
+
+    propagator_copies =
+      Enum.map(threads, fn {_ref, thread} -> copy_propagator(thread.propagator) end)
+  end
+
+  defp copy_propagator({propagator_mod, args}) do
+    :todo
   end
 end

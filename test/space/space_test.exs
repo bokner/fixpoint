@@ -25,13 +25,11 @@ defmodule CPSolverTest.Space do
       # Process.sleep(1)
 
       {state,
-       %{propagators: space_propagators, variables: space_variables, propagator_threads: threads} =
-         _data} =
-        Space.get_state_and_data(space)
+       %{variables: space_variables, propagator_threads: threads} =
+         _data} = Space.get_state_and_data(space)
 
       assert state == :propagating
 
-      assert length(propagators) == length(space_propagators)
       assert length(propagators) == map_size(threads)
       assert length(variables) == length(space_variables)
 
@@ -125,8 +123,7 @@ defmodule CPSolverTest.Space do
       ## Create a space with the solution handler as a function
       log =
         capture_log(fn ->
-          _ =
-            create_solved_space(solution_handler: solution_handler)
+          _ = create_solved_space(solution_handler: solution_handler)
 
           Process.sleep(10)
         end)

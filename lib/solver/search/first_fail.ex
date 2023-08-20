@@ -8,8 +8,9 @@ defmodule CPSolver.Search.Strategy.FirstFail do
     {min_domain_var, _size} =
       Enum.reduce(variables, {nil, :infinity}, fn var, {_v, v_size} = acc ->
         case Variable.size(var) do
-          s when s == :fail -> throw(Strategy.failed_variables_in_search_exception())
-          s when s == 1 -> acc
+          :fail -> throw(Strategy.failed_variables_in_search_exception())
+          ## Skip fixed vars
+          1 -> acc
           s when s < v_size -> {var, s}
           _s -> acc
         end

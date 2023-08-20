@@ -58,6 +58,18 @@ defmodule CPSolver.Store.Registry do
   end
 
   @impl true
+  def domain(_space, var) do
+    Agent.get(variable_proc_id(var), fn
+      :fail ->
+        :fail
+        |> tap(fn _ -> handle_op_on_failed_var(var, :domain) end)
+
+      domain ->
+        domain
+    end)
+  end
+
+  @impl true
   def update(_store, var, operation, args \\ []) do
     Agent.update(
       variable_proc_id(var),
