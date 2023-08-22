@@ -1,7 +1,7 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable
   @callback select_variable([Variable.t()]) :: Variable.t()
-  @callback select_value(Variable.t()) :: number()
+  @callback partition(domain :: Enum.t()) :: Domain.t()
 
   def no_variable_choice_exception() do
     :no_variable_choice

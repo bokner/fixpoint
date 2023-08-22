@@ -4,6 +4,7 @@ defmodule CPSolverTest.Search.FirstFail do
   describe "First-fail search strategy" do
     alias CPSolver.Store.Registry, as: Store
     alias CPSolver.IntVariable, as: Variable
+    alias CPSolver.DefaultDomain, as: Domain
     alias CPSolver.Search.Strategy, as: SearchStrategy
     alias CPSolver.Search.Strategy.FirstFail
 
@@ -18,13 +19,16 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, _bound_vars} = Store.create(space, variables)
-      selected_variable = FirstFail.select_variable(variables)
-      v2_var = Enum.at(variables, 2)
+      {:ok, bound_vars} = Store.create(space, variables)
+      selected_variable = FirstFail.select_variable(bound_vars)
+      v2_var = Enum.at(bound_vars, 2)
       assert selected_variable == v2_var
 
-      assert FirstFail.select_value(selected_variable) ==
-               Store.get(space, selected_variable, :min)
+      var_domain = Store.domain(space, selected_variable)
+      min_val = Domain.min(var_domain)
+
+      assert FirstFail.partition(var_domain) ==
+               [min_val, Domain.remove(var_domain, min_val)]
     end
 
     test "first_fail fails if no unfixed variables" do

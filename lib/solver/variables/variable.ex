@@ -37,6 +37,10 @@ defmodule CPSolver.Variable do
     end
   end
 
+  def domain(variable) do
+    store_op(:domain, variable)
+  end
+
   def size(variable) do
     store_op(:size, variable)
   end
@@ -83,6 +87,10 @@ defmodule CPSolver.Variable do
 
   defp store_op(op, variable) when op in [:size, :fixed?, :min, :max] do
     Store.get(variable.space, variable, op)
+  end
+
+  defp store_op(:domain, variable) do
+    Store.domain(variable.space, variable)
   end
 
   def topic(variable) do

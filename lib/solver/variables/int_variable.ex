@@ -3,6 +3,7 @@ defmodule CPSolver.IntVariable do
 
   alias CPSolver.Variable
 
+  defdelegate domain(var), to: Variable
   defdelegate size(var), to: Variable
   defdelegate min(var), to: Variable
   defdelegate max(var), to: Variable
