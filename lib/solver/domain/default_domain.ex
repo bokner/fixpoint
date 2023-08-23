@@ -6,8 +6,9 @@ defmodule CPSolver.DefaultDomain do
     throw(:empty_domain)
   end
 
-  def new(values) do
-    Enum.reduce(values, :gb_sets.new(), fn v, acc -> :gb_sets.add_element(v, acc) end)
+  def new(domain) do
+    (:gb_sets.is_set(domain) && domain) ||
+      Enum.reduce(domain, :gb_sets.new(), fn v, acc -> :gb_sets.add_element(v, acc) end)
   end
 
   @spec size(:gb_sets.set(number())) :: non_neg_integer

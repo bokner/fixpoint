@@ -20,13 +20,23 @@ defmodule CPSolver.Space do
             propagator_threads: [],
             store: Store.default_store(),
             space: nil,
-            solution_handler: nil
+            solution_handler: nil,
+            search: nil,
+            opts: []
 
-  def create(variables, propagators, space_opts \\ [], search \\ nil, gen_statem_opts \\ []) do
+  defp default_space_opts() do
+    [
+      store: Store.default_store(),
+      solution_handler: Solution.default_handler(),
+      search: CPSolver.Search.Strategy.default_strategy()
+    ]
+  end
+
+  def create(variables, propagators, space_opts \\ [], gen_statem_opts \\ []) do
     {:ok, _space} =
       :gen_statem.start_link(
         __MODULE__,
-        [variables: variables, propagators: propagators, search: search, space_opts: space_opts],
+        [variables: variables, propagators: propagators, space_opts: space_opts],
         gen_statem_opts
       )
   end
@@ -48,14 +58,11 @@ defmodule CPSolver.Space do
 
     space = self()
 
-    store_impl =
-      Keyword.get(args, :space_opts)
-      |> Keyword.get(:store, Store.default_store())
+    space_opts = Keyword.merge(default_space_opts(), Keyword.get(args, :space_opts, []))
+    store_impl = Keyword.get(space_opts, :store)
 
-    solution_handler =
-      Keyword.get(args, :space_opts)
-      |> Keyword.get(:solution_handler, Solution.default_handler())
-
+    solution_handler = Keyword.get(space_opts, :solution_handler)
+    search_strategy = Keyword.get(space_opts, :search)
     {:ok, space_variables} = store_impl.create(space, variables)
 
     space_data = %Space{
@@ -63,7 +70,9 @@ defmodule CPSolver.Space do
       propagators: propagators,
       store: store_impl,
       space: space,
-      solution_handler: solution_handler
+      opts: space_opts,
+      solution_handler: solution_handler,
+      search: search_strategy
     }
 
     {:ok, :start_propagation, space_data, [{:next_event, :internal, :propagate}]}
@@ -187,17 +196,52 @@ defmodule CPSolver.Space do
   defp distribute(data) do
     Logger.debug("Distributing the space...")
     :todo
-    data
+
+    # copy(data)
   end
 
-  defp copy_space(%{variables: variables, propagator_threads: threads, space: space} = _data) do
-    var_copies = Enum.map(variables, fn v -> Store.domain(space, v) |> Variable.new() end)
+  def copy(space) when is_pid(space) do
+    {_state, data} = get_state_and_data(space)
+    copy(data)
+  end
+
+  def copy(
+        %{
+          variables: variables,
+          propagator_threads: threads,
+          store: store_impl,
+          search: search_strategy,
+          space: space,
+          opts: opts
+        } =
+          _data
+      ) do
+    variable_copies =
+      Map.new(
+        variables,
+        fn v -> {v.id, store_impl.domain(space, v) |> then(fn d -> {Variable.new(d), d} end)} end
+      )
 
     propagator_copies =
-      Enum.map(threads, fn {_ref, thread} -> copy_propagator(thread.propagator) end)
-  end
+      Enum.map(threads, fn {_ref, thread} ->
+        {propagator_mod, args} = thread.propagator
+        ## Replace variables in args to their copies
+        {propagator_mod,
+         Enum.map(args, fn
+           %CPSolver.Variable{id: id} = _arg ->
+             {var, _domain} = Map.get(variable_copies, id)
+             var
 
-  defp copy_propagator({propagator_mod, args}) do
-    :todo
+           const ->
+             const
+         end)}
+      end)
+
+    variable_to_branch_on = search_strategy.select_variable(variables)
+    {new_var, domain} = Map.get(variable_copies, variable_to_branch_on.id)
+    value_branching = search_strategy.partition(domain)
+
+    new_variables = Map.values(variable_copies) |> Enum.map(fn {var, _domain} -> var end)
+    create(new_variables, propagator_copies, opts)
   end
 end
