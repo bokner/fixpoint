@@ -126,12 +126,6 @@ defmodule CPSolverTest.Space do
       assert number_of_occurences(log, "<- 1") == 1
     end
 
-    test "copying space" do
-      %{space: space} = create_stable_space()
-      Space.copy(space)
-      Process.sleep(100)
-    end
-
     defp create_solved_space(space_opts \\ []) do
       x_values = 1..2
       y_values = 1..1

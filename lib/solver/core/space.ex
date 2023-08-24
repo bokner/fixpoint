@@ -193,29 +193,19 @@ defmodule CPSolver.Space do
     Logger.debug("Space #{inspect(data.space)} is stable")
   end
 
-  defp distribute(data) do
+  defp distribute(
+         %{
+           variables: variables,
+           propagator_threads: threads,
+           store: store_impl,
+           search: search_strategy,
+           space: space,
+           opts: opts
+         } =
+           _data
+       ) do
     Logger.debug("Distributing the space...")
-    :todo
 
-    # copy(data)
-  end
-
-  def copy(space) when is_pid(space) do
-    {_state, data} = get_state_and_data(space)
-    copy(data)
-  end
-
-  def copy(
-        %{
-          variables: variables,
-          propagator_threads: threads,
-          store: store_impl,
-          search: search_strategy,
-          space: space,
-          opts: opts
-        } =
-          _data
-      ) do
     variable_copies =
       Map.new(
         variables,
@@ -238,10 +228,21 @@ defmodule CPSolver.Space do
       end)
 
     variable_to_branch_on = search_strategy.select_variable(variables)
-    {new_var, domain} = Map.get(variable_copies, variable_to_branch_on.id)
-    value_branching = search_strategy.partition(domain)
+    {var_copy, domain} = Map.get(variable_copies, variable_to_branch_on.id)
+    domain_partitions = search_strategy.partition(domain)
 
-    new_variables = Map.values(variable_copies) |> Enum.map(fn {var, _domain} -> var end)
-    create(new_variables, propagator_copies, opts)
+    Enum.map(domain_partitions, fn partition ->
+      new_variables =
+        Enum.map(variable_copies, fn {v_id, {v, _d}} ->
+          ## Replace the domain of variable to branch on
+          if v_id == var_copy.id do
+            Variable.new(partition)
+          else
+            v
+          end
+        end)
+
+      create(new_variables, propagator_copies, opts)
+    end)
   end
 end
