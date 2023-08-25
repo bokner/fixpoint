@@ -53,17 +53,48 @@ defmodule CPSolverTest.Space do
     end
 
     test "stable space" do
-      %{space: space} = create_stable_space()
+      target_pid = self()
 
-      Process.sleep(10)
+      solution_handler = fn solution ->
+        send(target_pid, Enum.sort_by(solution, fn {var, _value} -> var end))
+      end
+
+      %{space: space, variables: space_variables} =
+        create_stable_space(solution_handler: solution_handler)
+
+      Process.sleep(100)
 
       {state, _data} = Space.get_state_and_data(space)
       assert state == :stable
+
+      solutions =
+        Enum.map(1..2, fn _ ->
+          receive do
+            sol -> sol
+          end
+        end)
+
+      # Only 2 solutions, nothing else has come in the mailbox
+      refute_receive _msg, 100
+
+      # The solution contains variables in the same order as space variables
+      assert Enum.all?(solutions, fn variables ->
+               variables
+               |> Enum.zip(space_variables)
+               |> Enum.all?(fn {{solution_var, _value}, space_var} ->
+                 solution_var == space_var.id
+               end)
+             end)
+
+      # For all solutions, constraints (x != y and y != z) are satisfied.
+      assert Enum.all?(solutions, fn variables ->
+               [x, y, z] = Enum.map(variables, fn {_id, value} -> value end)
+               x != y && y != z
+             end)
     end
 
     test "solved space" do
       %{space: space} = create_solved_space()
-      # Process.sleep(1)
       {state, _data} = Space.get_state_and_data(space)
       assert state == :propagating
 
@@ -155,7 +186,7 @@ defmodule CPSolverTest.Space do
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
       propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
 
-      {:ok, space} = Space.create(variables, propagators)
+      {:ok, space} = Space.create(variables, propagators, space_opts)
       %{space: space, propagators: propagators, variables: variables, domains: values}
     end
   end
