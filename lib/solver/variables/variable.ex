@@ -1,13 +1,11 @@
 defmodule CPSolver.Variable do
+
   defstruct [:id, :name, :space, :store, :domain, :domain_impl]
 
   @type t :: %__MODULE__{
           id: reference(),
           name: String.t(),
-          space: any(),
-          store: atom(),
-          domain: any(),
-          domain_impl: module()
+          domain: Domain.t()
         }
 
   alias CPSolver.Variable

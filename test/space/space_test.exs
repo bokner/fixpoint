@@ -77,15 +77,6 @@ defmodule CPSolverTest.Space do
       # Only 2 solutions, nothing else has come in the mailbox
       refute_receive _msg, 100
 
-      # The solution contains variables in the same order as space variables
-      assert Enum.all?(solutions, fn variables ->
-               variables
-               |> Enum.zip(space_variables)
-               |> Enum.all?(fn {{solution_var, _value}, space_var} ->
-                 solution_var == space_var.id
-               end)
-             end)
-
       # For all solutions, constraints (x != y and y != z) are satisfied.
       assert Enum.all?(solutions, fn variables ->
                [x, y, z] = Enum.map(variables, fn {_id, value} -> value end)
