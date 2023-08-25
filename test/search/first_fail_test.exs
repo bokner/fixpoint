@@ -12,7 +12,7 @@ defmodule CPSolverTest.Search.FirstFail do
       space = self()
       v0_values = 0..0
       v1_values = 1..10
-      # This domain is the mallest among unfixed
+      # This domain is the smallest among unfixed
       v2_values = 0..5
       v3_values = 1..1
       v4_values = -5..5
@@ -28,7 +28,7 @@ defmodule CPSolverTest.Search.FirstFail do
       min_val = Domain.min(var_domain)
 
       assert FirstFail.partition(var_domain) ==
-               [min_val, Domain.remove(var_domain, min_val)]
+               [0, Domain.new(List.delete(Range.to_list(v2_values), 0))]
     end
 
     test "first_fail fails if no unfixed variables" do

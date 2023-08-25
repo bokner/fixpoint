@@ -126,6 +126,15 @@ defmodule CPSolverTest.Space do
       assert number_of_occurences(log, "<- 1") == 1
     end
 
+    test "distribute space" do
+      require Logger
+      %{space: space, variables: variables} = create_stable_space()
+      Process.sleep(100)
+      {_state, data} = Space.get_state_and_data(space)
+      assert length(data.children) == 2
+      [child1, child2] = data.children
+    end
+
     defp create_solved_space(space_opts \\ []) do
       x_values = 1..2
       y_values = 1..1
@@ -148,7 +157,7 @@ defmodule CPSolverTest.Space do
       propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
 
       {:ok, space} = Space.create(variables, propagators)
-      %{space: space, propagators: propagators, variables: variables}
+      %{space: space, propagators: propagators, variables: variables, domains: values}
     end
   end
 end

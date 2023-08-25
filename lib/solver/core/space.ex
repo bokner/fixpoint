@@ -146,7 +146,16 @@ defmodule CPSolver.Space do
 
   def stable(:enter, :propagating, data) do
     handle_stable(data)
-    {:keep_state, distribute(data)}
+
+    {:keep_state,
+     data
+     |> distribute()
+     |> then(fn child_data -> Map.put(data, :children, child_data) end)}
+
+    # |> Enum.map(fn child_data ->
+    #  spawn(fn -> create(child_data.variables, child_data.propagators, data.opts) end)
+    # end)
+    # |> then(fn _children -> Map.put(data, :children, child_data) end)}
   end
 
   defp start_propagation(%{propagators: propagators, space: space} = _space_state) do
@@ -193,56 +202,54 @@ defmodule CPSolver.Space do
     Logger.debug("Space #{inspect(data.space)} is stable")
   end
 
-  defp distribute(
-         %{
-           variables: variables,
-           propagator_threads: threads,
-           store: store_impl,
-           search: search_strategy,
-           space: space,
-           opts: opts
-         } =
-           _data
-       ) do
+  def distribute(
+        %{
+          variables: variables,
+          propagator_threads: threads,
+          store: store_impl,
+          search: search_strategy,
+          space: space
+        } =
+          _data
+      ) do
     Logger.debug("Distributing the space...")
 
-    variable_copies =
+    variable_domains =
       Map.new(
         variables,
-        fn v -> {v.id, store_impl.domain(space, v) |> then(fn d -> {Variable.new(d), d} end)} end
+        fn v -> {v.id, store_impl.domain(space, v)} end
       )
 
-    propagator_copies =
-      Enum.map(threads, fn {_ref, thread} ->
-        {propagator_mod, args} = thread.propagator
-        ## Replace variables in args to their copies
-        {propagator_mod,
-         Enum.map(args, fn
-           %CPSolver.Variable{id: id} = _arg ->
-             {var, _domain} = Map.get(variable_copies, id)
-             var
-
-           const ->
-             const
-         end)}
-      end)
-
-    variable_to_branch_on = search_strategy.select_variable(variables)
-    {var_copy, domain} = Map.get(variable_copies, variable_to_branch_on.id)
-    domain_partitions = search_strategy.partition(domain)
+    var_to_branch_on = search_strategy.select_variable(variables)
+    var_domain = Map.get(variable_domains, var_to_branch_on.id)
+    domain_partitions = search_strategy.partition(var_domain)
 
     Enum.map(domain_partitions, fn partition ->
-      new_variables =
-        Enum.map(variable_copies, fn {v_id, {v, _d}} ->
-          ## Replace the domain of variable to branch on
-          if v_id == var_copy.id do
-            Variable.new(partition)
-          else
-            v
-          end
+      variable_copies =
+        Map.new(variable_domains, fn {var_id, domain} ->
+          {var_id,
+           if var_id == var_to_branch_on.id do
+             Variable.new(partition)
+           else
+             Variable.new(domain)
+           end}
         end)
 
-      create(new_variables, propagator_copies, opts)
+      propagator_copies =
+        Enum.map(threads, fn {_ref, thread} ->
+          {propagator_mod, args} = thread.propagator
+          ## Replace variables in args to their copies
+          {propagator_mod,
+           Enum.map(args, fn
+             %CPSolver.Variable{id: id} = _arg ->
+               Map.get(variable_copies, id)
+
+             const ->
+               const
+           end)}
+        end)
+
+      %{variables: Map.values(variable_copies), propagators: propagator_copies}
     end)
   end
 end
