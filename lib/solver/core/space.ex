@@ -150,12 +150,12 @@ defmodule CPSolver.Space do
     {:keep_state,
      data
      |> distribute()
-     |> then(fn child_data -> Map.put(data, :children, child_data) end)}
-
-    # |> Enum.map(fn child_data ->
-    #  spawn(fn -> create(child_data.variables, child_data.propagators, data.opts) end)
-    # end)
-    # |> then(fn _children -> Map.put(data, :children, child_data) end)}
+     |> Enum.map(fn child_data ->
+       spawn(fn ->
+         create(child_data.variables, child_data.propagators, data.opts)
+       end)
+     end)
+     |> then(fn children -> Map.put(data, :children, children) end)}
   end
 
   defp start_propagation(%{propagators: propagators, space: space} = _space_state) do

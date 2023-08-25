@@ -127,7 +127,6 @@ defmodule CPSolverTest.Space do
     end
 
     test "distribute space" do
-      require Logger
       %{space: space, variables: variables} = create_stable_space()
       Process.sleep(100)
       {_state, data} = Space.get_state_and_data(space)
@@ -149,9 +148,9 @@ defmodule CPSolverTest.Space do
     end
 
     defp create_stable_space(space_opts \\ []) do
-      x_values = 1..10
-      y_values = -5..5
-      z_values = 0..2
+      x_values = 1..2
+      y_values = 1..2
+      z_values = 1..2
       values = [x_values, y_values, z_values]
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
       propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
