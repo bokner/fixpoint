@@ -5,6 +5,7 @@ defmodule CPSolver.Space do
   of Computer Programming" by Peter Van Roy and Seif Haridi.
   """
 
+  alias CPSolver.Utils
   alias __MODULE__, as: Space
   alias CPSolver.ConstraintStore, as: Store
   alias CPSolver.Propagator, as: Propagator
@@ -15,11 +16,13 @@ defmodule CPSolver.Space do
 
   @behaviour :gen_statem
 
-  defstruct variables: [],
+  defstruct id: nil,
+            variables: [],
             propagators: [],
             propagator_threads: [],
             store: Store.default_store(),
             space: nil,
+            solver: nil,
             solution_handler: nil,
             search: nil,
             opts: []
@@ -36,9 +39,18 @@ defmodule CPSolver.Space do
     {:ok, _space} =
       :gen_statem.start_link(
         __MODULE__,
-        [variables: variables, propagators: propagators, space_opts: space_opts],
+        [
+          variables: variables,
+          propagators: propagators,
+          # Inject solver, if wasn't passed in opts
+          space_opts: inject_solver(space_opts)
+        ],
         gen_statem_opts
       )
+  end
+
+  defp inject_solver(space_opts) do
+    Keyword.put_new(space_opts, :solver, self())
   end
 
   def get_state_and_data(space) do
@@ -57,15 +69,19 @@ defmodule CPSolver.Space do
     propagators = Keyword.get(args, :propagators)
 
     space = self()
-
+    space_id = Process.alias()
     space_opts = Keyword.merge(default_space_opts(), Keyword.get(args, :space_opts, []))
     store_impl = Keyword.get(space_opts, :store)
 
     solution_handler = Keyword.get(space_opts, :solution_handler)
     search_strategy = Keyword.get(space_opts, :search)
+    solver = Keyword.get(space_opts, :solver)
+    ## Subscribe solver to space events
+    Utils.subscribe(solver, space_id)
     {:ok, space_variables} = store_impl.create(space, variables)
 
     space_data = %Space{
+      id: space_id,
       variables: space_variables,
       propagators: propagators,
       store: store_impl,
@@ -195,6 +211,7 @@ defmodule CPSolver.Space do
   defp handle_solved(%{solution_handler: solution_handler} = data) do
     data
     |> solution()
+    |> tap(fn solution -> Utils.publish(data.id, {:solution, solution}) end)
     |> Solution.run_handler(solution_handler)
   end
 

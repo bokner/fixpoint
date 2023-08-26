@@ -60,7 +60,9 @@ defmodule CPSolverTest.Space do
       end
 
       %{space: space, variables: space_variables} =
-        create_stable_space(solution_handler: solution_handler)
+        create_stable_space(
+          # solution_handler: solution_handler
+        )
 
       Process.sleep(100)
 
@@ -70,7 +72,7 @@ defmodule CPSolverTest.Space do
       solutions =
         Enum.map(1..2, fn _ ->
           receive do
-            sol -> sol
+            {:solution, sol} -> sol
           end
         end)
 

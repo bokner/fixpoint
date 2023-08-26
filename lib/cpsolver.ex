@@ -25,7 +25,9 @@ defmodule CPSolver do
         acc ++ constraint_to_propagators(constraint)
       end)
 
-    {:ok, top_space} = Space.create(model.variables, propagators, solver_opts)
+    {:ok, top_space} =
+      Space.create(model.variables, propagators, Keyword.put(solver_opts, :solver, self()))
+
     {:ok, %{space: top_space, solver_opts: solver_opts}}
   end
 
