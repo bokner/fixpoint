@@ -1,5 +1,9 @@
 %{
   "ebus": {:hex, :erlbus, "0.3.0", "ecd5418ff2a365a9e809f553b15b624522dad788c49f3aedb64017c192568810", [:make, :rebar3], [], "hexpm", "45938bf8b97e26b02fe44b91d52be333a2a82cf4220ebfeacc32588b2c84fa30"},
+  "erlang_term": {:hex, :erlang_term, "2.0.6", "b004de5bc7e83785c7bf69fff1ccff838ac49a75af693f397308306213b41ea8", [:rebar3], [], "hexpm", "b9f227336ea08d4e416824899e2613d50470246d7d28776856cace9d7c9c0f07"},
   "libgraph": {:hex, :libgraph, "0.16.0", "3936f3eca6ef826e08880230f806bfea13193e49bf153f93edcf0239d4fd1d07", [:mix], [], "hexpm", "41ca92240e8a4138c30a7e06466acc709b0cbb795c643e9e17174a178982d6bf"},
   "phoenix_pubsub": {:hex, :phoenix_pubsub, "2.1.3", "3168d78ba41835aecad272d5e8cd51aa87a7ac9eb836eabc42f6e57538e3731d", [:mix], [], "hexpm", "bba06bc1dcfd8cb086759f0edc94a8ba2bc8896d5331a1e2c2902bf8e36ee502"},
+  "redbug": {:git, "git@github.com:massemanet/redbug.git", "a249400ee173e1cb7db37e725df973a7a3b0d9b9", []},
+  "replbug": {:git, "https://github.com/bokner/replbug.git", "72c6330cca94693de214d1175be273dbc0500f7c", []},
+  "rexbug": {:hex, :rexbug, "1.0.6", "024071c67d970151fbdc06f299faf8db3e1b2ac759a28623a9cc80a517fc74f2", [:mix], [{:mix_test_watch, ">= 0.5.0", [hex: :mix_test_watch, repo: "hexpm", optional: true]}, {:redbug, "~> 1.2", [hex: :redbug, repo: "hexpm", optional: false]}], "hexpm", "148ea724979413e9fd84ca3b4bb5d2d8b840ac481adfd645f5846fda409a642c"},
 }

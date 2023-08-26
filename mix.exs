@@ -22,7 +22,8 @@ defmodule Cpsolver.MixProject do
   defp deps do
     [
       {:libgraph, "~> 0.16.0"},
-      {:ebus, "~> 0.3", hex: :erlbus}
+      {:ebus, "~> 0.3", hex: :erlbus},
+      {:replbug, only: :dev, git: "https://github.com/bokner/replbug.git"}
     ]
   end
 end
