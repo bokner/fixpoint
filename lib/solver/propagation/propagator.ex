@@ -60,10 +60,12 @@ defmodule CPSolver.Propagator do
   def init([space, propagator_mod, args, opts]) do
     bound_vars = Variable.bind_variables(space, propagator_mod.variables(args))
     subscribe_to_variables(self(), bound_vars)
+    propagator_id = Keyword.get(opts, :id, make_ref())
+    Utils.subscribe(space, propagator_id)
 
     {:ok,
      %{
-       id: opts[:id],
+       id: propagator_id,
        space: space,
        propagator_impl: propagator_mod,
        args: args,
@@ -76,20 +78,8 @@ defmodule CPSolver.Propagator do
        on_startup: true
      }
      |> tap(fn data ->
-       Utils.subscribe(space, data.id)
        filter(data)
      end)}
-  end
-
-  @impl true
-  def handle_continue(:continue_init, data) do
-    if entailed?(data) do
-      Logger.debug("#{data.id} Propagator is entailed (on a startup)")
-
-      {:noreply, data}
-    else
-      {:noreply, data}
-    end
   end
 
   @impl true
@@ -105,6 +95,7 @@ defmodule CPSolver.Propagator do
 
     if data.on_startup && entailed?(data) do
       Logger.debug("#{inspect(data.id)} Propagator is entailed (on a startup)")
+      publish(data, :entailed)
       {:stop, :normal, data}
     else
       {:noreply,

@@ -110,7 +110,7 @@ defmodule CPSolver.Space do
   end
 
   def propagating(:info, {:running, propagator_thread}, data) do
-    Logger.debug("Running propagator")
+    Logger.debug("Running propagator #{inspect(propagator_thread)}")
     {:keep_state, set_propagator_stable(data, propagator_thread, false)}
   end
 

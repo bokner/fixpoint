@@ -13,13 +13,30 @@ defmodule CpSolverTest do
       constraints: [{NotEqual, x, y}]
     }
 
-    solution = CPSolver.solve(model)
+    target_pid = self()
 
-    Process.sleep(100)
-    # assert Enum.sort_by(solution.assignments, fn rec -> rec.x end) == [
-    #          %{x: 0, y: 1},
-    #          %{x: 0, y: 2},
-    #          %{x: 1, y: 2}
-    #        ]
+    solution_handler = fn solution ->
+      send(target_pid, Enum.sort_by(solution, fn {var, _value} -> var end))
+    end
+
+    _ = CPSolver.solve(model, solution_handler: solution_handler)
+
+    Process.sleep(10)
+
+    solutions =
+      Enum.map(1..3, fn _ ->
+        receive do
+          sol -> sol
+        end
+      end)
+
+    # Only 3 solutions
+    refute_receive _msg, 100
+
+    # For all solutions, constraints (x != y and y != z) are satisfied.
+    assert Enum.all?(solutions, fn variables ->
+             [x, y] = Enum.map(variables, fn {_id, value} -> value end)
+             x != y
+           end)
   end
 end
