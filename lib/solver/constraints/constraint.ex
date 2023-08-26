@@ -17,8 +17,7 @@ defmodule CPSolver.Constraint do
 
   def new(constraint_impl, args) do
     %{
-      propagators: Enum.map(constraint_impl.propagators(args), fn p -> p.filter(args) end),
-      scope: constraint_impl.variables(args)
+      propagators: constraint_impl.propagators(args)
     }
   end
 end

@@ -29,14 +29,21 @@ defmodule CPSolver.Propagator do
   ##
   ## Propagator thread is a process that handles life cycle of a propagator.
   ## TODO: details to follow.
+  def create_thread(space, propagator, opts \\ [id: make_ref()])
+
   def create_thread(
         space,
         {propagator_mod, propagator_args} = _propagator,
-        opts \\ [id: make_ref()]
+        opts
       )
       when is_atom(propagator_mod) do
     {:ok, _thread} =
       GenServer.start_link(__MODULE__, [space, propagator_mod, propagator_args, opts])
+  end
+
+  def create_thread(space, propagator, opts) do
+    [propagator_mod | args] = Tuple.to_list(propagator)
+    create_thread(space, {propagator_mod, args}, opts)
   end
 
   ## Subscribe propagator thread to variables' events

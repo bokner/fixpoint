@@ -1,6 +1,5 @@
 defmodule CPSolver.Variable do
-
-  defstruct [:id, :name, :space, :store, :domain, :domain_impl]
+  defstruct [:id, :name, :domain, :space]
 
   @type t :: %__MODULE__{
           id: reference(),
