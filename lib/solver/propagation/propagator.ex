@@ -52,11 +52,11 @@ defmodule CPSolver.Propagator do
   end
 
   defp subscribe_to_var(thread, variable) do
-    Utils.subscribe(thread, variable.id)
+    Utils.subscribe(thread, {:variable, variable.id})
   end
 
   defp unsubscribe_from_var(thread, var_id) do
-    Utils.unsubscribe(thread, var_id)
+    Utils.unsubscribe(thread, {:variable, var_id})
   end
 
   ## GenServer callbacks
@@ -65,7 +65,7 @@ defmodule CPSolver.Propagator do
     bound_vars = Variable.bind_variables(space, propagator_mod.variables(args))
     subscribe_to_variables(self(), bound_vars)
     propagator_id = Keyword.get(opts, :id, make_ref())
-    Utils.subscribe(space, propagator_id)
+    Utils.subscribe(space, {:propagator, propagator_id})
 
     {:ok,
      %{
@@ -184,6 +184,6 @@ defmodule CPSolver.Propagator do
   end
 
   defp publish(data, message) do
-    Utils.publish(data.id, {message, data.id})
+    Utils.publish({:propagator, data.id}, {message, data.id})
   end
 end

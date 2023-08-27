@@ -91,7 +91,7 @@ defmodule CPSolver.Variable do
   end
 
   def subscribers(variable) do
-    Utils.subscribers(variable.id)
+    Utils.subscribers({:variable, variable.id})
   end
 
   def bind_variables(space, variables) do

@@ -48,7 +48,7 @@ defmodule CPSolverTest.Space do
       assert y_z_propagator_pid in CPSolver.Variable.subscribers(z_space)
       ## space -> propagators
       assert Enum.all?(threads, fn {thread_id, _thread} ->
-               space in Utils.subscribers(thread_id)
+               space in Utils.subscribers({:propagator, thread_id})
              end)
     end
 

@@ -96,7 +96,7 @@ defmodule CPSolver.Propagator.Thread do
 
       {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, vars})
 
-      assert Enum.all?(vars, fn v -> propagator_thread in :ebus.subscribers(v.id) end)
+      assert Enum.all?(vars, fn v -> propagator_thread in :ebus.subscribers({:variable, v.id}) end)
 
       GenServer.stop(propagator_thread)
       Process.sleep(10)
