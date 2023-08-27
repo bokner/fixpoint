@@ -162,7 +162,11 @@ defmodule CPSolver.Propagator do
     %{
       data
       | unfixed_variables:
-          Map.update!(unfixed, var, fn content -> Map.put(content, :stable, stable?) end)
+          if Map.has_key?(unfixed, var) do
+            Map.update!(unfixed, var, fn content -> Map.put(content, :stable, stable?) end)
+          else
+            unfixed
+          end
     }
   end
 

@@ -77,7 +77,7 @@ defmodule CPSolver.Space do
     search_strategy = Keyword.get(space_opts, :search)
     solver = Keyword.get(space_opts, :solver)
     ## Subscribe solver to space events
-    Utils.subscribe(solver, space_id)
+    Utils.subscribe(solver, {:space, space_id})
     {:ok, space_variables} = store_impl.create(space, variables)
 
     space_data = %Space{
@@ -110,12 +110,10 @@ defmodule CPSolver.Space do
   end
 
   def propagating(:enter, :start_propagation, _data) do
-    Logger.debug("Propagation in progress")
     :keep_state_and_data
   end
 
   def propagating(:info, {:stable, propagator_thread}, data) do
-    Logger.debug("Stable propagator")
     updated_data = set_propagator_stable(data, propagator_thread, true)
 
     if stable?(updated_data) do
@@ -175,8 +173,6 @@ defmodule CPSolver.Space do
   end
 
   defp start_propagation(%{propagators: propagators, space: space} = _space_state) do
-    Logger.debug("Start propagation")
-
     Enum.reduce(propagators, Map.new(), fn p, acc ->
       propagator_id = make_ref()
       {:ok, thread} = Propagator.create_thread(space, p, id: propagator_id)
@@ -206,13 +202,13 @@ defmodule CPSolver.Space do
 
   defp handle_failure(data) do
     Logger.debug("The space has failed")
-    Utils.publish(data.id, :failure)
+    Utils.publish({:space, data.id}, :failure)
   end
 
   defp handle_solved(%{solution_handler: solution_handler} = data) do
     data
     |> solution()
-    |> tap(fn solution -> Utils.publish(data.id, {:solution, solution}) end)
+    |> tap(fn solution -> Utils.publish({:space, data.id}, {:solution, solution}) end)
     |> Solution.run_handler(solution_handler)
   end
 
@@ -231,8 +227,6 @@ defmodule CPSolver.Space do
         } =
           _data
       ) do
-    Logger.debug("Distributing the space...")
-
     variable_domains =
       Map.new(
         variables,
@@ -243,7 +237,7 @@ defmodule CPSolver.Space do
     var_domain = Map.get(variable_domains, var_to_branch_on.id)
     domain_partitions = search_strategy.partition(var_domain)
 
-    Utils.publish(space_id, {:nodes, length(domain_partitions)})
+    Utils.publish({:space, space_id}, {:nodes, length(domain_partitions)})
 
     Enum.map(domain_partitions, fn partition ->
       variable_copies =

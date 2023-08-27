@@ -149,7 +149,7 @@ defmodule CPSolverTest.Space do
     end
 
     test "distribute space" do
-      %{space: space} = create_stable_space()
+      %{space: _space} = create_stable_space()
       Process.sleep(10)
       :to_complete
     end
