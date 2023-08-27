@@ -16,19 +16,31 @@ defmodule CPSolver do
     {:ok, _solver} = GenServer.start_link(CPSolver, [model, opts])
   end
 
+  def statistics(solver) when is_pid(solver) do
+    GenServer.call(solver, :get_stats)
+  end
+
   ## GenServer callbacks
 
   @impl true
-  def init([model, solver_opts]) do
+  def init([%{constraints: constraints, variables: variables} = _model, solver_opts]) do
     propagators =
-      Enum.reduce(model.constraints, [], fn constraint, acc ->
+      Enum.reduce(constraints, [], fn constraint, acc ->
         acc ++ constraint_to_propagators(constraint)
       end)
 
     {:ok, top_space} =
-      Space.create(model.variables, propagators, Keyword.put(solver_opts, :solver, self()))
+      Space.create(variables, propagators, Keyword.put(solver_opts, :solver, self()))
 
-    {:ok, %{space: top_space, solver_opts: solver_opts}}
+    {:ok,
+     %{
+       space: top_space,
+       variables: variables,
+       solution_count: 0,
+       failure_count: 0,
+       node_count: 1,
+       solver_opts: solver_opts
+     }}
   end
 
   defp constraint_to_propagators(constraint) do
@@ -41,8 +53,19 @@ defmodule CPSolver do
     {:noreply, handle_event(event, state)}
   end
 
-  defp handle_event({:solution, solution}, state) do
+  defp handle_event({:solution, solution}, %{solution_count: count} = state) do
     Logger.debug("Solver got a new solution")
-    state
+    %{state | solution_count: count + 1}
+    ## TODO: check for stopping condition here.
+    ## Q: spaces are async and handle solutions on their own, so even if stopping condition happens here, how do (or should)
+    ## we prevent spaces from emitting new solutions?
+  end
+
+  def handle_call(:get_stats, _from, state) do
+    {:reply, get_stats(state), state}
+  end
+
+  defp get_stats(state) do
+    Map.take(state, [:solution_count, :failure_count, :node_count])
   end
 end

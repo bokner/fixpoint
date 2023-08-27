@@ -19,7 +19,7 @@ defmodule CpSolverTest do
       send(target_pid, Enum.sort_by(solution, fn {var, _value} -> var end))
     end
 
-    _ = CPSolver.solve(model, solution_handler: solution_handler)
+    {:ok, solver} = CPSolver.solve(model, solution_handler: solution_handler)
 
     Process.sleep(10)
 
@@ -38,5 +38,8 @@ defmodule CpSolverTest do
              [x, y] = Enum.map(variables, fn {_id, value} -> value end)
              x != y
            end)
+
+    ## Solution count from solver state
+    assert CPSolver.statistics(solver).solution_count == 3
   end
 end
