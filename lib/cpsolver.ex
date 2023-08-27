@@ -72,6 +72,11 @@ defmodule CPSolver do
     %{state | node_count: count + n}
   end
 
+  defp handle_event(unexpected, state) do
+    Logger.error("Solver: unexpected message #{inspect(unexpected)}")
+    state
+  end
+
   @impl true
   def handle_call(:get_stats, _from, state) do
     {:reply, get_stats(state), state}

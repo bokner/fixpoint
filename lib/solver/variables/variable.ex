@@ -90,12 +90,8 @@ defmodule CPSolver.Variable do
     Store.domain(variable.space, variable)
   end
 
-  def topic(variable) do
-    variable.id
-  end
-
   def subscribers(variable) do
-    Utils.subscribers(topic(variable))
+    Utils.subscribers(variable.id)
   end
 
   def bind_variables(space, variables) do

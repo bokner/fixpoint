@@ -52,7 +52,11 @@ defmodule CPSolver.Propagator do
   end
 
   defp subscribe_to_var(thread, variable) do
-    Utils.subscribe(thread, Variable.topic(variable))
+    Utils.subscribe(thread, variable.id)
+  end
+
+  defp unsubscribe_from_var(thread, var_id) do
+    Utils.unsubscribe(thread, var_id)
   end
 
   ## GenServer callbacks
@@ -150,6 +154,7 @@ defmodule CPSolver.Propagator do
   end
 
   defp update_unfixed(%{unfixed_variables: unfixed} = data, var) do
+    unsubscribe_from_var(self(), var)
     %{data | unfixed_variables: Map.delete(unfixed, var)}
   end
 

@@ -127,7 +127,7 @@ defmodule CPSolver.Store.Registry do
   end
 
   defp publish(var, message) do
-    Utils.publish(Variable.topic(var), message)
+    Utils.publish(var.id, message)
   end
 
   defp fire_on_no_change?() do

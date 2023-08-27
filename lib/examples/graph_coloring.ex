@@ -1,5 +1,4 @@
 defmodule CPSolver.Examples.GraphColoring do
-  alias CPSolver.Constraint
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.IntVariable
 
