@@ -14,16 +14,16 @@ defmodule CPSolver.Examples.GraphColoring do
 
     edge_color_constraints =
       Enum.map(data.edges, fn [v1, v2] ->
-        Constraint.new(NotEqual, [Enum.at(color_vars, v1), Enum.at(color_vars, v2)])
+        {NotEqual, Enum.at(color_vars, v1), Enum.at(color_vars, v2)}
       end)
 
     model = %{
       variables: color_vars,
-      constraints: edge_color_constraints,
-      search: nil
+      constraints: edge_color_constraints
     }
 
-    CPSolver.solve(model, nil)
+    CPSolver.solve(model)
+    |> tap(fn _ -> Process.sleep(1000) end)
   end
 
   defp parse_instance(instance) do
