@@ -41,8 +41,8 @@ defmodule CPSolver do
     {:noreply, handle_event(event, state)}
   end
 
-  defp handle_event(event, state) do
-    Logger.debug("Solver process event: #{inspect(event)}")
+  defp handle_event({:solution, solution}, state) do
+    Logger.debug("Solver got a new solution")
     state
   end
 end

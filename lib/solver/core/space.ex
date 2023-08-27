@@ -147,12 +147,12 @@ defmodule CPSolver.Space do
 
   def propagating(:info, :solved, data) do
     Logger.debug("The space has been solved")
-    {:next_state, :solved, data}
+    {:stop, :normal, data}
   end
 
   def failed(:enter, :propagating, data) do
     handle_failure(data)
-    :keep_state_and_data
+    {:stop, :normal, data}
   end
 
   def solved(:enter, :propagating, data) do
@@ -163,7 +163,7 @@ defmodule CPSolver.Space do
   def stable(:enter, :propagating, data) do
     handle_stable(data)
 
-    {:keep_state,
+    {:stop, :normal,
      data
      |> distribute()
      |> Enum.map(fn child_data ->

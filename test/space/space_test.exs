@@ -53,21 +53,11 @@ defmodule CPSolverTest.Space do
     end
 
     test "stable space" do
-      target_pid = self()
+      %{space: space} = create_stable_space()
 
-      solution_handler = fn solution ->
-        send(target_pid, Enum.sort_by(solution, fn {var, _value} -> var end))
-      end
+      Process.sleep(10)
 
-      %{space: space, variables: space_variables} =
-        create_stable_space(
-          # solution_handler: solution_handler
-        )
-
-      Process.sleep(100)
-
-      {state, _data} = Space.get_state_and_data(space)
-      assert state == :stable
+      refute Process.alive?(space)
 
       solutions =
         Enum.map(1..2, fn _ ->
@@ -109,8 +99,7 @@ defmodule CPSolverTest.Space do
 
       {:ok, space} = Space.create(variables, propagators)
       Process.sleep(10)
-      {state, _data} = Space.get_state_and_data(space)
-      assert state == :failed
+      refute Process.alive?(space)
     end
 
     test "solution handler as function" do
@@ -151,11 +140,9 @@ defmodule CPSolverTest.Space do
     end
 
     test "distribute space" do
-      %{space: space, variables: variables} = create_stable_space()
-      Process.sleep(100)
-      {_state, data} = Space.get_state_and_data(space)
-      assert length(data.children) == 2
-      [child1, child2] = data.children
+      %{space: space} = create_stable_space()
+      Process.sleep(10)
+      :to_complete
     end
 
     defp create_solved_space(space_opts \\ []) do

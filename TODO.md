@@ -6,7 +6,7 @@
    
     EDIT: maybe we don't want it; it would be a good idea to check if all vars are good (fixed) at the point of space being solved. This will guard against possible bugs (failed/unfixed vars).
 5. ~~Search (fork new spaces, implement first_fail as default).~~ done. 
-6. Dispose of failed/solved spaces.
+6. Dispose of failed/solved spaces. Edit: done, but need a test for it. Need to dispose of store vars as well.
 7. Optimization - cache fixed/failed vars that are part of the propagator state to avoid unnecessary round trips.
 8. Search: limit the number of solutions.
 9. Control the solver (async ops: stop, get stats etc.).
