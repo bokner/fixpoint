@@ -39,7 +39,18 @@ defmodule CpSolverTest do
              x != y
            end)
 
-    ## Solution count from solver state
-    assert CPSolver.statistics(solver).solution_count == 3
+    ## Solution, failure and node count from solver state.
+    assert CPSolver.statistics(solver).solution_count == length(solutions)
+    ## NotEqual never results in failures, unless started with initially
+    ## inconsistent domains.
+    assert CPSolver.statistics(solver).failure_count == 0
+    ## Note: there are 2 "first fail" distributions:
+    ## 1. Variable 'x' triggers distribution into 2 spaces - (x: 1, y: [0, 1]) and (x: 2, y: [0, 1])).
+    ## 2. First space produces solution (x: 1, y: 0)
+    ## 3. Second space triggers distribution into 2 spaces - (x: 2, y: 0) and (x: 2, y: 1)
+    ## 4. These 2 spaces produce remaining solutions.
+    ## 5. There have been 5 spaces - top one, and 4 as described above, which corresponds
+    ## to 5 nodes.
+    assert CPSolver.statistics(solver).node_count == 5
   end
 end

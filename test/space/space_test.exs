@@ -66,14 +66,23 @@ defmodule CPSolverTest.Space do
           end
         end)
 
-      # Only 2 solutions, nothing else has come in the mailbox
-      refute_receive _msg, 100
+      node_creations =
+        Enum.reduce(1..1, 0, fn _, acc ->
+          receive do
+            {:nodes, n} -> n + acc
+          end
+        end)
+
+      # Only 2 solutions and one first_fail distribution (2 nodes) , nothing else has come in the mailbox
+      refute_receive _msg, 10
 
       # For all solutions, constraints (x != y and y != z) are satisfied.
       assert Enum.all?(solutions, fn variables ->
                [x, y, z] = Enum.map(variables, fn {_id, value} -> value end)
                x != y && y != z
              end)
+
+      assert node_creations == 2
     end
 
     test "solved space" do

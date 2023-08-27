@@ -204,8 +204,9 @@ defmodule CPSolver.Space do
     map_size(data.propagator_threads) == 0
   end
 
-  defp handle_failure(_data) do
+  defp handle_failure(data) do
     Logger.debug("The space has failed")
+    Utils.publish(data.id, :failure)
   end
 
   defp handle_solved(%{solution_handler: solution_handler} = data) do
@@ -221,6 +222,7 @@ defmodule CPSolver.Space do
 
   def distribute(
         %{
+          id: space_id,
           variables: variables,
           propagator_threads: threads,
           store: store_impl,
@@ -240,6 +242,8 @@ defmodule CPSolver.Space do
     var_to_branch_on = search_strategy.select_variable(variables)
     var_domain = Map.get(variable_domains, var_to_branch_on.id)
     domain_partitions = search_strategy.partition(var_domain)
+
+    Utils.publish(space_id, {:nodes, length(domain_partitions)})
 
     Enum.map(domain_partitions, fn partition ->
       variable_copies =

@@ -54,13 +54,25 @@ defmodule CPSolver do
   end
 
   defp handle_event({:solution, solution}, %{solution_count: count} = state) do
-    Logger.debug("Solver got a new solution")
+    Logger.debug("Solver: new solution")
     %{state | solution_count: count + 1}
     ## TODO: check for stopping condition here.
-    ## Q: spaces are async and handle solutions on their own, so even if stopping condition happens here, how do (or should)
+    ## Q: spaces are async and handle solutions on their own,
+    ## so even if stopping condition is handled here, how do (or should)
     ## we prevent spaces from emitting new solutions?
   end
 
+  defp handle_event(:failure, %{failure_count: count} = state) do
+    Logger.debug("Solver: space failure")
+    %{state | failure_count: count + 1}
+  end
+
+  defp handle_event({:nodes, n}, %{node_count: count} = state) do
+    Logger.debug("Solver: #{n} new node(s)")
+    %{state | node_count: count + n}
+  end
+
+  @impl true
   def handle_call(:get_stats, _from, state) do
     {:reply, get_stats(state), state}
   end
