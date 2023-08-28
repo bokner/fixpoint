@@ -42,6 +42,11 @@ defmodule CPSolver.Store.Registry do
      )}
   end
 
+  @impl true
+  def dispose(_space, variable) do
+    Agent.stop(variable_proc_id(variable))
+  end
+
   def variable_proc_id(variable) do
     {:global, variable.id}
   end

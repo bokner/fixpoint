@@ -170,6 +170,14 @@ defmodule CPSolver.Space do
        end)
      end)
      |> then(fn children -> Map.put(data, :children, children) end)}
+    |> tap(fn _ -> dispose(data) end)
+  end
+
+  defp dispose(
+         %{variables: variables, propagator_threads: threads, space: space, store: store} = _data
+       ) do
+    Enum.each(variables, fn var -> store.dispose(space, var) end)
+    Enum.each(threads, fn {id, thread} -> Propagator.dispose(thread) end)
   end
 
   defp start_propagation(%{propagators: propagators, space: space} = _space_state) do

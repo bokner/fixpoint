@@ -46,6 +46,10 @@ defmodule CPSolver.Propagator do
     create_thread(space, {propagator_mod, args}, opts)
   end
 
+  def dispose(thread) do
+    GenServer.stop(thread.thread)
+  end
+
   ## Subscribe propagator thread to variables' events
   defp subscribe_to_variables(thread, variables) do
     Enum.each(variables, fn var -> subscribe_to_var(thread, var) end)
@@ -78,7 +82,6 @@ defmodule CPSolver.Propagator do
            (Store.get(space, var, :fixed?) && acc) || Map.put(acc, var.id, %{stable: false})
          end),
        propagator_opts: opts,
-       filter_fun: fn -> propagator_mod.filter(args) end,
        on_startup: true
      }
      |> tap(fn data ->
@@ -135,8 +138,8 @@ defmodule CPSolver.Propagator do
 
   ### end of GenServer callbacks
 
-  defp filter(%{filter_fun: filter_fun} = data) do
-    case filter_fun.() do
+  defp filter(%{propagator_impl: mod, args: args} = data) do
+    case mod.filter(args) do
       :stable ->
         handle_stable(data)
 

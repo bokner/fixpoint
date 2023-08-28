@@ -27,6 +27,8 @@ defmodule CPSolver.ConstraintStore do
   @callback update(store :: any(), variable :: Variable.t(), update_operation(), [any()]) ::
               any()
 
+  @callback dispose(space :: any(), variable :: Variable.t()) :: :ok | :not_found
+
   @callback domain(store :: any(), variable :: Variable.t()) :: {:ok, any()} | {:error, any()}
   @callback get_variables(space :: any()) :: [any()]
 
