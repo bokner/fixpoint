@@ -145,12 +145,12 @@ defmodule CPSolver.Space do
 
   def propagating(:info, :solved, data) do
     Logger.debug("The space has been solved")
-    {:stop, :normal, data}
+    shutdown(data, :solved)
   end
 
   def failed(:enter, :propagating, data) do
     handle_failure(data)
-    {:stop, :normal, data}
+    shutdown(data, :failure)
   end
 
   def solved(:enter, :propagating, data) do
@@ -170,7 +170,6 @@ defmodule CPSolver.Space do
        end)
      end)
      |> then(fn children -> Map.put(data, :children, children) end)}
-    |> tap(fn _ -> dispose(data) end)
   end
 
   defp dispose(
@@ -274,5 +273,9 @@ defmodule CPSolver.Space do
 
       %{variables: Map.values(variable_copies), propagators: propagator_copies}
     end)
+  end
+
+  defp shutdown(data, _reason) do
+    {:stop, :normal, dispose(data)}
   end
 end

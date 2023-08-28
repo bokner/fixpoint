@@ -46,8 +46,8 @@ defmodule CPSolver.Propagator do
     create_thread(space, {propagator_mod, args}, opts)
   end
 
-  def dispose(thread) do
-    GenServer.stop(thread.thread)
+  def dispose(%{thread: pid} = thread) do
+    (Process.alive?(pid) && GenServer.stop(pid)) || :not_found
   end
 
   ## Subscribe propagator thread to variables' events
