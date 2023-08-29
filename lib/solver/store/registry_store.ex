@@ -13,12 +13,6 @@ defmodule CPSolver.Store.Registry do
   @impl true
   @spec create(any(), [Variable.t()]) :: {:ok, [any()]}
   def create(space, variables) do
-    Registry.start_link(
-      name: @variable_registry,
-      keys: :unique,
-      partitions: System.schedulers_online()
-    )
-
     {:ok,
      Enum.map(
        variables,
