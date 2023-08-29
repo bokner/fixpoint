@@ -10,6 +10,7 @@ defmodule CPSolver.Variable do
   alias CPSolver.Variable
   alias CPSolver.Store.Registry, as: Store
   alias CPSolver.Utils
+  alias CPSolver.DefaultDomain, as: Domain
 
   require Logger
 
@@ -22,7 +23,7 @@ defmodule CPSolver.Variable do
       def new(values, opts \\ default_opts()) do
         %Variable{
           id: make_ref(),
-          domain: values
+          domain: Domain.new(values)
         }
       end
 
@@ -40,6 +41,11 @@ defmodule CPSolver.Variable do
 
   def size(variable) do
     store_op(:size, variable)
+  end
+
+  def fixed?(%{domain: domain} = variable) do
+    Domain.fixed?(domain) ||
+      store_op(:fixed?, variable)
   end
 
   def fixed?(variable) do

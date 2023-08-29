@@ -1,5 +1,4 @@
 defmodule CPSolver.Propagator do
-  alias CPSolver.Store.Registry, as: Store
   alias CPSolver.Variable
   alias CPSolver.Common
   alias CPSolver.Utils
@@ -79,7 +78,7 @@ defmodule CPSolver.Propagator do
        args: args,
        unfixed_variables:
          Enum.reduce(bound_vars, Map.new(), fn var, acc ->
-           (Store.get(space, var, :fixed?) && acc) || Map.put(acc, var.id, %{active: true})
+           (Variable.fixed?(var) && acc) || Map.put(acc, var.id, %{active: true})
          end),
        propagator_opts: opts,
        on_startup: true
