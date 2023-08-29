@@ -46,7 +46,7 @@ defmodule CPSolver.Propagator do
     create_thread(space, {propagator_mod, args}, opts)
   end
 
-  def dispose(%{thread: pid} = thread) do
+  def dispose(%{thread: pid} = _thread) do
     (Process.alive?(pid) && GenServer.stop(pid)) || :not_found
   end
 
@@ -79,7 +79,7 @@ defmodule CPSolver.Propagator do
        args: args,
        unfixed_variables:
          Enum.reduce(bound_vars, Map.new(), fn var, acc ->
-           (Store.get(space, var, :fixed?) && acc) || Map.put(acc, var.id, %{stable: false})
+           (Store.get(space, var, :fixed?) && acc) || Map.put(acc, var.id, %{active: true})
          end),
        propagator_opts: opts,
        on_startup: true
@@ -108,7 +108,7 @@ defmodule CPSolver.Propagator do
       {:noreply,
        data
        |> Map.put(:on_startup, false)
-       |> update_stable(var, true)
+       |> update_active(var, false)
        |> tap(fn new_data ->
          if stable?(new_data) do
            handle_stable(new_data)
@@ -133,7 +133,7 @@ defmodule CPSolver.Propagator do
   def handle_info({domain_change, var}, data) when domain_change in @domain_changes do
     Logger.debug("#{inspect(data.id)} Propagator: #{inspect(domain_change)} for #{inspect(var)}")
     filter(data)
-    {:noreply, update_stable(data, var, false)}
+    {:noreply, update_active(data, var, true)}
   end
 
   ### end of GenServer callbacks
@@ -146,6 +146,15 @@ defmodule CPSolver.Propagator do
       _res ->
         handle_running(data)
     end
+  end
+
+  defp handle_stable(data) do
+    Logger.debug("#{inspect(data.id)} Propagator #{inspect(self())} is stable")
+    publish(data, :stable)
+  end
+
+  defp handle_running(data) do
+    publish(data, :running)
   end
 
   defp entailed?(%{unfixed_variables: vars} = _data) do
@@ -161,12 +170,12 @@ defmodule CPSolver.Propagator do
     %{data | unfixed_variables: Map.delete(unfixed, var)}
   end
 
-  defp update_stable(%{unfixed_variables: unfixed} = data, var, stable?) do
+  defp update_active(%{unfixed_variables: unfixed} = data, var, active?) do
     %{
       data
       | unfixed_variables:
           if Map.has_key?(unfixed, var) do
-            Map.update!(unfixed, var, fn content -> Map.put(content, :stable, stable?) end)
+            Map.update!(unfixed, var, fn content -> Map.put(content, :active, active?) end)
           else
             unfixed
           end
@@ -174,16 +183,7 @@ defmodule CPSolver.Propagator do
   end
 
   defp stable?(%{unfixed_variables: unfixed} = _data) do
-    Enum.all?(unfixed, fn {_k, v} -> v.stable end)
-  end
-
-  defp handle_stable(data) do
-    Logger.debug("#{inspect(data.id)} Propagator #{inspect(self())} is stable")
-    publish(data, :stable)
-  end
-
-  defp handle_running(data) do
-    publish(data, :running)
+    Enum.all?(unfixed, fn {_k, v} -> !v.active end)
   end
 
   defp publish(data, message) do
