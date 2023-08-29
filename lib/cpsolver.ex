@@ -39,6 +39,7 @@ defmodule CPSolver do
        solution_count: 0,
        failure_count: 0,
        node_count: 1,
+       active_nodes: MapSet.new([top_space]),
        solver_opts: solver_opts
      }}
   end
@@ -67,15 +68,21 @@ defmodule CPSolver do
     %{state | failure_count: count + 1}
   end
 
-  defp handle_event({:nodes, n}, %{node_count: count} = state) do
+  defp handle_event({:nodes, new_nodes}, %{node_count: count, active_nodes: nodes} = state) do
+    new_nodes_set = MapSet.new(new_nodes)
+    n = MapSet.size(new_nodes_set)
     Logger.debug("Solver: #{n} new node(s)")
-    %{state | node_count: count + n}
+    %{state | node_count: count + n, active_nodes: MapSet.union(nodes, new_nodes_set)}
   end
 
-  defp handle_event(unexpected, state) do
-    Logger.error("Solver: unexpected message #{inspect(unexpected)}")
-    state
+  defp handle_event({:shutdown_space, node}, %{active_nodes: nodes} = state) do
+    %{state | active_nodes: MapSet.delete(nodes, node)}
   end
+
+  # defp handle_event(unexpected, state) do
+  #   Logger.error("Solver: unexpected message #{inspect(unexpected)}")
+  #   state
+  # end
 
   @impl true
   def handle_call(:get_stats, _from, state) do

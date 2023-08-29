@@ -161,15 +161,19 @@ defmodule CPSolver.Space do
   def stable(:enter, :propagating, data) do
     handle_stable(data)
 
-    {:stop, :normal,
-     data
-     |> distribute()
-     |> Enum.map(fn child_data ->
-       spawn(fn ->
-         create(child_data.variables, child_data.propagators, data.opts)
-       end)
-     end)
-     |> then(fn children -> Map.put(data, :children, children) end)}
+    shutdown(
+      data
+      |> distribute()
+      |> Enum.map(fn child_data ->
+        {:ok, child_space} = create(child_data.variables, child_data.propagators, data.opts)
+        child_space
+      end)
+      |> tap(fn new_nodes ->
+        publish(data, {:nodes, new_nodes})
+      end)
+      |> then(fn children -> Map.put(data, :children, children) end),
+      :distribute
+    )
   end
 
   defp dispose(
@@ -209,13 +213,13 @@ defmodule CPSolver.Space do
 
   defp handle_failure(data) do
     Logger.debug("The space has failed")
-    Utils.publish({:space, data.id}, :failure)
+    publish(data, :failure)
   end
 
   defp handle_solved(%{solution_handler: solution_handler} = data) do
     data
     |> solution()
-    |> tap(fn solution -> Utils.publish({:space, data.id}, {:solution, solution}) end)
+    |> tap(fn solution -> publish(data, {:solution, solution}) end)
     |> Solution.run_handler(solution_handler)
   end
 
@@ -225,14 +229,12 @@ defmodule CPSolver.Space do
 
   def distribute(
         %{
-          id: space_id,
           variables: variables,
           propagator_threads: threads,
           store: store_impl,
           search: search_strategy,
           space: space
-        } =
-          _data
+        } = _data
       ) do
     variable_domains =
       Map.new(
@@ -243,8 +245,6 @@ defmodule CPSolver.Space do
     var_to_branch_on = search_strategy.select_variable(variables)
     var_domain = Map.get(variable_domains, var_to_branch_on.id)
     domain_partitions = search_strategy.partition(var_domain)
-
-    Utils.publish({:space, space_id}, {:nodes, length(domain_partitions)})
 
     Enum.map(domain_partitions, fn partition ->
       variable_copies =
@@ -275,7 +275,16 @@ defmodule CPSolver.Space do
     end)
   end
 
+  defp publish(data, message) do
+    Utils.publish({:space, data.id}, message)
+  end
+
   defp shutdown(data, _reason) do
-    {:stop, :normal, dispose(data)}
+    {:stop, :normal, data}
+    # :keep_state_and_data
+    |> tap(fn _ ->
+      publish(data, {:shutdown_space, data.space})
+      dispose(data)
+    end)
   end
 end
