@@ -82,10 +82,13 @@ defmodule CPSolver.Propagator do
          end),
        propagator_opts: opts,
        on_startup: true
-     }
-     |> tap(fn data ->
-       filter(data)
-     end)}
+     }, {:continue, :filter}}
+  end
+
+  @impl true
+  def handle_continue(:filter, data) do
+    filter(data)
+    {:noreply, data}
   end
 
   @impl true

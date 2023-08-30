@@ -9,6 +9,5 @@ defmodule CPSolverTest.Examples.GraphColoring do
   test "Square" do
     {:ok, solver} = CPSolver.Examples.GraphColoring.solve("data/graph_coloring/square")
     assert CPSolver.statistics(solver).solution_count == 2
-
   end
 end
