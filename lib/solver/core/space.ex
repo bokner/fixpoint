@@ -155,7 +155,7 @@ defmodule CPSolver.Space do
 
   def solved(:enter, :propagating, data) do
     handle_solved(data)
-    :keep_state_and_data
+    shutdown(data, :solved)
   end
 
   def stable(:enter, :propagating, data) do
@@ -281,7 +281,6 @@ defmodule CPSolver.Space do
 
   defp shutdown(data, _reason) do
     {:stop, :normal, data}
-    # :keep_state_and_data
     |> tap(fn _ ->
       publish(data, {:shutdown_space, data.space})
       dispose(data)

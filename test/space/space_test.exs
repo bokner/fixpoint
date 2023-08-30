@@ -55,7 +55,7 @@ defmodule CPSolverTest.Space do
     test "stable space" do
       %{space: space} = create_stable_space()
 
-      Process.sleep(10)
+      Process.sleep(100)
 
       refute Process.alive?(space)
 
@@ -69,9 +69,13 @@ defmodule CPSolverTest.Space do
       node_creations =
         Enum.reduce(1..1, 0, fn _, acc ->
           receive do
-            {:nodes, n} -> n + acc
+            {:nodes, nodes} -> length(nodes) + acc
           end
         end)
+
+      assert_received({:shutdown_space, _pid})
+      assert_received({:shutdown_space, _pid})
+      assert_received({:shutdown_space, _pid})
 
       # Only 2 solutions and one first_fail distribution (2 nodes) , nothing else has come in the mailbox
       refute_receive _msg, 10
@@ -126,7 +130,7 @@ defmodule CPSolverTest.Space do
       Process.sleep(10)
       ## Check the solution against the store
       store_vars =
-        Enum.map(space_variables, fn v -> {v.id, Store.get(space, v, :min)} end)
+        Enum.map(space_variables, fn v -> {v.id, Variable.min(v)} end)
         |> Enum.sort_by(fn {var, _value} -> var end)
 
       assert_receive ^store_vars, 10
