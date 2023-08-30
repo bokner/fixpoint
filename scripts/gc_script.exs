@@ -1,5 +1,6 @@
-cycle5_instance = "data/graph_coloring/5_cycle"
-{:ok, solver} = CPSolver.Examples.GraphColoring.solve(cycle5_instance)
+example = "triangle_uni"
+instance = "data/graph_coloring/#{example}"
+{:ok, solver} = CPSolver.Examples.GraphColoring.solve(instance)
 stats = CPSolver.statistics(solver)
 
 solver_state = :sys.get_state(solver)

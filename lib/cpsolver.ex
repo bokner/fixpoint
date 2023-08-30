@@ -36,6 +36,7 @@ defmodule CPSolver do
      %{
        space: top_space,
        variables: variables,
+       propagators: propagators,
        solution_count: 0,
        failure_count: 0,
        node_count: 1,
