@@ -40,6 +40,7 @@ defmodule CPSolver do
        solution_count: 0,
        failure_count: 0,
        node_count: 1,
+       solutions: [],
        active_nodes: MapSet.new([top_space]),
        solver_opts: solver_opts
      }}
@@ -55,9 +56,12 @@ defmodule CPSolver do
     {:noreply, handle_event(event, state)}
   end
 
-  defp handle_event({:solution, solution}, %{solution_count: count} = state) do
-    Logger.debug("Solver: new solution")
-    %{state | solution_count: count + 1}
+  defp handle_event(
+         {:solution, new_solution},
+         %{solution_count: count, solutions: solutions} = state
+       ) do
+    # Logger.debug("Solver: new solution")
+    %{state | solution_count: count + 1, solutions: [new_solution | solutions]}
     ## TODO: check for stopping condition here.
     ## Q: spaces are async and handle solutions on their own,
     ## so even if stopping condition is handled here, how do (or should)
