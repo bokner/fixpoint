@@ -18,7 +18,7 @@ defmodule CPSolver.Store.Registry do
        variables,
        fn var ->
          {:ok, _pid} =
-           Agent.start_link(
+           Agent.start(
              fn ->
                Domain.new(var.domain)
                |> tap(fn _ ->

@@ -37,7 +37,7 @@ defmodule CPSolver.Space do
 
   def create(variables, propagators, space_opts \\ [], gen_statem_opts \\ []) do
     {:ok, _space} =
-      :gen_statem.start_link(
+      :gen_statem.start(
         __MODULE__,
         [
           variables: variables,
@@ -163,7 +163,13 @@ defmodule CPSolver.Space do
       data
       |> distribute()
       |> Enum.map(fn child_data ->
-        {:ok, child_space} = create(child_data.variables, child_data.propagators, Keyword.put(data.opts, :parent, data.id))
+        {:ok, child_space} =
+          create(
+            child_data.variables,
+            child_data.propagators,
+            Keyword.put(data.opts, :parent, data.id)
+          )
+
         child_space
       end)
       |> tap(fn new_nodes ->
@@ -222,7 +228,7 @@ defmodule CPSolver.Space do
   end
 
   defp handle_stable(data) do
-    Logger.debug("Space #{inspect(data.space)} is stable")
+    Logger.debug("Space #{inspect(data.id)} is stable")
   end
 
   def distribute(
@@ -278,10 +284,8 @@ defmodule CPSolver.Space do
   end
 
   defp shutdown(data, _reason) do
+    publish(data, {:shutdown_space, data.space})
+    dispose(data)
     {:stop, :normal, data}
-    |> tap(fn _ ->
-      publish(data, {:shutdown_space, data.space})
-      dispose(data)
-    end)
   end
 end
