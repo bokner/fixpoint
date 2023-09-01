@@ -7,7 +7,10 @@ defmodule Cpsolver.MixProject do
       version: "0.1.0",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      description: description(),
+      package: package(),
+      name: "Fixpoint"
     ]
   end
 
@@ -24,7 +27,24 @@ defmodule Cpsolver.MixProject do
     [
       {:libgraph, "~> 0.16.0"},
       {:ebus, "~> 0.3", hex: :erlbus},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:replbug, only: :dev, git: "https://github.com/bokner/replbug.git"}
+    ]
+  end
+
+  defp description() do
+    "Constraint Programming Solver"
+  end
+
+  defp package() do
+    [
+      # This option is only needed when you don't want to use the OTP application name
+      name: "fixpoint",
+      # These are the default files included in the package
+      files: ~w(lib test data .formatter.exs mix.exs README* LICENSE*
+                ),
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/bokner/cpsolver"}
     ]
   end
 end
