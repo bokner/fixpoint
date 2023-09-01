@@ -17,6 +17,7 @@ defmodule CPSolver.Space do
   @behaviour :gen_statem
 
   defstruct id: nil,
+            parent: nil,
             variables: [],
             propagator_threads: %{},
             store: Store.default_store(),
@@ -69,6 +70,7 @@ defmodule CPSolver.Space do
     space_id = Process.alias()
     space_opts = Keyword.merge(default_space_opts(), Keyword.get(args, :space_opts, []))
     store_impl = Keyword.get(space_opts, :store)
+    parent = Keyword.get(space_opts, :parent)
 
     solution_handler = Keyword.get(space_opts, :solution_handler)
     search_strategy = Keyword.get(space_opts, :search)
@@ -79,6 +81,7 @@ defmodule CPSolver.Space do
 
     space_data = %Space{
       id: space_id,
+      parent: parent,
       variables: space_variables,
       store: store_impl,
       opts: space_opts,
@@ -160,7 +163,7 @@ defmodule CPSolver.Space do
       data
       |> distribute()
       |> Enum.map(fn child_data ->
-        {:ok, child_space} = create(child_data.variables, child_data.propagators, data.opts)
+        {:ok, child_space} = create(child_data.variables, child_data.propagators, Keyword.put(data.opts, :parent, data.id))
         child_space
       end)
       |> tap(fn new_nodes ->
