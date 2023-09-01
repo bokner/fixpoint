@@ -18,8 +18,7 @@ defmodule CPSolver.Space do
 
   defstruct id: nil,
             variables: [],
-            propagators: [],
-            propagator_threads: [],
+            propagator_threads: %{},
             store: Store.default_store(),
             space: nil,
             solver: nil,
@@ -67,8 +66,6 @@ defmodule CPSolver.Space do
   def init(args) do
     variables = Keyword.get(args, :variables)
     propagators = Keyword.get(args, :propagators)
-
-    space = self()
     space_id = Process.alias()
     space_opts = Keyword.merge(default_space_opts(), Keyword.get(args, :space_opts, []))
     store_impl = Keyword.get(space_opts, :store)
@@ -78,20 +75,18 @@ defmodule CPSolver.Space do
     solver = Keyword.get(space_opts, :solver)
     ## Subscribe solver to space events
     Utils.subscribe(solver, {:space, space_id})
-    {:ok, space_variables} = store_impl.create(space, variables)
+    {:ok, space_variables} = store_impl.create(self(), variables)
 
     space_data = %Space{
       id: space_id,
       variables: space_variables,
-      propagators: propagators,
       store: store_impl,
-      space: space,
       opts: space_opts,
       solution_handler: solution_handler,
       search: search_strategy
     }
 
-    {:ok, :start_propagation, space_data, [{:next_event, :internal, :propagate}]}
+    {:ok, :start_propagation, space_data, [{:next_event, :internal, {:propagate, propagators}}]}
   end
 
   @impl true
@@ -104,8 +99,8 @@ defmodule CPSolver.Space do
     {:keep_state, data}
   end
 
-  def start_propagation(:internal, :propagate, data) do
-    propagator_threads = start_propagation(data)
+  def start_propagation(:internal, {:propagate, propagators}, data) do
+    propagator_threads = start_propagation(propagators)
     {:next_state, :propagating, Map.put(data, :propagator_threads, propagator_threads)}
   end
 
@@ -183,10 +178,10 @@ defmodule CPSolver.Space do
     Enum.each(threads, fn {id, thread} -> Propagator.dispose(thread) end)
   end
 
-  defp start_propagation(%{propagators: propagators, space: space} = _space_state) do
+  defp start_propagation(propagators) do
     Enum.reduce(propagators, Map.new(), fn p, acc ->
       propagator_id = make_ref()
-      {:ok, thread} = Propagator.create_thread(space, p, id: propagator_id)
+      {:ok, thread} = Propagator.create_thread(self(), p, id: propagator_id)
       Map.put(acc, propagator_id, %{thread: thread, propagator: p, stable: false})
     end)
   end
