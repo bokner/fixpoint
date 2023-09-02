@@ -36,8 +36,7 @@ defmodule CPSolver.Propagator do
         opts
       )
       when is_atom(propagator_mod) do
-    {:ok, _thread} =
-      GenServer.start(__MODULE__, [space, propagator_mod, propagator_args, opts])
+    {:ok, _thread} = GenServer.start(__MODULE__, [space, propagator_mod, propagator_args, opts])
   end
 
   def create_thread(space, propagator, opts) do

@@ -24,9 +24,8 @@ defmodule CPSolverTest.Space do
       {:ok, space} = Space.create(variables, propagators)
       # Process.sleep(1)
 
-      {state,
-       %{variables: space_variables, propagator_threads: threads} =
-         _data} = Space.get_state_and_data(space)
+      {state, %{variables: space_variables, propagator_threads: threads} = _data} =
+        Space.get_state_and_data(space)
 
       assert state == :propagating
 

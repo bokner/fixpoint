@@ -28,7 +28,7 @@ defmodule CPSolverTest.Search.FirstFail do
       min_val = Domain.min(var_domain)
 
       assert FirstFail.partition(var_domain) ==
-               [0, Domain.new(List.delete(Range.to_list(v2_values), 0))]
+               [0, Domain.new(List.delete(Enum.to_list(v2_values), 0))]
     end
 
     test "first_fail fails if no unfixed variables" do

@@ -67,7 +67,7 @@ defmodule CPSolver.Space do
   def init(args) do
     variables = Keyword.get(args, :variables)
     propagators = Keyword.get(args, :propagators)
-    space_id = Process.alias()
+    space_id = make_ref()
     space_opts = Keyword.merge(default_space_opts(), Keyword.get(args, :space_opts, []))
     store_impl = Keyword.get(space_opts, :store)
     parent = Keyword.get(space_opts, :parent)
