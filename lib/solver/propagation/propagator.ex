@@ -76,8 +76,8 @@ defmodule CPSolver.Propagator do
        propagator_impl: propagator_mod,
        args: args,
        unfixed_variables:
-         Enum.reduce(bound_vars, Map.new(), fn var, acc ->
-           (Variable.fixed?(var) && acc) || Map.put(acc, var.id, %{active: true})
+         Enum.reduce(bound_vars, MapSet.new(), fn var, acc ->
+           (Variable.fixed?(var) && acc) || MapSet.put(acc, var.id)
          end),
        propagator_opts: opts,
        on_startup: true
@@ -87,7 +87,6 @@ defmodule CPSolver.Propagator do
   @impl true
   def handle_continue(:filter, data) do
     filter(data)
-    {:noreply, data}
   end
 
   @impl true
@@ -96,26 +95,6 @@ defmodule CPSolver.Propagator do
     Logger.debug("#{inspect(data.id)} Propagator: Failure for #{inspect(var)}")
     publish(data, :failed)
     {:stop, :normal, data}
-  end
-
-  def handle_info({:no_change, var}, data) do
-    Logger.debug("#{inspect(data.id)} Propagator: no change for #{inspect(var)}")
-
-    if data.on_startup && entailed?(data) do
-      Logger.debug("#{inspect(data.id)} Propagator is entailed (on a startup)")
-      publish(data, :entailed)
-      {:stop, :normal, data}
-    else
-      {:noreply,
-       data
-       |> Map.put(:on_startup, false)
-       |> update_active(var, false)
-       |> tap(fn new_data ->
-         if stable?(new_data) do
-           handle_stable(new_data)
-         end
-       end)}
-    end
   end
 
   def handle_info({:fixed, var}, data) do
@@ -127,14 +106,12 @@ defmodule CPSolver.Propagator do
       {:stop, :normal, new_data}
     else
       filter(new_data)
-      {:noreply, new_data}
     end
   end
 
   def handle_info({domain_change, var}, data) when domain_change in @domain_changes do
     Logger.debug("#{inspect(data.id)} Propagator: #{inspect(domain_change)} for #{inspect(var)}")
     filter(data)
-    {:noreply, update_active(data, var, true)}
   end
 
   ### end of GenServer callbacks
@@ -142,16 +119,23 @@ defmodule CPSolver.Propagator do
   defp filter(%{propagator_impl: mod, args: args} = data) do
     reset_stable_flag()
 
-    case mod.filter(args) do
-      :stable ->
-        handle_stable(data)
-
-      _res ->
-        if stable_flag() do
+    status =
+      case mod.filter(args) do
+        :stable ->
           handle_stable(data)
-        else
-          handle_running(data)
-        end
+
+        _res ->
+          if stable_flag() do
+            handle_stable(data)
+          else
+            handle_running(data)
+          end
+      end
+
+    case status do
+      :entailed -> {:stop, :normal, data}
+      :stable -> {:noreply, data}
+      :running -> {:noreply, data}
     end
   end
 
@@ -168,12 +152,20 @@ defmodule CPSolver.Propagator do
   end
 
   defp handle_stable(data) do
-    Logger.debug("#{inspect(data.id)} Propagator #{inspect(self())} is stable")
-    publish(data, :stable)
+    if entailed?(data) do
+      Logger.debug("#{inspect(data.id)} Propagator is entailed (on filtering)")
+      publish(data, :entailed)
+      :entailed
+    else
+      Logger.debug("#{inspect(data.id)} Propagator #{inspect(self())} is stable")
+      publish(data, :stable)
+      :stable
+    end
   end
 
   defp handle_running(data) do
     publish(data, :running)
+    :running
   end
 
   defp entailed?(%{unfixed_variables: vars} = _data) do
@@ -181,28 +173,12 @@ defmodule CPSolver.Propagator do
   end
 
   defp entailed?(vars) when is_map(vars) do
-    map_size(vars) == 0
+    MapSet.size(vars) == 0
   end
 
   defp update_unfixed(%{unfixed_variables: unfixed} = data, var) do
     unsubscribe_from_var(self(), var)
-    %{data | unfixed_variables: Map.delete(unfixed, var)}
-  end
-
-  defp update_active(%{unfixed_variables: unfixed} = data, var, active?) do
-    %{
-      data
-      | unfixed_variables:
-          if Map.has_key?(unfixed, var) do
-            Map.update!(unfixed, var, fn content -> Map.put(content, :active, active?) end)
-          else
-            unfixed
-          end
-    }
-  end
-
-  defp stable?(%{unfixed_variables: unfixed} = _data) do
-    Enum.all?(unfixed, fn {_k, v} -> !v.active end)
+    %{data | unfixed_variables: MapSet.delete(unfixed, var)}
   end
 
   defp publish(data, message) do

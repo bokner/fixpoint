@@ -18,6 +18,7 @@ defmodule CPSolver.Space do
 
   defstruct id: nil,
             parent: nil,
+            keep_alive: false,
             variables: [],
             propagator_threads: %{},
             store: Store.default_store(),
@@ -71,6 +72,7 @@ defmodule CPSolver.Space do
     space_opts = Keyword.merge(default_space_opts(), Keyword.get(args, :space_opts, []))
     store_impl = Keyword.get(space_opts, :store)
     parent = Keyword.get(space_opts, :parent)
+    keep_alive = Keyword.get(space_opts, :keep_alive, false)
 
     solution_handler = Keyword.get(space_opts, :solution_handler)
     search_strategy = Keyword.get(space_opts, :search)
@@ -82,6 +84,7 @@ defmodule CPSolver.Space do
     space_data = %Space{
       id: space_id,
       parent: parent,
+      keep_alive: keep_alive,
       variables: space_variables,
       store: store_impl,
       opts: space_opts,
@@ -283,9 +286,14 @@ defmodule CPSolver.Space do
     Utils.publish({:space, data.id}, message)
   end
 
-  defp shutdown(data, _reason) do
+  defp shutdown(%{keep_alive: keep_alive} = data, _reason) do
     publish(data, {:shutdown_space, data.space})
-    dispose(data)
-    {:stop, :normal, data}
+
+    if !keep_alive do
+      dispose(data)
+      {:stop, :normal, data}
+    else
+      :keep_state_and_data
+    end
   end
 end

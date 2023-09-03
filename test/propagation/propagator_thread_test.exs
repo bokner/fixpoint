@@ -52,6 +52,7 @@ defmodule CPSolver.Propagator.Thread do
       {:ok, [x_var, y_var] = bound_vars} = Store.create(space, variables)
 
       {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
+      Process.sleep(10)
 
       refute capture_log([level: :debug], fn ->
                Store.update(space, x_var, :fix, [1])

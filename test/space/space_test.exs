@@ -90,9 +90,6 @@ defmodule CPSolverTest.Space do
 
     test "solved space" do
       %{space: space} = create_solved_space()
-      {state, _data} = Space.get_state_and_data(space)
-      assert state == :propagating
-
       Process.sleep(10)
       {state, %{variables: space_variables} = _data} = Space.get_state_and_data(space)
       assert state == :solved
@@ -166,7 +163,9 @@ defmodule CPSolverTest.Space do
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
       propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
 
-      {:ok, space} = Space.create(variables, propagators, space_opts)
+      {:ok, space} =
+        Space.create(variables, propagators, Keyword.put(space_opts, :keep_alive, true))
+
       %{space: space, propagators: propagators, variables: variables}
     end
 
