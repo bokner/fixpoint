@@ -21,15 +21,15 @@ defmodule CPSolverTest.Propagator.NotEqual do
 
       [x_var, y_var] = bound_vars
       ## Fix one of vars
-      :ok = Store.update(space, x_var, :fix, [5])
-      assert :ok == NotEqual.filter(bound_vars)
+      assert :fixed == Store.update(space, x_var, :fix, [5])
+      assert :domain_change == NotEqual.filter(bound_vars)
       ## The filtering should have removed '5' from y_var
       assert Store.get(space, y_var, :max) == 4
       assert Store.get(space, y_var, :min) == -5
 
       ## Fix second var and filter again
-      :ok = Store.update(space, y_var, :fix, [4])
-      assert :ok == NotEqual.filter(bound_vars)
+      assert :fixed == Store.update(space, y_var, :fix, [4])
+      assert :no_change == NotEqual.filter(bound_vars)
       ## Make sure filtering doesn't fail on further calls
       refute Enum.any?(
                [x_var, y_var],
@@ -50,7 +50,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, bound_vars} = Store.create(space, variables)
-      assert :ok == NotEqual.filter(bound_vars)
+      assert :fail == NotEqual.filter(bound_vars)
 
       ## One of variables (depending on filtering implementation) will fail
       assert Enum.any?(

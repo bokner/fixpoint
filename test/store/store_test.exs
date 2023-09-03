@@ -97,7 +97,7 @@ defmodule CPSolverTest.Store do
       [v1, v2, v3] = bound_vars
       # remove
       refute Enum.any?(bound_vars, fn var ->
-               :ok = Store.update(space, var, :remove, [1])
+               assert Store.update(space, var, :remove, [1]) in [:domain_change, :fixed]
                Store.get(space, var, :contains?, [1])
              end)
 
@@ -105,27 +105,27 @@ defmodule CPSolverTest.Store do
       assert Store.get(space, v3, :min) == 2
 
       # Remove on fixed var
-      :ok = Store.update(space, v3, :remove, [2])
+      assert :fail = Store.update(space, v3, :remove, [2])
 
       assert :fail == Store.get(space, v3, :contains?, [1])
-      assert :ok == Store.update(space, v3, :remove, [2])
+      assert :fail == Store.update(space, v3, :remove, [2])
       assert :fail == Store.get(space, v3, :size)
 
       # removeAbove
-      :ok = Store.update(space, v1, :removeAbove, [5])
+      :max_change = Store.update(space, v1, :removeAbove, [5])
       assert Store.get(space, v1, :max) == 5
       assert Store.get(space, v1, :min) == 2
 
       # removeBelow
-      :ok = Store.update(space, v2, :removeBelow, [0])
+      :min_change = Store.update(space, v2, :removeBelow, [0])
       assert Store.get(space, v2, :max) == 5
       assert Store.get(space, v2, :min) == 0
 
-      # fix
-      :ok = Store.update(space, v1, :fix, [0])
+      # fix variable with value outside the domain
+      :fail = Store.update(space, v1, :fix, [0])
       assert Store.get(space, v1, :max) == :fail
 
-      :ok = Store.update(space, v2, :fix, [0])
+      :fixed = Store.update(space, v2, :fix, [0])
       assert Store.get(space, v2, :max) == 0
     end
 

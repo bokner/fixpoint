@@ -9,7 +9,7 @@ defmodule CPSolver.Propagator do
   @callback variables(args :: list()) :: list()
 
   @domain_changes Common.domain_changes()
-
+  @stable_flag :stable_flag
   defmacro __using__(_) do
     quote do
       @behaviour CPSolver.Propagator
@@ -140,13 +140,31 @@ defmodule CPSolver.Propagator do
   ### end of GenServer callbacks
 
   defp filter(%{propagator_impl: mod, args: args} = data) do
+    reset_stable_flag()
+
     case mod.filter(args) do
       :stable ->
         handle_stable(data)
 
       _res ->
-        handle_running(data)
+        if stable_flag() do
+          handle_stable(data)
+        else
+          handle_running(data)
+        end
     end
+  end
+
+  ## 'stable' flag will be set to false if any propagator variable
+  ## was changed as a result of propagator filtering.
+  ## This is done by CPSolver.Propagator.Variable.
+  ##
+  defp reset_stable_flag() do
+    Process.put(@stable_flag, true)
+  end
+
+  defp stable_flag() do
+    Process.get(@stable_flag)
   end
 
   defp handle_stable(data) do
