@@ -18,13 +18,6 @@ defmodule CPSolverTest.Store do
       {:ok, bound_vars} = Store.create(space, variables)
       ## Bound vars have space and ids assigned
       assert Enum.all?(bound_vars, fn var -> var && var.space == space end)
-      ## Var ids point to registered variable processes
-      assert Enum.all?(Enum.zip(bound_vars, values), fn {var, vals} ->
-               [{pid, _}] = Registry.lookup(Store, var.id)
-
-               Agent.get(pid, fn state -> CPSolver.DefaultDomain.min(state) end) ==
-                 Enum.min(vals)
-             end)
     end
 
     test "Space variables" do

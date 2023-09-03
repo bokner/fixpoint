@@ -26,7 +26,9 @@ defmodule CPSolver.Propagator.Thread do
       {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
       ## Propagator thread subscribes to its variables
       assert Enum.all?(bound_vars, fn var -> propagator_thread in Variable.subscribers(var) end)
-      ## ...filters its variables upon start
+
+      ## ...filters its variables upon start (happens in handle_continue, so needs a small timeout here)
+      Process.sleep(5)
       refute Store.get(space, y_var, :contains?, [1])
       ## ...receives variable update notifications
       assert capture_log([level: :debug], fn ->
