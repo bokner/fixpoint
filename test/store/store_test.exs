@@ -121,24 +121,5 @@ defmodule CPSolverTest.Store do
       :fixed = Store.update(space, v2, :fix, [0])
       assert Store.get(space, v2, :max) == 0
     end
-
-    test "no_change events are not fired more than once in a row" do
-      space = self()
-      v1_values = 1..10
-      v2_values = -5..5
-      values = [v1_values, v2_values]
-      [v1, v2] = Enum.map(values, fn d -> Variable.new(d) end)
-      {:ok, _bound_vars} = Store.create(space, [v1, v2])
-
-      log =
-        capture_log([level: :debug], fn ->
-          Enum.each(1..10, fn _ -> Store.update(space, v1, :removeAbove, [5]) end)
-          Process.sleep(10)
-        end)
-
-      matching_str = "No change for variable #{inspect(v1.id)}"
-      # assert log =~ matching_str
-      assert number_of_occurences(log, matching_str) == 1
-    end
   end
 end

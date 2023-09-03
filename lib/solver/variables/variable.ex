@@ -191,8 +191,8 @@ defmodule CPSolver.Variable.Agent do
     publish(var, {:fail, var.id})
   end
 
-  defp handle_domain_no_change(var) do
-    Logger.debug("No change for variable #{inspect(var.id)}")
+  defp handle_domain_no_change(_var) do
+    :ok
   end
 
   defp handle_domain_change(domain_change, var, _domain) do
