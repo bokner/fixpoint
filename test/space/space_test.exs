@@ -74,7 +74,6 @@ defmodule CPSolverTest.Space do
 
       assert_received({:shutdown_space, _pid})
       assert_received({:shutdown_space, _pid})
-      assert_received({:shutdown_space, _pid})
 
       # Only 2 solutions and one first_fail distribution (2 nodes) , nothing else has come in the mailbox
       refute_receive _msg, 10

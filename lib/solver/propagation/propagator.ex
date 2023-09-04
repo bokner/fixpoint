@@ -2,6 +2,7 @@ defmodule CPSolver.Propagator do
   alias CPSolver.Variable
   alias CPSolver.Common
   alias CPSolver.Utils
+  alias CPSolver.Propagator.Variable, as: PropagatorVariable
 
   require Logger
 
@@ -9,7 +10,6 @@ defmodule CPSolver.Propagator do
   @callback variables(args :: list()) :: list()
 
   @domain_changes Common.domain_changes()
-  @stable_flag :stable_flag
   defmacro __using__(_) do
     quote do
       @behaviour CPSolver.Propagator
@@ -91,18 +91,14 @@ defmodule CPSolver.Propagator do
   @impl true
 
   def handle_info({:fail, var}, data) do
-    Logger.debug("#{inspect(data.id)} Propagator: Failure for #{inspect(var)}")
-    publish(data, :failed)
-    {:stop, :normal, data}
+    handle_failure(var, data)
   end
 
   def handle_info({:fixed, var}, data) do
     new_data = update_unfixed(data, var)
 
     if entailed?(new_data) do
-      Logger.debug("#{inspect(data.id)} Propagator is entailed (on filtering)")
-      publish(data, :entailed)
-      {:stop, :normal, new_data}
+      handle_entailed(new_data)
     else
       filter(new_data)
     end
@@ -116,55 +112,69 @@ defmodule CPSolver.Propagator do
   ### end of GenServer callbacks
 
   defp filter(%{propagator_impl: mod, args: args} = data) do
-    reset_stable_flag()
+    PropagatorVariable.reset_variable_ops()
 
-    status =
-      case mod.filter(args) do
-        :stable ->
-          handle_stable(data)
+    case mod.filter(args) do
+      :stable ->
+        handle_stable(data)
 
-        _res ->
-          if stable_flag() do
-            handle_stable(data)
-          else
-            handle_running(data)
-          end
-      end
-
-    case status do
-      :entailed -> {:stop, :normal, data}
-      :stable -> {:noreply, data}
-      :running -> {:noreply, data}
+      _res ->
+        ## If propagator doesn't explicitly return 'stable',
+        ## we look into the map of variable operations created by PropagatorVariable wrapper
+        handle_variable_ops(data)
     end
   end
 
-  ## 'stable' flag will be set to false if any propagator variable
-  ## was changed as a result of propagator filtering.
-  ## This is done by CPSolver.Propagator.Variable.
-  ##
-  defp reset_stable_flag() do
-    Process.put(@stable_flag, true)
+  defp handle_variable_ops(data) do
+    case PropagatorVariable.get_variable_ops() do
+      {:fail, var} ->
+        handle_failure(var, data)
+
+      ops when is_map(ops) ->
+        {updated_data, no_change} = Enum.reduce(ops, {data, true}, &process_var_ops/2)
+
+        cond do
+          entailed?(updated_data) -> handle_entailed(updated_data)
+          no_change -> handle_stable(updated_data)
+          true -> handle_running(updated_data)
+        end
+    end
   end
 
-  defp stable_flag() do
-    Process.get(@stable_flag)
+  defp process_var_ops({var, :fixed}, {data, _} = _acc) do
+    {update_unfixed(data, var), false}
+  end
+
+  defp process_var_ops({_var, :no_change}, acc) do
+    acc
+  end
+
+  defp process_var_ops({_var, domain_change}, {data, _} = _acc)
+       when domain_change in @domain_changes do
+    {data, false}
   end
 
   defp handle_stable(data) do
-    if entailed?(data) do
-      Logger.debug("#{inspect(data.id)} Propagator is entailed (on filtering)")
-      publish(data, :entailed)
-      :entailed
-    else
-      Logger.debug("#{inspect(data.id)} Propagator is stable")
-      publish(data, :stable)
-      :stable
-    end
+    Logger.debug("#{inspect(data.id)} Propagator is stable")
+    publish(data, :stable)
+    {:noreply, data}
   end
 
   defp handle_running(data) do
     publish(data, :running)
-    :running
+    {:noreply, data}
+  end
+
+  defp handle_entailed(data) do
+    Logger.debug("#{inspect(data.id)} Propagator is entailed (on filtering)")
+    publish(data, :entailed)
+    {:stop, :normal, data}
+  end
+
+  def handle_failure(var, data) do
+    Logger.debug("#{inspect(data.id)} Propagator: Failure for #{inspect(var)}")
+    publish(data, :failed)
+    {:stop, :normal, data}
   end
 
   defp entailed?(%{unfixed_variables: vars} = _data) do

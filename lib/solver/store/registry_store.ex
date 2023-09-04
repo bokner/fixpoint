@@ -14,8 +14,7 @@ defmodule CPSolver.Store.Registry do
      Enum.map(
        variables,
        fn var ->
-         {:ok, _pid} =
-           VariableAgent.create(space, var)
+         {:ok, _pid} = VariableAgent.create(space, var)
 
          %{}
          |> Map.put(:id, var.id)

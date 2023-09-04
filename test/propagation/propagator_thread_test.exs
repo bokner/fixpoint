@@ -147,10 +147,11 @@ defmodule CPSolver.Propagator.Thread do
       {:ok, [x_var, y_var, z_var] = _vars} = Store.create(space, variables)
       {:ok, _threadXY} = Propagator.create_thread(space, {NotEqual, [x_var, y_var]}, id: "X != Y")
       {:ok, _threadYZ} = Propagator.create_thread(space, {NotEqual, [y_var, z_var]}, id: "Y != Z")
-      Process.sleep(10)
+      Process.sleep(5)
       assert 1 == Store.get(space, x_var, :min)
-      assert 2 == Store.get(space, y_var, :min)
-      assert :fail == Store.get(space, z_var, :min)
+
+      ## Non-deterministic failure - fails on either 'y' or 'z', depending on which propagator fixes first.
+      assert :fail == Store.get(space, z_var, :min) || :fail == Store.get(space, y_var, :min)
     end
   end
 end

@@ -4,6 +4,8 @@ defmodule CPSolver.Propagator.Variable do
 
   @domain_changes Common.domain_changes()
 
+  @variable_op_results_key :variable_op_results
+
   defdelegate domain(var), to: Variable
   defdelegate size(var), to: Variable
   defdelegate min(var), to: Variable
@@ -28,19 +30,26 @@ defmodule CPSolver.Propagator.Variable do
   end
 
   defp wrap(op, var, val) do
-    case apply(Variable, op, [var, val]) do
-      res when res in @domain_changes ->
-        if Process.get(:stable_flag) do
-          Process.put(:stable_flag, false)
-        end
+    save_in_dict(var, apply(Variable, op, [var, val]))
+  end
 
-        res
-
+  defp save_in_dict(var, result) do
+    result
+    |> tap(fn
       :fail ->
-        :fail
+        Process.put(@variable_op_results_key, {:fail, var.id})
 
-      _res ->
-        :no_change
-    end
+      _ ->
+        current = get_variable_ops()
+        Process.put(@variable_op_results_key, Map.put(current, var.id, result))
+    end)
+  end
+
+  def get_variable_ops() do
+    Process.get(@variable_op_results_key, Map.new())
+  end
+
+  def reset_variable_ops() do
+    Process.delete(@variable_op_results_key)
   end
 end
