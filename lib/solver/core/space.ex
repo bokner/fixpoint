@@ -162,22 +162,10 @@ defmodule CPSolver.Space do
   def stable(:enter, :propagating, data) do
     handle_stable(data)
 
-    shutdown(
-      data
-      |> distribute()
-      |> Enum.map(fn child_data ->
-        {:ok, child_space} =
-          create(
-            child_data.variables,
-            child_data.propagators,
-            Keyword.put(data.opts, :parent, data.id)
-          )
+    distribute(data)
 
-        child_space
-      end)
-      |> tap(fn new_nodes ->
-        publish(data, {:nodes, new_nodes})
-      end),
+    shutdown(
+      data,
       :distribute
     )
   end
@@ -186,7 +174,7 @@ defmodule CPSolver.Space do
          %{variables: variables, propagator_threads: threads, space: space, store: store} = _data
        ) do
     Enum.each(variables, fn var -> store.dispose(space, var) end)
-    Enum.each(threads, fn {id, thread} -> Propagator.dispose(thread) end)
+    Enum.each(threads, fn {_id, thread} -> Propagator.dispose(thread) end)
   end
 
   defp start_propagation(propagators) do
@@ -210,7 +198,12 @@ defmodule CPSolver.Space do
   end
 
   def update_entailed(%{propagator_threads: threads} = data, propagator_thread) do
-    Map.put(data, :propagator_threads, Map.delete(threads, propagator_thread))
+    Map.put(
+      data,
+      :propagator_threads,
+      Map.delete(threads, propagator_thread)
+      |> tap(fn m -> Logger.debug("Active propagators: #{inspect(map_size(m))}") end)
+    )
   end
 
   defp solved?(data) do
@@ -240,7 +233,7 @@ defmodule CPSolver.Space do
           store: store_impl,
           search: search_strategy,
           space: space
-        } = _data
+        } = data
       ) do
     variable_domains =
       Map.new(
@@ -277,7 +270,17 @@ defmodule CPSolver.Space do
            end)}
         end)
 
-      %{variables: Map.values(variable_copies), propagators: propagator_copies}
+      {:ok, child_space} =
+        create(
+          Map.values(variable_copies),
+          propagator_copies,
+          Keyword.put(data.opts, :parent, data.id)
+        )
+
+      child_space
+    end)
+    |> tap(fn new_nodes ->
+      publish(data, {:nodes, new_nodes})
     end)
   end
 

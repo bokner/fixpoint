@@ -1,8 +1,5 @@
 defmodule CPSolver.Propagator.Variable do
-  alias CPSolver.Common
   alias CPSolver.Variable
-
-  @domain_changes Common.domain_changes()
 
   @variable_op_results_key :variable_op_results
 
