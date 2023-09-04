@@ -79,8 +79,7 @@ defmodule CPSolver.Propagator do
          Enum.reduce(bound_vars, MapSet.new(), fn var, acc ->
            (Variable.fixed?(var) && acc) || MapSet.put(acc, var.id)
          end),
-       propagator_opts: opts,
-       on_startup: true
+       propagator_opts: opts
      }, {:continue, :filter}}
   end
 

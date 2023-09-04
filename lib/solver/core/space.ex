@@ -177,8 +177,7 @@ defmodule CPSolver.Space do
       end)
       |> tap(fn new_nodes ->
         publish(data, {:nodes, new_nodes})
-      end)
-      |> then(fn children -> Map.put(data, :children, children) end),
+      end),
       :distribute
     )
   end
@@ -287,7 +286,7 @@ defmodule CPSolver.Space do
   end
 
   defp shutdown(%{keep_alive: keep_alive} = data, _reason) do
-    publish(data, {:shutdown_space, data.space})
+    publish(data, {:shutdown_space, self()})
 
     if !keep_alive do
       dispose(data)
