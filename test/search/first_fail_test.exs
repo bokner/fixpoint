@@ -28,7 +28,7 @@ defmodule CPSolverTest.Search.FirstFail do
       min_val = Domain.min(var_domain)
 
       assert FirstFail.partition(var_domain) ==
-               [0, Domain.new(List.delete(Enum.to_list(v2_values), 0))]
+               [min_val, Domain.new(List.delete(Enum.to_list(v2_values), 0))]
     end
 
     test "first_fail fails if no unfixed variables" do
@@ -44,7 +44,7 @@ defmodule CPSolverTest.Search.FirstFail do
       {:ok, _bound_vars} = Store.create(space, variables)
 
       assert catch_throw(FirstFail.select_variable(variables)) ==
-               SearchStrategy.no_variable_choice_exception()
+               SearchStrategy.all_vars_fixed_exception()
     end
   end
 end

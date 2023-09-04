@@ -7,8 +7,8 @@ defmodule CPSolver.Search.Strategy do
     CPSolver.Search.Strategy.FirstFail
   end
 
-  def no_variable_choice_exception() do
-    :no_variable_choice
+  def all_vars_fixed_exception() do
+    :all_vars_fixed
   end
 
   def failed_variables_in_search_exception() do

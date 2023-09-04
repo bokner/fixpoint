@@ -156,7 +156,7 @@ defmodule CPSolver.Propagator do
       publish(data, :entailed)
       :entailed
     else
-      Logger.debug("#{inspect(data.id)} Propagator #{inspect(self())} is stable")
+      Logger.debug("#{inspect(data.id)} Propagator is stable")
       publish(data, :stable)
       :stable
     end

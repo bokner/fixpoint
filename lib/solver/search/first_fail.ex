@@ -6,8 +6,11 @@ defmodule CPSolver.Search.Strategy.FirstFail do
 
   @impl true
   def select_variable(variables) do
-    {min_domain_var, _size} =
-      Enum.reduce(variables, {nil, :infinity}, fn var, {_v, v_size} = acc ->
+    initial_acc = {nil, :infinity}
+
+    {min_var, _size} =
+      choice =
+      Enum.reduce(variables, initial_acc, fn var, {_v, v_size} = acc ->
         case Variable.size(var) do
           :fail -> throw(Strategy.failed_variables_in_search_exception())
           ## Skip fixed vars
@@ -17,7 +20,11 @@ defmodule CPSolver.Search.Strategy.FirstFail do
         end
       end)
 
-    (min_domain_var && min_domain_var) || throw(Strategy.no_variable_choice_exception())
+    if choice == initial_acc do
+      throw(Strategy.all_vars_fixed_exception())
+    else
+      min_var
+    end
   end
 
   @impl true
