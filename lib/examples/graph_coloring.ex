@@ -2,13 +2,15 @@ defmodule CPSolver.Examples.GraphColoring do
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.IntVariable
 
-  def solve(instance) when is_binary(instance) do
+  def solve(instance, solver_opts \\ [])
+
+  def solve(instance, solver_opts) when is_binary(instance) do
     instance
     |> parse_instance()
-    |> solve()
+    |> solve(solver_opts)
   end
 
-  def solve(data) do
+  def solve(data, solver_opts) do
     color_vars = Enum.map(1..data.vertices, fn _idx -> IntVariable.new(1..data.max_color) end)
 
     edge_color_constraints =
@@ -21,7 +23,7 @@ defmodule CPSolver.Examples.GraphColoring do
       constraints: edge_color_constraints
     }
 
-    CPSolver.solve(model)
+    CPSolver.solve(model, solver_opts)
     |> tap(fn _ -> Process.sleep(1000) end)
   end
 

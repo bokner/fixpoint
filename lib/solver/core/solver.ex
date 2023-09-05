@@ -29,26 +29,37 @@ defmodule CPSolver do
         acc ++ constraint_to_propagators(constraint)
       end)
 
-    {:ok, top_space} =
-      Space.create(variables, propagators, Keyword.put(solver_opts, :solver, self()))
+    stop_condition = Keyword.get(solver_opts, :stop_condition)
 
     {:ok,
      %{
-       space: top_space,
+       space: nil,
        variables: variables,
        propagators: propagators,
        solution_count: 0,
        failure_count: 0,
        node_count: 1,
        solutions: [],
-       active_nodes: MapSet.new([top_space]),
+       active_nodes: MapSet.new(),
+       stop_condition: stop_condition,
        solver_opts: solver_opts
-     }}
+     }, {:continue, :solve}}
   end
 
   defp constraint_to_propagators(constraint) do
     [constraint_mod | args] = Tuple.to_list(constraint)
     constraint_mod.propagators(args)
+  end
+
+  @impl true
+  def handle_continue(
+        :solve,
+        %{variables: variables, propagators: propagators, solver_opts: solver_opts} = state
+      ) do
+    {:ok, top_space} =
+      Space.create(variables, propagators, Keyword.put(solver_opts, :solver, self()))
+
+    {:noreply, Map.put(state, :space, top_space)}
   end
 
   @impl true
@@ -58,11 +69,16 @@ defmodule CPSolver do
 
   defp handle_event(
          {:solution, new_solution},
-         %{solution_count: count, solutions: solutions} = state
+         %{solution_count: count, solutions: solutions, stop_condition: stop_condition} = state
        ) do
-    # Logger.debug("Solver: new solution")
-    %{state | solution_count: count + 1, solutions: [new_solution | solutions]}
+    if check_for_stop(stop_condition, new_solution, state) do
+      stop_spaces(state)
+    else
+      %{state | solution_count: count + 1, solutions: [new_solution | solutions]}
+    end
+
     ## TODO: check for stopping condition here.
+
     ## Q: spaces are async and handle solutions on their own,
     ## so even if stopping condition is handled here, how do (or should)
     ## we prevent spaces from emitting new solutions?
@@ -96,5 +112,18 @@ defmodule CPSolver do
 
   defp get_stats(state) do
     Map.take(state, [:solution_count, :failure_count, :node_count])
+  end
+
+  defp check_for_stop(nil, _solution, _data) do
+    false
+  end
+
+  defp check_for_stop({:max_solutions, max}, _solution, data) do
+    max == data.solution_count
+  end
+
+  defp stop_spaces(%{active_nodes: spaces} = data) do
+    Enum.each(spaces, fn s -> Process.exit(s, :kill) end)
+    data
   end
 end

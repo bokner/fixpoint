@@ -51,6 +51,10 @@ defmodule CPSolver.Space do
       )
   end
 
+  def stop(space) do
+    Process.alive?(space) && :gen_statem.stop(space)
+  end
+
   defp inject_solver(space_opts) do
     Keyword.put_new(space_opts, :solver, self())
   end
