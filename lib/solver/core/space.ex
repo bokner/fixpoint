@@ -39,7 +39,7 @@ defmodule CPSolver.Space do
 
   def create(variables, propagators, space_opts \\ [], gen_statem_opts \\ []) do
     {:ok, _space} =
-      :gen_statem.start(
+      :gen_statem.start_link(
         __MODULE__,
         [
           variables: variables,
