@@ -1,11 +1,20 @@
 example = "triangle_uni"
+
+defmodule GraphScript do
+def solve_graph(example) do
 instance = "data/graph_coloring/#{example}"
 {:ok, solver} = CPSolver.Examples.GraphColoring.solve(instance)
-stats = CPSolver.statistics(solver)
+end
 
-solver_state = :sys.get_state(solver)
+def propagating_spaces(solver) do
+  solver_state = :sys.get_state(solver)
+  solver_state.active_nodes |> Enum.filter(fn space -> Process.alive?(space) && ({state, data} = :sys.get_state(space); state == :propagating) end)
+end
 
-propagating_spaces = solver_state.active_nodes |> Enum.filter(fn space -> Process.alive?(space) && ({state, data} = :sys.get_state(space); state == :propagating) end)
+def threads(spaces) do
+  Enum.map(spaces, fn pid -> {_, data} = :sys.get_state(pid); data.propagator_threads end)
+end
 
-Enum.map(propagating_spaces, fn pid -> {_, data} = :sys.get_state(pid); data.propagator_threads
- end)
+end
+
+GraphScript.solve_graph(example)
