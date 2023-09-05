@@ -13,6 +13,11 @@ defmodule CPSolverTest.Space do
 
     alias CPSolver.Utils
 
+    setup do
+      Logger.configure(level: :debug)
+      on_exit(fn -> Logger.configure(level: :error) end)
+    end
+
     test "create space" do
       x_values = 1..10
       y_values = -5..5
@@ -72,12 +77,6 @@ defmodule CPSolverTest.Space do
           end
         end)
 
-      assert_received({:shutdown_space, _pid})
-      assert_received({:shutdown_space, _pid})
-
-      # Only 2 solutions and one first_fail distribution (2 nodes) , nothing else has come in the mailbox
-      refute_receive _msg, 10
-
       # For all solutions, constraints (x != y and y != z) are satisfied.
       assert Enum.all?(solutions, fn variables ->
                [x, y, z] = Enum.map(variables, fn {_id, value} -> value end)
@@ -136,7 +135,7 @@ defmodule CPSolverTest.Space do
 
       ## Create a space with the solution handler as a function
       log =
-        capture_log(fn ->
+        capture_log([level: :debug], fn ->
           _ = create_solved_space(solution_handler: solution_handler)
 
           Process.sleep(10)

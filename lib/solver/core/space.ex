@@ -11,6 +11,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Propagator, as: Propagator
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.DefaultDomain, as: Domain
 
   require Logger
 
@@ -145,36 +146,23 @@ defmodule CPSolver.Space do
   end
 
   def propagating(:info, :solved, data) do
-    Logger.debug("The space has been solved")
-    shutdown(data, :solved)
+    {:next_state, :solved, data}
   end
 
   def failed(:enter, :propagating, data) do
     handle_failure(data)
-    shutdown(data, :failure)
   end
 
   def solved(:enter, :propagating, data) do
     handle_solved(data)
-    shutdown(data, :solved)
   end
 
   def stable(:enter, :propagating, data) do
     handle_stable(data)
-
-    distribute(data)
-
-    shutdown(
-      data,
-      :distribute
-    )
   end
 
-  defp dispose(
-         %{variables: variables, propagator_threads: threads, space: space, store: store} = _data
-       ) do
+  defp dispose(%{variables: variables, space: space, store: store} = _data) do
     Enum.each(variables, fn var -> store.dispose(space, var) end)
-    Enum.each(threads, fn {_id, thread} -> Propagator.dispose(thread) end)
   end
 
   defp start_propagation(propagators) do
@@ -211,43 +199,78 @@ defmodule CPSolver.Space do
   end
 
   defp handle_failure(data) do
-    Logger.debug("The space has failed")
+    Logger.debug("The space #{inspect(data.id)} has failed")
     publish(data, :failure)
+    shutdown(data, :failure)
   end
 
   defp handle_solved(%{solution_handler: solution_handler} = data) do
+    Logger.debug("The space #{inspect(data.id)} has been solved")
+
     data
     |> solution()
     |> tap(fn solution -> publish(data, {:solution, solution}) end)
     |> Solution.run_handler(solution_handler)
+
+    shutdown(data, :solved)
   end
 
   defp handle_stable(data) do
-    Logger.debug("Space #{inspect(data.id)} is stable")
+    Logger.debug("Space #{inspect(data.id)} reports stable")
+    stop_propagators(data)
+    distribute(data)
+  end
+
+  defp stop_propagators(%{propagator_threads: threads} = _data) do
+    Enum.each(threads, fn {_id, thread} -> Propagator.dispose(thread) end)
   end
 
   def distribute(
         %{
           variables: variables,
-          propagator_threads: threads,
           store: store_impl,
-          search: search_strategy,
           space: space
         } = data
       ) do
-    variable_domains =
-      Map.new(
+    {variable_domains, all_fixed?} =
+      Enum.reduce_while(
         variables,
-        fn v -> {v.id, store_impl.domain(space, v)} end
+        {Map.new(), true},
+        fn v, {domains, fixed?} ->
+          case store_impl.domain(space, v) do
+            :fail ->
+              {:halt, {domains, :fail}}
+
+            d ->
+              domains = Map.put(domains, v.id, d)
+              {:cont, {domains, (Domain.fixed?(d) && fixed?) || false}}
+          end
+        end
       )
 
+    case all_fixed? do
+      :fail -> handle_failure(data)
+      true -> handle_solved(data)
+      false -> do_distribute(data, variable_domains)
+    end
+  end
+
+  def do_distribute(
+        %{
+          variables: variables,
+          propagator_threads: threads,
+          search: search_strategy
+        } = data,
+        domains
+      ) do
+    Logger.debug("Space #{inspect(data.id)} is distributing...")
     var_to_branch_on = search_strategy.select_variable(variables)
-    var_domain = Map.get(variable_domains, var_to_branch_on.id)
+    var_domain = Map.get(domains, var_to_branch_on.id)
     domain_partitions = search_strategy.partition(var_domain)
 
     Enum.map(domain_partitions, fn partition ->
       variable_copies =
-        Map.new(variable_domains, fn {var_id, domain} ->
+        Map.new(domains, fn {var_id, domain} ->
           {var_id,
            if var_id == var_to_branch_on.id do
              Variable.new(partition)
@@ -282,6 +305,8 @@ defmodule CPSolver.Space do
     |> tap(fn new_nodes ->
       publish(data, {:nodes, new_nodes})
     end)
+
+    shutdown(data, :stable)
   end
 
   defp publish(data, message) do
@@ -289,13 +314,12 @@ defmodule CPSolver.Space do
   end
 
   defp shutdown(%{keep_alive: keep_alive} = data, _reason) do
-    publish(data, {:shutdown_space, self()})
-
     if !keep_alive do
       dispose(data)
       {:stop, :normal, data}
     else
       :keep_state_and_data
     end
+    |> tap(fn _ -> publish(data, {:shutdown_space, self()}) end)
   end
 end

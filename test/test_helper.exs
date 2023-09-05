@@ -1,4 +1,5 @@
-ExUnit.start()
+ExUnit.start(capture_log: true)
+Logger.configure(level: :error)
 
 Registry.start_link(
   name: CPSolver.Store.Registry,

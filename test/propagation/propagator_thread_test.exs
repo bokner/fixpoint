@@ -11,7 +11,10 @@ defmodule CPSolver.Propagator.Thread do
     alias CPSolver.Variable
     alias CPSolver.Propagator.NotEqual
 
-    require Logger
+    setup do
+      Logger.configure(level: :debug)
+      on_exit(fn -> Logger.configure(level: :error) end)
+    end
 
     @entailment_str "Propagator is entailed"
 

@@ -9,6 +9,11 @@ defmodule CPSolverTest.Propagator.NotEqual do
     alias CPSolver.Propagator.Variable, as: PropagatorVariable
     alias CPSolver.Propagator.NotEqual
 
+    setup do
+      Logger.configure(level: :debug)
+      on_exit(fn -> Logger.configure(level: :error) end)
+    end
+
     test "filtering, unfixed domains" do
       space = self()
 
