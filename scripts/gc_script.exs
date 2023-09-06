@@ -1,7 +1,7 @@
 example = "triangle_uni"
 
 defmodule GraphScript do
-def solve_graph(example, solver_opts) do
+def solve_graph(example, solver_opts \\ []) do
 instance = "data/graph_coloring/#{example}"
 {:ok, solver} = CPSolver.Examples.GraphColoring.solve(instance, solver_opts)
 end
