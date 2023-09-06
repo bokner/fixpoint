@@ -5,7 +5,7 @@ defmodule Cpsolver.MixProject do
     [
       app: :cpsolver,
       version: "0.1.1",
-      elixir: "~> 1.14",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
@@ -28,6 +28,7 @@ defmodule Cpsolver.MixProject do
       {:libgraph, "~> 0.16.0"},
       {:ebus, "~> 0.3", hex: :erlbus},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:replbug, only: :dev, git: "https://github.com/bokner/replbug.git"}
     ]
   end
