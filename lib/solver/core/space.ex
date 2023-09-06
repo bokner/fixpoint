@@ -161,7 +161,6 @@ defmodule CPSolver.Space do
     unexpected_message(kind, message)
   end
 
-
   def solved(:enter, :propagating, data) do
     handle_solved(data)
   end
@@ -170,7 +169,6 @@ defmodule CPSolver.Space do
   def solved(kind, message, _data) do
     unexpected_message(kind, message)
   end
-
 
   def stable(:enter, :propagating, data) do
     handle_stable(data)
@@ -181,7 +179,7 @@ defmodule CPSolver.Space do
   end
 
   defp unexpected_message(kind, message) do
-    Logger.error("Unexpected message: #{inspect kind}: #{inspect message}")
+    Logger.error("Unexpected message: #{inspect(kind)}: #{inspect(message)}")
     :keep_state_and_data
   end
 

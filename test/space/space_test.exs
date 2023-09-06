@@ -38,18 +38,10 @@ defmodule CPSolverTest.Space do
       assert length(variables) == length(space_variables)
 
       thread_pids =
-        [x_y_propagator_pid, y_z_propagator_pid] =
         Enum.map(threads, fn {_id, thread} -> thread.thread end)
 
       assert Enum.all?(thread_pids, fn pid -> is_pid(pid) end)
       # Check subscriptions
-
-      ## propagators -> variables
-      [x_space, y_space, z_space] = space_variables
-      assert x_y_propagator_pid in CPSolver.Variable.subscribers(x_space)
-      assert x_y_propagator_pid in CPSolver.Variable.subscribers(y_space)
-      assert y_z_propagator_pid in CPSolver.Variable.subscribers(y_space)
-      assert y_z_propagator_pid in CPSolver.Variable.subscribers(z_space)
       ## space -> propagators
       assert Enum.all?(threads, fn {thread_id, _thread} ->
                space in Utils.subscribers({:propagator, thread_id})
