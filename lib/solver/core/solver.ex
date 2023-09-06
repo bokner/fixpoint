@@ -20,6 +20,10 @@ defmodule CPSolver do
     GenServer.call(solver, :get_stats)
   end
 
+  def solutions(solver) when is_pid(solver) do
+    GenServer.call(solver, :get_solutions)
+  end
+
   ## GenServer callbacks
 
   @impl true
@@ -110,8 +114,24 @@ defmodule CPSolver do
     {:reply, get_stats(state), state}
   end
 
+  def handle_call(:get_solutions, _from, state) do
+    {:reply, get_solutions(state), state}
+  end
+
   defp get_stats(state) do
     Map.take(state, [:solution_count, :failure_count, :node_count])
+  end
+
+  defp get_solutions(%{solutions: solutions} = _state) do
+    ## Here we piggy-back on the fact that the variables are ordered by their refs
+    ## in spaces, and the order there matches the order within solver state.
+    ## This may likely change, we will probably use var names instead of refs.
+    solutions
+    |> Enum.map(fn solution ->
+      solution
+      |> Enum.sort_by(fn {ref, _value} -> ref end)
+      |> Enum.map(fn {_ref, value} -> value end)
+    end)
   end
 
   defp check_for_stop(nil, _solution, _data) do

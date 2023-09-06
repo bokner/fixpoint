@@ -11,3 +11,5 @@
 8. Search: limit the number of solutions.
 9. Control the solver (async ops: stop, get stats etc.).
 10. More granular propagation (domain vs. bound consistency) 
+
+11. Do not rely on ref() order to match with their solutions

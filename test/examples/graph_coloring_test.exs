@@ -22,8 +22,13 @@ defmodule CPSolverTest.Examples.GraphColoring do
   end
 
   defp test_graph(graph_name, expected_solutions, timeout \\ 20) do
-    {:ok, solver} = CPSolver.Examples.GraphColoring.solve("data/graph_coloring/#{graph_name}")
+    instance = "data/graph_coloring/#{graph_name}"
+    {:ok, solver} = CPSolver.Examples.GraphColoring.solve(instance)
     Process.sleep(timeout)
     assert CPSolver.statistics(solver).solution_count == expected_solutions
+
+    assert Enum.all?(CPSolver.solutions(solver), fn solution ->
+             CPSolver.Examples.GraphColoring.check_solution(solution, instance)
+           end)
   end
 end

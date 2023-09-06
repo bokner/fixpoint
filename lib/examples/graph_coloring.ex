@@ -37,4 +37,9 @@ defmodule CPSolver.Examples.GraphColoring do
 
     %{vertices: v, edges: edges, max_color: max_color}
   end
+
+  def check_solution(colors, instance) when is_list(colors) do
+    graph = parse_instance(instance)
+    Enum.all?(graph.edges, fn [v1, v2] -> Enum.at(colors, v1) != Enum.at(colors, v2) end)
+  end
 end
