@@ -122,6 +122,10 @@ defmodule CPSolver do
     max == data.solution_count
   end
 
+  defp check_for_stop(condition, solution, data) when is_function(condition, 2) do
+    condition.(solution, data)
+  end
+
   defp stop_spaces(%{active_nodes: spaces} = data) do
     Enum.each(spaces, fn s -> Process.exit(s, :kill) end)
     data
