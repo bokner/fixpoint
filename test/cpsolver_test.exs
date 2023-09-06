@@ -15,7 +15,7 @@ defmodule CpSolverTest do
 
     {:ok, solver} = CPSolver.solve(model)
 
-    Process.sleep(10)
+    Process.sleep(100)
 
     assert CPSolver.statistics(solver).failure_count == 0
     ## Note: there are 2 "first fail" distributions:

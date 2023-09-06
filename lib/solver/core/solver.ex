@@ -11,7 +11,7 @@ defmodule CPSolver do
   @doc """
 
   """
-  @spec solve(module(), Keyword.t()) :: any()
+  @spec solve(Model.t(), Keyword.t()) :: any()
   def solve(model, opts \\ []) do
     {:ok, _solver} = GenServer.start_link(CPSolver, [model, opts])
   end

@@ -23,8 +23,9 @@ defmodule CPSolver.Examples.GraphColoring do
       constraints: edge_color_constraints
     }
 
-    CPSolver.solve(model, solver_opts)
-    |> tap(fn _ -> Process.sleep(1000) end)
+    {:ok, _solver} =
+      CPSolver.solve(model, solver_opts)
+      |> tap(fn _ -> Process.sleep(100) end)
   end
 
   defp parse_instance(instance) do
