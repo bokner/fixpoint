@@ -118,7 +118,7 @@ defmodule CPSolverTest.Space do
       end
 
       ## Create a space with the solution handler as a function
-      %{space: space, variables: space_variables} =
+      %{variables: space_variables} =
         create_solved_space(solution_handler: solution_handler)
 
       Process.sleep(10)

@@ -31,10 +31,10 @@ defmodule CpSolverTest do
 
     solutions =
       Enum.map(solver_state.solutions, fn solution ->
-        Enum.map(solution, fn {ref, value} -> value end)
+        Enum.map(solution, fn {_ref, value} -> value end)
       end)
-      |> Enum.sort_by(fn [x, y] -> x end)
+      |> Enum.sort_by(fn [x, y] -> x + y end)
 
-    assert solutions = [[1, 0], [2, 0], [2, 1]]
+    assert solutions == [[1, 0], [2, 0], [2, 1]]
   end
 end

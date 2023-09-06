@@ -1,9 +1,6 @@
 defmodule CPSolverTest.Store do
   use ExUnit.Case
 
-  import ExUnit.CaptureLog
-  import CPSolver.Test.Helpers
-
   describe "Registry store" do
     alias CPSolver.Store.Registry, as: Store
     alias CPSolver.IntVariable, as: Variable

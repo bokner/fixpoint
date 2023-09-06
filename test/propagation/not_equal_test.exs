@@ -57,7 +57,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       space = self()
       x = 0..0
       y = 0..0
-      [x_var, y_var] = variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+      [_x_var, y_var] = variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, bound_vars} = Store.create(space, variables)
       assert :fail == NotEqual.filter(bound_vars)

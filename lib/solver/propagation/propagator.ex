@@ -36,7 +36,8 @@ defmodule CPSolver.Propagator do
         opts
       )
       when is_atom(propagator_mod) do
-    {:ok, _thread} = GenServer.start_link(__MODULE__, [space, propagator_mod, propagator_args, opts])
+    {:ok, _thread} =
+      GenServer.start_link(__MODULE__, [space, propagator_mod, propagator_args, opts])
   end
 
   def create_thread(space, propagator, opts) do
@@ -55,10 +56,6 @@ defmodule CPSolver.Propagator do
 
   defp subscribe_to_var(thread, variable) do
     Utils.subscribe(thread, {:variable, variable.id})
-  end
-
-  defp unsubscribe_from_var(thread, var_id) do
-    Utils.unsubscribe(thread, {:variable, var_id})
   end
 
   ## GenServer callbacks
@@ -186,7 +183,6 @@ defmodule CPSolver.Propagator do
   end
 
   defp update_unfixed(%{unfixed_variables: unfixed} = data, var) do
-    unsubscribe_from_var(self(), var)
     %{data | unfixed_variables: MapSet.delete(unfixed, var)}
   end
 
