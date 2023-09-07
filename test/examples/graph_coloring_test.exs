@@ -25,6 +25,10 @@ defmodule CPSolverTest.Examples.GraphColoring do
     test_graph("gc_15_30_3", 12, 500)
   end
 
+  test "Multiple P4 runs" do
+    Enum.each(1..20, fn _ -> test_graph("p4", 2) end)
+  end
+
   defp test_graph(graph_name, expected_solutions, timeout \\ 50) do
     instance = "data/graph_coloring/#{graph_name}"
     {:ok, solver} = CPSolver.Examples.GraphColoring.solve(instance)

@@ -249,27 +249,30 @@ defmodule CPSolver.Space do
           space: space
         } = data
       ) do
-    {variable_domains, all_fixed?} =
-      Enum.reduce_while(
-        variables,
-        {Map.new(), true},
-        fn v, {domains, fixed?} ->
-          case store_impl.domain(space, v) do
-            :fail ->
-              {:halt, {domains, :fail}}
-
-            d ->
-              domains = Map.put(domains, v.id, d)
-              {:cont, {domains, (Domain.fixed?(d) && fixed?) || false}}
-          end
-        end
-      )
+    {variable_domains, all_fixed?} = collect_domains(variables, store_impl, space)
 
     case all_fixed? do
       :fail -> handle_failure(data)
       true -> handle_solved(data)
       false -> do_distribute(data, variable_domains)
     end
+  end
+
+  defp collect_domains(variables, store_impl, space) do
+    Enum.reduce_while(
+      variables,
+      {Map.new(), true},
+      fn v, {domains, fixed?} ->
+        case store_impl.domain(space, v) do
+          :fail ->
+            {:halt, {domains, :fail}}
+
+          d ->
+            domains = Map.put(domains, v.id, d)
+            {:cont, {domains, (Domain.fixed?(d) && fixed?) || false}}
+        end
+      end
+    )
   end
 
   def do_distribute(
@@ -281,9 +284,7 @@ defmodule CPSolver.Space do
         domains
       ) do
     Logger.debug("Space #{inspect(data.id)} is distributing...")
-    var_to_branch_on = search_strategy.select_variable(variables)
-    var_domain = Map.get(domains, var_to_branch_on.id)
-    domain_partitions = search_strategy.partition(var_domain)
+    {var_to_branch_on, domain_partitions} = branching(variables, search_strategy)
 
     Enum.map(domain_partitions, fn partition ->
       variable_copies =
@@ -324,6 +325,12 @@ defmodule CPSolver.Space do
     end)
 
     shutdown(data, :distribute)
+  end
+
+  defp branching(variables, search_strategy) do
+    var_to_branch_on = search_strategy.select_variable(variables)
+    var_domain = Variable.domain(var_to_branch_on)
+    {var_to_branch_on, search_strategy.partition(var_domain)}
   end
 
   defp publish(data, message) do
