@@ -123,7 +123,7 @@ defmodule CPSolver.Space do
   def propagating(:info, {:stable, propagator_thread}, data) do
     updated_data = set_propagator_stable(data, propagator_thread, true)
 
-    if stable?(updated_data) do
+    if fixpoint?(updated_data) do
       {:next_state, :stable, updated_data}
     else
       {:keep_state, updated_data}
@@ -139,10 +139,10 @@ defmodule CPSolver.Space do
     Logger.debug("Entailed propagator #{inspect(propagator_thread)}")
     updated_data = update_entailed(data, propagator_thread)
 
-    if solved?(updated_data) do
-      {:next_state, :solved, updated_data}
-    else
-      {:keep_state, updated_data}
+    cond do
+      solved?(updated_data) -> {:next_state, :solved, updated_data}
+      fixpoint?(updated_data) -> {:next_state, :stable, updated_data}
+      true -> {:keep_state, updated_data}
     end
   end
 
@@ -199,7 +199,7 @@ defmodule CPSolver.Space do
     end)
   end
 
-  defp stable?(%{propagator_threads: threads} = _data) do
+  defp fixpoint?(%{propagator_threads: threads} = _data) do
     Enum.all?(threads, fn {_id, thread} -> thread.stable end)
   end
 
@@ -243,7 +243,7 @@ defmodule CPSolver.Space do
 
   defp handle_stable(data) do
     Logger.debug("Space #{inspect(data.id)} reports stable")
-    stop_propagators(data)
+    :ok = stop_propagators(data)
     distribute(data)
   end
 
