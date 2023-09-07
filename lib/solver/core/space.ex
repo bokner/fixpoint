@@ -187,10 +187,6 @@ defmodule CPSolver.Space do
     :keep_state_and_data
   end
 
-  defp dispose(%{variables: variables, space: space} = _data) do
-    Enum.each(variables, fn var -> Store.dispose(space, var) end)
-  end
-
   defp start_propagation(propagators) do
     Enum.reduce(propagators, Map.new(), fn p, acc ->
       propagator_id = make_ref()
@@ -243,12 +239,7 @@ defmodule CPSolver.Space do
 
   defp handle_stable(data) do
     Logger.debug("Space #{inspect(data.id)} reports stable")
-    :ok = stop_propagators(data)
     distribute(data)
-  end
-
-  defp stop_propagators(%{propagator_threads: threads} = _data) do
-    Enum.each(threads, fn {_id, thread} -> Propagator.dispose(thread) end)
   end
 
   def distribute(
@@ -343,8 +334,6 @@ defmodule CPSolver.Space do
     Logger.info("Space #{inspect(self())} shutdown with #{inspect(reason)}")
 
     if !keep_alive do
-      dispose(data)
-
       {:stop, :normal, data}
     else
       :keep_state_and_data

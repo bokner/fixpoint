@@ -58,6 +58,10 @@ defmodule CPSolver.Propagator do
     Utils.subscribe(thread, {:variable, variable.id})
   end
 
+  defp unsubscribe_from_var(thread, variable) do
+    Utils.unsubscribe(thread, {:variable, variable})
+  end
+
   ## GenServer callbacks
   @impl true
   def init([space, propagator_mod, args, opts]) do
@@ -93,6 +97,8 @@ defmodule CPSolver.Propagator do
 
   def handle_info({:fixed, var}, data) do
     new_data = update_unfixed(data, var)
+
+    unsubscribe_from_var(self(), var)
 
     if entailed?(new_data) do
       handle_entailed(new_data)
