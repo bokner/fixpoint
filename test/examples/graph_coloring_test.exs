@@ -17,7 +17,7 @@ defmodule CPSolverTest.Examples.GraphColoring do
     test_graph("square", 2)
   end
 
-  test "Triangle and edge" do
+  test "Paw" do
     test_graph("paw", 12, 100)
   end
 

@@ -7,11 +7,11 @@ defmodule CPSolver.Space do
 
   alias CPSolver.Utils
   alias __MODULE__, as: Space
-  alias CPSolver.ConstraintStore, as: Store
   alias CPSolver.Propagator, as: Propagator
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.DefaultDomain, as: Domain
+  alias CPSolver.Store.Registry, as: Store
 
   require Logger
 
@@ -22,7 +22,7 @@ defmodule CPSolver.Space do
             keep_alive: false,
             variables: [],
             propagator_threads: %{},
-            store: Store.default_store(),
+            store: Store,
             space: nil,
             solver: nil,
             solution_handler: nil,
@@ -31,7 +31,7 @@ defmodule CPSolver.Space do
 
   defp default_space_opts() do
     [
-      store: Store.default_store(),
+      store: Store,
       solution_handler: Solution.default_handler(),
       search: CPSolver.Search.Strategy.default_strategy()
     ]
@@ -107,6 +107,7 @@ defmodule CPSolver.Space do
 
   ## Callbacks
   def start_propagation(:enter, :start_propagation, data) do
+    Logger.info("Space #{inspect(self())} started")
     {:keep_state, data}
   end
 
@@ -158,7 +159,7 @@ defmodule CPSolver.Space do
   end
 
   def failed(kind, message, _data) do
-    unexpected_message(kind, message)
+    unexpected_message(:failed, kind, message)
   end
 
   def solved(:enter, :propagating, data) do
@@ -167,7 +168,7 @@ defmodule CPSolver.Space do
 
   @spec stable(any, any, any) :: :keep_state_and_data
   def solved(kind, message, _data) do
-    unexpected_message(kind, message)
+    unexpected_message(:solved, kind, message)
   end
 
   def stable(:enter, :propagating, data) do
@@ -175,16 +176,19 @@ defmodule CPSolver.Space do
   end
 
   def stable(kind, message, _data) do
-    unexpected_message(kind, message)
+    unexpected_message(:stable, kind, message)
   end
 
-  defp unexpected_message(kind, message) do
-    Logger.error("Unexpected message: #{inspect(kind)}: #{inspect(message)}")
+  defp unexpected_message(state, kind, message) do
+    Logger.error(
+      "Unexpected message in state #{inspect(state)}: #{inspect(kind)}: #{inspect(message)}"
+    )
+
     :keep_state_and_data
   end
 
-  defp dispose(%{variables: variables, space: space, store: store} = _data) do
-    Enum.each(variables, fn var -> store.dispose(space, var) end)
+  defp dispose(%{variables: variables, space: space} = _data) do
+    Enum.each(variables, fn var -> Store.dispose(space, var) end)
   end
 
   defp start_propagation(propagators) do
@@ -328,16 +332,19 @@ defmodule CPSolver.Space do
       publish(data, {:nodes, new_nodes})
     end)
 
-    shutdown(data, :stable)
+    shutdown(data, :distribute)
   end
 
   defp publish(data, message) do
     Utils.publish({:space, data.id}, message)
   end
 
-  defp shutdown(%{keep_alive: keep_alive} = data, _reason) do
+  defp shutdown(%{keep_alive: keep_alive} = data, reason) do
+    Logger.info("Space #{inspect(self())} shutdown with #{inspect(reason)}")
+
     if !keep_alive do
       dispose(data)
+
       {:stop, :normal, data}
     else
       :keep_state_and_data

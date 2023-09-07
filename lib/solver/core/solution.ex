@@ -19,10 +19,10 @@ defmodule CPSolver.Solution.DefaultHandler do
   require Logger
   @impl true
   def handle(solution) do
-    Logger.info("Solution found")
+    Logger.debug("Solution found")
 
     Enum.each(solution, fn {var_id, value} ->
-      Logger.info("#{inspect(var_id)} <- #{inspect(value)}")
+      Logger.debug("#{inspect(var_id)} <- #{inspect(value)}")
     end)
   end
 end
