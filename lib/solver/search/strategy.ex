@@ -1,7 +1,7 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable
-  @callback select_variable([Variable.t()]) :: Variable.t()
-  @callback partition(domain :: Enum.t()) :: [Domain.t() | number()]
+  @callback select_variable([Variable.t()]) :: {:ok, Variable.t()} | {:error, any()}
+  @callback partition(domain :: Enum.t()) :: {:ok, [Domain.t() | number()]} | {:error, any()}
 
   def default_strategy() do
     CPSolver.Search.Strategy.FirstFail

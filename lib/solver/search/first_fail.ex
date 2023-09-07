@@ -21,15 +21,15 @@ defmodule CPSolver.Search.Strategy.FirstFail do
       end)
 
     if choice == initial_acc do
-      throw(Strategy.all_vars_fixed_exception())
+      {:error, Strategy.all_vars_fixed_exception()}
     else
-      min_var
+      {:ok, min_var}
     end
   end
 
   @impl true
   def partition(domain) do
     ## Choice of value doesn't matter for first_fail
-    DomainPartition.by_min(domain)
+    {:ok, DomainPartition.by_min(domain)}
   end
 end

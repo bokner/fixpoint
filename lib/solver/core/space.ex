@@ -328,9 +328,10 @@ defmodule CPSolver.Space do
   end
 
   defp branching(variables, search_strategy) do
-    var_to_branch_on = search_strategy.select_variable(variables)
+    {:ok, var_to_branch_on} = search_strategy.select_variable(variables)
     var_domain = Variable.domain(var_to_branch_on)
-    {var_to_branch_on, search_strategy.partition(var_domain)}
+    {:ok, partitions} = search_strategy.partition(var_domain)
+    {var_to_branch_on, partitions}
   end
 
   defp publish(data, message) do
