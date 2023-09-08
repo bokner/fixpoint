@@ -6,4 +6,5 @@ The implementation follows the ideas described in Chapter 12, "Concepts, Techniq
 
 [An overview of CP implementation in Mozart/Oz.](http://mozart2.org/mozart-v1/doc-1.4.0/fdt/index.html)
 ## Status
-WIP, nothing works at the time of writing.  
+WIP. A single 'not_equal' constraint implemented. Graph coloring examples work,
+but are slow and unstable. Significant API changes and space implementation rewrite are expected.
