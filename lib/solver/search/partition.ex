@@ -6,7 +6,7 @@ defmodule CPSolver.Search.DomainPartition do
 
     case Domain.remove(domain, min_val) do
       :fail -> :fail
-      {_domain_change, rest} -> [min_val, rest]
+      {_domain_change, rest} -> {:ok, [min_val, rest]}
     end
   end
 end

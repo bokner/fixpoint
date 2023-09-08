@@ -20,9 +20,10 @@ defmodule CPSolverTest.Search.FirstFail do
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
       {:ok, bound_vars} = Store.create(space, variables)
-      {:ok, selected_variable} = FirstFail.select_variable(bound_vars)
+      {localized_vars, _} = CPSolver.Utils.localize_variables(bound_vars)
+      {:ok, selected_variable} = FirstFail.select_variable(localized_vars)
       v2_var = Enum.at(bound_vars, 2)
-      assert selected_variable == v2_var
+      assert selected_variable.id == v2_var.id
 
       var_domain = Store.domain(space, selected_variable)
       min_val = Domain.min(var_domain)

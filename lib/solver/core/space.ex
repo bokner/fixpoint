@@ -10,8 +10,8 @@ defmodule CPSolver.Space do
   alias CPSolver.Propagator, as: Propagator
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
-  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Store.Registry, as: Store
+  alias CPSolver.Utils
 
   require Logger
 
@@ -244,94 +244,93 @@ defmodule CPSolver.Space do
 
   def distribute(
         %{
-          variables: variables,
-          store: store_impl,
-          space: space
+          variables: variables
         } = data
       ) do
-    {variable_domains, all_fixed?} = collect_domains(variables, store_impl, space)
+    {variable_clones, all_fixed?} = Utils.localize_variables(variables)
 
     case all_fixed? do
       :fail -> handle_failure(data)
       true -> handle_solved(data)
-      false -> do_distribute(data, variable_domains)
+      false -> do_distribute(data, variable_clones)
     end
-  end
-
-  defp collect_domains(variables, store_impl, space) do
-    Enum.reduce_while(
-      variables,
-      {Map.new(), true},
-      fn v, {domains, fixed?} ->
-        case store_impl.domain(space, v) do
-          :fail ->
-            {:halt, {domains, :fail}}
-
-          d ->
-            domains = Map.put(domains, v.id, d)
-            {:cont, {domains, (Domain.fixed?(d) && fixed?) || false}}
-        end
-      end
-    )
   end
 
   def do_distribute(
         %{
-          variables: variables,
           propagator_threads: threads,
           search: search_strategy
         } = data,
-        domains
+        variable_clones
       ) do
     Logger.debug("Space #{inspect(data.id)} is distributing...")
-    {var_to_branch_on, domain_partitions} = branching(variables, search_strategy)
 
-    Enum.map(domain_partitions, fn partition ->
-      variable_copies =
-        Map.new(domains, fn {var_id, domain} ->
-          {var_id,
-           if var_id == var_to_branch_on.id do
-             Variable.new(partition)
-           else
-             Variable.new(domain)
-           end}
+    case branching(variable_clones, search_strategy) do
+      :fail ->
+        handle_failure(data)
+
+      # shutdown(data, :noop)
+
+      {:error, :all_vars_fixed} ->
+        handle_solved(data)
+
+      # shutdown(data, :noop)
+
+      {:ok, {var_to_branch_on, domain_partitions}} ->
+        Enum.map(domain_partitions, fn partition ->
+          variable_copies =
+            Map.new(variable_clones, fn %{id: clone_id} = clone ->
+              if clone_id == var_to_branch_on.id do
+                {clone_id, Variable.new(partition)}
+              else
+                {clone_id, Variable.new(clone.domain)}
+              end
+            end)
+
+          propagator_copies =
+            Enum.map(threads, fn {_ref, thread} ->
+              {propagator_mod, args} = thread.propagator
+              ## Replace variables in args to their copies
+              {propagator_mod,
+               Enum.map(args, fn
+                 %CPSolver.Variable{id: id} = _arg ->
+                   Map.get(variable_copies, id)
+
+                 const ->
+                   const
+               end)}
+            end)
+
+          {:ok, child_space} =
+            create(
+              Map.values(variable_copies),
+              propagator_copies,
+              Keyword.put(data.opts, :parent, data.id)
+            )
+
+          child_space
+        end)
+        |> tap(fn new_nodes ->
+          publish(data, {:nodes, new_nodes})
         end)
 
-      propagator_copies =
-        Enum.map(threads, fn {_ref, thread} ->
-          {propagator_mod, args} = thread.propagator
-          ## Replace variables in args to their copies
-          {propagator_mod,
-           Enum.map(args, fn
-             %CPSolver.Variable{id: id} = _arg ->
-               Map.get(variable_copies, id)
-
-             const ->
-               const
-           end)}
-        end)
-
-      {:ok, child_space} =
-        create(
-          Map.values(variable_copies),
-          propagator_copies,
-          Keyword.put(data.opts, :parent, data.id)
-        )
-
-      child_space
-    end)
-    |> tap(fn new_nodes ->
-      publish(data, {:nodes, new_nodes})
-    end)
-
-    shutdown(data, :distribute)
+        shutdown(data, :distribute)
+    end
   end
 
   defp branching(variables, search_strategy) do
-    {:ok, var_to_branch_on} = search_strategy.select_variable(variables)
-    var_domain = Variable.domain(var_to_branch_on)
-    {:ok, partitions} = search_strategy.partition(var_domain)
-    {var_to_branch_on, partitions}
+    case search_strategy.select_variable(variables) do
+      {:ok, var_to_branch_on} ->
+        var_domain = var_to_branch_on.domain
+
+        case search_strategy.partition(var_domain) do
+          :fail -> :fail
+          {:ok, partitions} -> {:ok, {var_to_branch_on, partitions}}
+        end
+
+      error ->
+        error
+    end
   end
 
   defp publish(data, message) do
