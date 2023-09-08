@@ -128,7 +128,9 @@ defmodule CPSolver.Variable.Agent do
       GenServer.start_link(__MODULE__, variable, name: StoreRegistry.variable_proc_id(variable))
   end
 
-  def stop(variable) do
+  def dispose(variable) do
+    topic = {variable, variable.id}
+    Enum.each(Utils.subscribers(topic), fn s -> Utils.unsubscribe(s, topic) end)
     GenServer.stop(StoreRegistry.variable_proc_id(variable))
   end
 
