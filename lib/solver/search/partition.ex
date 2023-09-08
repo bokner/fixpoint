@@ -3,7 +3,10 @@ defmodule CPSolver.Search.DomainPartition do
 
   def by_min(domain) do
     min_val = Domain.min(domain)
-    {_domain_change, rest} = Domain.remove(domain, min_val)
-    [min_val, rest]
+
+    case Domain.remove(domain, min_val) do
+      :fail -> :fail
+      {_domain_change, rest} -> [min_val, rest]
+    end
   end
 end

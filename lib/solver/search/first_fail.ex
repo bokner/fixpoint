@@ -10,20 +10,25 @@ defmodule CPSolver.Search.Strategy.FirstFail do
 
     {min_var, _size} =
       choice =
-      Enum.reduce(variables, initial_acc, fn var, {_v, v_size} = acc ->
+      Enum.reduce_while(variables, initial_acc, fn var, {_v, v_size} = acc ->
         case Variable.size(var) do
-          :fail -> throw(Strategy.failed_variables_in_search_exception())
+          :fail -> {:halt, {:fail, nil}}
           ## Skip fixed vars
-          1 -> acc
-          s when s < v_size -> {var, s}
-          _s -> acc
+          1 -> {:cont, acc}
+          s when s < v_size -> {:cont, {var, s}}
+          _s -> {:cont, acc}
         end
       end)
 
-    if choice == initial_acc do
-      {:error, Strategy.all_vars_fixed_exception()}
-    else
-      {:ok, min_var}
+    cond do
+      choice == initial_acc ->
+        {:error, Strategy.all_vars_fixed_exception()}
+
+      min_var == :fail ->
+        {:error, :fail}
+
+      true ->
+        {:ok, min_var}
     end
   end
 
