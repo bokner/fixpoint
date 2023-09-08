@@ -29,7 +29,7 @@ defmodule Cpsolver.MixProject do
       {:ebus, "~> 0.3", hex: :erlbus},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
-      {:replbug, only: :dev, git: "https://github.com/bokner/replbug.git"}
+      {:replbug, "~> 1.0", only: :dev}
     ]
   end
 

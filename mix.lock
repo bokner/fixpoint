@@ -12,6 +12,7 @@
   "nimble_parsec": {:hex, :nimble_parsec, "1.3.1", "2c54013ecf170e249e9291ed0a62e5832f70a476c61da16f6aac6dca0189f2af", [:mix], [], "hexpm", "2682e3c0b2eb58d90c6375fc0cc30bc7be06f365bf72608804fb9cffa5e1b167"},
   "phoenix_pubsub": {:hex, :phoenix_pubsub, "2.1.3", "3168d78ba41835aecad272d5e8cd51aa87a7ac9eb836eabc42f6e57538e3731d", [:mix], [], "hexpm", "bba06bc1dcfd8cb086759f0edc94a8ba2bc8896d5331a1e2c2902bf8e36ee502"},
   "redbug": {:git, "git@github.com:massemanet/redbug.git", "a249400ee173e1cb7db37e725df973a7a3b0d9b9", []},
-  "replbug": {:git, "https://github.com/bokner/replbug.git", "72c6330cca94693de214d1175be273dbc0500f7c", []},
+  "redbug_clone": {:hex, :redbug_clone, "2.0.10", "786c766accaa660089760025faf06a6acb4e3517f2c6fc9a34d698fe38217c64", [:rebar3], [], "hexpm", "7ad11db975aa5547b81101a6628bb9defb46e7f274861fbd37fd8d85dc03f6ee"},
+  "replbug": {:hex, :replbug, "1.0.2", "5dae87d9839d9821ad5452a7c29f39259c92f7d561f3e5f8dfff930528ece47f", [:mix], [{:erlang_term, "~> 2.0", [hex: :erlang_term, repo: "hexpm", optional: false]}, {:redbug_clone, "~> 2.0.10", [hex: :redbug_clone, repo: "hexpm", optional: false]}], "hexpm", "8e0d8066f2cd776f3efdd51918152ab54c4bbf1f975d6e8d25ff3db0de5ed2e6"},
   "rexbug": {:hex, :rexbug, "1.0.6", "024071c67d970151fbdc06f299faf8db3e1b2ac759a28623a9cc80a517fc74f2", [:mix], [{:mix_test_watch, ">= 0.5.0", [hex: :mix_test_watch, repo: "hexpm", optional: true]}, {:redbug, "~> 1.2", [hex: :redbug, repo: "hexpm", optional: false]}], "hexpm", "148ea724979413e9fd84ca3b4bb5d2d8b840ac481adfd645f5846fda409a642c"},
 }
