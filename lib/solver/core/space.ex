@@ -246,15 +246,19 @@ defmodule CPSolver.Space do
         %{
           variables: variables,
           store: store_impl,
-          space: space
+          space: space,
+          search: search_strategy
         } = data
       ) do
-    {variable_domains, all_fixed?} = collect_domains(variables, store_impl, space)
+    case branching(variables, search_strategy) do
+      {:ok, branching_info} ->
+        do_distribute(data, branching_info)
 
-    case all_fixed? do
-      :fail -> handle_failure(data)
-      true -> handle_solved(data)
-      false -> do_distribute(data, variable_domains)
+      {:error, :all_vars_fixed} ->
+        handle_solved(data)
+
+      {:error, :fail} ->
+        handle_failure(data)
     end
   end
 
@@ -279,21 +283,21 @@ defmodule CPSolver.Space do
         %{
           variables: variables,
           propagator_threads: threads,
-          search: search_strategy
+          store: store_impl,
+          space: space
         } = data,
-        domains
+        {var_to_branch_on, domain_partitions}
       ) do
     Logger.debug("Space #{inspect(data.id)} is distributing...")
-    {var_to_branch_on, domain_partitions} = branching(variables, search_strategy)
 
     Enum.map(domain_partitions, fn partition ->
       variable_copies =
-        Map.new(domains, fn {var_id, domain} ->
+        Map.new(variables, fn %{id: var_id} = var ->
           {var_id,
            if var_id == var_to_branch_on.id do
              Variable.new(partition)
            else
-             Variable.new(domain)
+             Variable.new(store_impl.domain(space, var))
            end}
         end)
 
@@ -328,10 +332,15 @@ defmodule CPSolver.Space do
   end
 
   defp branching(variables, search_strategy) do
-    {:ok, var_to_branch_on} = search_strategy.select_variable(variables)
-    var_domain = Variable.domain(var_to_branch_on)
-    {:ok, partitions} = search_strategy.partition(var_domain)
-    {var_to_branch_on, partitions}
+    case search_strategy.select_variable(variables) do
+      {:ok, var_to_branch_on} ->
+        var_domain = Variable.domain(var_to_branch_on)
+        {:ok, partitions} = search_strategy.partition(var_domain)
+        {:ok, {var_to_branch_on, partitions}}
+
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   defp publish(data, message) do
