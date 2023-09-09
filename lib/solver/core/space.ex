@@ -200,11 +200,17 @@ defmodule CPSolver.Space do
   end
 
   defp set_propagator_stable(%{propagator_threads: threads} = data, propagator_id, stable?) do
-    %{
+    if Map.has_key?(threads, propagator_id) do
+      %{
+        data
+        | propagator_threads:
+            Map.update!(threads, propagator_id, fn content ->
+              Map.put(content, :stable, stable?)
+            end)
+      }
+    else
       data
-      | propagator_threads:
-          Map.update!(threads, propagator_id, fn content -> Map.put(content, :stable, stable?) end)
-    }
+    end
   end
 
   def update_entailed(%{propagator_threads: threads} = data, propagator_thread) do
