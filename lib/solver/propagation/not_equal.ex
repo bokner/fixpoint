@@ -4,6 +4,11 @@ defmodule CPSolver.Propagator.NotEqual do
   import CPSolver.Propagator.Variable
 
   @impl true
+  def events() do
+    []
+  end
+
+  @impl true
   def filter([x, y] = _args) do
     filter(x, y)
   end

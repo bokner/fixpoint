@@ -62,6 +62,7 @@ defmodule CPSolver.Propagator.Thread do
        id: propagator_id,
        space: space,
        propagator_impl: propagator_mod,
+       propagate_on: propagator_mod.events(),
        args: args,
        unfixed_variables:
          Enum.reduce(bound_vars, MapSet.new(), fn var, acc ->
@@ -95,13 +96,17 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   def handle_info({domain_change, var}, data) when domain_change in @domain_changes do
-    Logger.debug("#{inspect(data.id)} Propagator: #{inspect(domain_change)} for #{inspect(var)}")
-    filter(data)
+    if domain_change in data.propagate_on do
+      filter(data)
+    else
+      handle_stable(data)
+    end
   end
 
   ### end of GenServer callbacks
 
   defp filter(%{propagator_impl: mod, args: args} = data) do
+    Logger.debug("#{inspect(data.id)}: Propagation triggered")
     PropagatorVariable.reset_variable_ops()
 
     case mod.filter(args) do

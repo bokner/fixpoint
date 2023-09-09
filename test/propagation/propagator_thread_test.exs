@@ -106,7 +106,7 @@ defmodule CPSolverTest.Propagator.Thread do
 
       assert Enum.all?(vars, fn v -> propagator_thread in :ebus.subscribers({:variable, v.id}) end)
 
-      GenServer.stop(propagator_thread)
+      PropagatorThread.dispose(propagator_thread)
       Process.sleep(10)
       refute Process.alive?(propagator_thread)
 

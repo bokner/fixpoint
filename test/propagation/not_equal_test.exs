@@ -7,6 +7,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
     alias CPSolver.Store.Registry, as: Store
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Propagator.Variable, as: PropagatorVariable
+    alias CPSolver.Propagator.Thread, as: PropagatorThread
     alias CPSolver.Propagator.NotEqual
 
     setup do
@@ -67,6 +68,29 @@ defmodule CPSolverTest.Propagator.NotEqual do
                bound_vars,
                fn var -> :fail == Store.get(space, var, :fixed?) end
              )
+    end
+
+    test "propagates only when variables become fixed" do
+      space = self()
+
+      ## Both vars are unfixed
+      x = 1..2
+      y = 0..3
+      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+
+      {:ok, [x_var, y_var] = _bound_vars} = Store.create(space, variables)
+      {:ok, _propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, variables})
+      Process.sleep(10)
+
+      refute capture_log([level: :debug], fn ->
+               Store.update(space, y_var, :remove, [0])
+             end) =~ "Propagation triggered"
+
+      ## Fix one of variables, this should trigger propagation
+      assert capture_log([level: :debug], fn ->
+               Store.update(space, x_var, :fix, [1])
+               Process.sleep(10)
+             end) =~ "Propagation triggered"
     end
   end
 end
