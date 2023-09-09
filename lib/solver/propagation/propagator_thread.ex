@@ -33,6 +33,10 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   def dispose(%{thread: pid} = _thread) do
+    dispose(pid)
+  end
+
+  def dispose(pid) when is_pid(pid) do
     (Process.alive?(pid) && GenServer.stop(pid)) || :not_found
   end
 
@@ -62,7 +66,7 @@ defmodule CPSolver.Propagator.Thread do
        id: propagator_id,
        space: space,
        propagator_impl: propagator_mod,
-       propagate_on: propagator_mod.events(),
+       propagate_on: Keyword.get(opts, :propagate_on, propagator_mod.events()),
        args: args,
        unfixed_variables:
          Enum.reduce(bound_vars, MapSet.new(), fn var, acc ->
@@ -95,7 +99,7 @@ defmodule CPSolver.Propagator.Thread do
     end
   end
 
-  def handle_info({domain_change, var}, data) when domain_change in @domain_changes do
+  def handle_info({domain_change, _var}, data) when domain_change in @domain_changes do
     if domain_change in data.propagate_on do
       filter(data)
     else

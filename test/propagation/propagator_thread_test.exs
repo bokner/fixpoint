@@ -11,6 +11,8 @@ defmodule CPSolverTest.Propagator.Thread do
     alias CPSolver.Variable
     alias CPSolver.Propagator.NotEqual
 
+    @domain_changes CPSolver.Common.domain_changes()
+
     setup do
       Logger.configure(level: :debug)
       on_exit(fn -> Logger.configure(level: :error) end)
@@ -26,7 +28,11 @@ defmodule CPSolverTest.Propagator.Thread do
 
       {:ok, [_x_var, y_var] = bound_vars} = Store.create(space, variables)
 
-      {:ok, propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, bound_vars})
+      {:ok, propagator_thread} =
+        PropagatorThread.create_thread(space, {NotEqual, bound_vars},
+          propagate_on: @domain_changes
+        )
+
       ## Propagator thread subscribes to its variables
       assert Enum.all?(bound_vars, fn var -> propagator_thread in Variable.subscribers(var) end)
 
@@ -37,7 +43,7 @@ defmodule CPSolverTest.Propagator.Thread do
       assert capture_log([level: :debug], fn ->
                Store.update(space, y_var, :removeBelow, [0])
                Process.sleep(10)
-             end) =~ "Propagator: :min_change for #{inspect(y_var.id)}"
+             end) =~ "Propagation triggered"
 
       ## ...triggers filtering on receiving update notifications
       assert capture_log([level: :debug], fn ->
