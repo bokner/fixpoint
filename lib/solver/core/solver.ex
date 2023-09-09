@@ -33,7 +33,7 @@ defmodule CPSolver do
         acc ++ constraint_to_propagators(constraint)
       end)
 
-    stop_condition = Keyword.get(solver_opts, :stop_condition)
+    stop_on = Keyword.get(solver_opts, :stop_on)
 
     {:ok,
      %{
@@ -45,7 +45,7 @@ defmodule CPSolver do
        node_count: 1,
        solutions: [],
        active_nodes: MapSet.new(),
-       stop_condition: stop_condition,
+       stop_on: stop_on,
        solver_opts: solver_opts
      }, {:continue, :solve}}
   end
@@ -73,9 +73,9 @@ defmodule CPSolver do
 
   defp handle_event(
          {:solution, new_solution},
-         %{solution_count: count, solutions: solutions, stop_condition: stop_condition} = state
+         %{solution_count: count, solutions: solutions, stop_on: stop_on} = state
        ) do
-    if check_for_stop(stop_condition, new_solution, state) do
+    if check_for_stop(stop_on, new_solution, state) do
       stop_spaces(state)
     else
       %{state | solution_count: count + 1, solutions: [new_solution | solutions]}
@@ -147,7 +147,7 @@ defmodule CPSolver do
   end
 
   defp stop_spaces(%{active_nodes: spaces} = data) do
-    Enum.each(spaces, fn s -> Process.exit(s, :kill) end)
+    Enum.each(spaces, fn s -> Process.alive?(s) && Process.exit(s, :kill) end)
     data
   end
 end
