@@ -1,5 +1,5 @@
 defmodule CPSolver.Propagator do
-  @callback filter(variables :: list()) :: map() | :stable | :failure
+  @callback filter(args :: list()) :: map() | :stable | :failure
   @callback variables(args :: list()) :: list()
   @callback events() :: list()
 

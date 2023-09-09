@@ -49,4 +49,16 @@ defmodule CPSolver.Propagator.Variable do
   def reset_variable_ops() do
     Process.delete(@variable_op_results_key)
   end
+
+  def plus(:fail, _) do
+    :fail
+  end
+
+  def plus(_, :fail) do
+    :fail
+  end
+
+  def plus(a, b) do
+    a + b
+  end
 end

@@ -70,6 +70,28 @@ defmodule CPSolverTest.Propagator.NotEqual do
              )
     end
 
+    test "offset" do
+      space = self()
+      x = 5..5
+      y = -5..10
+      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+      {:ok, [x_var, y_var]} = Store.create(space, variables)
+
+      assert Variable.contains?(y_var, 0)
+      # (x != y + 5)
+      offset = 5
+      NotEqual.filter(x_var, y_var, offset)
+      # Store.get(space, y_var, :min)
+      refute Variable.contains?(y_var, 0)
+
+      # (x != y - 5)
+      offset = -5
+      assert Variable.contains?(y_var, 10)
+      NotEqual.filter(x_var, y_var, offset)
+      # Store.get(space, y_var, :min)
+      refute Variable.contains?(y_var, 10)
+    end
+
     test "propagates only when variables become fixed" do
       space = self()
 
