@@ -25,7 +25,7 @@ defmodule CPSolver.Store.Registry do
 
   @impl true
   def dispose(_space, variable) do
-    VariableAgent.stop(variable)
+    VariableAgent.dispose(variable)
   end
 
   @impl true

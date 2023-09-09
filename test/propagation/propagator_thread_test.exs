@@ -1,11 +1,11 @@
-defmodule CPSolver.Propagator.Thread do
+defmodule CPSolverTest.Propagator.Thread do
   use ExUnit.Case
 
   import ExUnit.CaptureLog
   import CPSolver.Test.Helpers
 
   describe "Propagator thread" do
-    alias CPSolver.Propagator
+    alias CPSolver.Propagator.Thread, as: PropagatorThread
     alias CPSolver.Store.Registry, as: Store
     alias CPSolver.IntVariable
     alias CPSolver.Variable
@@ -26,7 +26,7 @@ defmodule CPSolver.Propagator.Thread do
 
       {:ok, [_x_var, y_var] = bound_vars} = Store.create(space, variables)
 
-      {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
+      {:ok, propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, bound_vars})
       ## Propagator thread subscribes to its variables
       assert Enum.all?(bound_vars, fn var -> propagator_thread in Variable.subscribers(var) end)
 
@@ -54,7 +54,7 @@ defmodule CPSolver.Propagator.Thread do
 
       {:ok, [x_var, y_var] = bound_vars} = Store.create(space, variables)
 
-      {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
+      {:ok, propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, bound_vars})
       Process.sleep(10)
 
       refute capture_log([level: :debug], fn ->
@@ -85,7 +85,9 @@ defmodule CPSolver.Propagator.Thread do
       {:ok, bound_vars} = Store.create(space, variables)
 
       assert capture_log([level: :debug], fn ->
-               {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, bound_vars})
+               {:ok, propagator_thread} =
+                 PropagatorThread.create_thread(space, {NotEqual, bound_vars})
+
                ## Propagator thread discards itself on entailment
                Process.sleep(10)
                refute Process.alive?(propagator_thread)
@@ -100,7 +102,7 @@ defmodule CPSolver.Propagator.Thread do
 
       {:ok, vars} = Store.create(space, variables)
 
-      {:ok, propagator_thread} = Propagator.create_thread(space, {NotEqual, vars})
+      {:ok, propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, vars})
 
       assert Enum.all?(vars, fn v -> propagator_thread in :ebus.subscribers({:variable, v.id}) end)
 
@@ -121,7 +123,7 @@ defmodule CPSolver.Propagator.Thread do
 
       ## Detects stability on a startup
       assert capture_log([level: :debug], fn ->
-               {:ok, _propagator_thread} = Propagator.create_thread(space, {NotEqual, vars})
+               {:ok, _propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, vars})
                Process.sleep(10)
              end) =~ "is stable"
 
@@ -148,8 +150,13 @@ defmodule CPSolver.Propagator.Thread do
       variables = Enum.map([x, y, z], fn d -> IntVariable.new(d) end)
 
       {:ok, [x_var, y_var, z_var] = _vars} = Store.create(space, variables)
-      {:ok, _threadXY} = Propagator.create_thread(space, {NotEqual, [x_var, y_var]}, id: "X != Y")
-      {:ok, _threadYZ} = Propagator.create_thread(space, {NotEqual, [y_var, z_var]}, id: "Y != Z")
+
+      {:ok, _threadXY} =
+        PropagatorThread.create_thread(space, {NotEqual, [x_var, y_var]}, id: "X != Y")
+
+      {:ok, _threadYZ} =
+        PropagatorThread.create_thread(space, {NotEqual, [y_var, z_var]}, id: "Y != Z")
+
       Process.sleep(5)
       assert 1 == Store.get(space, x_var, :min)
 

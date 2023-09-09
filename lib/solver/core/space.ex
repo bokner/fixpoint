@@ -7,7 +7,7 @@ defmodule CPSolver.Space do
 
   alias CPSolver.Utils
   alias __MODULE__, as: Space
-  alias CPSolver.Propagator, as: Propagator
+  alias CPSolver.Propagator.Thread, as: Propagator
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Store.Registry, as: Store
