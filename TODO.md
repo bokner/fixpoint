@@ -12,4 +12,6 @@
 9. Control the solver (async ops: stop, get stats etc.).
 10. More granular propagation (domain vs. bound consistency) 
 
-11. Do not rely on ref() order to match with their solutions
+11. Do not rely on vars' ref() order to match with their solutions
+
+12. Write models for Queens and Sudoku puzzle
