@@ -29,22 +29,22 @@ defmodule CPSolverTest.Propagator.NotEqual do
 
       [x_var, y_var] = bound_vars
       ## Fix one of vars
-      assert :fixed == Store.update(space, x_var, :fix, [5])
+      assert :fixed = Variable.fix(x_var, 5)
       assert :domain_change == NotEqual.filter(bound_vars)
       assert PropagatorVariable.get_variable_ops() == %{y_var.id => :domain_change}
 
       ## The filtering should have removed '5' from y_var
-      assert Store.get(space, y_var, :max) == 4
-      assert Store.get(space, y_var, :min) == -5
+      assert Variable.max(y_var) == 4
+      assert Variable.min(y_var) == -5
 
       ## Fix second var and filter again
-      assert :fixed == Store.update(space, y_var, :fix, [4])
+      assert :fixed == Variable.fix(y_var, 4)
       assert :no_change == NotEqual.filter(bound_vars)
       assert PropagatorVariable.get_variable_ops() == %{y_var.id => :no_change}
       ## Make sure filtering doesn't fail on further calls
       refute Enum.any?(
                [x_var, y_var],
-               fn var -> :fail == Store.get(space, var, :min) end
+               fn var -> :fail == Variable.min(var) end
              )
 
       ## Consequent filtering does not trigger domain change events
@@ -66,7 +66,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       ## One of variables (depending on filtering implementation) will fail
       assert Enum.any?(
                bound_vars,
-               fn var -> :fail == Store.get(space, var, :fixed?) end
+               fn var -> :fail == Variable.fixed?(var) end
              )
     end
 
@@ -81,14 +81,12 @@ defmodule CPSolverTest.Propagator.NotEqual do
       # (x != y + 5)
       offset = 5
       NotEqual.filter(x_var, y_var, offset)
-      # Store.get(space, y_var, :min)
       refute Variable.contains?(y_var, 0)
 
       # (x != y - 5)
       offset = -5
       assert Variable.contains?(y_var, 10)
       NotEqual.filter(x_var, y_var, offset)
-      # Store.get(space, y_var, :min)
       refute Variable.contains?(y_var, 10)
     end
 
@@ -105,12 +103,12 @@ defmodule CPSolverTest.Propagator.NotEqual do
       Process.sleep(10)
 
       refute capture_log([level: :debug], fn ->
-               Store.update(space, y_var, :remove, [0])
+               Variable.remove(y_var, 0)
              end) =~ "Propagation triggered"
 
       ## Fix one of variables, this should trigger propagation
       assert capture_log([level: :debug], fn ->
-               Store.update(space, x_var, :fix, [1])
+               Variable.fix(x_var, 1)
                Process.sleep(10)
              end) =~ "Propagation triggered"
     end

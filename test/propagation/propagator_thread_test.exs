@@ -38,16 +38,16 @@ defmodule CPSolverTest.Propagator.Thread do
 
       ## ...filters its variables upon start (happens in handle_continue, so needs a small timeout here)
       Process.sleep(5)
-      refute Store.get(space, y_var, :contains?, [1])
+      refute Variable.contains?(y_var, 1)
       ## ...receives variable update notifications
       assert capture_log([level: :debug], fn ->
-               Store.update(space, y_var, :removeBelow, [0])
+               Variable.removeBelow(y_var, 0)
                Process.sleep(10)
              end) =~ "Propagation triggered"
 
       ## ...triggers filtering on receiving update notifications
       assert capture_log([level: :debug], fn ->
-               Store.update(space, y_var, :fix, [1])
+               Variable.fix(y_var, 1)
                Process.sleep(10)
              end) =~ "Failure for variable #{inspect(y_var.id)}"
     end
@@ -164,10 +164,10 @@ defmodule CPSolverTest.Propagator.Thread do
         PropagatorThread.create_thread(space, {NotEqual, [y_var, z_var]}, id: "Y != Z")
 
       Process.sleep(5)
-      assert 1 == Store.get(space, x_var, :min)
+      assert 1 == Variable.min(x_var)
 
       ## Non-deterministic failure - fails on either 'y' or 'z', depending on which propagator fixes first.
-      assert :fail == Store.get(space, z_var, :min) || :fail == Store.get(space, y_var, :min)
+      assert :fail == Variable.min(z_var) || :fail == Variable.min(y_var)
     end
   end
 end

@@ -84,7 +84,7 @@ defmodule CPSolverTest.Space do
       {state, %{variables: space_variables} = _data} = Space.get_state_and_data(space)
       assert state == :solved
       ## Check if all space variables are fixed
-      assert Enum.all?(space_variables, fn var -> Store.get(space, var, :fixed?) end)
+      assert Enum.all?(space_variables, fn var -> Variable.fixed?(var) end)
     end
 
     test "failing space" do
