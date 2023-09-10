@@ -97,7 +97,23 @@ defmodule CPSolver.Variable do
   end
 
   def subscribers(variable) do
-    Utils.subscribers({:variable, variable.id})
+    Utils.subscribers(variable_topic(variable))
+  end
+
+  def subscribe(pid, variable) do
+    Utils.subscribe(pid, variable_topic(variable))
+  end
+
+  def unsubscribe(subscriber, var) do
+    Utils.unsubscribe(subscriber, var)
+  end
+
+  def publish(variable, message) do
+    Utils.publish(variable_topic(variable), message)
+  end
+
+  defp variable_topic(var) do
+    {:variable, var.id}
   end
 
   def bind_variables(space, variables) do
@@ -116,6 +132,7 @@ end
 defmodule CPSolver.Variable.Agent do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Store.Registry, as: StoreRegistry
+  alias CPSolver.Variable
   alias CPSolver.Utils
 
   require Logger
@@ -201,10 +218,19 @@ defmodule CPSolver.Variable.Agent do
     publish(var, {domain_change, var.id})
     |> tap(fn _ ->
       Logger.debug("Domain change (#{domain_change}) for #{inspect(var.id)}")
+      maybe_unsubscribe_all(domain_change, var)
     end)
   end
 
   defp publish(var, message) do
-    Utils.publish({:variable, var.id}, message)
+    Variable.publish(var, message)
+  end
+
+  defp maybe_unsubscribe_all(:fixed, var) do
+    Enum.each(Variable.subscribers(var), fn pid -> Variable.unsubscribe(pid, var) end)
+  end
+
+  defp maybe_unsubscribe_all(_, _var) do
+    :ok
   end
 end

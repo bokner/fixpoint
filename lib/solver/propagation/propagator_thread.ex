@@ -46,11 +46,11 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   defp subscribe_to_var(thread, variable) do
-    Utils.subscribe(thread, {:variable, variable.id})
+    Variable.subscribe(thread, variable)
   end
 
   defp unsubscribe_from_var(thread, variable) do
-    Utils.unsubscribe(thread, {:variable, variable})
+    Variable.unsubscribe(thread, variable)
   end
 
   ## GenServer callbacks
