@@ -148,7 +148,7 @@ defmodule CPSolver.Variable.Agent do
   def dispose(variable) do
     topic = {variable, variable.id}
     Enum.each(Utils.subscribers(topic), fn s -> Utils.unsubscribe(s, topic) end)
-    GenServer.stop(StoreRegistry.variable_proc_id(variable))
+    GenServer.cast(StoreRegistry.variable_proc_id(variable), :dispose)
   end
 
   @impl true
@@ -196,6 +196,11 @@ defmodule CPSolver.Variable.Agent do
       end
 
     {:reply, result, updated_domain}
+  end
+
+  @impl true
+  def handle_cast(:dispose, state) do
+    {:stop, :normal, state}
   end
 
   defp handle_op_on_failed_var(var, operation) do

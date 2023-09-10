@@ -167,13 +167,13 @@ defmodule CPSolver.Propagator.Thread do
   defp handle_entailed(data) do
     Logger.debug("#{inspect(data.id)} Propagator is entailed (on filtering)")
     publish(data, :entailed)
-    {:stop, :normal, data}
+    stop(data)
   end
 
   def handle_failure(var, data) do
     Logger.debug("#{inspect(data.id)} Propagator: Failure for #{inspect(var)}")
     publish(data, :failed)
-    {:stop, :normal, data}
+    stop(data)
   end
 
   defp entailed?(%{unfixed_variables: vars} = _data) do
@@ -190,5 +190,11 @@ defmodule CPSolver.Propagator.Thread do
 
   defp publish(data, message) do
     Utils.publish({:propagator, data.id}, {message, data.id})
+  end
+
+  defp stop(data) do
+    Enum.each(data.unfixed_variables, fn var -> Variable.unsubscribe(self(), var) end)
+    Utils.unsubscribe(data.space, {:propagator, data.id})
+    {:stop, :normal, data}
   end
 end

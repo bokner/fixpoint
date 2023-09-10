@@ -54,7 +54,7 @@ defmodule CPSolver.Examples.Queens do
           Enum.join(
             for j <- 1..n do
               if Enum.at(queens, i - 1) == j,
-                do: IO.ANSI.magenta() <> @queen_symbol,
+                do: IO.ANSI.white() <> @queen_symbol,
                 else: IO.ANSI.light_blue() <> "."
             end,
             " "
