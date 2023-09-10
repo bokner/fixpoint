@@ -2,6 +2,9 @@ defmodule CPSolver.Examples.Queens do
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.IntVariable
 
+  require Logger
+  @queen_symbol "\u2655"
+
   def solve(n, solver_opts \\ []) when is_integer(n) do
     range = 1..n
     ## Queen positions
@@ -30,6 +33,32 @@ defmodule CPSolver.Examples.Queens do
 
     {:ok, _solver} =
       CPSolver.solve(model, solver_opts)
-      |> tap(fn _ -> Process.sleep(100) end)
+  end
+
+  def solve_and_print(nqueens) do
+    Logger.configure(level: :error)
+
+    solve(nqueens, stop_on: {:max_solutions, 1})
+    |> tap(fn {:ok, solver} ->
+      Process.sleep(1000)
+      IO.puts(print_board(hd(CPSolver.solutions(solver))))
+    end)
+  end
+
+  defp print_board(queens) do
+    n = length(queens)
+
+    "\n" <>
+      Enum.join(
+        for i <- 1..n do
+          Enum.join(
+            for j <- 1..n do
+              if Enum.at(queens, i - 1) == j, do: @queen_symbol, else: "."
+            end,
+            " "
+          )
+        end,
+        "\n"
+      ) <> "\n"
   end
 end
