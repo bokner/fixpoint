@@ -22,11 +22,11 @@ defmodule CPSolverTest.Examples.GraphColoring do
   end
 
   test "Petersen" do
-    test_graph("petersen", 120, timeout: 1000, trials: 1)
+    test_graph("petersen", 120, timeout: 500, trials: 5)
   end
 
   test "gc_15_30_3" do
-    test_graph("gc_15_30_3", 12, timeout: 1000, trials: 2)
+    test_graph("gc_15_30_3", 12, timeout: 500, trials: 5)
   end
 
   test "Multiple P4 runs" do
