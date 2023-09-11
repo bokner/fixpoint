@@ -16,14 +16,12 @@ defmodule CPSolverTest.Propagator.NotEqual do
     end
 
     test "filtering, unfixed domains" do
-      space = self()
-
       ## Both vars are unfixed
       x = 1..10
       y = -5..5
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars} = Store.create(space, variables)
+      {:ok, bound_vars, _store} = Store.create(variables)
       assert :stable == NotEqual.filter(bound_vars)
       assert PropagatorVariable.get_variable_ops() == %{}
 
@@ -55,12 +53,11 @@ defmodule CPSolverTest.Propagator.NotEqual do
     end
 
     test "inconsistency" do
-      space = self()
       x = 0..0
       y = 0..0
       [_x_var, y_var] = variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars} = Store.create(space, variables)
+      {:ok, bound_vars, _store} = Store.create(variables)
       assert :fail == NotEqual.filter(bound_vars)
       assert PropagatorVariable.get_variable_ops() == {:fail, y_var.id}
       ## One of variables (depending on filtering implementation) will fail
@@ -71,11 +68,10 @@ defmodule CPSolverTest.Propagator.NotEqual do
     end
 
     test "offset" do
-      space = self()
       x = 5..5
       y = -5..10
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-      {:ok, [x_var, y_var]} = Store.create(space, variables)
+      {:ok, [x_var, y_var], _store} = Store.create(variables)
 
       assert Variable.contains?(y_var, 0)
       # (x != y + 5)
@@ -91,15 +87,13 @@ defmodule CPSolverTest.Propagator.NotEqual do
     end
 
     test "propagates only when variables become fixed" do
-      space = self()
-
       ## Both vars are unfixed
       x = 1..2
       y = 0..3
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, [x_var, y_var] = _bound_vars} = Store.create(space, variables)
-      {:ok, _propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, variables})
+      {:ok, [x_var, y_var] = _bound_vars, _store} = Store.create(variables)
+      {:ok, _propagator_thread} = PropagatorThread.create_thread(self(), {NotEqual, variables})
       Process.sleep(10)
 
       refute capture_log([level: :debug], fn ->

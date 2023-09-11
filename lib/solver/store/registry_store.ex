@@ -1,6 +1,5 @@
 defmodule CPSolver.Store.Registry do
   alias CPSolver.ConstraintStore, as: Store
-  alias CPSolver.Variable
   alias CPSolver.Variable.Agent, as: VariableAgent
 
   require Logger
@@ -8,23 +7,24 @@ defmodule CPSolver.Store.Registry do
   @behaviour Store
 
   @impl true
-  @spec create(any(), [Variable.t()]) :: {:ok, [any()]}
-  def create(space, variables) do
+  def create(variables, _opts \\ []) do
+    space = self()
+
     {:ok,
      Enum.map(
        variables,
        fn var ->
-         {:ok, _pid} = VariableAgent.create(space, var)
+         {:ok, _pid} = VariableAgent.create(var)
 
          %{}
          |> Map.put(:id, var.id)
          |> Map.put(:space, space)
        end
-     )}
+     ), space}
   end
 
   @impl true
-  def dispose(_space, variable) do
+  def dispose(_store, variable) do
     VariableAgent.dispose(variable)
   end
 

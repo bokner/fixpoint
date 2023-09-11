@@ -6,28 +6,26 @@ defmodule CPSolverTest.Store do
     alias CPSolver.IntVariable, as: Variable
 
     test "create variables in the space" do
-      space = self()
       v1_values = 1..10
       v2_values = -5..5
       values = [v1_values, v2_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars} = Store.create(space, variables)
+      {:ok, bound_vars, _store} = Store.create(variables)
       ## Bound vars have space and ids assigned
-      assert Enum.all?(bound_vars, fn var -> var && var.space == space end)
+      assert Enum.all?(bound_vars, fn var -> var end)
     end
 
     test "Space variables" do
-      space = self()
       v1_values = 1..10
       v2_values = -5..5
       v3_values = [0, 3, 6, 9, -1]
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars} = Store.create(space, variables)
+      {:ok, bound_vars, store} = Store.create(variables)
 
-      store_var_ids = Store.get_variables(space)
+      store_var_ids = Store.get_variables(store)
       assert length(bound_vars) == store_var_ids |> length
 
       ## Make sure that the sets of bound vars and store vars coincide.
@@ -40,83 +38,81 @@ defmodule CPSolverTest.Store do
     end
 
     test "GET operations" do
-      space = self()
       v1_values = 1..10
       v2_values = -5..5
       v3_values = 1..1
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars} = Store.create(space, variables)
+      {:ok, bound_vars, store} = Store.create(variables)
       # Min
       assert Enum.all?(Enum.zip(bound_vars, values), fn {var, vals} ->
-               Store.get(space, var, :min) == Enum.min(vals)
+               Store.get(store, var, :min) == Enum.min(vals)
              end)
 
       # Max
       assert Enum.all?(Enum.zip(bound_vars, values), fn {var, vals} ->
-               Store.get(space, var, :max) == Enum.max(vals)
+               Store.get(store, var, :max) == Enum.max(vals)
              end)
 
       # Size
       assert Enum.all?(Enum.zip(bound_vars, values), fn {var, vals} ->
-               Store.get(space, var, :size) == Range.size(vals)
+               Store.get(store, var, :size) == Range.size(vals)
              end)
 
       # Fixed?
       assert Enum.all?(Enum.zip(bound_vars, values), fn {var, vals} ->
-               Store.get(space, var, :fixed?) == (Range.size(vals) == 1)
+               Store.get(store, var, :fixed?) == (Range.size(vals) == 1)
              end)
 
       # Contains?
       assert Enum.all?(Enum.zip(bound_vars, values), fn {var, vals} ->
-               Enum.all?(vals, fn val -> Store.get(space, var, :contains?, [val]) end)
+               Enum.all?(vals, fn val -> Store.get(store, var, :contains?, [val]) end)
              end)
     end
 
     test "UPDATE operations" do
-      space = self()
       v1_values = 1..10
       v2_values = -5..5
       v3_values = 1..2
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars} = Store.create(space, variables)
+      {:ok, bound_vars, store} = Store.create(variables)
 
       [v1, v2, v3] = bound_vars
       # remove
       refute Enum.any?(bound_vars, fn var ->
-               assert Store.update(space, var, :remove, [1]) in [:domain_change, :fixed]
-               Store.get(space, var, :contains?, [1])
+               assert Store.update(store, var, :remove, [1]) in [:domain_change, :fixed]
+               Store.get(store, var, :contains?, [1])
              end)
 
-      assert Store.get(space, v3, :fixed?)
-      assert Store.get(space, v3, :min) == 2
+      assert Store.get(store, v3, :fixed?)
+      assert Store.get(store, v3, :min) == 2
 
       # Remove on fixed var
-      assert :fail = Store.update(space, v3, :remove, [2])
+      assert :fail = Store.update(store, v3, :remove, [2])
 
-      assert :fail == Store.get(space, v3, :contains?, [1])
-      assert :fail == Store.update(space, v3, :remove, [2])
-      assert :fail == Store.get(space, v3, :size)
+      assert :fail == Store.get(store, v3, :contains?, [1])
+      assert :fail == Store.update(store, v3, :remove, [2])
+      assert :fail == Store.get(store, v3, :size)
 
       # removeAbove
-      :max_change = Store.update(space, v1, :removeAbove, [5])
-      assert Store.get(space, v1, :max) == 5
-      assert Store.get(space, v1, :min) == 2
+      :max_change = Store.update(store, v1, :removeAbove, [5])
+      assert Store.get(store, v1, :max) == 5
+      assert Store.get(store, v1, :min) == 2
 
       # removeBelow
-      :min_change = Store.update(space, v2, :removeBelow, [0])
-      assert Store.get(space, v2, :max) == 5
-      assert Store.get(space, v2, :min) == 0
+      :min_change = Store.update(store, v2, :removeBelow, [0])
+      assert Store.get(store, v2, :max) == 5
+      assert Store.get(store, v2, :min) == 0
 
       # fix variable with value outside the domain
-      :fail = Store.update(space, v1, :fix, [0])
-      assert Store.get(space, v1, :max) == :fail
+      :fail = Store.update(store, v1, :fix, [0])
+      assert Store.get(store, v1, :max) == :fail
 
-      :fixed = Store.update(space, v2, :fix, [0])
-      assert Store.get(space, v2, :max) == 0
+      :fixed = Store.update(store, v2, :fix, [0])
+      assert Store.get(store, v2, :max) == 0
     end
   end
 end

@@ -18,7 +18,8 @@ defmodule CPSolver.ConstraintStore do
   ### Callbacks
 
   ## Tell basic constraints (a.k.a, domains) to a constraint store
-  @callback create(space :: any(), variables :: Enum.t()) :: {:ok, any()} | {:error, any()}
+  @callback create(variables :: Enum.t(), opts :: Keyword.t()) ::
+              {:ok, Enum.t(), any()} | {:error, any()}
 
   ## Get variable details
   @callback get(store :: any(), variable :: Variable.t(), get_operation(), [any()]) ::
@@ -27,10 +28,10 @@ defmodule CPSolver.ConstraintStore do
   @callback update(store :: any(), variable :: Variable.t(), update_operation(), [any()]) ::
               any()
 
-  @callback dispose(space :: any(), variable :: Variable.t()) :: :ok | :not_found
+  @callback dispose(store :: any(), variable :: Variable.t()) :: :ok | :not_found
 
   @callback domain(store :: any(), variable :: Variable.t()) :: {:ok, any()} | {:error, any()}
-  @callback get_variables(space :: any()) :: [any()]
+  @callback get_variables(store :: any()) :: [any()]
 
   ### API
 end

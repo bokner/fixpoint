@@ -21,15 +21,14 @@ defmodule CPSolverTest.Propagator.Thread do
     @entailment_str "Propagator is entailed"
 
     test "create propagator thread" do
-      space = self()
       x = 1..1
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [_x_var, y_var] = bound_vars} = Store.create(space, variables)
+      {:ok, [_x_var, y_var] = bound_vars, _store} = Store.create(variables)
 
       {:ok, propagator_thread} =
-        PropagatorThread.create_thread(space, {NotEqual, bound_vars},
+        PropagatorThread.create_thread(self(), {NotEqual, bound_vars},
           propagate_on: @domain_changes
         )
 
@@ -53,24 +52,23 @@ defmodule CPSolverTest.Propagator.Thread do
     end
 
     test "entailment with initially unfixed variables" do
-      space = self()
       x = 0..2
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var] = bound_vars} = Store.create(space, variables)
+      {:ok, [x_var, y_var] = bound_vars, store} = Store.create(variables)
 
-      {:ok, propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, bound_vars})
+      {:ok, propagator_thread} = PropagatorThread.create_thread(self(), {NotEqual, bound_vars})
       Process.sleep(10)
 
       refute capture_log([level: :debug], fn ->
-               Store.update(space, x_var, :fix, [1])
+               Store.update(store, x_var, :fix, [1])
                Process.sleep(10)
              end) =~ @entailment_str
 
       entailment_log =
         capture_log([level: :debug], fn ->
-          Store.update(space, y_var, :fix, [2])
+          Store.update(store, y_var, :fix, [2])
           Process.sleep(10)
         end)
 
@@ -82,17 +80,16 @@ defmodule CPSolverTest.Propagator.Thread do
     end
 
     test "entailment with initially fixed variables" do
-      space = self()
       x = 0..0
       y = 1..1
 
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, bound_vars} = Store.create(space, variables)
+      {:ok, bound_vars, _store} = Store.create(variables)
 
       assert capture_log([level: :debug], fn ->
                {:ok, propagator_thread} =
-                 PropagatorThread.create_thread(space, {NotEqual, bound_vars})
+                 PropagatorThread.create_thread(self(), {NotEqual, bound_vars})
 
                ## Propagator thread discards itself on entailment
                Process.sleep(10)
@@ -101,14 +98,13 @@ defmodule CPSolverTest.Propagator.Thread do
     end
 
     test "Starting/stopping propagator subscribes it to/unsubscribes it from  its variables" do
-      space = self()
       x = 0..2
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, vars} = Store.create(space, variables)
+      {:ok, vars, _store} = Store.create(variables)
 
-      {:ok, propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, vars})
+      {:ok, propagator_thread} = PropagatorThread.create_thread(self(), {NotEqual, vars})
 
       assert Enum.all?(vars, fn v -> propagator_thread in :ebus.subscribers({:variable, v.id}) end)
 
@@ -120,48 +116,48 @@ defmodule CPSolverTest.Propagator.Thread do
     end
 
     test "stability" do
-      space = self()
       x = 0..5
       y = 1..3
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var] = vars} = Store.create(space, variables)
+      {:ok, [x_var, y_var] = vars, store} = Store.create(variables)
 
       ## Detects stability on a startup
       assert capture_log([level: :debug], fn ->
-               {:ok, _propagator_thread} = PropagatorThread.create_thread(space, {NotEqual, vars})
+               {:ok, _propagator_thread} =
+                 PropagatorThread.create_thread(self(), {NotEqual, vars})
+
                Process.sleep(10)
              end) =~ "is stable"
 
       ## Filtering that leaves unfixed variable(s) (x_var in this case) should
       ## (eventually) put propagator into 'stable' state
       assert capture_log([level: :debug], fn ->
-               Store.update(space, y_var, :fix, [1])
+               Store.update(store, y_var, :fix, [1])
                Process.sleep(10)
              end) =~ "is stable"
 
       ## Fixing all variables (i.e., entailment)
       ## does not result in stability.
       refute capture_log([level: :debug], fn ->
-               Store.update(space, x_var, :fix, [0])
+               Store.update(store, x_var, :fix, [0])
                Process.sleep(10)
              end) =~ "is stable"
     end
 
     test "propagator failure" do
-      space = self()
       x = 1..1
       y = 1..2
       z = 2..2
       variables = Enum.map([x, y, z], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var, z_var] = _vars} = Store.create(space, variables)
+      {:ok, [x_var, y_var, z_var] = _vars, _store} = Store.create(variables)
 
       {:ok, _threadXY} =
-        PropagatorThread.create_thread(space, {NotEqual, [x_var, y_var]}, id: "X != Y")
+        PropagatorThread.create_thread(self(), {NotEqual, [x_var, y_var]}, id: "X != Y")
 
       {:ok, _threadYZ} =
-        PropagatorThread.create_thread(space, {NotEqual, [y_var, z_var]}, id: "Y != Z")
+        PropagatorThread.create_thread(self(), {NotEqual, [y_var, z_var]}, id: "Y != Z")
 
       Process.sleep(5)
       assert 1 == Variable.min(x_var)

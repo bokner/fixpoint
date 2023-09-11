@@ -22,7 +22,8 @@ defmodule CPSolver.Space do
             keep_alive: false,
             variables: [],
             propagator_threads: %{},
-            store: Store,
+            store_impl: Store,
+            store_handle: nil,
             space: nil,
             solver: nil,
             solution_handler: nil,
@@ -63,9 +64,11 @@ defmodule CPSolver.Space do
     {_state, _data} = :sys.get_state(space)
   end
 
-  def solution(%{variables: variables, space: space, store: store} = _data) do
+  def solution(
+        %{variables: variables, store_impl: store_impl, store_handle: store_handle} = _data
+      ) do
     Enum.reduce(variables, Map.new(), fn var, acc ->
-      Map.put(acc, var.id, store.get(space, var, :min))
+      Map.put(acc, var.id, store_impl.get(store_handle, var, :min))
     end)
   end
 
@@ -84,14 +87,15 @@ defmodule CPSolver.Space do
     solver = Keyword.get(space_opts, :solver)
     ## Subscribe solver to space events
     Utils.subscribe(solver, {:space, space_id})
-    {:ok, space_variables} = store_impl.create(self(), variables)
+    {:ok, space_variables, store} = store_impl.create(variables)
 
     space_data = %Space{
       id: space_id,
       parent: parent,
       keep_alive: keep_alive,
       variables: space_variables,
-      store: store_impl,
+      store_impl: store_impl,
+      store_handle: store,
       opts: space_opts,
       solution_handler: solution_handler,
       search: search_strategy
