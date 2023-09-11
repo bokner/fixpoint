@@ -40,12 +40,12 @@ defmodule CPSolver.Examples.Queens do
 
     solve(nqueens, stop_on: {:max_solutions, 1})
     |> tap(fn {:ok, solver} ->
-      Process.sleep(1000)
+      Process.sleep(2000)
       IO.puts(print_board(hd(CPSolver.solutions(solver))))
     end)
   end
 
-  defp print_board(queens) do
+  def print_board(queens) do
     n = length(queens)
 
     "\n" <>

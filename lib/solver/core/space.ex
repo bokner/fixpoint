@@ -275,12 +275,8 @@ defmodule CPSolver.Space do
       :fail ->
         handle_failure(data)
 
-      # shutdown(data, :noop)
-
       {:error, :all_vars_fixed} ->
         handle_solved(data)
-
-      # shutdown(data, :noop)
 
       {:ok, {var_to_branch_on, domain_partitions}} ->
         Enum.map(domain_partitions, fn partition ->
@@ -351,7 +347,7 @@ defmodule CPSolver.Space do
       ## TODO: find a better way to dispose var and propagators
       spawn(fn ->
         Enum.each(data.propagator_threads, fn {_ref, thread} -> Propagator.dispose(thread) end)
-        Enum.each(data.variables, fn var -> CPSolver.Variable.Agent.dispose(var) end)
+        Enum.each(data.variables, fn var -> Variable.dispose(var) end)
       end)
 
       {:stop, :normal, data}

@@ -13,4 +13,5 @@ defmodule CPSolver.IntVariable do
   defdelegate removeAbove(var, val), to: Variable
   defdelegate removeBelow(var, val), to: Variable
   defdelegate fix(var, val), to: Variable
+  defdelegate dispose(var), to: Variable
 end

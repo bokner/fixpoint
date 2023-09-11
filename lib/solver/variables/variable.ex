@@ -96,6 +96,10 @@ defmodule CPSolver.Variable do
     Store.domain(variable.space, variable)
   end
 
+  def dispose(var) do
+    CPSolver.Variable.Agent.dispose(var)
+  end
+
   def subscribers(variable) do
     Utils.subscribers(variable_topic(variable))
   end
