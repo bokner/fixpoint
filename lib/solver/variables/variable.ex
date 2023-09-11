@@ -151,6 +151,13 @@ defmodule CPSolver.Variable.Agent do
     GenServer.cast(StoreRegistry.variable_proc_id(variable), :dispose)
   end
 
+  def alive?(variable) do
+    case GenServer.whereis(StoreRegistry.variable_proc_id(variable)) do
+      nil -> false
+      pid -> Process.alive?(pid)
+    end
+  end
+
   @impl true
   @spec init(atom | %{:domain => any, optional(any) => any}) :: {:ok, :gb_sets.set(any)}
   def init(variable) do

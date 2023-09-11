@@ -347,15 +347,14 @@ defmodule CPSolver.Space do
     Logger.info("Space #{inspect(self())} shutdown with #{inspect(reason)}")
 
     if !keep_alive do
+      publish(data, {:shutdown_space, self()})
+      ## TODO: find a better way to dispose var and propagators
+      #Enum.each(data.variables, fn var -> CPSolver.Variable.Agent.dispose(var) end)
+      Enum.each(data.propagator_threads, fn {_ref, thread} -> Propagator.dispose(thread) end)
+
       {:stop, :normal, data}
     else
       :keep_state_and_data
     end
-    |> tap(fn _ ->
-      publish(data, {:shutdown_space, self()})
-      ## TODO: find a better way to dispose var and propagators
-      Enum.each(data.variables, fn var -> CPSolver.Variable.Agent.dispose(var) end)
-      Enum.each(data.propagator_threads, fn {_ref, thread} -> Propagator.dispose(thread) end)
-    end)
   end
 end
