@@ -349,9 +349,10 @@ defmodule CPSolver.Space do
     if !keep_alive do
       publish(data, {:shutdown_space, self()})
       ## TODO: find a better way to dispose var and propagators
-      #Enum.each(data.variables, fn var -> CPSolver.Variable.Agent.dispose(var) end)
+      spawn(fn ->
       Enum.each(data.propagator_threads, fn {_ref, thread} -> Propagator.dispose(thread) end)
-
+      Enum.each(data.variables, fn var -> CPSolver.Variable.Agent.dispose(var) end)
+      end)
       {:stop, :normal, data}
     else
       :keep_state_and_data
