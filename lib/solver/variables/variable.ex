@@ -128,4 +128,3 @@ defmodule CPSolver.Variable do
     Map.put(variable, :store, store)
   end
 end
-

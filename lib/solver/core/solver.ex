@@ -104,10 +104,10 @@ defmodule CPSolver do
     %{state | active_nodes: MapSet.delete(nodes, node)}
   end
 
-  # defp handle_event(unexpected, state) do
-  #   Logger.error("Solver: unexpected message #{inspect(unexpected)}")
-  #   state
-  # end
+  defp handle_event(unexpected, state) do
+    Logger.error("Solver: unexpected message #{inspect(unexpected)}")
+    state
+  end
 
   @impl true
   def handle_call(:get_stats, _from, state) do
