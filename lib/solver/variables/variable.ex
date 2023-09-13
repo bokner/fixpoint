@@ -1,5 +1,5 @@
 defmodule CPSolver.Variable do
-  defstruct [:id, :name, :domain, :space]
+  defstruct [:id, :name, :domain, :store]
 
   @type t :: %__MODULE__{
           id: reference(),
@@ -81,19 +81,19 @@ defmodule CPSolver.Variable do
   end
 
   defp store_op(op, variable, value) when op in [:remove, :removeAbove, :removeBelow, :fix] do
-    Store.update(variable.space, variable, op, [value])
+    Store.update(variable.store, variable, op, [value])
   end
 
   defp store_op(op, variable, value) when op in [:contains?] do
-    Store.get(variable.space, variable, op, [value])
+    Store.get(variable.store, variable, op, [value])
   end
 
   defp store_op(op, variable) when op in [:size, :fixed?, :min, :max] do
-    Store.get(variable.space, variable, op)
+    Store.get(variable.store, variable, op)
   end
 
   defp store_op(:domain, variable) do
-    Store.domain(variable.space, variable)
+    Store.domain(variable.store, variable)
   end
 
   def dispose(var) do
@@ -120,12 +120,12 @@ defmodule CPSolver.Variable do
     {:variable, var.id}
   end
 
-  def bind_variables(space, variables) do
-    Enum.map(variables, fn var -> bind(var, space) end)
+  def bind_variables(store, variables) do
+    Enum.map(variables, fn var -> bind(var, store) end)
   end
 
-  def bind(variable, space) do
-    Map.put(variable, :space, space)
+  def bind(variable, store) do
+    Map.put(variable, :store, store)
   end
 
   def set_store(variable, store) do

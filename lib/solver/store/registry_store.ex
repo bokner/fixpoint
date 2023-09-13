@@ -18,7 +18,7 @@ defmodule CPSolver.Store.Registry do
 
          %{}
          |> Map.put(:id, var.id)
-         |> Map.put(:space, space)
+         |> Map.put(:store, space)
        end
      ), space}
   end
