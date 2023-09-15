@@ -23,7 +23,7 @@ defmodule CPSolver.Space do
             variables: [],
             propagator_threads: %{},
             store_impl: Store,
-            store_handle: nil,
+            store: nil,
             space: nil,
             solver: nil,
             solution_handler: nil,
@@ -64,11 +64,9 @@ defmodule CPSolver.Space do
     {_state, _data} = :sys.get_state(space)
   end
 
-  def solution(
-        %{variables: variables, store_impl: store_impl, store_handle: store_handle} = _data
-      ) do
+  def solution(%{variables: variables, store_impl: store_impl, store: store} = _data) do
     Enum.reduce(variables, Map.new(), fn var, acc ->
-      Map.put(acc, var.id, store_impl.get(store_handle, var, :min))
+      Map.put(acc, var.id, store_impl.get(store, var, :min))
     end)
   end
 
@@ -95,7 +93,7 @@ defmodule CPSolver.Space do
       keep_alive: keep_alive,
       variables: space_variables,
       store_impl: store_impl,
-      store_handle: store,
+      store: store,
       opts: space_opts,
       solution_handler: solution_handler,
       search: search_strategy
@@ -348,10 +346,10 @@ defmodule CPSolver.Space do
 
     if !keep_alive do
       publish(data, {:shutdown_space, self()})
-      ## TODO: find a better way to dispose var and propagators
+      ## TODO: find a better way to dispose of vars and propagators
       spawn(fn ->
         Enum.each(data.propagator_threads, fn {_ref, thread} -> Propagator.dispose(thread) end)
-        Enum.each(data.variables, fn var -> Variable.dispose(var) end)
+        data.store_impl.dispose(data.store, data.variables)
       end)
 
       {:stop, :normal, data}

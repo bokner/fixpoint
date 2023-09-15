@@ -96,10 +96,6 @@ defmodule CPSolver.Variable do
     Store.domain(variable.store, variable)
   end
 
-  def dispose(var) do
-    CPSolver.Variable.Agent.dispose(var)
-  end
-
   def subscribers(variable) do
     Utils.subscribers(variable_topic(variable))
   end
@@ -109,26 +105,18 @@ defmodule CPSolver.Variable do
   end
 
   def unsubscribe(subscriber, var) do
-    Utils.unsubscribe(subscriber, var)
+    Utils.unsubscribe(subscriber, variable_topic(var))
   end
 
   def publish(variable, message) do
     Utils.publish(variable_topic(variable), message)
   end
 
-  defp variable_topic(var) do
-    {:variable, var.id}
+  defp variable_topic(var) when is_map(var) do
+    variable_topic(var.id)
   end
 
-  def bind_variables(store, variables) do
-    Enum.map(variables, fn var -> bind(var, store) end)
-  end
-
-  def bind(variable, store) do
-    Map.put(variable, :store, store)
-  end
-
-  def set_store(variable, store) do
-    Map.put(variable, :store, store)
+  defp variable_topic(var) when is_reference(var) do
+    {:variable, var}
   end
 end

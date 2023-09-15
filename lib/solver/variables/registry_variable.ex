@@ -14,7 +14,7 @@ defmodule CPSolver.Variable.Agent do
   end
 
   def dispose(variable) do
-    topic = {variable, variable.id}
+    topic = {:variable, variable.id}
     Enum.each(Utils.subscribers(topic), fn s -> Utils.unsubscribe(s, topic) end)
     GenServer.cast(StoreRegistry.variable_proc_id(variable), :dispose)
   end

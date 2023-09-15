@@ -4,14 +4,17 @@ defmodule CPSolver.Utils do
 
   def publish(topic, message) do
     :ebus.pub(topic, message)
+    :ok
   end
 
   def subscribe(pid, topic) when is_pid(pid) do
     :ebus.sub(pid, topic)
+    :ok
   end
 
   def unsubscribe(pid, topic) when is_pid(pid) do
     :ebus.unsub(pid, topic)
+    :ok
   end
 
   def subscribers(topic) do

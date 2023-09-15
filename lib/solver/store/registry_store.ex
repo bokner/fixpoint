@@ -24,8 +24,8 @@ defmodule CPSolver.Store.Registry do
   end
 
   @impl true
-  def dispose(_store, variable) do
-    VariableAgent.dispose(variable)
+  def dispose(_store, variables) do
+    Enum.each(variables, &VariableAgent.dispose/1)
   end
 
   @impl true
