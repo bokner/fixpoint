@@ -38,19 +38,26 @@ defmodule CPSolver.Store.ETS do
   end
 
   @impl true
-  def update(store, variable, operation, args) do
+  def update_domain(store, variable, operation, args) do
     store
     |> domain(variable)
     |> then(fn domain ->
       apply(Domain, operation, [domain | args])
-      |> tap(fn
-        {_changed, new_domain} ->
-          :ets.insert(store, {variable.id, Map.put(variable, :domain, new_domain)})
-
-        _not_changed ->
-          :ok
+      |> then(fn
+        {domain_change, new_domain} ->
+          update_domain(store, variable, new_domain)
+          domain_change
+        :fail ->
+          update_domain(store, variable, :fail)
+          :fail
+        :no_change
+          :no_change
       end)
     end)
+  end
+
+  defp update_domain(store, variable, domain) do
+    :ets.insert(store, {variable.id, Map.put(variable, :domain, domain)})
   end
 
   @impl true

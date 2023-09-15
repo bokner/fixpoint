@@ -49,7 +49,7 @@ defmodule CPSolverTest.Domain do
 
       assert Domain.removeBelow(domain, Enum.max(values) + 1) == :fail
 
-      assert :none == Domain.removeBelow(domain, Enum.min(values))
+      assert :no_change == Domain.removeBelow(domain, Enum.min(values))
       {:fixed, fixed} = Domain.removeBelow(domain, Enum.max(values))
       assert Domain.fixed?(fixed)
 
@@ -61,7 +61,7 @@ defmodule CPSolverTest.Domain do
       assert Domain.max(cutAbove) == 3
 
       assert Domain.removeAbove(domain, Enum.min(values) - 1) == :fail
-      assert :none == Domain.removeAbove(domain, Enum.max(values))
+      assert :no_change == Domain.removeAbove(domain, Enum.max(values))
       {:fixed, fixed} = Domain.removeAbove(domain, Enum.min(values))
       assert Domain.fixed?(fixed)
     end

@@ -42,7 +42,7 @@ defmodule CPSolver.DefaultDomain do
 
   @spec remove(:gb_sets.set(number()), number()) ::
           :fail
-          | :none
+          | :no_change
           | {Common.domain_change(), :gb_sets.set(number())}
   def remove(domain, value) do
     :gb_sets.delete_any(value, domain)
@@ -51,7 +51,7 @@ defmodule CPSolver.DefaultDomain do
 
   @spec removeAbove(:gb_sets.set(number()), number()) ::
           :fail
-          | :none
+          | :no_change
           | {Common.domain_change(), :gb_sets.set(number())}
 
   def removeAbove(domain, value) do
@@ -60,7 +60,7 @@ defmodule CPSolver.DefaultDomain do
   end
 
   @spec removeBelow(:gb_sets.set(number()), number()) ::
-          :fail | :none | {Common.domain_change(), :gb_sets.set(number())}
+          :fail | :no_change | {Common.domain_change(), :gb_sets.set(number())}
   def removeBelow(domain, value) do
     :gb_sets.filter(fn v -> v >= value end, domain)
     |> post_remove(domain, :min_change)
@@ -83,7 +83,7 @@ defmodule CPSolver.DefaultDomain do
       new_size ->
         case size(domain) do
           old_size when old_size == new_size ->
-            :none
+            :no_change
 
           old_size when old_size > new_size ->
             {(new_size == 1 && :fixed) || change_kind, new_domain}

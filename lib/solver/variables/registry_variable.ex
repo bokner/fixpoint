@@ -59,7 +59,7 @@ defmodule CPSolver.Variable.Agent do
         :fail ->
           {:fail, :fail}
 
-        :none ->
+        :no_change ->
           {:no_change, domain}
 
         {domain_change, new_domain} ->
