@@ -106,13 +106,13 @@ defmodule CPSolverTest.Propagator.Thread do
 
       {:ok, propagator_thread} = PropagatorThread.create_thread(self(), {NotEqual, vars})
 
-      assert Enum.all?(vars, fn v -> propagator_thread in :ebus.subscribers({:variable, v.id}) end)
+      assert Enum.all?(vars, fn v -> propagator_thread in Variable.subscribers(v) end)
 
       PropagatorThread.dispose(propagator_thread)
       Process.sleep(10)
       refute Process.alive?(propagator_thread)
 
-      refute Enum.any?(vars, fn v -> propagator_thread in :ebus.subscribers(v.id) end)
+      refute Enum.any?(vars, fn v -> propagator_thread in Variable.subscribers(v) end)
     end
 
     test "stability" do
