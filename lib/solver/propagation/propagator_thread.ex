@@ -65,6 +65,7 @@ defmodule CPSolver.Propagator.Thread do
      %{
        id: propagator_id,
        space: space,
+       stable: false,
        propagator_impl: propagator_mod,
        propagate_on: Keyword.get(opts, :propagate_on, propagator_mod.events()),
        args: args,
@@ -155,13 +156,13 @@ defmodule CPSolver.Propagator.Thread do
 
   defp handle_stable(data) do
     Logger.debug("#{inspect(data.id)} Propagator is stable")
-    publish(data, :stable)
-    {:noreply, data}
+    !data.stable && publish(data, :stable)
+    {:noreply, %{data | stable: true}}
   end
 
   defp handle_running(data) do
     publish(data, :running)
-    {:noreply, data}
+    {:noreply, %{data | stable: false}}
   end
 
   defp handle_entailed(data) do

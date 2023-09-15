@@ -1,7 +1,7 @@
 defmodule CPSolver.Store.ETS do
   alias CPSolver.DefaultDomain, as: Domain
 
-  @behaviour CPSolver.ConstraintStore
+  use CPSolver.ConstraintStore
 
   @impl true
   def create(variables, _opts \\ []) do

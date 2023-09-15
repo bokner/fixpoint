@@ -4,7 +4,7 @@ defmodule CPSolver.Store.Registry do
 
   require Logger
 
-  @behaviour Store
+  use Store
 
   @impl true
   def create(variables, _opts \\ []) do
@@ -39,7 +39,7 @@ defmodule CPSolver.Store.Registry do
   end
 
   @impl true
-  def update(_store, var, operation, args \\ []) do
+  def update_domain(_store, var, operation, args \\ []) do
     VariableAgent.operation(var, operation, args)
   end
 
