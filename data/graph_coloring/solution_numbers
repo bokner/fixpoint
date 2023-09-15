@@ -1,33 +1,13 @@
 MINI-CP results:
 
-gc_15_30_0
-gc_15_30_1
-gc_15_30_2
-gc_15_30_3
-gc_15_30_4
-gc_15_30_5
-gc_15_30_6
-gc_15_30_7
-gc_15_30_8
-gc_15_30_9
-
-#solutions: 133200
-# time(ms): 546
-# solutions: 36
-# time(ms): 12
-# solutions: 85632
-# time(ms): 244
-# solutions: 12
-# time(ms): 10
-# solutions: 89856
-# time(ms): 274
-# solutions: 34848
-# time(ms): 156
-# solutions: 12
-# time(ms): 8
-# solutions: 72000
-# time(ms): 198
-# solutions: 97776
-# time(ms): 216
-# solutions: 94752
-# time(ms): 228
+Instance    #solutions  time 
+gc_15_30_0   133200     546
+gc_15_30_1  36          12
+gc_15_30_2  85632       244
+gc_15_30_3  12          10
+gc_15_30_4  89856       274
+gc_15_30_5  34848       156
+gc_15_30_6  12          8
+gc_15_30_7  72000       198
+gc_15_30_8  97776       216
+gc_15_30_9  94752       228
