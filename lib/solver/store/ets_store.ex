@@ -7,7 +7,7 @@ defmodule CPSolver.Store.ETS do
   @impl true
   def create(variables, _opts \\ []) do
     table_id =
-      :ets.new(__MODULE__, [:set, :private, read_concurrency: true, write_concurrency: true])
+      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
 
     {:ok,
      Enum.map(
@@ -25,7 +25,7 @@ defmodule CPSolver.Store.ETS do
 
   @impl true
   def dispose(store, _vars) do
-    :ets.delete(store)
+    # :ets.delete(store)
   end
 
   @impl true
