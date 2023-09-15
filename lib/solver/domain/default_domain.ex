@@ -30,7 +30,7 @@ defmodule CPSolver.DefaultDomain do
     :gb_sets.smallest(domain)
   end
 
-  @spec max(:gb_sets.set(number())) :: number()
+  @spec max(domain :: :gb_sets.set(number())) :: number()
   def max(domain) do
     :gb_sets.largest(domain)
   end

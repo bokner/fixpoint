@@ -117,7 +117,7 @@ defmodule CPSolver.Variable do
   end
 
   defp variable_topic(var) do
-    {:variable, var.store, var.id}
+    {:variable, var.id}
   end
 
   def bind_variables(store, variables) do
