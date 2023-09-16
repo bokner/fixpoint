@@ -192,7 +192,14 @@ defmodule CPSolver.Space do
   defp start_propagation(propagators, data) do
     Enum.reduce(propagators, Map.new(), fn p, acc ->
       propagator_id = make_ref()
-      {:ok, thread} = Propagator.create_thread(self(), p, id: propagator_id, store: data.store)
+
+      {:ok, thread} =
+        Propagator.create_thread(self(), p,
+          id: propagator_id,
+          store: data.store,
+          store_impl: data.store_impl
+        )
+
       Map.put(acc, propagator_id, %{thread: thread, propagator: p, stable: false})
     end)
   end

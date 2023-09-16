@@ -71,10 +71,10 @@ defmodule CPSolver.Examples.Queens do
       Enum.all?((i + 1)..(n - 1), fn j ->
         # queens q[i] and q[i] not on ...
         ## ... the same line
+        ## ... the same left or right diagonal
         (Enum.at(queens, i) != Enum.at(queens, j))
         |> tap(fn res -> !res && Logger.error("Queens #{i} and #{j} : same-line violation") end) &&
-        ## ... the same left or right diagonal
-        (abs(Enum.at(queens, i) - Enum.at(queens, j)) != j - i)
+          (abs(Enum.at(queens, i) - Enum.at(queens, j)) != j - i)
           |> tap(fn res ->
             !res && Logger.error("Queens #{i} and #{j} : same-diagonal violation")
           end)

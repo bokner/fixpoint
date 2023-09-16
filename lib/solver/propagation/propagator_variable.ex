@@ -1,8 +1,9 @@
 defmodule CPSolver.Propagator.Variable do
   alias CPSolver.Variable
+  alias CPSolver.ConstraintStore
 
   @variable_op_results_key :variable_op_results
-
+  @store_impl_key :store_impl
   defdelegate domain(var), to: Variable
   defdelegate size(var), to: Variable
   defdelegate min(var), to: Variable
@@ -44,6 +45,14 @@ defmodule CPSolver.Propagator.Variable do
 
   def get_variable_ops() do
     Process.get(@variable_op_results_key, Map.new())
+  end
+
+  def set_store_impl(store_impl) do
+    Process.put(@store_impl_key, store_impl)
+  end
+
+  def get_store_impl() do
+    Process.get(@store_impl_key) || ConstraintStore.default_store()
   end
 
   def reset_variable_ops() do

@@ -8,9 +8,10 @@ defmodule CPSolver.Variable do
         }
 
   alias CPSolver.Variable
-  alias CPSolver.Store.Registry, as: Store
   alias CPSolver.Utils
   alias CPSolver.DefaultDomain, as: Domain
+
+  import CPSolver.Propagator.Variable
 
   require Logger
 
@@ -82,19 +83,19 @@ defmodule CPSolver.Variable do
   end
 
   defp store_op(op, variable, value) when op in [:remove, :removeAbove, :removeBelow, :fix] do
-    Store.update(variable.store, variable, op, [value])
+    get_store_impl().update(variable.store, variable, op, [value])
   end
 
   defp store_op(op, variable, value) when op in [:contains?] do
-    Store.get(variable.store, variable, op, [value])
+    get_store_impl().get(variable.store, variable, op, [value])
   end
 
   defp store_op(op, variable) when op in [:size, :fixed?, :min, :max] do
-    Store.get(variable.store, variable, op)
+    get_store_impl().get(variable.store, variable, op)
   end
 
   defp store_op(:domain, variable) do
-    Store.domain(variable.store, variable)
+    get_store_impl().domain(variable.store, variable)
   end
 
   def subscribers(variable) do
