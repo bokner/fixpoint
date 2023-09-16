@@ -16,7 +16,7 @@ defmodule CPSolver.Variable.Agent do
   def dispose(variable) do
     topic = {:variable, variable.id}
     Enum.each(Utils.subscribers(topic), fn s -> Utils.unsubscribe(s, topic) end)
-    #GenServer.cast(StoreRegistry.variable_proc_id(variable), :dispose)
+    # GenServer.cast(StoreRegistry.variable_proc_id(variable), :dispose)
     case GenServer.whereis(StoreRegistry.variable_proc_id(variable)) do
       nil -> false
       pid when is_pid(pid) -> Process.exit(pid, :brutal_kill)

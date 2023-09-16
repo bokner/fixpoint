@@ -113,11 +113,11 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   def handle_info({domain_change, _var}, data) when domain_change in @domain_changes do
-      if domain_change in data.propagate_on do
-        filter(data)
-      else
-        noop(data)
-      end
+    if domain_change in data.propagate_on do
+      filter(data)
+    else
+      noop(data)
+    end
   end
 
   ### end of GenServer callbacks
@@ -166,7 +166,7 @@ defmodule CPSolver.Propagator.Thread do
 
   defp process_var_ops({_var, domain_change}, {data, current_status} = _acc)
        when domain_change in @domain_changes do
-    {data, current_status || (domain_change in data.propagate_on)}
+    {data, current_status || domain_change in data.propagate_on}
   end
 
   defp handle_stable(data) do
