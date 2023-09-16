@@ -23,6 +23,7 @@ defmodule CPSolver.Variable do
       def new(values, opts \\ default_opts()) do
         %Variable{
           id: make_ref(),
+          store: Keyword.get(opts, :store),
           domain: Domain.new(values)
         }
       end

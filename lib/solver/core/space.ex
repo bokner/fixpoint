@@ -10,7 +10,6 @@ defmodule CPSolver.Space do
   alias CPSolver.Propagator.Thread, as: Propagator
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
-  alias CPSolver.Store.Registry, as: Store
   alias CPSolver.Utils
 
   require Logger
@@ -22,7 +21,7 @@ defmodule CPSolver.Space do
             keep_alive: false,
             variables: [],
             propagator_threads: %{},
-            store_impl: Store,
+            store_impl: CPSolver.ConstraintStore.default_store(),
             store: nil,
             space: nil,
             solver: nil,
@@ -32,7 +31,7 @@ defmodule CPSolver.Space do
 
   defp default_space_opts() do
     [
-      store: Store,
+      store: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
       search: CPSolver.Search.Strategy.default_strategy()
     ]
@@ -114,7 +113,7 @@ defmodule CPSolver.Space do
   end
 
   def start_propagation(:internal, {:propagate, propagators}, data) do
-    propagator_threads = start_propagation(propagators)
+    propagator_threads = start_propagation(propagators, data)
     {:next_state, :propagating, Map.put(data, :propagator_threads, propagator_threads)}
   end
 
@@ -156,6 +155,7 @@ defmodule CPSolver.Space do
     {:next_state, :solved, data}
   end
 
+  @spec failed(any, any, any) :: :keep_state_and_data
   def failed(:enter, :propagating, data) do
     handle_failure(data)
   end
@@ -189,10 +189,10 @@ defmodule CPSolver.Space do
     :keep_state_and_data
   end
 
-  defp start_propagation(propagators) do
+  defp start_propagation(propagators, data) do
     Enum.reduce(propagators, Map.new(), fn p, acc ->
       propagator_id = make_ref()
-      {:ok, thread} = Propagator.create_thread(self(), p, id: propagator_id)
+      {:ok, thread} = Propagator.create_thread(self(), p, id: propagator_id, store: data.store)
       Map.put(acc, propagator_id, %{thread: thread, propagator: p, stable: false})
     end)
   end
@@ -267,7 +267,8 @@ defmodule CPSolver.Space do
   def do_distribute(
         %{
           propagator_threads: threads,
-          search: search_strategy
+          search: search_strategy,
+          store: space_store
         } = data,
         variable_clones
       ) do
@@ -285,9 +286,9 @@ defmodule CPSolver.Space do
           variable_copies =
             Map.new(variable_clones, fn %{id: clone_id} = clone ->
               if clone_id == var_to_branch_on.id do
-                {clone_id, Variable.new(partition)}
+                {clone_id, Variable.new(partition, store: space_store)}
               else
-                {clone_id, Variable.new(clone.domain)}
+                {clone_id, Variable.new(clone.domain, store: space_store)}
               end
             end)
 

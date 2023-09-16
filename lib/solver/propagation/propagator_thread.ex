@@ -56,7 +56,11 @@ defmodule CPSolver.Propagator.Thread do
   ## GenServer callbacks
   @impl true
   def init([space, propagator_mod, args, opts]) do
-    propagator_vars = propagator_mod.variables(args)
+    store = Keyword.get(opts, :store)
+
+    propagator_vars =
+      Enum.map(propagator_mod.variables(args), fn var -> Map.put(var, :store, store) end)
+
     subscribe_to_variables(self(), propagator_vars)
     propagator_id = Keyword.get(opts, :id, make_ref())
     Utils.subscribe(space, {:propagator, propagator_id})
@@ -65,10 +69,18 @@ defmodule CPSolver.Propagator.Thread do
      %{
        id: propagator_id,
        space: space,
+       store: store,
        stable: false,
        propagator_impl: propagator_mod,
        propagate_on: Keyword.get(opts, :propagate_on, propagator_mod.events()),
-       args: args,
+       args:
+         Enum.map(args, fn
+           %Variable{} = arg ->
+             Map.put(arg, :store, store)
+
+           const ->
+             const
+         end),
        unfixed_variables:
          Enum.reduce(propagator_vars, MapSet.new(), fn var, acc ->
            (Variable.fixed?(var) && acc) || MapSet.put(acc, var.id)
