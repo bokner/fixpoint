@@ -3,6 +3,11 @@ defmodule CPSolverTest.Examples.Queens do
 
   alias CPSolver.Examples.Queens
 
+  ## No solutions
+  test "3 Queens" do
+    test_queens(3, 0)
+  end
+
   test "4 Queens" do
     test_queens(4, 2)
   end
