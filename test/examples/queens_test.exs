@@ -23,9 +23,7 @@ defmodule CPSolverTest.Examples.Queens do
     Enum.each(1..opts[:trials], fn _ ->
       {:ok, solver} = CPSolver.Examples.Queens.solve(n, opts)
       Process.sleep(opts[:timeout])
-      ## TODO: fix occasional overshooting
-      ## and then change it back to strict equality
-      assert CPSolver.statistics(solver).solution_count >= expected_solutions
+      assert CPSolver.statistics(solver).solution_count == expected_solutions
     end)
   end
 end
