@@ -113,14 +113,17 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   def handle_info({domain_change, _var}, data) when domain_change in @domain_changes do
-    if domain_change in data.propagate_on do
-      filter(data)
-    else
-      handle_stable(data)
-    end
+      if domain_change in data.propagate_on do
+        filter(data)
+      else
+        noop(data)
+      end
   end
 
   ### end of GenServer callbacks
+  defp noop(data) do
+    {:noreply, data}
+  end
 
   defp filter(%{propagator_impl: mod, args: args} = data) do
     Logger.debug("#{inspect(data.id)}: Propagation triggered")
@@ -143,27 +146,27 @@ defmodule CPSolver.Propagator.Thread do
         handle_failure(var, data)
 
       ops when is_map(ops) ->
-        {updated_data, no_change} = Enum.reduce(ops, {data, true}, &process_var_ops/2)
+        {updated_data, changed?} = Enum.reduce(ops, {data, false}, &process_var_ops/2)
 
         cond do
           entailed?(updated_data) -> handle_entailed(updated_data)
-          no_change -> handle_stable(updated_data)
-          true -> handle_running(updated_data)
+          changed? -> handle_running(updated_data)
+          true -> handle_stable(updated_data)
         end
     end
   end
 
   defp process_var_ops({var, :fixed}, {data, _} = _acc) do
-    {update_unfixed(data, var), false}
+    {update_unfixed(data, var), true}
   end
 
   defp process_var_ops({_var, :no_change}, acc) do
     acc
   end
 
-  defp process_var_ops({_var, domain_change}, {data, _} = _acc)
+  defp process_var_ops({_var, domain_change}, {data, current_status} = _acc)
        when domain_change in @domain_changes do
-    {data, false}
+    {data, current_status || (domain_change in data.propagate_on)}
   end
 
   defp handle_stable(data) do

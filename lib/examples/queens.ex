@@ -54,7 +54,7 @@ defmodule CPSolver.Examples.Queens do
           Enum.join(
             for j <- 1..n do
               if Enum.at(queens, i - 1) == j,
-                do: IO.ANSI.white() <> @queen_symbol,
+                do: IO.ANSI.red() <> @queen_symbol,
                 else: IO.ANSI.light_blue() <> "."
             end,
             " "
@@ -62,5 +62,23 @@ defmodule CPSolver.Examples.Queens do
         end,
         "\n"
       ) <> "\n"
+  end
+
+  def check_solution(queens) do
+    n = length(queens)
+
+    Enum.all?(0..(n - 2), fn i ->
+      Enum.all?((i + 1)..(n - 1), fn j ->
+        # queens q[i] and q[i] not on ...
+        ## ... the same line
+        (Enum.at(queens, i) != Enum.at(queens, j))
+        |> tap(fn res -> !res && Logger.error("Queens #{i} and #{j} : same-line violation") end) &&
+        ## ... the same left or right diagonal
+        (abs(Enum.at(queens, i) - Enum.at(queens, j)) != j - i)
+          |> tap(fn res ->
+            !res && Logger.error("Queens #{i} and #{j} : same-diagonal violation")
+          end)
+      end)
+    end)
   end
 end

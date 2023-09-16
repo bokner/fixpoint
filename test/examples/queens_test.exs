@@ -1,16 +1,22 @@
 defmodule CPSolverTest.Examples.Queens do
   use ExUnit.Case, async: false
 
+  alias CPSolver.Examples.Queens
+
   test "4 Queens" do
     test_queens(4, 2)
   end
 
   test "5 Queens" do
-    test_queens(5, 10, timeout: 2000)
+    test_queens(5, 10, timeout: 500)
   end
 
   test "6 Queens" do
-    test_queens(6, 4, timeout: 2000)
+    test_queens(6, 4, timeout: 500)
+  end
+
+  test "7 Queens" do
+    test_queens(7, 40, timeout: 2000)
   end
 
   test "8 Queens" do
@@ -21,9 +27,10 @@ defmodule CPSolverTest.Examples.Queens do
     opts = Keyword.merge([timeout: 1000, trials: 1], opts)
 
     Enum.each(1..opts[:trials], fn _ ->
-      {:ok, solver} = CPSolver.Examples.Queens.solve(n, opts)
+      {:ok, solver} = Queens.solve(n, opts)
       Process.sleep(opts[:timeout])
       assert CPSolver.statistics(solver).solution_count == expected_solutions
+      assert Enum.all?(CPSolver.solutions(solver), fn sol -> Queens.check_solution(sol) end)
     end)
   end
 end
