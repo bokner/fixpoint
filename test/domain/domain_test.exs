@@ -74,7 +74,8 @@ defmodule CPSolverTest.Domain do
       assert Domain.min(fixed) == 0
       assert Domain.max(fixed) == 0
 
-      assert :fail == Domain.fix(domain, 1)
+      ## It's fine to fix non-existent value
+      assert :no_change == Domain.fix(domain, 1)
     end
   end
 end

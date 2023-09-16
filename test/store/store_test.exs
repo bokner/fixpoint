@@ -108,8 +108,8 @@ defmodule CPSolverTest.Store do
       assert Store.get(store, v2, :min) == 0
 
       # fix variable with value outside the domain
-      :fail = Store.update(store, v1, :fix, [0])
-      assert Store.get(store, v1, :max) == :fail
+      assert Store.update(store, v1, :fix, [0]) == :no_change
+      assert Store.get(store, v1, :max) == 5
 
       :fixed = Store.update(store, v2, :fix, [0])
       assert Store.get(store, v2, :max) == 0

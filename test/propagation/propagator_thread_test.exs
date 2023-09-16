@@ -25,7 +25,7 @@ defmodule CPSolverTest.Propagator.Thread do
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [_x_var, y_var] = bound_vars, _store} = Store.create(variables)
+      {:ok, [x_var, y_var] = bound_vars, _store} = Store.create(variables)
 
       {:ok, propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, bound_vars},
@@ -46,9 +46,9 @@ defmodule CPSolverTest.Propagator.Thread do
 
       ## ...triggers filtering on receiving update notifications
       assert capture_log([level: :debug], fn ->
-               Variable.fix(y_var, 1)
+               Variable.remove(x_var, 1)
                Process.sleep(10)
-             end) =~ "Failure for variable #{inspect(y_var.id)}"
+             end) =~ "Failure for variable #{inspect(x_var.id)}"
     end
 
     test "entailment with initially unfixed variables" do
