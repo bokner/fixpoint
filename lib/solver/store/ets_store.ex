@@ -24,8 +24,8 @@ defmodule CPSolver.Store.ETS do
   end
 
   @impl true
-  def dispose(store, _vars) do
-    # :ets.delete(store)
+  def dispose(_store, _vars) do
+    :ok
   end
 
   @impl true
