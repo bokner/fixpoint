@@ -3,7 +3,6 @@ defmodule CPSolver.Examples.Sudoku do
   alias CPSolver.IntVariable
 
   require Logger
-  @queen_symbol "\u2655"
 
   ## Sudoku puzzle is a list of n rows, each one has n elements.
   ## If puzzle[i, j] = 0, the cell (i,j) is not filled.
@@ -12,9 +11,38 @@ defmodule CPSolver.Examples.Sudoku do
   ##
   ## puzzle4x4 = [[1, 0, 0, 0], [2, 3, 1, 0], [0, 0, 0, 2], [0, 2, 0, 0]]
   ##
+  ## 9x9 examples:
+  ## "4...39.2..56............6.4......9..5..1..2...9..27.3..37............8.69.8.1...." - 1 solution (hard!)
+  ## "85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4." - 1 solution
+  ## "8..6..9.5.............2.31...7318.6.24.....73...........279.1..5...8..36..3......" - 5 solutions
+  ##
+  # +-------+-------+-------+
+  # | 4 . . | . 3 9 | . 2 . |
+  # | . 5 6 | . . . | . . . |
+  # | . . . | . . . | 6 . 4 |
+  # +-------+-------+-------+
+  # | . . . | . . . | 9 . . |
+  # | 5 . . | 1 . . | 2 . . |
+  # | . 9 . | . 2 7 | . 3 . |
+  # +-------+-------+-------+
+  # | . 3 7 | . . . | . . . |
+  # | . . . | . . . | 8 . 6 |
+  # | 9 . 8 | . 1 . | . . . |
+  # +-------+-------+-------+
+
+  ## puzzle9x9 =
+  #
   ## We use AllDifferent constraint here.
   ##
-  def solve(puzzle, solver_opts \\ []) do
+
+  def solve(puzzle, solver_opts \\ [])
+
+  def solve(puzzle, solver_opts) when is_binary(puzzle) do
+    sudoku_string_to_grid(puzzle)
+    |> solve(solver_opts)
+  end
+
+  def solve(puzzle, solver_opts) when is_list(puzzle) do
     dimension = length(puzzle)
     ## Check if puzzle is valid
     sq_root = :math.sqrt(dimension)
@@ -25,7 +53,6 @@ defmodule CPSolver.Examples.Sudoku do
     end
 
     domain = 1..dimension
-    subsquare_range = 0..(square - 1)
 
     ## Variables
     cells =
@@ -55,21 +82,6 @@ defmodule CPSolver.Examples.Sudoku do
     subsquare_constraints =
       group_by_subsquares(cells) |> Enum.map(fn square_vars -> {AllDifferent, square_vars} end)
 
-    #    for i <- 0..square-1, j <- 0..square-1 do
-    #     for k <- i*square..(i*square + square - 1), l <- j*square..(j*square + square - 1) do
-    #       {k, l}
-    #     end
-    #     |> List.flatten()
-    #     |> tap(fn square_cells -> Logger.error(inspect(square_cells)); Logger.error("____") end)
-    #     |> for m <- 0..dimension - 2, n <- m+1..dimension - 1 do
-    #       {NotEqual, 1}
-    #     end
-    #   end
-    # ## No same number in sub-squares
-
-    # |> List.flatten()
-    # |> Enum.uniq()
-
     model = %{
       variables: cells |> List.flatten(),
       constraints: row_constraints ++ column_constraints ++ subsquare_constraints
@@ -90,50 +102,38 @@ defmodule CPSolver.Examples.Sudoku do
     end
   end
 
-  def solve_and_print(nqueens) do
-    Logger.configure(level: :error)
+  def print_grid(cells) do
+      gridline = "+-------+-------+-------+\n"
+      gridcol = "| "
 
-    solve(nqueens, stop_on: {:max_solutions, 1})
-    |> tap(fn {:ok, solver} ->
-      Process.sleep(2000)
-      IO.puts(print_board(hd(CPSolver.solutions(solver))))
-    end)
+      [
+        "\n" |
+        for i <- 0..8 do
+          [(if rem(i, 3) == 0, do: gridline, else: "")] ++
+          (for j <- 0..8 do
+             "#{if rem(j, 3) == 0, do: gridcol, else: ""}" <>
+             "#{print_cell(Enum.at(Enum.at(cells, i), j))} "
+           end) ++ ["#{gridcol}\n"]
+        end
+      ] ++ [gridline]
   end
 
-  def print_board(queens) do
-    n = length(queens)
-
-    "\n" <>
-      Enum.join(
-        for i <- 1..n do
-          Enum.join(
-            for j <- 1..n do
-              if Enum.at(queens, i - 1) == j,
-                do: IO.ANSI.red() <> @queen_symbol,
-                else: IO.ANSI.light_blue() <> "."
-            end,
-            " "
-          )
-        end,
-        "\n"
-      ) <> "\n"
+  defp print_cell(0) do
+    "."
   end
 
-  def check_solution(queens) do
-    n = length(queens)
+  defp print_cell(cell) do
+    to_string(cell)
+  end
 
-    Enum.all?(0..(n - 2), fn i ->
-      Enum.all?((i + 1)..(n - 1), fn j ->
-        # queens q[i] and q[i] not on ...
-        ## ... the same line
-        ## ... the same left or right diagonal
-        (Enum.at(queens, i) != Enum.at(queens, j))
-        |> tap(fn res -> !res && Logger.error("Queens #{i} and #{j} : same-line violation") end) &&
-          (abs(Enum.at(queens, i) - Enum.at(queens, j)) != j - i)
-          |> tap(fn res ->
-            !res && Logger.error("Queens #{i} and #{j} : same-diagonal violation")
-          end)
-      end)
-    end)
+  def sudoku_string_to_grid(sudoku_str) do
+    dim = :math.sqrt(String.length(sudoku_str)) |> floor()
+    str0 = String.replace(sudoku_str, ".", "0")
+
+    for i <- 0..(dim - 1) do
+      for j <- 0..(dim - 1) do
+        String.to_integer(String.at(str0, i * dim + j))
+      end
+    end
   end
 end
