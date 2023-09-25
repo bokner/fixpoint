@@ -53,7 +53,7 @@ defmodule CPSolver do
 
   defp constraint_to_propagators(constraint) do
     [constraint_mod | args] = Tuple.to_list(constraint)
-    constraint_mod.propagators(List.flatten(args))
+    constraint_mod.propagators(List.flatten(args)) |> Enum.uniq()
   end
 
   @impl true
