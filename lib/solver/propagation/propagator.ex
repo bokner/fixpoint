@@ -19,4 +19,13 @@ defmodule CPSolver.Propagator do
       defoverridable events: 0
     end
   end
+
+  def normalize({_mod, args} = propagator) when is_list(args) do
+    propagator
+  end
+
+  def normalize(propagator) when is_tuple(propagator) do
+    [mod | args] = Tuple.to_list(propagator)
+    {mod, args}
+  end
 end

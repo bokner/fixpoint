@@ -4,6 +4,7 @@ defmodule CPSolver do
   """
 
   alias CPSolver.Space
+  alias CPSolver.Propagator
   use GenServer
 
   require Logger
@@ -52,7 +53,7 @@ defmodule CPSolver do
 
   defp constraint_to_propagators(constraint) do
     [constraint_mod | args] = Tuple.to_list(constraint)
-    constraint_mod.propagators(args)
+    constraint_mod.propagators(List.flatten(args))
   end
 
   @impl true
@@ -61,7 +62,11 @@ defmodule CPSolver do
         %{variables: variables, propagators: propagators, solver_opts: solver_opts} = state
       ) do
     {:ok, top_space} =
-      Space.create(variables, propagators, Keyword.put(solver_opts, :solver, self()))
+      Space.create(
+        variables,
+        propagators |> Enum.map(&Propagator.normalize/1),
+        Keyword.put(solver_opts, :solver, self())
+      )
 
     {:noreply, Map.put(state, :space, top_space)}
   end
