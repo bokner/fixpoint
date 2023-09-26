@@ -58,14 +58,13 @@ defmodule CPSolver.Examples.Sudoku do
     cells =
       Enum.map(0..(dimension - 1), fn i ->
         Enum.map(0..(dimension - 1), fn j ->
-          var_name = "cell(#{i}, #{j})"
           cell = Enum.at(puzzle, i) |> Enum.at(j)
 
           if cell in numbers do
             ## Cell is filled
-            IntVariable.new(cell, name: var_name)
+            IntVariable.new(cell)
           else
-            IntVariable.new(numbers, name: var_name)
+            IntVariable.new(numbers)
           end
         end)
       end)
@@ -91,6 +90,20 @@ defmodule CPSolver.Examples.Sudoku do
       CPSolver.solve(model, solver_opts)
   end
 
+  def solve_and_print(puzzle) do
+    Logger.configure(level: :error)
+
+    IO.puts("Sudoku:")
+    IO.puts(print_grid(puzzle))
+
+    solve(puzzle, stop_on: {:max_solutions, 1})
+    |> tap(fn {:ok, solver} ->
+      Process.sleep(1000)
+      IO.puts("Solution")
+      IO.puts(print_grid(hd(CPSolver.solutions(solver))))
+    end)
+  end
+
   defp group_by_subsquares(cells) do
     square = :math.sqrt(length(cells)) |> floor
 
@@ -102,7 +115,13 @@ defmodule CPSolver.Examples.Sudoku do
     end
   end
 
-  def print_grid(cells) do
+  def print_grid(cells) when is_binary(cells) do
+    cells
+    |> sudoku_string_to_grid()
+    |> print_grid()
+  end
+
+  def print_grid(cells) when is_list(cells) do
     {dim, grid} =
       if is_list(hd(cells)) do
         {length(cells), cells}
