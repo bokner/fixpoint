@@ -82,12 +82,17 @@ defmodule CPSolver do
 
   defp handle_event(
          {:solution, new_solution},
-         %{solution_count: count, solutions: solutions, stop_on: stop_on} = state
+         %{solution_count: count, solutions: solutions, variables: variables, stop_on: stop_on} =
+           state
        ) do
     if check_for_stop(stop_on, new_solution, state) do
       stop_spaces(state)
     else
-      %{state | solution_count: count + 1, solutions: [new_solution | solutions]}
+      %{
+        state
+        | solution_count: count + 1,
+          solutions: [reconcile(new_solution, variables) | solutions]
+      }
     end
 
     ## TODO: check for stopping condition here.
@@ -132,14 +137,24 @@ defmodule CPSolver do
   end
 
   defp get_solutions(%{solutions: solutions} = _state) do
-    ## Here we piggy-back on the fact that the variables are ordered by their refs
-    ## in spaces, and the order there matches the order within solver state.
-    ## This may likely change, we will probably use var names instead of refs.
     solutions
     |> Enum.map(fn solution ->
       solution
-      |> Enum.sort_by(fn {ref, _value} -> ref end)
-      |> Enum.map(fn {_ref, value} -> value end)
+      |> Enum.map(fn {_var_name, value} -> value end)
+    end)
+  end
+
+  defp reconcile(solution, variables) do
+    ## We want to present a solution (which is var_name => value map) in order of initial variable names.
+    solution
+    |> Map.to_list()
+    |> Enum.sort_by(fn {var_name, _val} ->
+      Enum.find_index(
+        variables,
+        fn var ->
+          var.name == var_name
+        end
+      )
     end)
   end
 

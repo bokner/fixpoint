@@ -66,7 +66,7 @@ defmodule CPSolver.Space do
 
   def solution(%{variables: variables, store_impl: store_impl, store: store} = _data) do
     Enum.reduce(variables, Map.new(), fn var, acc ->
-      Map.put(acc, var.id, store_impl.get(store, var, :min))
+      Map.put(acc, var.name, store_impl.get(store, var, :min))
     end)
   end
 
