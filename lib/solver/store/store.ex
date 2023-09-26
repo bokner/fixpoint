@@ -19,7 +19,7 @@ defmodule CPSolver.ConstraintStore do
 
   ## Tell basic constraints (a.k.a, domains) to a constraint store
   @callback create(variables :: Enum.t(), opts :: Keyword.t()) ::
-              {:ok, Enum.t(), any()} | {:error, any()}
+              {:ok, any()} | {:error, any()}
 
   ## Get variable details
   @callback get(store :: any(), variable :: Variable.t(), get_operation(), [any()]) ::
@@ -97,5 +97,17 @@ defmodule CPSolver.ConstraintStore do
       defoverridable on_fail: 1
       defoverridable on_no_change: 1
     end
+  end
+
+  def create_store(store_impl, variables) do
+    {:ok, store_instance} = store_impl.create(variables)
+
+    {:ok,
+     Enum.map(variables, fn var ->
+       var
+       |> Map.put(:id, var.id)
+       |> Map.put(:name, var.name)
+       |> Map.put(:store, store_instance)
+     end), store_instance}
   end
 end

@@ -10,17 +10,14 @@ defmodule CPSolver.Store.Registry do
   def create(variables, _opts \\ []) do
     space = self()
 
-    {:ok,
-     Enum.map(
-       variables,
-       fn var ->
-         {:ok, _pid} = VariableAgent.create(var)
+    Enum.each(
+      variables,
+      fn var ->
+        {:ok, _pid} = VariableAgent.create(var)
+      end
+    )
 
-         %{}
-         |> Map.put(:id, var.id)
-         |> Map.put(:store, space)
-       end
-     ), space}
+    {:ok, space}
   end
 
   @impl true

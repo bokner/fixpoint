@@ -7,6 +7,7 @@ defmodule CPSolverTest.Propagator.Thread do
   describe "Propagator thread" do
     alias CPSolver.Propagator.Thread, as: PropagatorThread
     alias CPSolver.Store.Registry, as: Store
+    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable
     alias CPSolver.Variable
     alias CPSolver.Propagator.NotEqual
@@ -25,7 +26,7 @@ defmodule CPSolverTest.Propagator.Thread do
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var] = bound_vars, _store} = Store.create(variables)
+      {:ok, [x_var, y_var] = bound_vars, _store} = ConstraintStore.create_store(Store, variables)
 
       {:ok, propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, bound_vars},
@@ -56,7 +57,7 @@ defmodule CPSolverTest.Propagator.Thread do
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var] = bound_vars, store} = Store.create(variables)
+      {:ok, [x_var, y_var] = bound_vars, store} = ConstraintStore.create_store(Store, variables)
 
       {:ok, propagator_thread} = PropagatorThread.create_thread(self(), {NotEqual, bound_vars})
       Process.sleep(10)
@@ -85,7 +86,7 @@ defmodule CPSolverTest.Propagator.Thread do
 
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, bound_vars, _store} = Store.create(variables)
+      {:ok, bound_vars, _store} = ConstraintStore.create_store(Store, variables)
 
       assert capture_log([level: :debug], fn ->
                {:ok, propagator_thread} =
@@ -102,7 +103,7 @@ defmodule CPSolverTest.Propagator.Thread do
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, vars, _store} = Store.create(variables)
+      {:ok, vars, _store} = ConstraintStore.create_store(Store, variables)
 
       {:ok, propagator_thread} = PropagatorThread.create_thread(self(), {NotEqual, vars})
 
@@ -120,7 +121,7 @@ defmodule CPSolverTest.Propagator.Thread do
       y = 1..3
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var] = vars, store} = Store.create(variables)
+      {:ok, [x_var, y_var] = vars, store} = ConstraintStore.create_store(Store, variables)
 
       ## Detects stability on a startup
       assert capture_log([level: :debug], fn ->
@@ -151,7 +152,8 @@ defmodule CPSolverTest.Propagator.Thread do
       z = 2..2
       variables = Enum.map([x, y, z], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var, z_var] = _vars, _store} = Store.create(variables)
+      {:ok, [x_var, y_var, z_var] = _vars, _store} =
+        ConstraintStore.create_store(Store, variables)
 
       {:ok, _threadXY} =
         PropagatorThread.create_thread(self(), {NotEqual, [x_var, y_var]}, id: "X != Y")

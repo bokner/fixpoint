@@ -3,6 +3,7 @@ defmodule CPSolverTest.Search.FirstFail do
 
   describe "First-fail search strategy" do
     alias CPSolver.Store.Registry, as: Store
+    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.DefaultDomain, as: Domain
     alias CPSolver.Search.Strategy, as: SearchStrategy
@@ -19,7 +20,7 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = Store.create(variables)
+      {:ok, bound_vars, _store} = ConstraintStore.create_store(Store, variables)
       {localized_vars, _} = CPSolver.Utils.localize_variables(bound_vars)
       {:ok, selected_variable} = FirstFail.select_variable(localized_vars)
       v2_var = Enum.at(bound_vars, 2)
@@ -41,7 +42,7 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, _bound_vars, _store} = Store.create(variables)
+      {:ok, _bound_vars, _store} = ConstraintStore.create_store(Store, variables)
 
       assert FirstFail.select_variable(variables) ==
                {:error, SearchStrategy.all_vars_fixed_exception()}

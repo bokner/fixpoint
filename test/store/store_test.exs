@@ -3,6 +3,7 @@ defmodule CPSolverTest.Store do
 
   describe "Registry store" do
     alias CPSolver.Store.Registry, as: Store
+    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
 
     test "create variables in the space" do
@@ -11,7 +12,7 @@ defmodule CPSolverTest.Store do
       values = [v1_values, v2_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = Store.create(variables)
+      {:ok, bound_vars, _store} = ConstraintStore.create_store(Store, variables)
       ## Bound vars have space and ids assigned
       assert Enum.all?(bound_vars, fn var -> var end)
     end
@@ -23,7 +24,7 @@ defmodule CPSolverTest.Store do
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, store} = Store.create(variables)
+      {:ok, bound_vars, store} = ConstraintStore.create_store(Store, variables)
 
       store_var_ids = Store.get_variables(store)
       assert length(bound_vars) == store_var_ids |> length
@@ -44,7 +45,7 @@ defmodule CPSolverTest.Store do
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, store} = Store.create(variables)
+      {:ok, bound_vars, store} = ConstraintStore.create_store(Store, variables)
       # Min
       assert Enum.all?(Enum.zip(bound_vars, values), fn {var, vals} ->
                Store.get(store, var, :min) == Enum.min(vals)
@@ -78,7 +79,7 @@ defmodule CPSolverTest.Store do
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, store} = Store.create(variables)
+      {:ok, bound_vars, store} = ConstraintStore.create_store(Store, variables)
 
       [v1, v2, v3] = bound_vars
       # remove

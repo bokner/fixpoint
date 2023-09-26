@@ -9,18 +9,14 @@ defmodule CPSolver.Store.ETS do
     table_id =
       :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
 
-    {:ok,
-     Enum.map(
-       variables,
-       fn var ->
-         # Bind variable to the store instance
-         Map.put(var, :store, table_id)
-         |> tap(fn var ->
-           :ets.insert(table_id, {var.id, var})
-         end)
-         |> Map.take([:id, :store])
-       end
-     ), table_id}
+    Enum.each(
+      variables,
+      fn var ->
+        :ets.insert(table_id, {var.id, var})
+      end
+    )
+
+    {:ok, table_id}
   end
 
   @impl true

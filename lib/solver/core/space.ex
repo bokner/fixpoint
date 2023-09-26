@@ -7,6 +7,7 @@ defmodule CPSolver.Space do
 
   alias CPSolver.Utils
   alias __MODULE__, as: Space
+  alias CPSolver.ConstraintStore
   alias CPSolver.Propagator.Thread, as: Propagator
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
@@ -84,7 +85,7 @@ defmodule CPSolver.Space do
     solver = Keyword.get(space_opts, :solver)
     ## Subscribe solver to space events
     Utils.subscribe(solver, {:space, space_id})
-    {:ok, space_variables, store} = store_impl.create(variables)
+    {:ok, space_variables, store} = ConstraintStore.create_store(store_impl, variables)
 
     space_data = %Space{
       id: space_id,
@@ -291,11 +292,11 @@ defmodule CPSolver.Space do
       {:ok, {var_to_branch_on, domain_partitions}} ->
         Enum.map(domain_partitions, fn partition ->
           variable_copies =
-            Map.new(variable_clones, fn %{id: clone_id} = clone ->
+            Map.new(variable_clones, fn %{id: clone_id, name: clone_name} = clone ->
               if clone_id == var_to_branch_on.id do
-                {clone_id, Variable.new(partition, store: space_store)}
+                {clone_id, Variable.new(partition, store: space_store, name: clone_name)}
               else
-                {clone_id, Variable.new(clone.domain, store: space_store)}
+                {clone_id, Variable.new(clone.domain, store: space_store, name: clone_name)}
               end
             end)
 

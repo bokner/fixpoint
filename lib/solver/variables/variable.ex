@@ -22,9 +22,11 @@ defmodule CPSolver.Variable do
       @behaviour CPSolver.Variable
 
       def new(values, opts \\ default_opts()) do
+        id = make_ref()
+
         %Variable{
-          id: make_ref(),
-          name: Keyword.get(opts, :name),
+          id: id,
+          name: Keyword.get(opts, :name, id),
           store: Keyword.get(opts, :store),
           domain: Domain.new(values)
         }
@@ -44,11 +46,6 @@ defmodule CPSolver.Variable do
 
   def size(variable) do
     store_op(:size, variable)
-  end
-
-  def fixed?(%{domain: domain} = variable) do
-    Domain.fixed?(domain) ||
-      store_op(:fixed?, variable)
   end
 
   def fixed?(variable) do
