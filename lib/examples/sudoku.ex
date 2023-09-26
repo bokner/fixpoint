@@ -52,7 +52,7 @@ defmodule CPSolver.Examples.Sudoku do
       throw({:puzzle_not_valid, %{rows: dimension, cols: cols, square: square}})
     end
 
-    domain = 1..dimension
+    numbers = 1..dimension
 
     ## Variables
     cells =
@@ -61,11 +61,11 @@ defmodule CPSolver.Examples.Sudoku do
           var_name = "cell(#{i}, #{j})"
           cell = Enum.at(puzzle, i) |> Enum.at(j)
 
-          if cell in domain do
+          if cell in numbers do
             ## Cell is filled
             IntVariable.new(cell, name: var_name)
           else
-            IntVariable.new(domain, name: var_name)
+            IntVariable.new(numbers, name: var_name)
           end
         end)
       end)
@@ -103,19 +103,32 @@ defmodule CPSolver.Examples.Sudoku do
   end
 
   def print_grid(cells) do
-      gridline = "+-------+-------+-------+\n"
-      gridcol = "| "
+    {dim, grid} =
+      if is_list(hd(cells)) do
+        {length(cells), cells}
+      else
+        dim = :math.sqrt(length(cells)) |> floor
+        {dim, Enum.chunk_every(cells, dim)}
+      end
 
-      [
-        "\n" |
-        for i <- 0..8 do
-          [(if rem(i, 3) == 0, do: gridline, else: "")] ++
-          (for j <- 0..8 do
-             "#{if rem(j, 3) == 0, do: gridcol, else: ""}" <>
-             "#{print_cell(Enum.at(Enum.at(cells, i), j))} "
-           end) ++ ["#{gridcol}\n"]
+    square_dim = :math.sqrt(dim) |> floor()
+
+    gridline =
+      "+" <>
+        String.duplicate(String.duplicate("-", 2 * square_dim + 1) <> "+", square_dim) <> "\n"
+
+    gridcol = "| "
+
+    [
+      "\n"
+      | for i <- 0..(dim - 1) do
+          [if(rem(i, square_dim) == 0, do: gridline, else: "")] ++
+            for j <- 0..(dim - 1) do
+              "#{if rem(j, square_dim) == 0, do: gridcol, else: ""}" <>
+                "#{print_cell(Enum.at(Enum.at(grid, i), j))} "
+            end ++ ["#{gridcol}\n"]
         end
-      ] ++ [gridline]
+    ] ++ [gridline]
   end
 
   defp print_cell(0) do

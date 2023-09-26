@@ -51,9 +51,13 @@ defmodule CPSolver do
      }, {:continue, :solve}}
   end
 
-  defp constraint_to_propagators(constraint) do
+  defp constraint_to_propagators({constraint_mod, args}) when is_list(args) do
+    constraint_mod.propagators(args)
+  end
+
+  defp constraint_to_propagators(constraint) when is_tuple(constraint) do
     [constraint_mod | args] = Tuple.to_list(constraint)
-    constraint_mod.propagators(List.flatten(args)) |> Enum.uniq()
+    constraint_mod.propagators(args)
   end
 
   @impl true
@@ -64,7 +68,7 @@ defmodule CPSolver do
     {:ok, top_space} =
       Space.create(
         variables,
-        propagators |> Enum.map(&Propagator.normalize/1),
+        propagators |> Enum.map(&Propagator.normalize/1) |> Enum.uniq(),
         Keyword.put(solver_opts, :solver, self())
       )
 
