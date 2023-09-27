@@ -161,7 +161,8 @@ defmodule CPSolverTest.Propagator.Thread do
       {:ok, _threadYZ} =
         PropagatorThread.create_thread(self(), {NotEqual, [y_var, z_var]}, id: "Y != Z")
 
-      Process.sleep(5)
+      ## Give some time to propagate...
+      Process.sleep(10)
       assert 1 == Variable.min(x_var)
 
       ## Non-deterministic failure - fails on either 'y' or 'z', depending on which propagator fixes first.
