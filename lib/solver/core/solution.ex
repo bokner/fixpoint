@@ -12,6 +12,14 @@ defmodule CPSolver.Solution do
     handler.(solution)
   end
 
+  def solution_handler(handler, variables) do
+    fn solution ->
+      solution
+      |> reconcile(variables)
+      |> run_handler(handler)
+    end
+  end
+
   def reconcile(solution, variables) do
     ## We want to present a solution (which is var_name => value map) in order of initial variable names.
     solution

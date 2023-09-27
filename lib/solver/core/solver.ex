@@ -67,11 +67,18 @@ defmodule CPSolver do
         :solve,
         %{variables: variables, propagators: propagators, solver_opts: solver_opts} = state
       ) do
+    solution_handler_fun =
+      solver_opts
+      |> Keyword.get(:solution_handler, Solution.default_handler())
+      |> Solution.solution_handler(variables)
+
     {:ok, top_space} =
       Space.create(
         variables,
         propagators |> Enum.map(&Propagator.normalize/1) |> Enum.uniq(),
-        Keyword.put(solver_opts, :solver, self())
+        solver_opts
+        |> Keyword.put(:solver, self())
+        |> Keyword.put(:solution_handler, solution_handler_fun)
       )
 
     {:noreply, Map.put(state, :space, top_space)}
