@@ -65,8 +65,11 @@ defmodule CPSolver.Space do
   end
 
   def solution(%{variables: variables, store_impl: store_impl, store: store} = _data) do
-    Enum.reduce(variables, Map.new(), fn var, acc ->
-      Map.put(acc, var.name, store_impl.get(store, var, :min))
+    Enum.reduce_while(variables, Map.new(), fn var, acc ->
+      case store_impl.get(store, var, :min) do
+        :fail -> {:halt, :fail}
+        val -> {:cont, Map.put(acc, var.name, val)}
+      end
     end)
   end
 
@@ -243,14 +246,17 @@ defmodule CPSolver.Space do
   end
 
   defp handle_solved(%{solution_handler: solution_handler} = data) do
-    Logger.debug("The space #{inspect(data.id)} has been solved")
-
     data
     |> solution()
-    |> tap(fn solution -> publish(data, {:solution, solution}) end)
-    |> Solution.run_handler(solution_handler)
+    |> then(fn
+      :fail ->
+        handle_failure(data)
 
-    shutdown(data, :solved)
+      solution ->
+        publish(data, {:solution, solution})
+        Solution.run_handler(solution, solution_handler)
+        shutdown(data, :solved)
+    end)
   end
 
   defp handle_stable(data) do
