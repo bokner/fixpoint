@@ -5,6 +5,7 @@ defmodule CPSolver do
 
   alias CPSolver.Space
   alias CPSolver.Propagator
+  alias CPSolver.Constraint
   alias CPSolver.Solution
 
   use GenServer
@@ -33,7 +34,7 @@ defmodule CPSolver do
   def init([%{constraints: constraints, variables: variables} = _model, solver_opts]) do
     propagators =
       Enum.reduce(constraints, [], fn constraint, acc ->
-        acc ++ constraint_to_propagators(constraint)
+        acc ++ Constraint.constraint_to_propagators(constraint)
       end)
 
     stop_on = Keyword.get(solver_opts, :stop_on)
@@ -53,15 +54,6 @@ defmodule CPSolver do
      }, {:continue, :solve}}
   end
 
-  defp constraint_to_propagators({constraint_mod, args}) when is_list(args) do
-    constraint_mod.propagators(args)
-  end
-
-  defp constraint_to_propagators(constraint) when is_tuple(constraint) do
-    [constraint_mod | args] = Tuple.to_list(constraint)
-    constraint_mod.propagators(args)
-  end
-
   @impl true
   def handle_continue(
         :solve,
@@ -75,7 +67,7 @@ defmodule CPSolver do
     {:ok, top_space} =
       Space.create(
         variables,
-        propagators |> Enum.map(&Propagator.normalize/1) |> Enum.uniq(),
+        propagators |> Propagator.normalize(),
         solver_opts
         |> Keyword.put(:solver, self())
         |> Keyword.put(:solution_handler, solution_handler_fun)

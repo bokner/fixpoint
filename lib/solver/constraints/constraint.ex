@@ -20,4 +20,13 @@ defmodule CPSolver.Constraint do
       propagators: constraint_impl.propagators(args)
     }
   end
+
+  def constraint_to_propagators({constraint_mod, args}) when is_list(args) do
+    constraint_mod.propagators(args)
+  end
+
+  def constraint_to_propagators(constraint) when is_tuple(constraint) do
+    [constraint_mod | args] = Tuple.to_list(constraint)
+    constraint_mod.propagators(args)
+  end
 end

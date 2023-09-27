@@ -20,6 +20,12 @@ defmodule CPSolver.Propagator do
     end
   end
 
+  def normalize(propagators) when is_list(propagators) do
+    propagators
+    |> Enum.map(&normalize/1)
+    |> Enum.uniq()
+  end
+
   def normalize({_mod, args} = propagator) when is_list(args) do
     propagator
   end
