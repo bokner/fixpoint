@@ -11,6 +11,20 @@ defmodule CPSolver.Solution do
   def run_handler(solution, handler) when is_function(handler) do
     handler.(solution)
   end
+
+  def reconcile(solution, variables) do
+    ## We want to present a solution (which is var_name => value map) in order of initial variable names.
+    solution
+    |> Map.to_list()
+    |> Enum.sort_by(fn {var_name, _val} ->
+      Enum.find_index(
+        variables,
+        fn var ->
+          var.name == var_name
+        end
+      )
+    end)
+  end
 end
 
 defmodule CPSolver.Solution.DefaultHandler do
