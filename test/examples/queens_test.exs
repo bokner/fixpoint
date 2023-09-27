@@ -5,7 +5,7 @@ defmodule CPSolverTest.Examples.Queens do
 
   ## No solutions
   test "3 Queens" do
-    test_queens(3, 0)
+    test_queens(3, 0, trials: 100, timeout: 50)
   end
 
   test "4 Queens" do
@@ -34,8 +34,8 @@ defmodule CPSolverTest.Examples.Queens do
     Enum.each(1..opts[:trials], fn _ ->
       {:ok, solver} = Queens.solve(n, opts)
       Process.sleep(opts[:timeout])
-      assert CPSolver.statistics(solver).solution_count == expected_solutions
       assert Enum.all?(CPSolver.solutions(solver), fn sol -> Queens.check_solution(sol) end)
+      assert CPSolver.statistics(solver).solution_count == expected_solutions
     end)
   end
 end
