@@ -2,11 +2,12 @@ defmodule CPSolver.Propagator.Thread do
   alias CPSolver.Variable
   alias CPSolver.Common
   alias CPSolver.Utils
+  alias CPSolver.Propagator
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
 
   require Logger
 
-  @behaviour GenServer
+  @behaviour :gen_statem
 
   @domain_changes Common.domain_changes()
 
@@ -15,21 +16,22 @@ defmodule CPSolver.Propagator.Thread do
   ##
   ## Propagator thread is a process that handles life cycle of a propagator.
   ## TODO: details to follow.
-  def create_thread(space, propagator, opts \\ [id: make_ref()])
+  def create_thread(space, propagator, opts \\ [id: make_ref()], gen_statem_opts \\ [])
 
   def create_thread(
         space,
-        {propagator_mod, propagator_args} = _propagator,
-        opts
-      )
-      when is_atom(propagator_mod) do
-    {:ok, _thread} =
-      GenServer.start_link(__MODULE__, [space, propagator_mod, propagator_args, opts])
-  end
+        propagator,
+        opts,
+        gen_statem_opts
+      ) do
+    {propagator_mod, propagator_args} = Propagator.normalize(propagator)
 
-  def create_thread(space, propagator, opts) do
-    [propagator_mod | args] = Tuple.to_list(propagator)
-    create_thread(space, {propagator_mod, args}, opts)
+    {:ok, _thread} =
+      :gen_statem.start_link(
+        __MODULE__,
+        [space, propagator_mod, propagator_args, opts],
+        gen_statem_opts
+      )
   end
 
   def dispose(%{thread: pid} = _thread) do
@@ -37,7 +39,7 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   def dispose(pid) when is_pid(pid) do
-    (Process.alive?(pid) && GenServer.stop(pid)) || :not_found
+    (Process.alive?(pid) && :gen_statem.stop(pid)) || :not_found
   end
 
   ## Subscribe propagator thread to variables' events
@@ -53,7 +55,13 @@ defmodule CPSolver.Propagator.Thread do
     Variable.unsubscribe(thread, variable)
   end
 
-  ## GenServer callbacks
+  ## :gen_statem callbacks
+
+  @impl true
+  def callback_mode() do
+    [:state_functions, :state_enter]
+  end
+
   @impl true
   def init([space, propagator_mod, args, opts]) do
     store = Keyword.get(opts, :store)
@@ -67,7 +75,7 @@ defmodule CPSolver.Propagator.Thread do
     propagator_id = Keyword.get(opts, :id, make_ref())
     Utils.subscribe(space, {:propagator, propagator_id})
 
-    {:ok,
+    {:ok, :running,
      %{
        id: propagator_id,
        space: space,
@@ -89,52 +97,61 @@ defmodule CPSolver.Propagator.Thread do
            (Variable.fixed?(var) && acc) || MapSet.put(acc, var.id)
          end),
        propagator_opts: opts
-     }, {:continue, :filter}}
+     }, [{:next_event, :internal, :filter}]}
   end
 
-  @impl true
-  def handle_continue(:filter, data) do
+  def running(:enter, _prev_state, _data) do
+    :keep_state_and_data
+  end
+
+  def running(:internal, :filter, data) do
     filter(data)
   end
 
-  @impl true
-
-  def handle_info({:fail, var}, data) do
-    handle_failure(var, data)
+  def running(_, _, data) do
+    filter(data)
   end
 
-  def handle_info({:fixed, var}, data) do
+  def entailed(:enter, _prev_state, data) do
+    handle_entailed(data)
+  end
+
+  def failed(:enter, _prev_state, data) do
+    handle_failure(data, nil)
+  end
+
+  def stable(:enter, _prev_state, data) do
+    handle_stable(data)
+  end
+
+  def stable(:info, {:fail, var}, data) do
+    handle_failure(data, var)
+  end
+
+  def stable(:info, {:fixed, var}, data) do
     new_data = update_unfixed(data, var)
-
     unsubscribe_from_var(self(), var)
-
-    if entailed?(new_data) do
-      handle_entailed(new_data)
-    else
-      filter(new_data)
-    end
+    {:next_state, :running, new_data}
   end
 
-  def handle_info({domain_change, _var}, data) when domain_change in @domain_changes do
+  def stable(:info, {domain_change, _var}, data) when domain_change in @domain_changes do
     if domain_change in data.propagate_on do
-      filter(data)
+      {:next_state, :running, data}
     else
-      noop(data)
+      :keep_state_and_data
     end
-  end
-
-  ### end of GenServer callbacks
-  defp noop(data) do
-    {:noreply, data}
   end
 
   defp filter(%{propagator_impl: mod, args: args} = data) do
     Logger.debug("#{inspect(data.id)}: Propagation triggered")
+
+    ## Let the space know we are running
+    publish(data, :running)
     PropagatorVariable.reset_variable_ops()
 
     case mod.filter(args) do
       :stable ->
-        handle_stable(data)
+        {:next_state, :stable, data}
 
       _res ->
         ## If propagator doesn't explicitly return 'stable',
@@ -145,16 +162,16 @@ defmodule CPSolver.Propagator.Thread do
 
   defp handle_variable_ops(data) do
     case PropagatorVariable.get_variable_ops() do
-      {:fail, var} ->
-        handle_failure(var, data)
+      {:fail, _var} ->
+        {:next_state, :failed, data}
 
       ops when is_map(ops) ->
         {updated_data, changed?} = Enum.reduce(ops, {data, false}, &process_var_ops/2)
 
         cond do
-          entailed?(updated_data) -> handle_entailed(updated_data)
-          changed? -> handle_running(updated_data)
-          true -> handle_stable(updated_data)
+          entailed?(updated_data) -> {:next_state, :entailed, updated_data}
+          changed? -> {:next_state, :stable, updated_data}
+          true -> {:next_state, :stable, updated_data}
         end
     end
   end
@@ -175,12 +192,7 @@ defmodule CPSolver.Propagator.Thread do
   defp handle_stable(data) do
     Logger.debug("#{inspect(data.id)} Propagator is stable")
     !data.stable && publish(data, :stable)
-    {:noreply, %{data | stable: true}}
-  end
-
-  defp handle_running(data) do
-    publish(data, :running)
-    {:noreply, %{data | stable: false}}
+    {:next_state, :stable, %{data | stable: true}}
   end
 
   defp handle_entailed(data) do
@@ -189,8 +201,8 @@ defmodule CPSolver.Propagator.Thread do
     stop(data)
   end
 
-  def handle_failure(var, data) do
-    Logger.debug("#{inspect(data.id)} Propagator: Failure for #{inspect(var)}")
+  def handle_failure(data, var) do
+    var && Logger.debug("Failure for variable #{inspect(var)}")
     publish(data, :failed)
     stop(data)
   end
