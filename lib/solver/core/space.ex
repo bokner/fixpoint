@@ -269,13 +269,9 @@ defmodule CPSolver.Space do
           variables: variables
         } = data
       ) do
-    {variable_clones, all_fixed?} = Utils.localize_variables(variables)
+    {variable_clones, _all_fixed?} = Utils.localize_variables(variables)
 
-    case all_fixed? do
-      :fail -> handle_failure(data)
-      true -> handle_solved(data)
-      false -> do_distribute(data, variable_clones)
-    end
+    do_distribute(data, variable_clones)
   end
 
   def do_distribute(
