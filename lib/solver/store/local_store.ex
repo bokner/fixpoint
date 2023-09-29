@@ -1,4 +1,4 @@
-defmodule CPSolver.Store.LocalStore do
+defmodule CPSolver.Store.Local do
   alias CPSolver.ConstraintStore
   alias CPSolver.Variable.Agent, as: VariableAgent
 
@@ -13,7 +13,7 @@ defmodule CPSolver.Store.LocalStore do
       Map.new(
         variables,
         fn var ->
-          {:ok, pid} = VariableAgent.create(var)
+          {:ok, pid} = VariableAgent.create(var, registry: false)
           {var.id, %{agent: pid, subscriptions: []}}
         end
       )
@@ -28,17 +28,17 @@ defmodule CPSolver.Store.LocalStore do
 
   @impl true
   def domain(store, var) do
-    GenServer.call(store, {:domain, var})
+    GenServer.call(store, {:domain, var.id})
   end
 
   @impl true
-  def get(store, var, operation, args) do
-    GenServer.call(store, {:get, var, operation, args})
+  def get(store, var, operation, args \\ []) do
+    GenServer.call(store, {:get, var.id, operation, args})
   end
 
   @impl true
   def update_domain(store, var, operation, args \\ []) do
-    GenServer.call(store, {:update, var, operation, args})
+    GenServer.call(store, {:update, var.id, operation, args})
   end
 
   @impl true
@@ -74,24 +74,28 @@ defmodule CPSolver.Store.LocalStore do
 
   @impl true
   def handle_call({:domain, var}, _from, data) do
-    {:reply, VariableAgent.operation(var, :domain), data}
+    {:reply,
+     var
+     |> get_agent_pid(data)
+     |> VariableAgent.operation(:domain), data}
   end
 
-  def handle_call({operation, var, args}, _from, data) do
-    {:reply, VariableAgent.operation(var, operation, args), data}
-  end
-
-  def handle_call({request_kind, var, operation, args}, _from, %{agents: agents} = data)
+  def handle_call({request_kind, var, operation, args}, _from, data)
       when request_kind in [:update, :get] do
     ## Locate pid
     reply =
-      case Map.get(agents, var) do
+      var
+      |> get_agent_pid(data)
+      |> then(fn
         nil ->
           {:not_found, var}
 
-        %{pid: agent_pid} ->
+        agent_pid ->
           VariableAgent.operation(agent_pid, operation, args)
-      end
+          |> tap(fn result ->
+            request_kind == :update && notify_subscribers(var, {result, var}, data)
+          end)
+      end)
 
     {:reply, reply, data}
   end
@@ -102,12 +106,11 @@ defmodule CPSolver.Store.LocalStore do
   end
 
   @impl true
-  def handle_cast({:on_change, var, change}, %{agents: agents} = data) do
+  def handle_cast({:on_change, _var, _change}, data) do
     {:noreply, data}
   end
 
-  def handle_cast({:on_fail, var}, %{subscribers: subscribers} = data) do
-    notify_subscribers(var, :fail, data)
+  def handle_cast({:on_fail, _var}, data) do
     {:noreply, data}
   end
 
@@ -115,8 +118,20 @@ defmodule CPSolver.Store.LocalStore do
     {:noreply, data}
   end
 
-  def handle_cast({:subscribe, subscriptions}, data) do
-    {:noreply, data}
+  def handle_cast({:subscribe, subscriptions}, %{agents: agents} = data) do
+    new_data =
+      subscriptions
+      |> Enum.group_by(fn s -> s.variable end, fn s -> Map.delete(s, :variable) end)
+      |> Map.merge(agents, fn _var, new_subscr, agent ->
+        (new_subscr ++ agent.subscriptions)
+        |> Enum.uniq_by(fn s -> s.pid end)
+        |> then(fn updated_subscriptions ->
+          Map.put(agent, :subscriptions, updated_subscriptions)
+        end)
+      end)
+      |> then(fn updated_agents -> Map.put(data, :agents, Map.new(updated_agents)) end)
+
+    {:noreply, new_data}
   end
 
   def handle_cast(:stop, %{agents: agents} = data) do
@@ -124,7 +139,14 @@ defmodule CPSolver.Store.LocalStore do
     {:stop, :normal, data}
   end
 
-  defp notify_subscribers(var, event, %{agents: agents} = data) do
+  defp get_agent_pid(var_id, %{agents: agents} = _data) do
+    case Map.get(agents, var_id) do
+      nil -> nil
+      %{agent: pid} -> pid
+    end
+  end
+
+  defp notify_subscribers(var, event, %{agents: agents} = _data) do
     subscriptions = Map.get(agents, var) |> Map.get(:subscriptions)
     Enum.each(subscriptions, fn s -> notify(s, event) end)
   end

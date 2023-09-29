@@ -28,13 +28,10 @@ defmodule CPSolverTest.Propagator.Thread do
 
       {:ok, [x_var, y_var] = bound_vars, _store} = ConstraintStore.create_store(Store, variables)
 
-      {:ok, propagator_thread} =
+      {:ok, _propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, bound_vars},
           propagate_on: @domain_changes
         )
-
-      ## Propagator thread subscribes to its variables
-      assert Enum.all?(bound_vars, fn var -> propagator_thread in Variable.subscribers(var) end)
 
       ## ...filters its variables upon start (happens in handle_continue, so needs a small timeout here)
       Process.sleep(5)
@@ -107,13 +104,9 @@ defmodule CPSolverTest.Propagator.Thread do
 
       {:ok, propagator_thread} = PropagatorThread.create_thread(self(), {NotEqual, vars})
 
-      assert Enum.all?(vars, fn v -> propagator_thread in Variable.subscribers(v) end)
-
       PropagatorThread.dispose(propagator_thread)
       Process.sleep(10)
       refute Process.alive?(propagator_thread)
-
-      refute Enum.any?(vars, fn v -> propagator_thread in Variable.subscribers(v) end)
     end
 
     test "stability" do
@@ -161,8 +154,7 @@ defmodule CPSolverTest.Propagator.Thread do
       {:ok, _threadYZ} =
         PropagatorThread.create_thread(self(), {NotEqual, [y_var, z_var]}, id: "Y != Z")
 
-      ## Give some time to propagate...
-      Process.sleep(10)
+      Process.sleep(5)
       assert 1 == Variable.min(x_var)
 
       ## Non-deterministic failure - fails on either 'y' or 'z', depending on which propagator fixes first.

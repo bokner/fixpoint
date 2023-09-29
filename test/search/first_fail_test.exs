@@ -10,7 +10,6 @@ defmodule CPSolverTest.Search.FirstFail do
     alias CPSolver.Search.Strategy.FirstFail
 
     test "first_fail chooses unfixed variable with minimal domain size" do
-      store = :dummy
       v0_values = 0..0
       v1_values = 1..10
       # This domain is the smallest among unfixed
@@ -20,7 +19,7 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = ConstraintStore.create_store(Store, variables)
+      {:ok, bound_vars, store} = ConstraintStore.create_store(Store, variables)
       {localized_vars, _} = CPSolver.Utils.localize_variables(bound_vars)
       {:ok, selected_variable} = FirstFail.select_variable(localized_vars)
       v2_var = Enum.at(bound_vars, 2)

@@ -5,11 +5,17 @@ defmodule CPSolver.Variable.Agent do
   require Logger
 
   @behaviour GenServer
-  def create(%{id: id} = variable) do
-    {:ok, _} = Registry.register(StoreRegistry, id, self())
+  def create(%{id: id} = variable, opts \\ []) do
+    registry? = Keyword.get(opts, :registry, true)
 
-    {:ok, _pid} =
-      GenServer.start_link(__MODULE__, variable, name: StoreRegistry.variable_proc_id(variable))
+    if registry? do
+      {:ok, _} = Registry.register(StoreRegistry, id, self())
+
+      {:ok, _pid} =
+        GenServer.start_link(__MODULE__, variable, name: StoreRegistry.variable_proc_id(variable))
+    else
+      {:ok, _pid} = GenServer.start_link(__MODULE__, variable)
+    end
   end
 
   def dispose(variable) do
