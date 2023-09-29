@@ -35,11 +35,12 @@ defmodule CPSolver.ConstraintStore do
 
   @callback domain(store :: any(), variable :: Variable.t()) :: {:ok, any()} | {:error, any()}
 
-  @callback on_fail(variable :: Variable.t()) :: any()
+  @callback on_fail(store :: any(), variable :: Variable.t()) :: any()
 
-  @callback on_no_change(variable :: Variable.t()) :: any()
+  @callback on_no_change(store :: any(), variable :: Variable.t()) :: any()
 
   @callback on_change(
+              store :: any(),
               variable :: Variable.t(),
               change :: :fixed | :min_change | :max_change | :domain_change
             ) :: any()
@@ -56,37 +57,13 @@ defmodule CPSolver.ConstraintStore do
       def update(store, variable, operation, args) do
         update_domain(store, variable, operation, args)
         |> tap(fn
-          :fail -> on_fail(variable)
-          :no_change -> on_no_change(variable)
-          change when change in @domain_changes -> on_change(variable, change)
+          :fail -> on_fail(store, variable)
+          :no_change -> on_no_change(store, variable)
+          change when change in @domain_changes -> on_change(store, variable, change)
         end)
-      end
-
-      def on_change(var, domain_change) do
-        publish(var, domain_change)
-        |> tap(fn _ ->
-          Logger.debug("Domain change (#{domain_change}) for #{inspect(var.id)}")
-        end)
-      end
-
-      def on_fail(var) do
-        Logger.debug("Failure for variable #{inspect(var.id)}")
-        ## TODO: notify space (and maybe don't notify propagators)
-        publish(var, :fail)
-      end
-
-      def on_no_change(_var) do
-        :ok
-      end
-
-      defp publish(variable, event) do
-        Variable.publish(variable, {event, variable.id})
       end
 
       defoverridable update: 4
-      defoverridable on_change: 2
-      defoverridable on_fail: 1
-      defoverridable on_no_change: 1
     end
   end
 

@@ -64,6 +64,21 @@ defmodule CPSolver.Store.ETS do
     end)
   end
 
+  @impl true
+  def on_change(store, variable, change) do
+    CPSolver.Store.Registry.on_change(store, variable, change)
+  end
+
+  @impl true
+  def on_no_change(store, variable) do
+    CPSolver.Store.Registry.on_no_change(store, variable)
+  end
+
+  @impl true
+  def on_fail(store, variable) do
+    CPSolver.Store.Registry.on_fail(store, variable)
+  end
+
   defp update_variable(store, variable, domain) do
     :ets.insert(store, {variable.id, Map.put(variable, :domain, domain)})
   end

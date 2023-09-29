@@ -1,5 +1,6 @@
 defmodule CPSolver.Store.Registry do
   alias CPSolver.ConstraintStore, as: Store
+  alias CPSolver.Variable
   alias CPSolver.Variable.Agent, as: VariableAgent
 
   require Logger
@@ -8,7 +9,7 @@ defmodule CPSolver.Store.Registry do
 
   @impl true
   def create(variables, _opts \\ []) do
-    space = self()
+    store = self()
 
     Enum.each(
       variables,
@@ -17,7 +18,7 @@ defmodule CPSolver.Store.Registry do
       end
     )
 
-    {:ok, space}
+    {:ok, store}
   end
 
   @impl true
@@ -38,6 +39,30 @@ defmodule CPSolver.Store.Registry do
   @impl true
   def update_domain(_store, var, operation, args \\ []) do
     VariableAgent.operation(var, operation, args)
+  end
+
+  @impl true
+  def on_change(_store, var, domain_change) do
+    publish(var, domain_change)
+    |> tap(fn _ ->
+      Logger.debug("Domain change (#{domain_change}) for #{inspect(var.id)}")
+    end)
+  end
+
+  @impl true
+  def on_fail(_store, var) do
+    Logger.debug("Failure for variable #{inspect(var.id)}")
+    ## TODO: notify space (and maybe don't notify propagators)
+    publish(var, :fail)
+  end
+
+  @impl true
+  def on_no_change(_store, _var) do
+    :ok
+  end
+
+  defp publish(variable, event) do
+    Variable.publish(variable, {event, variable.id})
   end
 
   def variable_proc_id(variable) do
