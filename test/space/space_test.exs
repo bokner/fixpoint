@@ -10,8 +10,6 @@ defmodule CPSolverTest.Space do
     alias CPSolver.Propagator.NotEqual
     alias CPSolver.Solution
 
-    alias CPSolver.Utils
-
     setup do
       Logger.configure(level: :debug)
       on_exit(fn -> Logger.configure(level: :error) end)
@@ -40,11 +38,6 @@ defmodule CPSolverTest.Space do
         Enum.map(threads, fn {_id, thread} -> thread.thread end)
 
       assert Enum.all?(thread_pids, fn pid -> is_pid(pid) end)
-      # Check subscriptions
-      ## space -> propagators
-      assert Enum.all?(threads, fn {thread_id, _thread} ->
-               space in Utils.subscribers({:propagator, thread_id})
-             end)
     end
 
     test "stable space" do

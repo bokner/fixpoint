@@ -207,13 +207,12 @@ defmodule CPSolver.Propagator.Thread do
     %{data | unfixed_variables: MapSet.delete(unfixed, var)}
   end
 
-  defp publish(data, message) do
-    Utils.publish({:propagator, data.id}, {message, data.id})
+  defp publish(%{id: id, space: space} = _data, message) do
+    send(space, {message, id})
   end
 
   defp stop(data) do
     Enum.each(data.unfixed_variables, fn var -> Variable.unsubscribe(self(), var) end)
-    Utils.unsubscribe(data.space, {:propagator, data.id})
     {:stop, :normal, data}
   end
 end

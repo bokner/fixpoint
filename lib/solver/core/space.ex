@@ -86,8 +86,6 @@ defmodule CPSolver.Space do
     solution_handler = Keyword.get(space_opts, :solution_handler)
     search_strategy = Keyword.get(space_opts, :search)
     solver = Keyword.get(space_opts, :solver)
-    ## Subscribe solver to space events
-    Utils.subscribe(solver, {:space, space_id})
     {:ok, space_variables, store} = ConstraintStore.create_store(store_impl, variables)
 
     space_data = %Space{
@@ -97,6 +95,7 @@ defmodule CPSolver.Space do
       variables: space_variables,
       store_impl: store_impl,
       store: store,
+      solver: solver,
       opts: space_opts,
       solution_handler: solution_handler,
       search: search_strategy
@@ -349,7 +348,7 @@ defmodule CPSolver.Space do
   end
 
   defp publish(data, message) do
-    Utils.publish({:space, data.id}, message)
+    send(data.solver, message)
   end
 
   defp shutdown(%{keep_alive: keep_alive} = data, reason) do

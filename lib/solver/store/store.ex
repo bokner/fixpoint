@@ -66,7 +66,6 @@ defmodule CPSolver.ConstraintStore do
         publish(var, domain_change)
         |> tap(fn _ ->
           Logger.debug("Domain change (#{domain_change}) for #{inspect(var.id)}")
-          maybe_unsubscribe_all(domain_change, var)
         end)
       end
 
@@ -82,14 +81,6 @@ defmodule CPSolver.ConstraintStore do
 
       defp publish(variable, event) do
         Variable.publish(variable, {event, variable.id})
-      end
-
-      defp maybe_unsubscribe_all(:fixed, var) do
-        Enum.each(Variable.subscribers(var), fn pid -> Variable.unsubscribe(pid, var) end)
-      end
-
-      defp maybe_unsubscribe_all(_, _var) do
-        :ok
       end
 
       defoverridable update: 4
