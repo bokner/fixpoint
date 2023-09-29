@@ -1,7 +1,7 @@
 defmodule CPSolver.Store.Registry do
   alias CPSolver.ConstraintStore, as: Store
-  alias CPSolver.Variable
   alias CPSolver.Variable.Agent, as: VariableAgent
+  alias CPSolver.Utils
 
   require Logger
 
@@ -61,8 +61,25 @@ defmodule CPSolver.Store.Registry do
     :ok
   end
 
+  @impl true
+  def subscribe(_store, subscriptions) do
+    Enum.each(subscriptions, fn %{pid: pid, variable: var} -> subscribe_to_variable(pid, var) end)
+  end
+
   defp publish(variable, event) do
-    Variable.publish(variable, {event, variable.id})
+    Utils.publish(variable_topic(variable), {event, variable.id})
+  end
+
+  defp subscribe_to_variable(pid, variable) do
+    Utils.subscribe(pid, variable_topic(variable))
+  end
+
+  defp variable_topic(var) when is_map(var) do
+    variable_topic(var.id)
+  end
+
+  defp variable_topic(var) when is_reference(var) do
+    {:variable, var}
   end
 
   def variable_proc_id(variable) do

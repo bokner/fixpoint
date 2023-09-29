@@ -14,7 +14,7 @@ defmodule CPSolver.Store.LocalStore do
         variables,
         fn var ->
           {:ok, pid} = VariableAgent.create(var)
-          {var.id, %{pid: pid, subscribers: MapSet.new()}}
+          {var.id, %{agent: pid, subscriptions: []}}
         end
       )
 
@@ -61,6 +61,11 @@ defmodule CPSolver.Store.LocalStore do
     GenServer.call(store, :get_variables)
   end
 
+  @impl true
+  def subscribe(store, subscriptions) do
+    GenServer.cast(store, {:subscribe, subscriptions})
+  end
+
   ## GenServer callbacks
   @impl true
   def init([variable_agents, _opts]) do
@@ -97,8 +102,35 @@ defmodule CPSolver.Store.LocalStore do
   end
 
   @impl true
+  def handle_cast({:on_change, var, change}, %{agents: agents} = data) do
+    {:noreply, data}
+  end
+
+  def handle_cast({:on_fail, var}, %{subscribers: subscribers} = data) do
+    notify_subscribers(var, :fail, data)
+    {:noreply, data}
+  end
+
+  def handle_cast({:on_no_change, _var}, data) do
+    {:noreply, data}
+  end
+
+  def handle_cast({:subscribe, subscriptions}, data) do
+    {:noreply, data}
+  end
+
   def handle_cast(:stop, %{agents: agents} = data) do
     Enum.each(agents, fn %{pid: pid} = _agent -> Process.exit(pid, :brutal_kill) end)
     {:stop, :normal, data}
+  end
+
+  defp notify_subscribers(var, event, %{agents: agents} = data) do
+    subscriptions = Map.get(agents, var) |> Map.get(:subscriptions)
+    Enum.each(subscriptions, fn s -> notify(s, event) end)
+  end
+
+  defp notify(%{pid: subscriber, events: _events} = _subscription, event) do
+    ## TODO: notify based on the list of events
+    send(subscriber, event)
   end
 end

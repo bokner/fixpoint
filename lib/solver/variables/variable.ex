@@ -8,7 +8,6 @@ defmodule CPSolver.Variable do
         }
 
   alias CPSolver.Variable
-  alias CPSolver.Utils
   alias CPSolver.DefaultDomain, as: Domain
 
   import CPSolver.Propagator.Variable
@@ -94,29 +93,5 @@ defmodule CPSolver.Variable do
 
   defp store_op(:domain, variable) do
     get_store_impl().domain(variable.store, variable)
-  end
-
-  def subscribers(variable) do
-    Utils.subscribers(variable_topic(variable))
-  end
-
-  def subscribe(pid, variable) do
-    Utils.subscribe(pid, variable_topic(variable))
-  end
-
-  def unsubscribe(subscriber, var) do
-    Utils.unsubscribe(subscriber, variable_topic(var))
-  end
-
-  def publish(variable, message) do
-    Utils.publish(variable_topic(variable), message)
-  end
-
-  defp variable_topic(var) when is_map(var) do
-    variable_topic(var.id)
-  end
-
-  defp variable_topic(var) when is_reference(var) do
-    {:variable, var}
   end
 end

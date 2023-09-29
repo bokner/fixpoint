@@ -1,7 +1,6 @@
 defmodule CPSolver.Propagator.Thread do
   alias CPSolver.Variable
   alias CPSolver.Common
-  alias CPSolver.Utils
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
 
   require Logger
@@ -41,16 +40,10 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   ## Subscribe propagator thread to variables' events
-  defp subscribe_to_variables(thread, variables) do
-    Enum.each(variables, fn var -> subscribe_to_var(thread, var) end)
-  end
-
-  defp subscribe_to_var(thread, variable) do
-    Variable.subscribe(thread, variable)
-  end
-
-  defp unsubscribe_from_var(thread, variable) do
-    Variable.unsubscribe(thread, variable)
+  defp subscribe_to_variables(store, store_impl, thread, variables) do
+    variables
+    |> Enum.map(fn var -> %{pid: thread, variable: var} end)
+    |> then(fn subscriptions -> store_impl.subscribe(store, subscriptions) end)
   end
 
   ## GenServer callbacks
@@ -63,9 +56,8 @@ defmodule CPSolver.Propagator.Thread do
     propagator_vars =
       Enum.map(propagator_mod.variables(args), fn var -> Map.put(var, :store, store) end)
 
-    subscribe_to_variables(self(), propagator_vars)
+    subscribe_to_variables(store, store_impl, self(), propagator_vars)
     propagator_id = Keyword.get(opts, :id, make_ref())
-    Utils.subscribe(space, {:propagator, propagator_id})
 
     {:ok,
      %{
@@ -105,8 +97,6 @@ defmodule CPSolver.Propagator.Thread do
 
   def handle_info({:fixed, var}, data) do
     new_data = update_unfixed(data, var)
-
-    unsubscribe_from_var(self(), var)
 
     if entailed?(new_data) do
       handle_entailed(new_data)
@@ -212,7 +202,6 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   defp stop(data) do
-    Enum.each(data.unfixed_variables, fn var -> Variable.unsubscribe(self(), var) end)
     {:stop, :normal, data}
   end
 end

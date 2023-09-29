@@ -47,6 +47,11 @@ defmodule CPSolver.ConstraintStore do
 
   @callback get_variables(store :: any()) :: [any()]
 
+  @callback subscribe(
+              store :: any(),
+              subscriptions :: [%{pid: pid(), variable: any(), events: [any()]}]
+            ) :: :ok | :not_found
+
   ### API
   defmacro __using__(_) do
     quote do

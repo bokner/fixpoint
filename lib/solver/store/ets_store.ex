@@ -79,6 +79,11 @@ defmodule CPSolver.Store.ETS do
     CPSolver.Store.Registry.on_fail(store, variable)
   end
 
+  @impl true
+  def subscribe(store, subscriptions) do
+    CPSolver.Store.Registry.subscribe(store, subscriptions)
+  end
+
   defp update_variable(store, variable, domain) do
     :ets.insert(store, {variable.id, Map.put(variable, :domain, domain)})
   end
