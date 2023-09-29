@@ -35,6 +35,16 @@ defmodule CPSolver.Examples.Sudoku do
   ## We use AllDifferent constraint here.
   ##
 
+  def puzzles() do
+    %{
+      hard9x9:
+        "4...39.2..56............6.4......9..5..1..2...9..27.3..37............8.69.8.1....",
+      s9x9_1: "85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.",
+      s9x9_5: "8..6..9.5.............2.31...7318.6.24.....73...........279.1..5...8..36..3......",
+      s4x4: [[1, 0, 0, 0], [2, 3, 1, 0], [0, 0, 0, 2], [0, 2, 0, 0]]
+    }
+  end
+
   def solve(puzzle, solver_opts \\ [])
 
   def solve(puzzle, solver_opts) when is_binary(puzzle) do
