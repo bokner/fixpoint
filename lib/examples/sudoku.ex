@@ -114,6 +114,20 @@ defmodule CPSolver.Examples.Sudoku do
     end)
   end
 
+  def check_solution(solution) do
+    ## We assume it's 1-dimensional list
+    dim = :math.sqrt(length(solution)) |> floor()
+    grid = Enum.chunk_every(solution, dim)
+    transposed = Enum.zip_with(grid, &Function.identity/1)
+    squares = group_by_subsquares(grid)
+
+    checker_fun = fn line -> Enum.sort(line) == Enum.to_list(1..dim) end
+
+    Enum.all?([grid, transposed, squares], fn arrangement ->
+      Enum.all?(arrangement, checker_fun)
+    end)
+  end
+
   defp group_by_subsquares(cells) do
     square = :math.sqrt(length(cells)) |> floor
 
