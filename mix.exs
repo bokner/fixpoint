@@ -26,7 +26,6 @@ defmodule Cpsolver.MixProject do
   defp deps do
     [
       {:libgraph, "~> 0.16.0"},
-      {:ebus, "~> 0.3", hex: :erlbus},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:replbug, "~> 1.0", only: :dev}
