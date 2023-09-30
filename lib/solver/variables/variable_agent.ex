@@ -1,28 +1,11 @@
 defmodule CPSolver.Variable.Agent do
   alias CPSolver.DefaultDomain, as: Domain
-  alias CPSolver.Store.Registry, as: StoreRegistry
 
   require Logger
 
   @behaviour GenServer
-  def create(%{id: id} = variable, opts \\ []) do
-    registry? = Keyword.get(opts, :registry, true)
-
-    if registry? do
-      {:ok, _} = Registry.register(StoreRegistry, id, self())
-
-      {:ok, _pid} =
-        GenServer.start_link(__MODULE__, variable, name: StoreRegistry.variable_proc_id(variable))
-    else
-      {:ok, _pid} = GenServer.start_link(__MODULE__, variable)
-    end
-  end
-
-  def dispose(variable) do
-    case GenServer.whereis(StoreRegistry.variable_proc_id(variable)) do
-      nil -> false
-      pid when is_pid(pid) -> Process.exit(pid, :brutal_kill)
-    end
+  def create(variable) do
+    {:ok, _pid} = GenServer.start_link(__MODULE__, variable)
   end
 
   @impl true
@@ -35,11 +18,6 @@ defmodule CPSolver.Variable.Agent do
 
   def operation(var, operation, args) when is_pid(var) do
     do_operation(var, operation, args)
-  end
-
-  def operation(var, operation, args) do
-    handle = StoreRegistry.variable_proc_id(var)
-    do_operation(handle, operation, args)
   end
 
   defp do_operation(variable_handle, operation, args) do

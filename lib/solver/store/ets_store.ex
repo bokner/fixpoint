@@ -65,23 +65,23 @@ defmodule CPSolver.Store.ETS do
   end
 
   @impl true
-  def on_change(store, variable, change) do
-    CPSolver.Store.Registry.on_change(store, variable, change)
+  def on_change(_store, _variable, _change) do
+    :ok
   end
 
   @impl true
-  def on_no_change(store, variable) do
-    CPSolver.Store.Registry.on_no_change(store, variable)
+  def on_no_change(_store, _variable) do
+    :ok
   end
 
   @impl true
-  def on_fail(store, variable) do
-    CPSolver.Store.Registry.on_fail(store, variable)
+  def on_fail(_store, _variable) do
+    :ok
   end
 
   @impl true
-  def subscribe(store, subscriptions) do
-    CPSolver.Store.Registry.subscribe(store, subscriptions)
+  def subscribe(_store, _subscriptions) do
+    :ok
   end
 
   defp update_variable(store, variable, domain) do

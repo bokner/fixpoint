@@ -14,7 +14,7 @@ defmodule CPSolver.Store.Local do
       Map.new(
         variables,
         fn var ->
-          {:ok, pid} = VariableAgent.create(var, registry: false)
+          {:ok, pid} = VariableAgent.create(var)
           {var.id, %{agent: pid, subscriptions: []}}
         end
       )
