@@ -141,5 +141,24 @@ defmodule CPSolverTest.Store do
       id = v1.id
       assert_received {:min_change, ^id}, 10
     end
+
+    test "Dispose of store variables for Local" do
+      v1_values = -5..5
+      v2_values = 1..10
+      v3_values = 1..2
+      values = [v1_values, v2_values, v3_values]
+
+      variables = Enum.map(values, fn d -> Variable.new(d) end)
+
+      {:ok, _bound_vars, store, store_impl} =
+        ConstraintStore.create_store(variables, CPSolver.Store.Local)
+
+      store_data = :sys.get_state(store)
+      assert Enum.all?(store_data.variables, fn {_id, %{agent: pid}} -> Process.alive?(pid) end)
+      store_impl.dispose(store, :ignore)
+      Process.sleep(10)
+      assert Enum.all?(store_data.variables, fn {_id, %{agent: pid}} -> !Process.alive?(pid) end)
+      refute Process.alive?(store)
+    end
   end
 end

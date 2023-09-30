@@ -130,12 +130,6 @@ defmodule CPSolverTest.Space do
       assert number_of_occurences(log, "<- 1") == 1
     end
 
-    test "distribute space" do
-      %{space: _space} = create_stable_space()
-      Process.sleep(10)
-      :to_complete
-    end
-
     defp create_solved_space(space_opts \\ []) do
       x_values = 1..2
       y_values = 1..1

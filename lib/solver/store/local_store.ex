@@ -137,7 +137,7 @@ defmodule CPSolver.Store.Local do
 
   def handle_cast(:stop, %{variables: variables} = data) do
     Enum.each(variables, fn {_var_id, %{agent: pid}} = _agent ->
-      Process.exit(pid, :brutal_kill)
+      GenServer.stop(pid)
     end)
 
     {:stop, :normal, data}
