@@ -12,9 +12,10 @@
 9. Control the solver (async ops: stop, get stats etc.).
 10. More granular propagation (domain vs. bound consistency) 
 
-11. Do not rely on vars' ref() order to match with their solutions
+~~11. Do not rely on vars' ref() order to match with their solutions~~ done
 
-12. Write models for ~~Queens~~(done) and Sudoku puzzles.
+12. Write models for ~~Queens~~(done) and ~~Sudoku~~ (done) puzzles.
 13. Wrap 'select_variable' and 'partition' funcs into 'branching' interface.
 14. Rewrite propagator thread to gen_statem.
 15. Rewrite Space to use graph store.
+16. Implement **less_or_equal** constraint.

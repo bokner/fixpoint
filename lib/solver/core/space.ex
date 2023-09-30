@@ -86,7 +86,9 @@ defmodule CPSolver.Space do
     solution_handler = Keyword.get(space_opts, :solution_handler)
     search_strategy = Keyword.get(space_opts, :search)
     solver = Keyword.get(space_opts, :solver)
-    {:ok, space_variables, store} = ConstraintStore.create_store(store_impl, variables)
+
+    {:ok, space_variables, store, store_impl} =
+      ConstraintStore.create_store(variables, store_impl)
 
     space_data = %Space{
       id: space_id,

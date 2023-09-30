@@ -1,5 +1,6 @@
 defmodule CPSolver.Store.Local do
   alias CPSolver.ConstraintStore
+  alias CPSolver.Variable
   alias CPSolver.Variable.Agent, as: VariableAgent
 
   use ConstraintStore
@@ -9,7 +10,7 @@ defmodule CPSolver.Store.Local do
   ## Store callbacks
   @impl true
   def create(variables, opts \\ []) do
-    variable_agents =
+    variable_map =
       Map.new(
         variables,
         fn var ->
@@ -18,7 +19,7 @@ defmodule CPSolver.Store.Local do
         end
       )
 
-    {:ok, _store} = GenServer.start_link(__MODULE__, [variable_agents, opts])
+    {:ok, _store} = GenServer.start_link(__MODULE__, [variable_map, opts])
   end
 
   @impl true
@@ -63,13 +64,13 @@ defmodule CPSolver.Store.Local do
 
   @impl true
   def subscribe(store, subscriptions) do
-    GenServer.cast(store, {:subscribe, subscriptions})
+    GenServer.cast(store, {:subscribe, Enum.map(subscriptions, &normalize_subscription/1)})
   end
 
   ## GenServer callbacks
   @impl true
-  def init([variable_agents, _opts]) do
-    {:ok, %{agents: variable_agents}}
+  def init([variables, _opts]) do
+    {:ok, %{variables: variables}}
   end
 
   @impl true
@@ -93,15 +94,15 @@ defmodule CPSolver.Store.Local do
         agent_pid ->
           VariableAgent.operation(agent_pid, operation, args)
           |> tap(fn result ->
-            request_kind == :update && notify_subscribers(var, {result, var}, data)
+            request_kind == :update && notify_subscribers(var, result, data)
           end)
       end)
 
     {:reply, reply, data}
   end
 
-  def handle_call(:get_variables, _from, %{agents: agents} = data) do
-    var_ids = Map.keys(agents)
+  def handle_call(:get_variables, _from, %{variables: variables} = data) do
+    var_ids = Map.keys(variables)
     {:reply, var_ids, data}
   end
 
@@ -118,41 +119,67 @@ defmodule CPSolver.Store.Local do
     {:noreply, data}
   end
 
-  def handle_cast({:subscribe, subscriptions}, %{agents: agents} = data) do
+  def handle_cast({:subscribe, subscriptions}, %{variables: variables} = data) do
     new_data =
       subscriptions
       |> Enum.group_by(fn s -> s.variable end, fn s -> Map.delete(s, :variable) end)
-      |> Map.merge(agents, fn _var, new_subscr, agent ->
+      |> Map.merge(variables, fn _var, new_subscr, agent ->
         (new_subscr ++ agent.subscriptions)
         |> Enum.uniq_by(fn s -> s.pid end)
         |> then(fn updated_subscriptions ->
           Map.put(agent, :subscriptions, updated_subscriptions)
         end)
       end)
-      |> then(fn updated_agents -> Map.put(data, :agents, Map.new(updated_agents)) end)
+      |> then(fn updated_variables -> Map.put(data, :variables, Map.new(updated_variables)) end)
 
     {:noreply, new_data}
   end
 
-  def handle_cast(:stop, %{agents: agents} = data) do
-    Enum.each(agents, fn %{pid: pid} = _agent -> Process.exit(pid, :brutal_kill) end)
+  def handle_cast(:stop, %{variables: variables} = data) do
+    Enum.each(variables, fn {_var_id, %{agent: pid}} = _agent ->
+      GenServer.stop(pid)
+    end)
+
     {:stop, :normal, data}
   end
 
-  defp get_agent_pid(var_id, %{agents: agents} = _data) do
-    case Map.get(agents, var_id) do
+  defp get_agent_pid(var_id, %{variables: variables} = _data) do
+    case Map.get(variables, var_id) do
       nil -> nil
       %{agent: pid} -> pid
     end
   end
 
-  defp notify_subscribers(var, event, %{agents: agents} = _data) do
-    subscriptions = Map.get(agents, var) |> Map.get(:subscriptions)
-    Enum.each(subscriptions, fn s -> notify(s, event) end)
+  defp normalize_subscription(%{variable: variable, events: events} = subscription) do
+    %{subscription | variable: variable_id(variable), events: normalize_events(events)}
   end
 
-  defp notify(%{pid: subscriber, events: _events} = _subscription, event) do
+  defp variable_id(%Variable{id: id}) do
+    id
+  end
+
+  defp variable_id(id) do
+    id
+  end
+
+  defp normalize_events(events) do
+    ## :fixed is mandatory
+    events
+    |> Enum.uniq()
+    |> then(fn deduped -> (Enum.member?(deduped, :fixed) && deduped) || [:fixed | deduped] end)
+  end
+
+  defp notify_subscribers(_var, :no_change, _) do
+    :ignore
+  end
+
+  defp notify_subscribers(var, event, %{variables: variables} = _data) do
+    subscriptions = Map.get(variables, var) |> Map.get(:subscriptions)
+    Enum.each(subscriptions, fn s -> notify(s, var, event) end)
+  end
+
+  defp notify(%{pid: subscriber, events: _events} = _subscription, var, event) do
     ## TODO: notify based on the list of events
-    send(subscriber, event)
+    send(subscriber, {event, var})
   end
 end
