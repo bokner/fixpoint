@@ -12,7 +12,7 @@ defmodule CPSolver.ConstraintStore do
   @type update_operation :: Common.domain_update_operation()
 
   def default_store() do
-    CPSolver.Store.Registry
+    CPSolver.Store.Local
   end
 
   ### Callbacks
@@ -72,7 +72,7 @@ defmodule CPSolver.ConstraintStore do
     end
   end
 
-  def create_store(store_impl, variables) do
+  def create_store(variables, store_impl \\ default_store()) do
     {:ok, store_instance} = store_impl.create(variables)
 
     {:ok,
@@ -81,6 +81,6 @@ defmodule CPSolver.ConstraintStore do
        |> Map.put(:id, var.id)
        |> Map.put(:name, var.name)
        |> Map.put(:store, store_instance)
-     end), store_instance}
+     end), store_instance, store_impl}
   end
 end

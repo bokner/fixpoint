@@ -53,8 +53,16 @@ defmodule CPSolver.Propagator.Thread do
     store_impl = Keyword.get(opts, :store_impl, CPSolver.ConstraintStore.default_store())
     PropagatorVariable.set_store_impl(store_impl)
 
-    propagator_vars =
-      Enum.map(propagator_mod.variables(args), fn var -> Map.put(var, :store, store) end)
+    propagator_args =
+      Enum.map(args, fn
+        %Variable{} = arg ->
+          Map.put(arg, :store, store)
+
+        const ->
+          const
+      end)
+
+    propagator_vars = propagator_mod.variables(propagator_args)
 
     subscribe_to_variables(store, store_impl, self(), propagator_vars, propagator_mod.events())
     propagator_id = Keyword.get(opts, :id, make_ref())
@@ -68,14 +76,7 @@ defmodule CPSolver.Propagator.Thread do
        stable: false,
        propagator_impl: propagator_mod,
        propagate_on: Keyword.get(opts, :propagate_on, propagator_mod.events()),
-       args:
-         Enum.map(args, fn
-           %Variable{} = arg ->
-             Map.put(arg, :store, store)
-
-           const ->
-             const
-         end),
+       args: propagator_args,
        unfixed_variables:
          Enum.reduce(propagator_vars, MapSet.new(), fn var, acc ->
            (Variable.fixed?(var) && acc) || MapSet.put(acc, var.id)
@@ -180,7 +181,7 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   def handle_failure(var, data) do
-    Logger.debug("#{inspect(data.id)} Propagator: Failure for #{inspect(var)}")
+    Logger.debug("#{inspect(data.id)} Propagator: Failure for variable #{inspect(var)}")
     publish(data, :failed)
     stop(data)
   end
