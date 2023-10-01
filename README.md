@@ -6,5 +6,5 @@ The implementation follows the ideas described in Chapter 12, "Concepts, Techniq
 
 [An overview of CP implementation in Mozart/Oz.](http://mozart2.org/mozart-v1/doc-1.4.0/fdt/index.html)
 ## Status
-WIP. 'not_equal' and (basic) 'all_different' constraints are implemented. Sudoku and small instances of Graph Coloring and N-Queens work,
+WIP. `not_equal` and (basic) `all_different` constraints are implemented. Sudoku and small instances of Graph Coloring and N-Queens work,
 but are slow and unstable. Significant API changes and core implementation rewrites are expected.
