@@ -153,11 +153,8 @@ defmodule CPSolverTest.Store do
       {:ok, _bound_vars, store, store_impl} =
         ConstraintStore.create_store(variables, CPSolver.Store.Local)
 
-      store_data = :sys.get_state(store)
-      assert Enum.all?(store_data.variables, fn {_id, %{agent: pid}} -> Process.alive?(pid) end)
       store_impl.dispose(store, :ignore)
       Process.sleep(10)
-      assert Enum.all?(store_data.variables, fn {_id, %{agent: pid}} -> !Process.alive?(pid) end)
       refute Process.alive?(store)
     end
   end

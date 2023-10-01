@@ -1,7 +1,7 @@
 defmodule CPSolver.Store.Local do
   alias CPSolver.ConstraintStore
   alias CPSolver.Variable
-  alias CPSolver.Variable.Agent, as: VariableAgent
+  alias CPSolver.DefaultDomain, as: Domain
 
   use ConstraintStore
 
@@ -14,8 +14,7 @@ defmodule CPSolver.Store.Local do
       Map.new(
         variables,
         fn var ->
-          {:ok, pid} = VariableAgent.create(var)
-          {var.id, %{agent: pid, subscriptions: []}}
+          {var.id, %{domain: Domain.new(var.domain), subscriptions: []}}
         end
       )
 
@@ -75,30 +74,14 @@ defmodule CPSolver.Store.Local do
 
   @impl true
   def handle_call({:domain, var}, _from, data) do
-    {:reply,
-     var
-     |> get_agent_pid(data)
-     |> VariableAgent.operation(:domain), data}
+    {:reply, get_domain(var, data), data}
   end
 
   def handle_call({request_kind, var, operation, args}, _from, data)
       when request_kind in [:update, :get] do
-    ## Locate pid
-    reply =
-      var
-      |> get_agent_pid(data)
-      |> then(fn
-        nil ->
-          {:not_found, var}
-
-        agent_pid ->
-          VariableAgent.operation(agent_pid, operation, args)
-          |> tap(fn result ->
-            request_kind == :update && notify_subscribers(var, result, data)
-          end)
-      end)
-
-    {:reply, reply, data}
+    var
+    |> get_domain(data)
+    |> handle_request(request_kind, var, operation, args, data)
   end
 
   def handle_call(:get_variables, _from, %{variables: variables} = data) do
@@ -135,19 +118,54 @@ defmodule CPSolver.Store.Local do
     {:noreply, new_data}
   end
 
-  def handle_cast(:stop, %{variables: variables} = data) do
-    Enum.each(variables, fn {_var_id, %{agent: pid}} = _agent ->
-      GenServer.stop(pid)
-    end)
-
+  def handle_cast(:stop, data) do
     {:stop, :normal, data}
   end
 
-  defp get_agent_pid(var_id, %{variables: variables} = _data) do
+  defp handle_request(nil, _, _, _, _, data) do
+    {:reply, :not_found, data}
+  end
+
+  defp handle_request(:fail, _, _, _, _, data) do
+    {:reply, :fail, data}
+  end
+
+  defp handle_request(domain, :get, _variable, operation, args, data) do
+    {:reply, apply(Domain, operation, [domain | args]), data}
+  end
+
+  defp handle_request(domain, :update, variable, operation, args, data) do
+    {result, new_data} =
+      case apply(Domain, operation, [domain | args]) do
+        :fail ->
+          {:fail, update_variable_domain(variable, :fail, :fail, data)}
+
+        :no_change ->
+          {:no_change, data}
+
+        {domain_change, new_domain} ->
+          {domain_change, update_variable_domain(variable, new_domain, domain_change, data)}
+      end
+
+    {:reply, result, new_data}
+  end
+
+  defp get_domain(var_id, %{variables: variables} = _data) do
     case Map.get(variables, var_id) do
       nil -> nil
-      %{agent: pid} -> pid
+      %{domain: domain} -> domain
     end
+  end
+
+  defp update_variable_domain(var_id, domain, event, %{variables: variables} = data) do
+    variables
+    |> Map.get(var_id)
+    |> Map.put(:domain, domain)
+    |> then(fn updated_var ->
+      updated_vars = Map.put(variables, var_id, updated_var)
+      Map.put(data, :variables, updated_vars)
+    end)
+    |> tap(fn updated_data -> notify_subscribers(var_id, event, updated_data) end)
   end
 
   defp normalize_subscription(%{variable: variable, events: events} = subscription) do
