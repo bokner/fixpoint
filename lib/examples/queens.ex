@@ -35,12 +35,12 @@ defmodule CPSolver.Examples.Queens do
       CPSolver.solve(model, solver_opts)
   end
 
-  def solve_and_print(nqueens) do
+  def solve_and_print(nqueens, opts \\ [timeout: 1000]) do
     Logger.configure(level: :error)
 
     solve(nqueens, stop_on: {:max_solutions, 1})
     |> tap(fn {:ok, solver} ->
-      Process.sleep(1000)
+      Process.sleep(Keyword.get(opts, :timeout))
       IO.puts(print_board(hd(CPSolver.solutions(solver))))
     end)
   end
