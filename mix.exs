@@ -28,7 +28,7 @@ defmodule Cpsolver.MixProject do
       {:libgraph, "~> 0.16.0"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
-      {:replbug, "~> 1.0", only: :dev}
+      {:replbug, "~> 1.0.2", only: :dev}
     ]
   end
 
