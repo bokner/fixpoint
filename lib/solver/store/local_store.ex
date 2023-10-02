@@ -1,6 +1,5 @@
 defmodule CPSolver.Store.Local do
   alias CPSolver.ConstraintStore
-  alias CPSolver.Variable
   alias CPSolver.DefaultDomain, as: Domain
 
   use ConstraintStore
@@ -42,18 +41,18 @@ defmodule CPSolver.Store.Local do
   end
 
   @impl true
-  def on_change(store, variable, change) do
-    GenServer.cast(store, {:on_change, variable, change})
+  def on_change(_store, _variable, _change) do
+    :ok
   end
 
   @impl true
-  def on_fail(store, variable) do
-    GenServer.cast(store, {:on_fail, variable})
+  def on_fail(_store, _variable) do
+    :ok
   end
 
   @impl true
-  def on_no_change(store, variable) do
-    GenServer.cast(store, {:on_no_change, variable})
+  def on_no_change(_store, _variable) do
+    :ok
   end
 
   @impl true
@@ -63,7 +62,10 @@ defmodule CPSolver.Store.Local do
 
   @impl true
   def subscribe(store, subscriptions) do
-    GenServer.cast(store, {:subscribe, Enum.map(subscriptions, &normalize_subscription/1)})
+    GenServer.cast(
+      store,
+      {:subscribe, Enum.map(subscriptions, &ConstraintStore.normalize_subscription/1)}
+    )
   end
 
   ## GenServer callbacks
@@ -90,27 +92,15 @@ defmodule CPSolver.Store.Local do
   end
 
   @impl true
-  def handle_cast({:on_change, _var, _change}, data) do
-    {:noreply, data}
-  end
-
-  def handle_cast({:on_fail, _var}, data) do
-    {:noreply, data}
-  end
-
-  def handle_cast({:on_no_change, _var}, data) do
-    {:noreply, data}
-  end
-
   def handle_cast({:subscribe, subscriptions}, %{variables: variables} = data) do
     new_data =
       subscriptions
       |> Enum.group_by(fn s -> s.variable end, fn s -> Map.delete(s, :variable) end)
-      |> Map.merge(variables, fn _var, new_subscr, agent ->
-        (new_subscr ++ agent.subscriptions)
+      |> Map.merge(variables, fn _var, new_subscr, variable ->
+        (new_subscr ++ variable.subscriptions)
         |> Enum.uniq_by(fn s -> s.pid end)
         |> then(fn updated_subscriptions ->
-          Map.put(agent, :subscriptions, updated_subscriptions)
+          Map.put(variable, :subscriptions, updated_subscriptions)
         end)
       end)
       |> then(fn updated_variables -> Map.put(data, :variables, Map.new(updated_variables)) end)
@@ -168,36 +158,12 @@ defmodule CPSolver.Store.Local do
     |> tap(fn updated_data -> notify_subscribers(var_id, event, updated_data) end)
   end
 
-  defp normalize_subscription(%{variable: variable, events: events} = subscription) do
-    %{subscription | variable: variable_id(variable), events: normalize_events(events)}
-  end
-
-  defp variable_id(%Variable{id: id}) do
-    id
-  end
-
-  defp variable_id(id) do
-    id
-  end
-
-  defp normalize_events(events) do
-    ## :fixed is mandatory
-    events
-    |> Enum.uniq()
-    |> then(fn deduped -> (Enum.member?(deduped, :fixed) && deduped) || [:fixed | deduped] end)
-  end
-
   defp notify_subscribers(_var, :no_change, _) do
     :ignore
   end
 
   defp notify_subscribers(var, event, %{variables: variables} = _data) do
     subscriptions = Map.get(variables, var) |> Map.get(:subscriptions)
-    Enum.each(subscriptions, fn s -> notify(s, var, event) end)
-  end
-
-  defp notify(%{pid: subscriber, events: _events} = _subscription, var, event) do
-    ## TODO: notify based on the list of events
-    send(subscriber, {event, var})
+    Enum.each(subscriptions, fn s -> ConstraintStore.notify_subscriber(s, var, event) end)
   end
 end
