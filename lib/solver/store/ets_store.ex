@@ -2,6 +2,7 @@ defmodule CPSolver.Store.ETS do
   alias CPSolver.DefaultDomain, as: Domain
 
   use CPSolver.ConstraintStore
+  alias CPSolver.ConstraintStore
   @domain_changes CPSolver.Common.domain_changes()
 
   @impl true
@@ -12,7 +13,7 @@ defmodule CPSolver.Store.ETS do
     Enum.each(
       variables,
       fn var ->
-        :ets.insert(table_id, {var.id, var})
+        :ets.insert(table_id, {var.id, %{domain: Domain.new(var.domain), subscriptions: []}})
       end
     )
 
@@ -51,11 +52,11 @@ defmodule CPSolver.Store.ETS do
         apply(Domain, operation, [d | args])
         |> then(fn
           {domain_change, new_domain} when domain_change in @domain_changes ->
-            update_variable(store, variable, new_domain)
+            update_variable_domain(store, variable, new_domain)
             domain_change
 
           :fail ->
-            update_variable(store, variable, :fail)
+            update_variable_domain(store, variable, :fail)
             :fail
 
           :no_change ->
@@ -80,11 +81,27 @@ defmodule CPSolver.Store.ETS do
   end
 
   @impl true
-  def subscribe(_store, _subscriptions) do
-    :ok
+  def subscribe(store, subscriptions) do
+    variables = :ets.tab2list(store) |> Map.new()
+
+    subscriptions
+    |> Enum.map(&ConstraintStore.normalize_subscription/1)
+    |> Enum.group_by(fn s -> s.variable end, fn s -> Map.delete(s, :variable) end)
+    |> Map.merge(variables, fn _var, new_subscr, variable ->
+      (new_subscr ++ variable.subscriptions)
+      |> Enum.uniq_by(fn s -> s.pid end)
+      |> then(fn updated_subscriptions ->
+        Map.put(variable, :subscriptions, updated_subscriptions)
+      end)
+    end)
+    |> then(fn updated_variables ->
+      Enum.each(updated_variables, fn {var_id, var_data} ->
+        :ets.insert(store, {var_id, var_data})
+      end)
+    end)
   end
 
-  defp update_variable(store, variable, domain) do
+  defp update_variable_domain(store, variable, domain) do
     :ets.insert(store, {variable.id, Map.put(variable, :domain, domain)})
   end
 

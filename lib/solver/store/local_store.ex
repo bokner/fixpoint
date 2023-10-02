@@ -166,4 +166,5 @@ defmodule CPSolver.Store.Local do
     subscriptions = Map.get(variables, var) |> Map.get(:subscriptions)
     Enum.each(subscriptions, fn s -> ConstraintStore.notify_subscriber(s, var, event) end)
   end
+
 end
