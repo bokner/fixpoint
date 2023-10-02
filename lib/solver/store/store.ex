@@ -88,7 +88,15 @@ defmodule CPSolver.ConstraintStore do
     %{subscription | variable: variable_id(variable), events: normalize_events(events)}
   end
 
-  def notify_subscriber(%{pid: subscriber, events: _events} = _subscription, var, event) do
+  def notify_subscribers(_var, :no_change, _subscriptions) do
+    :ignore
+  end
+
+  def notify_subscribers(var_id, event, subscriptions) do
+    Enum.each(subscriptions, fn s -> notify_subscriber(s, var_id, event) end)
+  end
+
+  defp notify_subscriber(%{pid: subscriber, events: _events} = _subscription, var, event) do
     ## TODO: notify based on the list of events
     send(subscriber, {event, var})
   end

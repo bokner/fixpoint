@@ -92,20 +92,17 @@ defmodule CPSolver.Store.Local do
   end
 
   @impl true
-  def handle_cast({:subscribe, subscriptions}, %{variables: variables} = data) do
-    new_data =
-      subscriptions
-      |> Enum.group_by(fn s -> s.variable end, fn s -> Map.delete(s, :variable) end)
-      |> Map.merge(variables, fn _var, new_subscr, variable ->
-        (new_subscr ++ variable.subscriptions)
-        |> Enum.uniq_by(fn s -> s.pid end)
-        |> then(fn updated_subscriptions ->
-          Map.put(variable, :subscriptions, updated_subscriptions)
+  def handle_cast({:subscribe, subscriptions}, %{variables: variables} = _data) do
+    subscriptions_by_var = Enum.group_by(subscriptions, fn s -> s.variable end)
+
+    updated_variables =
+      Enum.reduce(subscriptions_by_var, variables, fn {var, subscrs}, acc ->
+        Map.update(acc, var, nil, fn rec ->
+          %{rec | subscriptions: rec.subscriptions ++ subscrs}
         end)
       end)
-      |> then(fn updated_variables -> Map.put(data, :variables, Map.new(updated_variables)) end)
 
-    {:noreply, new_data}
+    {:noreply, Map.put(variables, :variables, updated_variables)}
   end
 
   def handle_cast(:stop, data) do
@@ -148,22 +145,16 @@ defmodule CPSolver.Store.Local do
   end
 
   defp update_variable_domain(var_id, domain, event, %{variables: variables} = data) do
-    variables
-    |> Map.get(var_id)
+    variable_rec = Map.get(variables, var_id)
+
+    variable_rec
     |> Map.put(:domain, domain)
     |> then(fn updated_var ->
       updated_vars = Map.put(variables, var_id, updated_var)
       Map.put(data, :variables, updated_vars)
     end)
-    |> tap(fn updated_data -> notify_subscribers(var_id, event, updated_data) end)
-  end
-
-  defp notify_subscribers(_var, :no_change, _) do
-    :ignore
-  end
-
-  defp notify_subscribers(var, event, %{variables: variables} = _data) do
-    subscriptions = Map.get(variables, var) |> Map.get(:subscriptions)
-    Enum.each(subscriptions, fn s -> ConstraintStore.notify_subscriber(s, var, event) end)
+    |> tap(fn _ ->
+      ConstraintStore.notify_subscribers(var_id, event, variable_rec.subscriptions)
+    end)
   end
 end
