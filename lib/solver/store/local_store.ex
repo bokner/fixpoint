@@ -98,7 +98,10 @@ defmodule CPSolver.Store.Local do
     updated_variables =
       Enum.reduce(subscriptions_by_var, variables, fn {var, subscrs}, acc ->
         Map.update(acc, var, nil, fn rec ->
-          %{rec | subscriptions: rec.subscriptions ++ subscrs}
+          %{
+            rec
+            | subscriptions: (rec.subscriptions ++ subscrs) |> Enum.uniq_by(fn rec -> rec.pid end)
+          }
         end)
       end)
 

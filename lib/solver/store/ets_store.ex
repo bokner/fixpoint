@@ -3,7 +3,6 @@ defmodule CPSolver.Store.ETS do
 
   use CPSolver.ConstraintStore
   alias CPSolver.ConstraintStore
-  @domain_changes CPSolver.Common.domain_changes()
 
   @impl true
   def create(variables, _opts \\ []) do
@@ -13,7 +12,10 @@ defmodule CPSolver.Store.ETS do
     Enum.each(
       variables,
       fn var ->
-        :ets.insert(table_id, {var.id, %{domain: Domain.new(var.domain), subscriptions: []}})
+        :ets.insert(
+          table_id,
+          {var.id, %{id: var.id, domain: Domain.new(var.domain), subscriptions: []}}
+        )
       end
     )
 
@@ -32,37 +34,12 @@ defmodule CPSolver.Store.ETS do
 
   @impl true
   def get(store, variable, operation, args \\ []) do
-    store
-    |> domain(variable)
-    |> then(fn
-      :fail -> :fail
-      domain -> apply(Domain, operation, [domain | args])
-    end)
+    handle_request(:get, store, variable, operation, args)
   end
 
   @impl true
   def update_domain(store, variable, operation, args) do
-    store
-    |> domain(variable)
-    |> then(fn
-      :fail ->
-        :fail
-
-      d ->
-        apply(Domain, operation, [d | args])
-        |> then(fn
-          {domain_change, new_domain} when domain_change in @domain_changes ->
-            update_variable_domain(store, variable, new_domain)
-            domain_change
-
-          :fail ->
-            update_variable_domain(store, variable, :fail)
-            :fail
-
-          :no_change ->
-            :no_change
-        end)
-    end)
+    handle_request(:update, store, variable, operation, args)
   end
 
   @impl true
@@ -82,27 +59,28 @@ defmodule CPSolver.Store.ETS do
 
   @impl true
   def subscribe(store, subscriptions) do
-    variables = :ets.tab2list(store) |> Map.new()
+    subscriptions_by_var = Enum.group_by(subscriptions, fn s -> s.variable end)
 
-    subscriptions
-    |> Enum.map(&ConstraintStore.normalize_subscription/1)
-    |> Enum.group_by(fn s -> s.variable end, fn s -> Map.delete(s, :variable) end)
-    |> Map.merge(variables, fn _var, new_subscr, variable ->
-      (new_subscr ++ variable.subscriptions)
-      |> Enum.uniq_by(fn s -> s.pid end)
-      |> then(fn updated_subscriptions ->
-        Map.put(variable, :subscriptions, updated_subscriptions)
-      end)
-    end)
-    |> then(fn updated_variables ->
-      Enum.each(updated_variables, fn {var_id, var_data} ->
-        :ets.insert(store, {var_id, var_data})
-      end)
+    Enum.each(subscriptions_by_var, fn {var_id, subscrs} ->
+      var_rec = lookup(store, var_id)
+
+      updated_rec = %{
+        var_rec
+        | subscriptions: (var_rec.subscriptions ++ subscrs) |> Enum.uniq_by(fn rec -> rec.pid end)
+      }
+
+      true = :ets.insert(store, {var_id, updated_rec})
     end)
   end
 
-  defp update_variable_domain(store, variable, domain) do
+  defp update_variable_domain(
+         store,
+         %{id: var_id, subscriptions: subscriptions} = variable,
+         domain,
+         event
+       ) do
     :ets.insert(store, {variable.id, Map.put(variable, :domain, domain)})
+    |> tap(fn _ -> ConstraintStore.notify_subscribers(var_id, event, subscriptions) end)
   end
 
   @impl true
@@ -112,10 +90,42 @@ defmodule CPSolver.Store.ETS do
     |> Map.get(:domain)
   end
 
-  def lookup(store, variable) do
+  def lookup(store, %{id: var_id} = _variable) do
+    lookup(store, var_id)
+  end
+
+  def lookup(store, var_id) do
     store
-    |> :ets.lookup(variable.id)
+    |> :ets.lookup(var_id)
     |> hd
     |> elem(1)
+  end
+
+  defp handle_request(kind, store, var_id, operation, args) do
+    variable = lookup(store, var_id)
+    handle_request_impl(kind, store, variable, operation, args)
+  end
+
+  def handle_request_impl(_kind, _store, %{domain: :fail} = _variable, _operation, _args) do
+    :fail
+  end
+
+  def handle_request_impl(:get, _store, %{domain: domain} = _variable, operation, args) do
+    apply(Domain, operation, [domain | args])
+  end
+
+  def handle_request_impl(:update, store, %{domain: domain} = variable, operation, args) do
+    case apply(Domain, operation, [domain | args]) do
+      :fail ->
+        :fail
+        |> tap(fn _ -> update_variable_domain(store, variable, :fail, :fail) end)
+
+      :no_change ->
+        :no_change
+
+      {domain_change, new_domain} ->
+        domain_change
+        |> tap(fn _ -> update_variable_domain(store, variable, new_domain, domain_change) end)
+    end
   end
 end

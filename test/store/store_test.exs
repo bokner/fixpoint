@@ -16,7 +16,7 @@ defmodule CPSolverTest.Store do
       assert Enum.all?(bound_vars, fn var -> var end)
     end
 
-    test "Space variables" do
+    test "Store variables" do
       v1_values = 1..10
       v2_values = -5..5
       v3_values = [0, 3, 6, 9, -1]
