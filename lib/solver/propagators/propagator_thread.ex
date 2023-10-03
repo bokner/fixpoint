@@ -51,12 +51,13 @@ defmodule CPSolver.Propagator.Thread do
   def init([space, propagator_mod, args, opts]) do
     store = Keyword.get(opts, :store)
     store_impl = Keyword.get(opts, :store_impl, CPSolver.ConstraintStore.default_store())
-    PropagatorVariable.set_store_impl(store_impl)
 
     propagator_args =
       Enum.map(args, fn
         %Variable{} = arg ->
-          Map.put(arg, :store, store)
+          arg
+          |> Map.put(:store, store)
+          |> Map.put(:store_impl, store_impl)
 
         const ->
           const

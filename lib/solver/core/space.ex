@@ -278,8 +278,7 @@ defmodule CPSolver.Space do
   def do_distribute(
         %{
           propagator_threads: threads,
-          search: search_strategy,
-          store: space_store
+          search: search_strategy
         } = data,
         variable_clones
       ) do
@@ -295,11 +294,11 @@ defmodule CPSolver.Space do
       {:ok, {var_to_branch_on, domain_partitions}} ->
         Enum.map(domain_partitions, fn partition ->
           variable_copies =
-            Map.new(variable_clones, fn %{id: clone_id, name: clone_name} = clone ->
+            Map.new(variable_clones, fn %{id: clone_id} = clone ->
               if clone_id == var_to_branch_on.id do
-                {clone_id, Variable.new(partition, store: space_store, name: clone_name)}
+                {clone_id, Variable.copy(clone) |> Map.put(:domain, partition)}
               else
-                {clone_id, Variable.new(clone.domain, store: space_store, name: clone_name)}
+                {clone_id, Variable.copy(clone)}
               end
             end)
 

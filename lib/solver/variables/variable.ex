@@ -10,8 +10,6 @@ defmodule CPSolver.Variable do
   alias CPSolver.Variable
   alias CPSolver.DefaultDomain, as: Domain
 
-  import CPSolver.Propagator.Variable
-
   require Logger
 
   @callback new(values :: Enum.t(), opts :: Keyword.t()) :: Variable.t()
@@ -29,6 +27,10 @@ defmodule CPSolver.Variable do
           store: Keyword.get(opts, :store),
           domain: Domain.new(values)
         }
+      end
+
+      def copy(variable) do
+        Map.put(variable, :id, make_ref())
       end
 
       defp default_opts() do
@@ -79,19 +81,22 @@ defmodule CPSolver.Variable do
     store_op(:fix, variable, value)
   end
 
-  defp store_op(op, variable, value) when op in [:remove, :removeAbove, :removeBelow, :fix] do
-    get_store_impl().update(variable.store, variable, op, [value])
+  defp store_op(op, %{store: store, store_impl: store_impl} = variable, value)
+       when op in [:remove, :removeAbove, :removeBelow, :fix] do
+    store_impl.update(store, variable, op, [value])
   end
 
-  defp store_op(op, variable, value) when op in [:contains?] do
-    get_store_impl().get(variable.store, variable, op, [value])
+  defp store_op(op, %{store: store, store_impl: store_impl} = variable, value)
+       when op in [:contains?] do
+    store_impl.get(store, variable, op, [value])
   end
 
-  defp store_op(op, variable) when op in [:size, :fixed?, :min, :max] do
-    get_store_impl().get(variable.store, variable, op)
+  defp store_op(op, %{store: store, store_impl: store_impl} = variable)
+       when op in [:size, :fixed?, :min, :max] do
+    store_impl.get(store, variable, op)
   end
 
-  defp store_op(:domain, variable) do
-    get_store_impl().domain(variable.store, variable)
+  defp store_op(:domain, %{store: store, store_impl: store_impl} = variable) do
+    store_impl.domain(store, variable)
   end
 end

@@ -81,6 +81,7 @@ defmodule CPSolver.ConstraintStore do
        |> Map.put(:id, var.id)
        |> Map.put(:name, var.name)
        |> Map.put(:store, store_instance)
+       |> Map.put(:store_impl, store_impl)
      end), store_instance, store_impl}
   end
 
