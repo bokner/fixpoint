@@ -97,9 +97,10 @@ defmodule CPSolver.ConstraintStore do
     Enum.each(subscriptions, fn s -> notify_subscriber(s, var_id, event) end)
   end
 
-  defp notify_subscriber(%{pid: subscriber, events: _events} = _subscription, var, event) do
+  defp notify_subscriber(%{pid: subscriber, events: events} = _subscription, var, event) do
     ## TODO: notify based on the list of events
-    send(subscriber, {event, var})
+    event in events &&
+      send(subscriber, {event, var})
   end
 
   def variable_id(%Variable{id: id}) do
@@ -111,9 +112,8 @@ defmodule CPSolver.ConstraintStore do
   end
 
   defp normalize_events(events) do
-    ## :fixed is mandatory
-    events
+    ## :fixed and :fail are mandatory
+    [:fixed, :fail | events]
     |> Enum.uniq()
-    |> then(fn deduped -> (Enum.member?(deduped, :fixed) && deduped) || [:fixed | deduped] end)
   end
 end
