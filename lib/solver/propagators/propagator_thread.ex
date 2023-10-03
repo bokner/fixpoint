@@ -102,12 +102,7 @@ defmodule CPSolver.Propagator.Thread do
 
   def handle_info({:fixed, var}, data) do
     new_data = update_unfixed(data, var)
-
-    if entailed?(new_data) do
-      handle_entailed(new_data)
-    else
-      filter(new_data)
-    end
+    filter(new_data)
   end
 
   def handle_info({domain_change, _var}, data) when domain_change in @domain_changes do
