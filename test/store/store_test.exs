@@ -131,9 +131,10 @@ defmodule CPSolverTest.Store do
 
       refute_received _, 10
 
+      ## Subscribe to :min_change for all variables
       store_impl.subscribe(
         store,
-        Enum.map(bound_vars, fn v -> %{variable: v.id, pid: self(), events: []} end)
+        Enum.map(bound_vars, fn v -> %{variable: v.id, pid: self(), events: [:min_change]} end)
       )
 
       assert :min_change == store_impl.update(store, v1, :removeBelow, [0])

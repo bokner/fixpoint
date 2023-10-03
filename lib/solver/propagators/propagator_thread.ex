@@ -63,8 +63,8 @@ defmodule CPSolver.Propagator.Thread do
       end)
 
     propagator_vars = propagator_mod.variables(propagator_args)
-
-    subscribe_to_variables(store, store_impl, self(), propagator_vars, propagator_mod.events())
+    propagation_events = Keyword.get(opts, :propagate_on, propagator_mod.events())
+    subscribe_to_variables(store, store_impl, self(), propagator_vars, propagation_events)
     propagator_id = Keyword.get(opts, :id, make_ref())
 
     {:ok,
@@ -75,7 +75,7 @@ defmodule CPSolver.Propagator.Thread do
        store_impl: store_impl,
        stable: false,
        propagator_impl: propagator_mod,
-       propagate_on: Keyword.get(opts, :propagate_on, propagator_mod.events()),
+       propagate_on: propagation_events,
        args: propagator_args,
        unfixed_variables:
          Enum.reduce(propagator_vars, MapSet.new(), fn var, acc ->
