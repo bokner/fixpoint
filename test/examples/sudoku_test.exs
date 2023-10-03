@@ -7,8 +7,12 @@ defmodule CPSolverTest.Examples.Sudoku do
     test_sudoku(Sudoku.puzzles().s4x4, 2, trials: 10, timeout: 100)
   end
 
+  test "9x9 singe solution 1" do
+    test_sudoku(Sudoku.puzzles().s9x9_1, 1, trials: 1, timeout: 1000)
+  end
+
   test "9x9 singe solution 2" do
-    test_sudoku(Sudoku.puzzles().hard9x9, 1, trials: 1, timeout: 2000)
+    test_sudoku(Sudoku.puzzles().hard9x9, 1, trials: 1, timeout: 1000)
   end
 
   test "9x9 multiple solutions" do
