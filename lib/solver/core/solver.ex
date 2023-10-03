@@ -4,7 +4,6 @@ defmodule CPSolver do
   """
 
   alias CPSolver.Space
-  alias CPSolver.Propagator
   alias CPSolver.Constraint
   alias CPSolver.Solution
 
@@ -67,7 +66,7 @@ defmodule CPSolver do
     {:ok, top_space} =
       Space.create(
         variables,
-        propagators |> Propagator.normalize(),
+        propagators,
         solver_opts
         |> Keyword.put(:solver, self())
         |> Keyword.put(:solution_handler, solution_handler_fun)

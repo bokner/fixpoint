@@ -2,6 +2,7 @@ defmodule CPSolver.Propagator.Thread do
   alias CPSolver.Variable
   alias CPSolver.Common
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
+  alias CPSolver.Propagator
 
   require Logger
 
@@ -9,11 +10,13 @@ defmodule CPSolver.Propagator.Thread do
 
   @domain_changes Common.domain_changes()
 
-  ## Create a propagator thread; 'propagator' is a tuple {propagator_mod, args} where propagator_mod
-  ## is an implementation of CPSolver.Propagator
-  ##
-  ## Propagator thread is a process that handles life cycle of a propagator.
-  ## TODO: details to follow.
+  @doc """
+  Create a propagator thread; 'propagator' is a tuple {propagator_mod, args} where propagator_mod
+   is an implementation of CPSolver.Propagator
+
+  Propagator thread is a process that handles life cycle of a propagator.
+  TODO: details to follow.
+  """
   def create_thread(space, propagator, opts \\ [id: make_ref()])
 
   def create_thread(
@@ -124,7 +127,7 @@ defmodule CPSolver.Propagator.Thread do
     Logger.debug("#{inspect(data.id)}: Propagation triggered")
     PropagatorVariable.reset_variable_ops()
 
-    case mod.filter(args) do
+    case Propagator.filter(mod, args) do
       :stable ->
         handle_stable(data)
 

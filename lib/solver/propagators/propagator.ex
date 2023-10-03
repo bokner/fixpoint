@@ -3,6 +3,8 @@ defmodule CPSolver.Propagator do
   @callback variables(args :: list()) :: list()
   @callback events() :: list()
 
+  alias CPSolver.Variable
+
   defmacro __using__(_) do
     quote do
       @behaviour CPSolver.Propagator
@@ -20,18 +22,34 @@ defmodule CPSolver.Propagator do
     end
   end
 
-  def normalize(propagators) when is_list(propagators) do
+  def normalize(propagators, store, store_impl) when is_list(propagators) do
     propagators
-    |> Enum.map(&normalize/1)
+    |> Enum.map(fn p -> normalize(p, store, store_impl) end)
     |> Enum.uniq()
   end
 
-  def normalize({_mod, args} = propagator) when is_list(args) do
-    propagator
+  def normalize({mod, args} = _propagator, store, store_impl) when is_list(args) do
+    {mod,
+     Enum.map(
+       args,
+       fn
+         %Variable{} = arg ->
+           arg
+           |> Map.put(:store, store)
+           |> Map.put(:store_impl, store_impl)
+
+         const ->
+           const
+       end
+     )}
   end
 
-  def normalize(propagator) when is_tuple(propagator) do
+  def normalize(propagator, store, store_impl) when is_tuple(propagator) do
     [mod | args] = Tuple.to_list(propagator)
-    {mod, args}
+    normalize({mod, args}, store, store_impl)
+  end
+
+  def filter(mod, args) do
+    mod.filter(args)
   end
 end

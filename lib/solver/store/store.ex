@@ -11,8 +11,9 @@ defmodule CPSolver.ConstraintStore do
   @type get_operation :: Common.domain_get_operation() | nil
   @type update_operation :: Common.domain_update_operation()
 
+  @mandatory_notifications [:fixed, :fail]
   def default_store() do
-    CPSolver.Store.Local
+    CPSolver.Store.ETS
   end
 
   ### Callbacks
@@ -99,7 +100,7 @@ defmodule CPSolver.ConstraintStore do
 
   defp notify_subscriber(%{pid: subscriber, events: events} = _subscription, var, event) do
     ## TODO: notify based on the list of events
-    event in events &&
+    event in (@mandatory_notifications ++ events) &&
       send(subscriber, {event, var})
   end
 

@@ -59,7 +59,10 @@ defmodule CPSolver.Store.ETS do
 
   @impl true
   def subscribe(store, subscriptions) do
-    subscriptions_by_var = Enum.group_by(subscriptions, fn s -> s.variable end)
+    subscriptions_by_var =
+      subscriptions
+      |> Enum.map(&ConstraintStore.normalize_subscription/1)
+      |> Enum.group_by(fn s -> s.variable end)
 
     Enum.each(subscriptions_by_var, fn {var_id, subscrs} ->
       var_rec = lookup(store, var_id)

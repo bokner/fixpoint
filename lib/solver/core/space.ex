@@ -8,7 +8,8 @@ defmodule CPSolver.Space do
   alias CPSolver.Utils
   alias __MODULE__, as: Space
   alias CPSolver.ConstraintStore
-  alias CPSolver.Propagator.Thread, as: Propagator
+  alias CPSolver.Propagator
+  alias CPSolver.Propagator.Thread, as: PropagatorThread
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Utils
@@ -21,6 +22,7 @@ defmodule CPSolver.Space do
             parent: nil,
             keep_alive: false,
             variables: [],
+            propagators: [],
             propagator_threads: %{},
             store_impl: CPSolver.ConstraintStore.default_store(),
             store: nil,
@@ -76,7 +78,6 @@ defmodule CPSolver.Space do
   @impl true
   def init(args) do
     variables = Keyword.get(args, :variables)
-    propagators = Keyword.get(args, :propagators)
     space_id = make_ref()
     space_opts = Keyword.merge(default_space_opts(), Keyword.get(args, :space_opts, []))
     store_impl = Keyword.get(space_opts, :store)
@@ -90,11 +91,14 @@ defmodule CPSolver.Space do
     {:ok, space_variables, store, store_impl} =
       ConstraintStore.create_store(variables, store_impl)
 
+    propagators = Keyword.get(args, :propagators) |> Propagator.normalize(store, store_impl)
+
     space_data = %Space{
       id: space_id,
       parent: parent,
       keep_alive: keep_alive,
       variables: space_variables,
+      propagators: propagators,
       store_impl: store_impl,
       store: store,
       solver: solver,
@@ -199,7 +203,7 @@ defmodule CPSolver.Space do
       propagator_id = make_ref()
 
       {:ok, thread} =
-        Propagator.create_thread(self(), p,
+        PropagatorThread.create_thread(self(), p,
           id: propagator_id,
           store: data.store,
           store_impl: data.store_impl
@@ -365,7 +369,7 @@ defmodule CPSolver.Space do
 
   @impl true
   def terminate(_reason, _current_state, data) do
-    Enum.each(data.propagator_threads, fn {_ref, thread} -> Propagator.dispose(thread) end)
+    Enum.each(data.propagator_threads, fn {_ref, thread} -> PropagatorThread.dispose(thread) end)
     data.store_impl.dispose(data.store, data.variables)
   end
 end
