@@ -34,6 +34,10 @@ defmodule CPSolver.Propagator.Thread do
     create_thread(space, {propagator_mod, args}, opts)
   end
 
+  def propagate(thread_pid) when is_pid(thread_pid) do
+    GenServer.cast(thread_pid, :filter)
+  end
+
   def dispose(%{thread: pid} = _thread) do
     dispose(pid)
   end
@@ -95,6 +99,11 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   @impl true
+  def handle_cast(:filter, data) do
+    filter(data)
+  end
+
+  @impl true
 
   def handle_info({:fail, var}, data) do
     handle_failure(var, data)
@@ -143,7 +152,7 @@ defmodule CPSolver.Propagator.Thread do
 
         cond do
           entailed?(updated_data) -> handle_entailed(updated_data)
-          changed? -> handle_running(updated_data)
+          changed? -> filter(updated_data)
           true -> handle_stable(updated_data)
         end
     end
@@ -165,12 +174,7 @@ defmodule CPSolver.Propagator.Thread do
   defp handle_stable(data) do
     Logger.debug("#{inspect(data.id)} Propagator is stable")
     !data.stable && publish(data, :stable)
-    {:noreply, %{data | stable: true}}
-  end
-
-  defp handle_running(data) do
-    publish(data, :running)
-    {:noreply, %{data | stable: false}}
+    {:noreply, data}
   end
 
   defp handle_entailed(data) do

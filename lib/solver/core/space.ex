@@ -12,6 +12,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Propagator.Thread, as: PropagatorThread
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Utils
 
   require Logger
@@ -122,7 +123,7 @@ defmodule CPSolver.Space do
   end
 
   def start_propagation(:internal, {:propagate, propagators}, data) do
-    propagator_threads = start_propagation(propagators, data)
+    propagator_threads = create_propagator_threads(propagators, data)
     {:next_state, :propagating, Map.put(data, :propagator_threads, propagator_threads)}
   end
 
@@ -138,11 +139,6 @@ defmodule CPSolver.Space do
     else
       {:keep_state, updated_data}
     end
-  end
-
-  def propagating(:info, {:running, propagator_thread}, data) do
-    Logger.debug("Running propagator #{inspect(propagator_thread)}")
-    {:keep_state, set_propagator_stable(data, propagator_thread, false)}
   end
 
   def propagating(:info, {:entailed, propagator_thread}, data) do
@@ -198,7 +194,7 @@ defmodule CPSolver.Space do
     :keep_state_and_data
   end
 
-  defp start_propagation(propagators, data) do
+  defp create_propagator_threads(propagators, data) do
     Enum.reduce(propagators, Map.new(), fn p, acc ->
       propagator_id = make_ref()
 
@@ -274,9 +270,9 @@ defmodule CPSolver.Space do
           variables: variables
         } = data
       ) do
-    {variable_clones, _all_fixed?} = Utils.localize_variables(variables)
+    {localized_vars, _all_fixed?} = Utils.localize_variables(variables)
 
-    do_distribute(data, variable_clones)
+    do_distribute(data, localized_vars)
   end
 
   def do_distribute(
@@ -300,7 +296,7 @@ defmodule CPSolver.Space do
           variable_copies =
             Map.new(variable_clones, fn %{id: clone_id} = clone ->
               if clone_id == var_to_branch_on.id do
-                {clone_id, Variable.copy(clone) |> Map.put(:domain, partition)}
+                {clone_id, Variable.copy(clone) |> Map.put(:domain, Domain.new(partition))}
               else
                 {clone_id, Variable.copy(clone)}
               end
