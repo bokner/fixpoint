@@ -118,7 +118,6 @@ defmodule CPSolver.Space do
 
   ## Callbacks
   def start_propagation(:enter, :start_propagation, data) do
-    Logger.info("Space #{inspect(self())} started")
     {:keep_state, data}
   end
 
@@ -142,7 +141,6 @@ defmodule CPSolver.Space do
   end
 
   def propagating(:info, {:entailed, propagator_thread}, data) do
-    Logger.debug("Entailed propagator #{inspect(propagator_thread)}")
     updated_data = update_entailed(data, propagator_thread)
 
     cond do
@@ -232,7 +230,6 @@ defmodule CPSolver.Space do
       data,
       :propagator_threads,
       Map.delete(threads, propagator_thread)
-      |> tap(fn m -> Logger.debug("Active propagators: #{inspect(map_size(m))}") end)
     )
   end
 
@@ -241,7 +238,6 @@ defmodule CPSolver.Space do
   end
 
   defp handle_failure(data) do
-    Logger.debug("The space #{inspect(data.id)} has failed")
     publish(data, :failure)
     shutdown(data, :failure)
   end
@@ -261,7 +257,6 @@ defmodule CPSolver.Space do
   end
 
   defp handle_stable(data) do
-    Logger.debug("Space #{inspect(data.id)} reports stable")
     distribute(data)
   end
 
@@ -282,8 +277,6 @@ defmodule CPSolver.Space do
         } = data,
         variable_clones
       ) do
-    Logger.debug("Space #{inspect(data.id)} is distributing...")
-
     case branching(variable_clones, search_strategy) do
       :fail ->
         handle_failure(data)
@@ -352,9 +345,7 @@ defmodule CPSolver.Space do
     send(data.solver, message)
   end
 
-  defp shutdown(%{keep_alive: keep_alive} = data, reason) do
-    Logger.info("Space #{inspect(self())} shutdown with #{inspect(reason)}")
-
+  defp shutdown(%{keep_alive: keep_alive} = data, _reason) do
     if !keep_alive do
       publish(data, {:shutdown_space, self()})
       {:stop, :normal, data}

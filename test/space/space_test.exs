@@ -1,9 +1,6 @@
 defmodule CPSolverTest.Space do
   use ExUnit.Case
 
-  import ExUnit.CaptureLog
-  import CPSolver.Test.Helpers
-
   describe "Computation space" do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Space, as: Space
@@ -118,16 +115,16 @@ defmodule CPSolverTest.Space do
       solution_handler = Solution.default_handler()
 
       ## Create a space with the solution handler as a function
-      log =
-        capture_log([level: :debug], fn ->
-          _ = create_solved_space(solution_handler: solution_handler)
+      %{variables: space_variables} =
+        create_solved_space(solution_handler: solution_handler)
 
-          Process.sleep(10)
-        end)
+      Process.sleep(10)
+      ## Check the solution against the store
+      store_vars =
+        Enum.map(space_variables, fn v -> {v.id, Variable.min(v)} end)
+        |> Map.new()
 
-      assert log =~ "Solution found"
-      assert number_of_occurences(log, "<- 2") == 2
-      assert number_of_occurences(log, "<- 1") == 1
+      assert_receive {:solution, ^store_vars}, 10
     end
 
     defp create_solved_space(space_opts \\ []) do

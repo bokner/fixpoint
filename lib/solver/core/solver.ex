@@ -103,14 +103,12 @@ defmodule CPSolver do
   end
 
   defp handle_event(:failure, %{failure_count: count} = state) do
-    Logger.debug("Solver: space failure")
     %{state | failure_count: count + 1}
   end
 
   defp handle_event({:nodes, new_nodes}, %{node_count: count, active_nodes: nodes} = state) do
     new_nodes_set = MapSet.new(new_nodes)
     n = MapSet.size(new_nodes_set)
-    Logger.debug("Solver: #{n} new node(s)")
     %{state | node_count: count + n, active_nodes: MapSet.union(nodes, new_nodes_set)}
   end
 
