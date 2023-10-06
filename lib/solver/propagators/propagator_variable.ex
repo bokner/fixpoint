@@ -36,8 +36,13 @@ defmodule CPSolver.Propagator.Variable do
         Process.put(@variable_op_results_key, {:fail, var.id})
 
       _ ->
-        current = get_variable_ops()
-        Process.put(@variable_op_results_key, Map.put(current, var.id, result))
+        case get_variable_ops() do
+          {:fail, _var} ->
+            :fail
+
+          current ->
+            Process.put(@variable_op_results_key, Map.put(current, var.id, result))
+        end
     end)
   end
 
