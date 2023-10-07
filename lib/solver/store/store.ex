@@ -63,9 +63,14 @@ defmodule CPSolver.ConstraintStore do
       def update(store, variable, operation, args) do
         update_domain(store, variable, operation, args)
         |> tap(fn
-          :fail -> on_fail(store, variable)
-          :no_change -> on_no_change(store, variable)
-          change when change in @domain_changes -> on_change(store, variable, change)
+          :fail ->
+            on_fail(store, variable)
+
+          :no_change ->
+            on_no_change(store, variable)
+
+          change when change in @domain_changes ->
+            on_change(store, variable, change)
         end)
       end
 
@@ -73,17 +78,66 @@ defmodule CPSolver.ConstraintStore do
     end
   end
 
-  def create_store(variables, store_impl \\ default_store()) do
-    {:ok, store_instance} = store_impl.create(variables)
+  def create_store(variables) do
+    create_store(variables, default_store(), self())
+  end
+
+  def create_store(variables, store_impl) do
+    create_store(variables, store_impl, self())
+  end
+
+  def create_store(variables, store_impl, space) do
+    {:ok, store_handle} = store_impl.create(variables)
+    store = %{space: space, handle: store_handle, store_impl: store_impl}
 
     {:ok,
      Enum.map(variables, fn var ->
        var
        |> Map.put(:id, var.id)
        |> Map.put(:name, var.name)
-       |> Map.put(:store, store_instance)
-       |> Map.put(:store_impl, store_impl)
-     end), store_instance, store_impl}
+       |> Map.put(:store, store)
+     end), store}
+  end
+
+  def domain(%{handle: handle, store_impl: store_impl} = _store, variable) do
+    store_impl.domain(handle, variable)
+  end
+
+  def get(%{handle: handle, store_impl: store_impl} = _store, variable, operation, args \\ []) do
+    store_impl.get(handle, variable, operation, args)
+  end
+
+  def subscribe(%{handle: handle, store_impl: store_impl} = _store, variables) do
+    store_impl.subscribe(handle, variables)
+  end
+
+  def update(
+        %{handle: handle, store_impl: store_impl, space: space} = _store,
+        variable,
+        operation,
+        args \\ []
+      ) do
+    store_impl.update(handle, variable, operation, args)
+    |> tap(fn
+      :fail ->
+        notify_space(space, {:fail, variable.id})
+
+      _ ->
+        :ok
+    end)
+  end
+
+  defp notify_space(space, event) when is_pid(space) do
+    require Logger
+    send(space, event)
+  end
+
+  def get_variables(%{handle: handle, store_impl: store_impl} = _store) do
+    store_impl.get_variables(handle)
+  end
+
+  def dispose(%{handle: handle, store_impl: store_impl} = _store, variables) do
+    store_impl.dispose(handle, variables)
   end
 
   def normalize_subscription(%{variable: variable, events: events} = subscription) do

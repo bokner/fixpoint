@@ -23,13 +23,13 @@ defmodule CPSolver.Propagator do
     end
   end
 
-  def normalize(propagators, store, store_impl) when is_list(propagators) do
+  def normalize(propagators, store) when is_list(propagators) do
     propagators
-    |> Enum.map(fn p -> normalize(p, store, store_impl) end)
+    |> Enum.map(fn p -> normalize(p, store) end)
     |> Enum.uniq()
   end
 
-  def normalize({mod, args} = _propagator, store, store_impl) when is_list(args) do
+  def normalize({mod, args} = _propagator, store) when is_list(args) do
     {mod,
      Enum.map(
        args,
@@ -37,7 +37,6 @@ defmodule CPSolver.Propagator do
          %Variable{} = arg ->
            arg
            |> Map.put(:store, store)
-           |> Map.put(:store_impl, store_impl)
 
          const ->
            const
@@ -45,9 +44,9 @@ defmodule CPSolver.Propagator do
      )}
   end
 
-  def normalize(propagator, store, store_impl) when is_tuple(propagator) do
+  def normalize(propagator, store) when is_tuple(propagator) do
     [mod | args] = Tuple.to_list(propagator)
-    normalize({mod, args}, store, store_impl)
+    normalize({mod, args}, store)
   end
 
   def filter(mod, args) do

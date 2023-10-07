@@ -21,7 +21,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       y = -5..5
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store, _store_impl} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
       assert :stable == NotEqual.filter(bound_vars)
       assert PropagatorVariable.get_variable_ops() == %{}
 
@@ -57,7 +57,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       y = 0..0
       [_x_var, y_var] = variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store, _store_impl} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
       assert :fail == NotEqual.filter(bound_vars)
       assert PropagatorVariable.get_variable_ops() == {:fail, y_var.id}
       ## One of variables (depending on filtering implementation) will fail
@@ -71,7 +71,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       x = 5..5
       y = -5..10
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-      {:ok, [x_var, y_var], _store, _store_impl} = ConstraintStore.create_store(variables)
+      {:ok, [x_var, y_var], _store} = ConstraintStore.create_store(variables)
 
       assert Variable.contains?(y_var, 0)
       # (x != y + 5)
@@ -92,7 +92,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       y = 0..3
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, [x_var, y_var] = _bound_vars, store, _store_impl} =
+      {:ok, [x_var, y_var] = _bound_vars, store} =
         ConstraintStore.create_store(variables)
 
       {:ok, _propagator_thread} =

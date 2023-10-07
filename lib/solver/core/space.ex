@@ -25,7 +25,6 @@ defmodule CPSolver.Space do
             variables: [],
             propagators: [],
             propagator_threads: %{},
-            store_impl: CPSolver.ConstraintStore.default_store(),
             store: nil,
             space: nil,
             solver: nil,
@@ -67,9 +66,9 @@ defmodule CPSolver.Space do
     {_state, _data} = :sys.get_state(space)
   end
 
-  def solution(%{variables: variables, store_impl: store_impl, store: store} = _data) do
+  def solution(%{variables: variables, store: store} = _data) do
     Enum.reduce_while(variables, Map.new(), fn var, acc ->
-      case store_impl.get(store, var, :min) do
+      case ConstraintStore.get(store, var, :min) do
         :fail -> {:halt, :fail}
         val -> {:cont, Map.put(acc, var.name, val)}
       end
@@ -89,10 +88,10 @@ defmodule CPSolver.Space do
     search_strategy = Keyword.get(space_opts, :search)
     solver = Keyword.get(space_opts, :solver)
 
-    {:ok, space_variables, store, store_impl} =
+    {:ok, space_variables, store} =
       ConstraintStore.create_store(variables, store_impl)
 
-    propagators = Keyword.get(args, :propagators) |> Propagator.normalize(store, store_impl)
+    propagators = Keyword.get(args, :propagators) |> Propagator.normalize(store)
 
     space_data = %Space{
       id: space_id,
@@ -100,7 +99,6 @@ defmodule CPSolver.Space do
       keep_alive: keep_alive,
       variables: space_variables,
       propagators: propagators,
-      store_impl: store_impl,
       store: store,
       solver: solver,
       opts: space_opts,
@@ -150,7 +148,7 @@ defmodule CPSolver.Space do
     end
   end
 
-  def propagating(:info, {:failed, _propagator_thread}, data) do
+  def propagating(:info, {:fail, _variable_id}, data) do
     {:next_state, :failed, data}
   end
 
@@ -199,8 +197,7 @@ defmodule CPSolver.Space do
       {:ok, thread} =
         PropagatorThread.create_thread(self(), p,
           id: propagator_id,
-          store: data.store,
-          store_impl: data.store_impl
+          store: data.store
         )
 
       Map.put(acc, propagator_id, %{thread: thread, propagator: p, stable: false})
@@ -355,8 +352,8 @@ defmodule CPSolver.Space do
   end
 
   @impl true
-  def terminate(_reason, _current_state, data) do
+  def terminate(_reason, _current_state, %{store: store, variables: variables} = data) do
     Enum.each(data.propagator_threads, fn {_ref, thread} -> PropagatorThread.dispose(thread) end)
-    data.store_impl.dispose(data.store, data.variables)
+    ConstraintStore.dispose(store, variables)
   end
 end

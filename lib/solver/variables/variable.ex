@@ -9,6 +9,7 @@ defmodule CPSolver.Variable do
 
   alias CPSolver.Variable
   alias CPSolver.DefaultDomain, as: Domain
+  alias CPSolver.ConstraintStore
 
   require Logger
 
@@ -18,13 +19,12 @@ defmodule CPSolver.Variable do
     quote do
       @behaviour CPSolver.Variable
 
-      def new(values, opts \\ default_opts()) do
+      def new(values, opts \\ []) do
         id = make_ref()
 
         %Variable{
           id: id,
           name: Keyword.get(opts, :name, id),
-          store: Keyword.get(opts, :store),
           domain: Domain.new(values)
         }
       end
@@ -81,22 +81,22 @@ defmodule CPSolver.Variable do
     store_op(:fix, variable, value)
   end
 
-  defp store_op(op, %{store: store, store_impl: store_impl} = variable, value)
+  defp store_op(op, %{store: store} = variable, value)
        when op in [:remove, :removeAbove, :removeBelow, :fix] do
-    store_impl.update(store, variable, op, [value])
+    ConstraintStore.update(store, variable, op, [value])
   end
 
-  defp store_op(op, %{store: store, store_impl: store_impl} = variable, value)
+  defp store_op(op, %{store: store} = variable, value)
        when op in [:contains?] do
-    store_impl.get(store, variable, op, [value])
+    ConstraintStore.get(store, variable, op, [value])
   end
 
-  defp store_op(op, %{store: store, store_impl: store_impl} = variable)
+  defp store_op(op, %{store: store} = variable)
        when op in [:size, :fixed?, :min, :max] do
-    store_impl.get(store, variable, op)
+    ConstraintStore.get(store, variable, op)
   end
 
-  defp store_op(:domain, %{store: store, store_impl: store_impl} = variable) do
-    store_impl.domain(store, variable)
+  defp store_op(:domain, %{store: store} = variable) do
+    ConstraintStore.domain(store, variable)
   end
 end

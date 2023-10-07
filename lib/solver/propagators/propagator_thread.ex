@@ -2,6 +2,7 @@ defmodule CPSolver.Propagator.Thread do
   alias CPSolver.Variable
   alias CPSolver.Common
   alias CPSolver.Propagator
+  alias CPSolver.ConstraintStore
 
   require Logger
 
@@ -46,24 +47,22 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   ## Subscribe propagator thread to variables' events
-  defp subscribe_to_variables(store, store_impl, thread, variables, events) do
+  defp subscribe_to_variables(store, thread, variables, events) do
     variables
     |> Enum.map(fn var -> %{pid: thread, variable: var, events: events} end)
-    |> then(fn subscriptions -> store_impl.subscribe(store, subscriptions) end)
+    |> then(fn subscriptions -> ConstraintStore.subscribe(store, subscriptions) end)
   end
 
   ## GenServer callbacks
   @impl true
   def init([space, propagator_mod, args, opts]) do
     store = Keyword.get(opts, :store)
-    store_impl = Keyword.get(opts, :store_impl, CPSolver.ConstraintStore.default_store())
 
     propagator_args =
       Enum.map(args, fn
         %Variable{} = arg ->
           arg
           |> Map.put(:store, store)
-          |> Map.put(:store_impl, store_impl)
 
         const ->
           const
@@ -71,7 +70,7 @@ defmodule CPSolver.Propagator.Thread do
 
     propagator_vars = propagator_mod.variables(propagator_args)
     propagation_events = Keyword.get(opts, :propagate_on, propagator_mod.events())
-    subscribe_to_variables(store, store_impl, self(), propagator_vars, propagation_events)
+    subscribe_to_variables(store, self(), propagator_vars, propagation_events)
     propagator_id = Keyword.get(opts, :id, make_ref())
 
     {:ok,
@@ -79,7 +78,6 @@ defmodule CPSolver.Propagator.Thread do
        id: propagator_id,
        space: space,
        store: store,
-       store_impl: store_impl,
        stable: false,
        propagator_impl: propagator_mod,
        propagate_on: propagation_events,
@@ -162,7 +160,6 @@ defmodule CPSolver.Propagator.Thread do
 
   def handle_failure(var, data) do
     Logger.debug("#{inspect(data.id)} Propagator: Failure for variable #{inspect(var)}")
-    publish(data, :failed)
     stop(data)
   end
 

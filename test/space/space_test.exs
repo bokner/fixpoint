@@ -85,6 +85,7 @@ defmodule CPSolverTest.Space do
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
       propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
 
+      Process.flag(:trap_exit, true)
       {:ok, space} = Space.create(variables, propagators)
       Process.sleep(10)
       refute Process.alive?(space)
