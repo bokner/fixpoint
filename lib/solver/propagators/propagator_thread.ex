@@ -1,7 +1,6 @@
 defmodule CPSolver.Propagator.Thread do
   alias CPSolver.Variable
   alias CPSolver.Common
-  alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.Propagator
 
   require Logger
@@ -109,9 +108,10 @@ defmodule CPSolver.Propagator.Thread do
     handle_failure(var, data)
   end
 
-  def handle_info({:fixed, var}, data) do
-    new_data = update_unfixed(data, var)
-    filter(new_data)
+  def handle_info({:fixed, _var} = fix, data) do
+    data
+    |> update_unfixed(fix)
+    |> filter()
   end
 
   def handle_info({domain_change, _var}, data) when domain_change in @domain_changes do
@@ -129,52 +129,29 @@ defmodule CPSolver.Propagator.Thread do
 
   defp filter(%{propagator_impl: mod, args: args} = data) do
     Logger.debug("#{inspect(data.id)}: Propagation triggered")
-    PropagatorVariable.reset_variable_ops()
 
     case Propagator.filter(mod, args) do
-      :stable ->
-        handle_stable(data)
-
-      _res ->
-        ## If propagator doesn't explicitly return 'stable',
-        ## we look into the map of variable operations created by PropagatorVariable wrapper
-        handle_variable_ops(data)
-    end
-  end
-
-  defp handle_variable_ops(data) do
-    case PropagatorVariable.get_variable_ops() do
       {:fail, var} ->
         handle_failure(var, data)
 
-      ops when is_map(ops) ->
-        {updated_data, changed?} = Enum.reduce(ops, {data, false}, &process_var_ops/2)
+      :stable ->
+        handle_stable(data)
 
-        cond do
-          entailed?(updated_data) -> handle_entailed(updated_data)
-          changed? -> filter(updated_data)
-          true -> handle_stable(updated_data)
-        end
+      {:changed, variable_changes} ->
+        data
+        |> update_unfixed(variable_changes)
+        |> filter()
     end
   end
 
-  defp process_var_ops({var, :fixed}, {data, _} = _acc) do
-    {update_unfixed(data, var), true}
-  end
-
-  defp process_var_ops({_var, :no_change}, acc) do
-    acc
-  end
-
-  defp process_var_ops({_var, domain_change}, {data, current_status} = _acc)
-       when domain_change in @domain_changes do
-    {data, current_status || domain_change in data.propagate_on}
-  end
-
   defp handle_stable(data) do
-    Logger.debug("#{inspect(data.id)} Propagator is stable")
-    !data.stable && publish(data, :stable)
-    {:noreply, data}
+    if entailed?(data) do
+      handle_entailed(data)
+    else
+      Logger.debug("#{inspect(data.id)} Propagator is stable")
+      publish(data, :stable)
+      {:noreply, data}
+    end
   end
 
   defp handle_entailed(data) do
@@ -197,8 +174,21 @@ defmodule CPSolver.Propagator.Thread do
     MapSet.size(vars) == 0
   end
 
-  defp update_unfixed(%{unfixed_variables: unfixed} = data, var) do
-    %{data | unfixed_variables: MapSet.delete(unfixed, var)}
+  defp update_unfixed(data, {_change_type, _var} = change) do
+    update_unfixed(data, [change])
+  end
+
+  defp update_unfixed(%{unfixed_variables: unfixed} = data, variable_changes)
+       when is_list(variable_changes) do
+    ## variable_changes is a list of {:change_type, variable_id}
+    fixed_vars =
+      Enum.flat_map(variable_changes, fn
+        {:fixed, var} -> [var]
+        _ -> []
+      end)
+
+    new_unfixed = MapSet.reject(unfixed, fn v -> v in fixed_vars end)
+    %{data | unfixed_variables: new_unfixed}
   end
 
   defp publish(%{id: id, space: space} = _data, message) do
