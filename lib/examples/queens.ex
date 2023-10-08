@@ -2,6 +2,8 @@ defmodule CPSolver.Examples.Queens do
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.IntVariable
 
+  alias CPSolver.Examples.Utils, as: ExamplesUtils
+
   require Logger
   @queen_symbol "\u2655"
 
@@ -36,12 +38,23 @@ defmodule CPSolver.Examples.Queens do
   end
 
   def solve_and_print(nqueens, opts \\ [timeout: 1000]) do
-    Logger.configure(level: :error)
+    Logger.configure(level: :info)
 
-    solve(nqueens, stop_on: {:max_solutions, 1})
-    |> tap(fn {:ok, solver} ->
-      Process.sleep(Keyword.get(opts, :timeout))
-      IO.puts(print_board(hd(CPSolver.solutions(solver))))
+    timeout = Keyword.get(opts, :timeout)
+    ExamplesUtils.flush_solutions()
+
+    solve(nqueens,
+      solution_handler: ExamplesUtils.notify_client_handler(),
+      stop_on: {:max_solutions, 1}
+    )
+    |> tap(fn {:ok, _solver} ->
+      ExamplesUtils.wait_for_solution(
+        timeout,
+        fn solution ->
+          check_solution(solution)
+          |> tap(fn _ -> IO.puts(print_board(solution)) end)
+        end
+      )
     end)
   end
 

@@ -87,7 +87,7 @@ defmodule CPSolver.ConstraintStore do
   end
 
   def create_store(variables, store_impl, space) do
-    {:ok, store_handle} = store_impl.create(variables)
+    {:ok, store_handle} = store_impl.create(variables, space: space)
     store = %{space: space, handle: store_handle, store_impl: store_impl}
 
     {:ok,
@@ -136,11 +136,8 @@ defmodule CPSolver.ConstraintStore do
     :ignore
   end
 
-  def notify(%{id: var_id, store: store} = _variable, :fail) do
-    notify_space(store, {:fail, var_id})
-  end
-
-  def notify(%{id: var_id, subscriptions: subscriptions}, event) do
+  def notify(%{id: var_id, subscriptions: subscriptions} = variable, event) do
+    notify_space(variable, event)
     Enum.each(subscriptions, fn s -> notify_subscriber(s, var_id, event) end)
   end
 
@@ -149,8 +146,13 @@ defmodule CPSolver.ConstraintStore do
       send(subscriber, {event, var})
   end
 
-  defp notify_space(%{space: space} = _store, event) do
-    send(space, event)
+  defp notify_space(%{id: var_id, store: store} = _variable, :fail) do
+    event = {:fail, var_id}
+    send(store.space, event)
+  end
+
+  defp notify_space(_variable, _event) do
+    :ok
   end
 
   def variable_id(%Variable{id: id}) do

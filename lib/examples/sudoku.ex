@@ -1,6 +1,7 @@
 defmodule CPSolver.Examples.Sudoku do
   alias CPSolver.Constraint.AllDifferent
   alias CPSolver.IntVariable
+  alias CPSolver.Examples.Utils, as: ExamplesUtils
 
   require Logger
 
@@ -100,17 +101,25 @@ defmodule CPSolver.Examples.Sudoku do
       CPSolver.solve(model, solver_opts)
   end
 
-  def solve_and_print(puzzle) do
-    Logger.configure(level: :error)
+  def solve_and_print(puzzle, timeout \\ 5_000) do
+    Logger.configure(level: :info)
 
     IO.puts("Sudoku:")
     IO.puts(print_grid(puzzle))
+    ExamplesUtils.flush_solutions()
 
-    solve(puzzle, stop_on: {:max_solutions, 1})
-    |> tap(fn {:ok, solver} ->
-      Process.sleep(1000)
-      IO.puts("Solution")
-      IO.puts(print_grid(hd(CPSolver.solutions(solver))))
+    solve(puzzle,
+      solution_handler: ExamplesUtils.notify_client_handler(),
+      stop_on: {:max_solutions, 1}
+    )
+    |> tap(fn {:ok, _solver} ->
+      ExamplesUtils.wait_for_solution(
+        timeout,
+        fn solution ->
+          check_solution(solution)
+          |> tap(fn _ -> IO.puts(print_grid(solution)) end)
+        end
+      )
     end)
   end
 

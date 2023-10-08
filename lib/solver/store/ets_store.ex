@@ -5,16 +5,19 @@ defmodule CPSolver.Store.ETS do
   alias CPSolver.ConstraintStore
 
   @impl true
-  def create(variables, _opts \\ []) do
+  def create(variables, opts \\ []) do
     table_id =
       :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+
+    space = Keyword.get(opts, :space)
+    store = %{space: space, handle: table_id, store_impl: __MODULE__}
 
     Enum.each(
       variables,
       fn var ->
         :ets.insert(
           table_id,
-          {var.id, %{id: var.id, domain: Domain.new(var.domain), subscriptions: []}}
+          {var.id, %{id: var.id, store: store, domain: Domain.new(var.domain), subscriptions: []}}
         )
       end
     )
