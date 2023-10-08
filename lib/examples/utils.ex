@@ -20,7 +20,7 @@ defmodule CPSolver.Examples.Utils do
   end
 
   defp handle_timeout() do
-    Logger.info("Timed out :-(")
+    Logger.error("Timed out :-(")
   end
 
   defp handle_checked(solution_checked?) do
