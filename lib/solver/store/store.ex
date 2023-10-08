@@ -128,7 +128,6 @@ defmodule CPSolver.ConstraintStore do
   end
 
   defp notify_space(space, event) when is_pid(space) do
-    require Logger
     send(space, event)
   end
 
@@ -153,7 +152,6 @@ defmodule CPSolver.ConstraintStore do
   end
 
   defp notify_subscriber(%{pid: subscriber, events: events} = _subscription, var, event) do
-    ## TODO: notify based on the list of events
     event in (@mandatory_notifications ++ events) &&
       send(subscriber, {event, var})
   end

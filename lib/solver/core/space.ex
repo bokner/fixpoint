@@ -169,7 +169,6 @@ defmodule CPSolver.Space do
     handle_solved(data)
   end
 
-  @spec stable(any, any, any) :: :keep_state_and_data
   def solved(kind, message, _data) do
     unexpected_message(:solved, kind, message)
   end
