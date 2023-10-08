@@ -86,10 +86,10 @@ defmodule CPSolver.Examples.Queens do
         ## ... the same line
         ## ... the same left or right diagonal
         (Enum.at(queens, i) != Enum.at(queens, j))
-        |> tap(fn res -> !res && Logger.error("Queens #{i} and #{j} : same-line violation") end) &&
+        |> tap(fn res -> !res && Logger.error("Queens #{i+1} and #{j+1} : same-line violation") end) &&
           (abs(Enum.at(queens, i) - Enum.at(queens, j)) != j - i)
           |> tap(fn res ->
-            !res && Logger.error("Queens #{i} and #{j} : same-diagonal violation")
+            !res && Logger.error("Queens #{i+1} and #{j+1} : same-diagonal violation")
           end)
       end)
     end)
