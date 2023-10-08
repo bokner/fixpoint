@@ -157,7 +157,7 @@ defmodule CPSolver.Store.Local do
       Map.put(data, :variables, updated_vars)
     end)
     |> tap(fn _ ->
-      ConstraintStore.notify_subscribers(var_id, event, variable_rec.subscriptions)
+      ConstraintStore.notify(variable_rec, event)
     end)
   end
 end

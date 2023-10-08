@@ -112,23 +112,12 @@ defmodule CPSolver.ConstraintStore do
   end
 
   def update(
-        %{handle: handle, store_impl: store_impl, space: space} = _store,
+        %{handle: handle, store_impl: store_impl} = _store,
         variable,
         operation,
         args \\ []
       ) do
     store_impl.update(handle, variable, operation, args)
-    |> tap(fn
-      :fail ->
-        notify_space(space, {:fail, variable.id})
-
-      _ ->
-        :ok
-    end)
-  end
-
-  defp notify_space(space, event) when is_pid(space) do
-    send(space, event)
   end
 
   def get_variables(%{handle: handle, store_impl: store_impl} = _store) do
@@ -143,17 +132,25 @@ defmodule CPSolver.ConstraintStore do
     %{subscription | variable: variable_id(variable), events: normalize_events(events)}
   end
 
-  def notify_subscribers(_var, :no_change, _subscriptions) do
+  def notify(_variable, :no_change) do
     :ignore
   end
 
-  def notify_subscribers(var_id, event, subscriptions) do
+  def notify(%{id: var_id, store: store} = _variable, :fail) do
+    notify_space(store, {:fail, var_id})
+  end
+
+  def notify(%{id: var_id, subscriptions: subscriptions}, event) do
     Enum.each(subscriptions, fn s -> notify_subscriber(s, var_id, event) end)
   end
 
   defp notify_subscriber(%{pid: subscriber, events: events} = _subscription, var, event) do
     event in (@mandatory_notifications ++ events) &&
       send(subscriber, {event, var})
+  end
+
+  defp notify_space(%{space: space} = _store, event) do
+    send(space, event)
   end
 
   def variable_id(%Variable{id: id}) do

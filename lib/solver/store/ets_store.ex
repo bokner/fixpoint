@@ -58,77 +58,77 @@ defmodule CPSolver.Store.ETS do
   end
 
   @impl true
-  def subscribe(store, subscriptions) do
+  def subscribe(table, subscriptions) do
     subscriptions_by_var =
       subscriptions
       |> Enum.map(&ConstraintStore.normalize_subscription/1)
       |> Enum.group_by(fn s -> s.variable end)
 
     Enum.each(subscriptions_by_var, fn {var_id, subscrs} ->
-      var_rec = lookup(store, var_id)
+      var_rec = lookup(table, var_id)
 
       updated_rec = %{
         var_rec
         | subscriptions: (var_rec.subscriptions ++ subscrs) |> Enum.uniq_by(fn rec -> rec.pid end)
       }
 
-      true = :ets.insert(store, {var_id, updated_rec})
+      true = :ets.insert(table, {var_id, updated_rec})
     end)
   end
 
   defp update_variable_domain(
-         store,
-         %{id: var_id, subscriptions: subscriptions} = variable,
+         table,
+         %{id: var_id} = variable,
          domain,
          event
        ) do
-    :ets.insert(store, {variable.id, Map.put(variable, :domain, domain)})
-    |> tap(fn _ -> ConstraintStore.notify_subscribers(var_id, event, subscriptions) end)
+    :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
+    |> tap(fn _ -> ConstraintStore.notify(variable, event) end)
   end
 
   @impl true
-  def domain(store, variable) do
-    store
+  def domain(table, variable) do
+    table
     |> lookup(variable)
     |> Map.get(:domain)
   end
 
-  def lookup(store, %{id: var_id} = _variable) do
-    lookup(store, var_id)
+  def lookup(table, %{id: var_id} = _variable) do
+    lookup(table, var_id)
   end
 
-  def lookup(store, var_id) do
-    store
+  def lookup(table, var_id) do
+    table
     |> :ets.lookup(var_id)
     |> hd
     |> elem(1)
   end
 
-  defp handle_request(kind, store, var_id, operation, args) do
-    variable = lookup(store, var_id)
-    handle_request_impl(kind, store, variable, operation, args)
+  defp handle_request(kind, table, var_id, operation, args) do
+    variable = lookup(table, var_id)
+    handle_request_impl(kind, table, variable, operation, args)
   end
 
-  def handle_request_impl(_kind, _store, %{domain: :fail} = _variable, _operation, _args) do
+  def handle_request_impl(_kind, _table, %{domain: :fail} = _variable, _operation, _args) do
     :fail
   end
 
-  def handle_request_impl(:get, _store, %{domain: domain} = _variable, operation, args) do
+  def handle_request_impl(:get, _table, %{domain: domain} = _variable, operation, args) do
     apply(Domain, operation, [domain | args])
   end
 
-  def handle_request_impl(:update, store, %{domain: domain} = variable, operation, args) do
+  def handle_request_impl(:update, table, %{domain: domain} = variable, operation, args) do
     case apply(Domain, operation, [domain | args]) do
       :fail ->
         :fail
-        |> tap(fn _ -> update_variable_domain(store, variable, :fail, :fail) end)
+        |> tap(fn _ -> update_variable_domain(table, variable, :fail, :fail) end)
 
       :no_change ->
         :no_change
 
       {domain_change, new_domain} ->
         domain_change
-        |> tap(fn _ -> update_variable_domain(store, variable, new_domain, domain_change) end)
+        |> tap(fn _ -> update_variable_domain(table, variable, new_domain, domain_change) end)
     end
   end
 end
