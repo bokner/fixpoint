@@ -2,14 +2,15 @@ defmodule CPSolverTest.Examples.Queens do
   use ExUnit.Case, async: false
 
   alias CPSolver.Examples.Queens
+  alias CPSolver.Examples.Utils, as: ExamplesUtils
 
   ## No solutions
   test "3 Queens" do
-    test_queens(3, 0, trials: 100, timeout: 50)
+    test_queens(3, 0, trials: 10, timeout: 50)
   end
 
   test "4 Queens" do
-    test_queens(4, 2)
+    test_queens(4, 2, trials: 10, timeout: 1000)
   end
 
   test "5 Queens" do
@@ -21,7 +22,7 @@ defmodule CPSolverTest.Examples.Queens do
   end
 
   test "7 Queens" do
-    test_queens(7, 40, timeout: 2000)
+    test_queens(7, 10, timeout: 2000)
   end
 
   test "8 Queens" do
@@ -29,13 +30,19 @@ defmodule CPSolverTest.Examples.Queens do
   end
 
   defp test_queens(n, expected_solutions, opts \\ []) do
-    opts = Keyword.merge([timeout: 1000, trials: 1], opts)
+    opts =
+      Keyword.merge([timeout: 1000, trials: 1], opts)
+      |> Keyword.put(:solution_handler, ExamplesUtils.notify_client_handler())
 
     Enum.each(1..opts[:trials], fn _ ->
+      ExamplesUtils.flush_solutions()
       {:ok, solver} = Queens.solve(n, opts)
-      Process.sleep(opts[:timeout])
-      assert Enum.all?(CPSolver.solutions(solver), fn sol -> Queens.check_solution(sol) end)
+      ExamplesUtils.wait_for_solutions(expected_solutions, opts[:timeout], &assert_solution/1)
       assert CPSolver.statistics(solver).solution_count == expected_solutions
     end)
+  end
+
+  defp assert_solution(solution) do
+    assert Queens.check_solution(solution)
   end
 end

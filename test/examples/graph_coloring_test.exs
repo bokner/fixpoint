@@ -1,6 +1,9 @@
 defmodule CPSolverTest.Examples.GraphColoring do
   use ExUnit.Case, async: false
 
+  alias CPSolver.Examples.GraphColoring
+  alias CPSolver.Examples.Utils, as: ExamplesUtils
+
   test "P3" do
     test_graph("p3", 2, trials: 10)
   end
@@ -42,20 +45,25 @@ defmodule CPSolverTest.Examples.GraphColoring do
   end
 
   defp test_graph(graph_name, expected_solutions, opts \\ []) do
-    opts = Keyword.merge([timeout: 100, trials: 1], opts)
+    opts =
+      Keyword.merge([timeout: 100, trials: 1], opts)
+      |> Keyword.put(:solution_handler, ExamplesUtils.notify_client_handler())
+
     instance = "data/graph_coloring/#{graph_name}"
 
     Enum.each(1..opts[:trials], fn _ ->
-      {:ok, solver} = CPSolver.Examples.GraphColoring.solve(instance)
-      Process.sleep(opts[:timeout])
+      ExamplesUtils.flush_solutions()
+      {:ok, solver} = GraphColoring.solve(instance)
 
-      assert Enum.all?(CPSolver.solutions(solver), fn solution ->
-               CPSolver.Examples.GraphColoring.check_solution(solution, instance)
-             end)
+      ExamplesUtils.wait_for_solutions(expected_solutions, opts[:timeout], fn solution ->
+        assert_solution(solution, instance)
+      end)
 
-      ## TODO: fix occasional overshooting
-      ## and then change it back to strict equality
-      assert CPSolver.statistics(solver).solution_count >= expected_solutions
+      assert CPSolver.statistics(solver).solution_count == expected_solutions
     end)
+  end
+
+  defp assert_solution(solution, instance) do
+    assert GraphColoring.check_solution(solution, instance)
   end
 end

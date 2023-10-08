@@ -2,6 +2,7 @@ defmodule CPSolverTest.Examples.Sudoku do
   use ExUnit.Case, async: false
 
   alias CPSolver.Examples.Sudoku
+  alias CPSolver.Examples.Utils, as: ExamplesUtils
 
   test "4x4" do
     test_sudoku(Sudoku.puzzles().s4x4, 2, trials: 10, timeout: 100)
@@ -20,13 +21,19 @@ defmodule CPSolverTest.Examples.Sudoku do
   end
 
   defp test_sudoku(puzzle_instance, expected_solutions, opts \\ []) do
-    opts = Keyword.merge([timeout: 1000, trials: 1], opts)
+    opts =
+      Keyword.merge([timeout: 1000, trials: 1], opts)
+      |> Keyword.put(:solution_handler, ExamplesUtils.notify_client_handler())
 
     Enum.each(1..opts[:trials], fn _ ->
+      ExamplesUtils.flush_solutions()
       {:ok, solver} = Sudoku.solve(puzzle_instance, opts)
-      Process.sleep(opts[:timeout])
-      assert Enum.all?(CPSolver.solutions(solver), fn sol -> Sudoku.check_solution(sol) end)
+      ExamplesUtils.wait_for_solutions(expected_solutions, opts[:timeout], &assert_solution/1)
       assert CPSolver.statistics(solver).solution_count == expected_solutions
     end)
+  end
+
+  defp assert_solution(solution) do
+    assert Sudoku.check_solution(solution)
   end
 end
