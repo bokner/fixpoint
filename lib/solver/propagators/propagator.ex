@@ -1,4 +1,6 @@
 defmodule CPSolver.Propagator do
+  @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change
+
   @callback filter(args :: list()) :: map() | :stable | :failure
   @callback variables(args :: list()) :: list()
   @callback events() :: list()
@@ -67,6 +69,29 @@ defmodule CPSolver.Propagator do
             process_op_changes(op_results)
         end
     end
+  end
+
+  ## How domain events map to propagator events
+  ## (see Propagator.events() callback).
+
+  def to_domain_events(:domain_change) do
+    [:domain_change, :min_change, :max_change, :fixed]
+  end
+
+  def to_domain_events(:bound_change) do
+    [:min_change, :max_change, :fixed]
+  end
+
+  def to_domain_events(:min_change) do
+    [:min_change, :fixed]
+  end
+
+  def to_domain_events(:max_change) do
+    [:max_change, :fixed]
+  end
+
+  def to_domain_events(:fixed) do
+    [:fixed]
   end
 
   @spec process_op_changes(%{reference() => atom()}) ::

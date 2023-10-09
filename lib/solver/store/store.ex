@@ -43,7 +43,7 @@ defmodule CPSolver.ConstraintStore do
   @callback on_change(
               store :: any(),
               variable :: Variable.t(),
-              change :: :fixed | :min_change | :max_change | :domain_change
+              change :: Common.domain_change()
             ) :: any()
 
   @callback get_variables(store :: any()) :: [any()]

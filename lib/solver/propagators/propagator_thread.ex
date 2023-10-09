@@ -69,8 +69,11 @@ defmodule CPSolver.Propagator.Thread do
       end)
 
     propagator_vars = propagator_mod.variables(propagator_args)
-    propagation_events = Keyword.get(opts, :propagate_on, propagator_mod.events())
-    subscribe_to_variables(store, self(), propagator_vars, propagation_events)
+
+    domain_events =
+      Keyword.get(opts, :propagate_on, propagator_mod.events()) |> to_domain_events()
+
+    subscribe_to_variables(store, self(), propagator_vars, domain_events)
     propagator_id = Keyword.get(opts, :id, make_ref())
 
     {:ok,
@@ -80,7 +83,7 @@ defmodule CPSolver.Propagator.Thread do
        store: store,
        stable: false,
        propagator_impl: propagator_mod,
-       propagate_on: propagation_events,
+       propagate_on: domain_events,
        args: propagator_args,
        unfixed_variables:
          Enum.reduce(propagator_vars, MapSet.new(), fn var, acc ->
@@ -186,6 +189,17 @@ defmodule CPSolver.Propagator.Thread do
 
     new_unfixed = MapSet.reject(unfixed, fn v -> v in fixed_vars end)
     %{data | unfixed_variables: new_unfixed}
+  end
+
+  defp to_domain_events(propagator_events) do
+    propagator_events
+    |> Enum.reduce(
+      [:fixed],
+      fn p_event, acc ->
+        Propagator.to_domain_events(p_event) ++ acc
+      end
+    )
+    |> Enum.uniq()
   end
 
   defp publish(%{id: id, space: space} = _data, message) do
