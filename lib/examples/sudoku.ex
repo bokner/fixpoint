@@ -63,6 +63,11 @@ defmodule CPSolver.Examples.Sudoku do
       throw({:puzzle_not_valid, %{rows: dimension, cols: cols, square: square}})
     end
 
+    {:ok, _solver} =
+      CPSolver.solve(make_model(puzzle, dimension), solver_opts)
+  end
+
+  defp make_model(puzzle, dimension) do
     numbers = 1..dimension
 
     ## Variables
@@ -92,13 +97,10 @@ defmodule CPSolver.Examples.Sudoku do
     subsquare_constraints =
       group_by_subsquares(cells) |> Enum.map(fn square_vars -> {AllDifferent, square_vars} end)
 
-    model = %{
+    %{
       variables: cells |> List.flatten(),
       constraints: row_constraints ++ column_constraints ++ subsquare_constraints
     }
-
-    {:ok, _solver} =
-      CPSolver.solve(model, solver_opts)
   end
 
   def solve_and_print(puzzle, timeout \\ 5_000) do
