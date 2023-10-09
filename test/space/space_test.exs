@@ -7,11 +7,6 @@ defmodule CPSolverTest.Space do
     alias CPSolver.Propagator.NotEqual
     alias CPSolver.Solution
 
-    setup do
-      Logger.configure(level: :debug)
-      on_exit(fn -> Logger.configure(level: :error) end)
-    end
-
     test "create space" do
       x_values = 1..10
       y_values = -5..5

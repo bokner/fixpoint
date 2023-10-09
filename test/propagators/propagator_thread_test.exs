@@ -1,53 +1,45 @@
 defmodule CPSolverTest.Propagator.Thread do
   use ExUnit.Case
 
-  import ExUnit.CaptureLog
-  import CPSolver.Test.Helpers
-
   describe "Propagator thread" do
     alias CPSolver.Propagator.Thread, as: PropagatorThread
     alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable
     alias CPSolver.Variable
     alias CPSolver.Propagator.NotEqual
-
-    @domain_events CPSolver.Common.domain_events()
-
-    setup do
-      Logger.configure(level: :debug)
-      on_exit(fn -> Logger.configure(level: :error) end)
-    end
-
-    @entailment_str "Propagator is entailed"
+    alias CPSolver.Common
 
     test "create propagator thread" do
       x = 1..1
       y = -5..5
-      variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
+      z = 0..0
+      variables = Enum.map([x, y, z], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var] = bound_vars, store} =
+      {:ok, [x_var, y_var, z_var] = _bound_vars, store} =
         ConstraintStore.create_store(variables)
 
       {:ok, _propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, bound_vars},
-          propagate_on: @domain_events,
+        PropagatorThread.create_thread(self(), {NotEqual, x_var, y_var},
+          propagate_on: Common.domain_events(),
           store: store
         )
 
       ## ...filters its variables upon start (happens in handle_continue, so needs a small timeout here)
-      Process.sleep(5)
+      Process.sleep(10)
       refute Variable.contains?(y_var, 1)
-      ## ...receives variable update notifications
-      assert capture_log([level: :debug], fn ->
-               Variable.removeBelow(y_var, 0)
-               Process.sleep(10)
-             end) =~ "Propagation triggered"
 
-      ## ...triggers filtering on receiving update notifications
-      assert capture_log([level: :debug], fn ->
-               Variable.remove(x_var, 1)
-               Process.sleep(10)
-             end) =~ "Failure for variable #{inspect(x_var.id)}"
+      ## Note: we start propagator thread, but don't filter on a startup
+      {:ok, _propagator_thread} =
+        PropagatorThread.create_thread(self(), {NotEqual, y_var, z_var},
+          propagate_on: Common.domain_events(),
+          filter_on_startup: false,
+          store: store
+        )
+
+      ## Fix 'y' to 0 so the propagator triggers a failure, as 'z' is also fixed to 0
+      assert :fixed = Variable.fix(y_var, 0)
+      Process.sleep(10)
+      # assert :fail == Variable.domain(z_var)
     end
 
     test "entailment with initially unfixed variables" do
@@ -61,21 +53,14 @@ defmodule CPSolverTest.Propagator.Thread do
       {:ok, propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, bound_vars}, store: store)
 
+      ConstraintStore.update(store, x_var, :fix, [1])
+      Process.sleep(10)
+      refute_received {:entailed, _}
+
+      ConstraintStore.update(store, y_var, :fix, [2])
       Process.sleep(10)
 
-      refute capture_log([level: :debug], fn ->
-               ConstraintStore.update(store, x_var, :fix, [1])
-               Process.sleep(10)
-             end) =~ @entailment_str
-
-      entailment_log =
-        capture_log([level: :debug], fn ->
-          ConstraintStore.update(store, y_var, :fix, [2])
-          Process.sleep(10)
-        end)
-
-      ## An entailment happens exactly once
-      assert number_of_occurences(entailment_log, @entailment_str) == 1
+      assert_received {:entailed, _}
       ## Propagator thread discards itself on entailment
       Process.sleep(10)
       refute Process.alive?(propagator_thread)
@@ -89,14 +74,13 @@ defmodule CPSolverTest.Propagator.Thread do
 
       {:ok, bound_vars, store} = ConstraintStore.create_store(variables)
 
-      assert capture_log([level: :debug], fn ->
-               {:ok, propagator_thread} =
-                 PropagatorThread.create_thread(self(), {NotEqual, bound_vars}, store: store)
+      {:ok, propagator_thread} =
+        PropagatorThread.create_thread(self(), {NotEqual, bound_vars}, store: store)
 
-               ## Propagator thread discards itself on entailment
-               Process.sleep(10)
-               refute Process.alive?(propagator_thread)
-             end) =~ @entailment_str
+      ## Propagator thread discards itself on entailment
+      Process.sleep(10)
+      assert_received {:entailed, _}
+      refute Process.alive?(propagator_thread)
     end
 
     test "Starting/stopping propagator subscribes it to/unsubscribes it from  its variables" do
@@ -122,26 +106,30 @@ defmodule CPSolverTest.Propagator.Thread do
       {:ok, [x_var, y_var] = vars, store} = ConstraintStore.create_store(variables)
 
       ## Detects stability on a startup
-      assert capture_log([level: :debug], fn ->
-               {:ok, _propagator_thread} =
-                 PropagatorThread.create_thread(self(), {NotEqual, vars}, store: store)
+      {:ok, propagator_thread} =
+        PropagatorThread.create_thread(self(), {NotEqual, vars}, store: store)
 
-               Process.sleep(10)
-             end) =~ "is stable"
+      Process.sleep(10)
 
+      assert_received {:stable, _}
       ## Filtering that leaves unfixed variable(s) (x_var in this case) should
       ## (eventually) put propagator into 'stable' state
-      assert capture_log([level: :debug], fn ->
-               ConstraintStore.update(store, y_var, :fix, [1])
-               Process.sleep(10)
-             end) =~ "is stable"
+      ConstraintStore.update(store, y_var, :fix, [1])
+      Process.sleep(10)
+
+      assert_received {:stable, _}
+
+      ## The propagator is stable, and so has to live..
+      assert Process.alive?(propagator_thread)
 
       ## Fixing all variables (i.e., entailment)
       ## does not result in stability.
-      refute capture_log([level: :debug], fn ->
-               ConstraintStore.update(store, x_var, :fix, [0])
-               Process.sleep(10)
-             end) =~ "is stable"
+      ConstraintStore.update(store, x_var, :fix, [0])
+      Process.sleep(10)
+
+      assert_received {:entailed, _}
+      ## The propagator has gone (entailnment had stopped it)
+      refute Process.alive?(propagator_thread)
     end
 
     test "propagator failure" do

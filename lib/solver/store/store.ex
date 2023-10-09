@@ -53,6 +53,8 @@ defmodule CPSolver.ConstraintStore do
               subscriptions :: [%{pid: pid(), variable: any(), events: [any()]}]
             ) :: :ok | :not_found
 
+  @domain_events CPSolver.Common.domain_events()
+
   ### API
   defmacro __using__(_) do
     quote do
@@ -136,23 +138,36 @@ defmodule CPSolver.ConstraintStore do
     :ignore
   end
 
-  def notify(%{id: var_id, subscriptions: subscriptions} = variable, event) do
-    notify_space(variable, event)
-    Enum.each(subscriptions, fn s -> notify_subscriber(s, var_id, event) end)
+  def notify(variable, :fail) do
+    notify_space(variable, :fail)
   end
 
-  defp notify_subscriber(%{pid: subscriber, events: events} = _subscription, var, event) do
-    event in (@mandatory_notifications ++ events) &&
-      send(subscriber, {event, var})
+  def notify(%{id: var_id, subscriptions: subscriptions} = variable, event)
+      when event in @domain_events do
+    affected_subscriber_pids =
+      Enum.flat_map(subscriptions, fn s -> (notify_subscriber?(s, event) && [s.pid]) || [] end)
+
+    notify_space(variable, {:schedule, affected_subscriber_pids})
+
+    Enum.each(affected_subscriber_pids, fn s_pid -> notify_process(s_pid, var_id, event) end)
+  end
+
+  defp notify_subscriber?(%{events: events} = _subscription, event) do
+    event in (@mandatory_notifications ++ events)
   end
 
   defp notify_space(%{id: var_id, store: store} = _variable, :fail) do
-    event = {:fail, var_id}
-    send(store.space, event)
+    notify_process(store.space, var_id, :fail)
   end
 
-  defp notify_space(_variable, _event) do
-    :ok
+  defp notify_space(%{id: var_id, store: store} = _variable, {:schedule, propagator_pids} = event)
+       when is_list(propagator_pids) do
+    length(propagator_pids) > 0 && notify_process(store.space, var_id, event)
+  end
+
+  defp notify_process(pid, var_id, event) do
+    event = {event, var_id}
+    send(pid, event)
   end
 
   def variable_id(%Variable{id: id}) do

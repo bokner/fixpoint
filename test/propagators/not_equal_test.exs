@@ -1,19 +1,12 @@
 defmodule CPSolverTest.Propagator.NotEqual do
   use ExUnit.Case
 
-  import ExUnit.CaptureLog
-
   describe "Propagator filtering" do
     alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Propagator.Variable, as: PropagatorVariable
     alias CPSolver.Propagator.Thread, as: PropagatorThread
     alias CPSolver.Propagator.NotEqual
-
-    setup do
-      Logger.configure(level: :debug)
-      on_exit(fn -> Logger.configure(level: :error) end)
-    end
 
     test "filtering, unfixed domains" do
       ## Both vars are unfixed
@@ -46,10 +39,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
              )
 
       ## Consequent filtering does not trigger domain change events
-      refute capture_log([level: :debug], fn ->
-               NotEqual.filter(bound_vars)
-               Process.sleep(10)
-             end) =~ "Domain change"
+      assert :no_change == NotEqual.filter(bound_vars)
     end
 
     test "inconsistency" do
@@ -89,7 +79,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
     test "propagates only when variables become fixed" do
       ## Both vars are unfixed
       x = 1..2
-      y = 0..3
+      y = 0..1
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, [x_var, y_var] = _bound_vars, store} =
@@ -98,17 +88,12 @@ defmodule CPSolverTest.Propagator.NotEqual do
       {:ok, _propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, variables}, store: store)
 
-      Process.sleep(10)
-
-      refute capture_log([level: :debug], fn ->
-               Variable.remove(y_var, 0)
-             end) =~ "Propagation triggered"
-
-      ## Fix one of variables, this should trigger propagation
-      assert capture_log([level: :debug], fn ->
-               Variable.fix(x_var, 1)
-               Process.sleep(10)
-             end) =~ "Propagation triggered"
+      Process.sleep(5)
+      assert 1 == Variable.min(x_var)
+      ## Triggers the filtering; 'x' variable will have '1' removed
+      _domain_change = Variable.fix(y_var, 1)
+      Process.sleep(5)
+      assert 2 == Variable.min(x_var)
     end
   end
 end

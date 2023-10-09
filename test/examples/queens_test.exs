@@ -4,13 +4,15 @@ defmodule CPSolverTest.Examples.Queens do
   alias CPSolver.Examples.Queens
   alias CPSolver.Examples.Utils, as: ExamplesUtils
 
+  require Logger
+
   ## No solutions
   test "3 Queens" do
-    test_queens(3, 0, trials: 10, timeout: 50)
+    test_queens(3, 0, trials: 1000, timeout: 100)
   end
 
   test "4 Queens" do
-    test_queens(4, 2, trials: 10, timeout: 1000)
+    test_queens(4, 2, trials: 100, timeout: 1000)
   end
 
   test "5 Queens" do

@@ -84,6 +84,7 @@ defmodule CPSolver.Propagator.Thread do
        stable: false,
        propagator_impl: propagator_mod,
        propagate_on: domain_events,
+       filter_on_startup: Keyword.get(opts, :filter_on_startup, true),
        args: propagator_args,
        unfixed_variables:
          Enum.reduce(propagator_vars, MapSet.new(), fn var, acc ->
@@ -94,8 +95,8 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   @impl true
-  def handle_continue(:filter, data) do
-    filter(data)
+  def handle_continue(:filter, %{filter_on_startup: filter?} = data) do
+    (filter? && filter(data)) || noop(data)
   end
 
   @impl true
@@ -129,8 +130,6 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   defp filter(%{propagator_impl: mod, args: args} = data) do
-    Logger.debug("#{inspect(data.id)}: Propagation triggered")
-
     case Propagator.filter(mod, args) do
       {:fail, var} ->
         handle_failure(var, data)
@@ -149,20 +148,17 @@ defmodule CPSolver.Propagator.Thread do
     if entailed?(data) do
       handle_entailed(data)
     else
-      Logger.debug("#{inspect(data.id)} Propagator is stable")
       publish(data, :stable)
       {:noreply, data}
     end
   end
 
   defp handle_entailed(data) do
-    Logger.debug("#{inspect(data.id)} Propagator is entailed (on filtering)")
     publish(data, :entailed)
     stop(data)
   end
 
-  def handle_failure(var, data) do
-    Logger.debug("#{inspect(data.id)} Propagator: Failure for variable #{inspect(var)}")
+  def handle_failure(_var, data) do
     stop(data)
   end
 

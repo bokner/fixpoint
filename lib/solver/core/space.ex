@@ -148,6 +148,15 @@ defmodule CPSolver.Space do
     end
   end
 
+  def propagating(:info, {{:schedule, propagator_threads}, _variable_id}, data) do
+    updated_data =
+      Enum.reduce(propagator_threads, data, fn pid, acc ->
+        set_propagator_stable(acc, pid, false)
+      end)
+
+    {:keep_state, updated_data}
+  end
+
   def propagating(:info, {:fail, _variable_id}, data) do
     {:next_state, :failed, data}
   end
@@ -207,18 +216,27 @@ defmodule CPSolver.Space do
     Enum.all?(threads, fn {_id, thread} -> thread.stable end)
   end
 
-  defp set_propagator_stable(%{propagator_threads: threads} = data, propagator_id, stable?) do
-    if Map.has_key?(threads, propagator_id) do
-      %{
-        data
-        | propagator_threads:
-            Map.update!(threads, propagator_id, fn content ->
-              Map.put(content, :stable, stable?)
-            end)
-      }
-    else
-      data
-    end
+  defp set_propagator_stable(%{propagator_threads: threads} = data, propagator, stable?) do
+    Enum.reduce_while(threads, threads, fn {id, propagator_data} = propagator_rec, acc ->
+      if propagator_match?(propagator_rec, propagator) do
+        {:halt,
+         Map.put(propagator_data, :stable, stable?)
+         |> then(fn updated ->
+           updated_threads = Map.put(acc, id, updated)
+           Map.put(data, :propagator_threads, updated_threads)
+         end)}
+      else
+        {:cont, acc}
+      end
+    end)
+  end
+
+  defp propagator_match?({_id, propagator_data}, propagator) when is_pid(propagator) do
+    propagator_data.thread == propagator
+  end
+
+  defp propagator_match?({id, _propagator_data}, propagator) do
+    id == propagator
   end
 
   def update_entailed(%{propagator_threads: threads} = data, propagator_thread) do
