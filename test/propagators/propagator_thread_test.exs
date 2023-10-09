@@ -11,7 +11,7 @@ defmodule CPSolverTest.Propagator.Thread do
     alias CPSolver.Variable
     alias CPSolver.Propagator.NotEqual
 
-    @domain_changes CPSolver.Common.domain_changes()
+    @domain_events CPSolver.Common.domain_events()
 
     setup do
       Logger.configure(level: :debug)
@@ -30,7 +30,7 @@ defmodule CPSolverTest.Propagator.Thread do
 
       {:ok, _propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, bound_vars},
-          propagate_on: @domain_changes,
+          propagate_on: @domain_events,
           store: store
         )
 

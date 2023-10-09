@@ -8,7 +8,7 @@ defmodule CPSolver.Propagator.Thread do
 
   @behaviour GenServer
 
-  @domain_changes Common.domain_changes()
+  @domain_events Common.domain_events()
 
   @doc """
   Create a propagator thread; 'propagator' is a tuple {propagator_mod, args} where propagator_mod
@@ -112,7 +112,7 @@ defmodule CPSolver.Propagator.Thread do
     |> filter()
   end
 
-  def handle_info({domain_change, _var}, data) when domain_change in @domain_changes do
+  def handle_info({domain_change, _var}, data) when domain_change in @domain_events do
     if domain_change in data.propagate_on do
       filter(data)
     else

@@ -15,7 +15,7 @@ defmodule CPSolver.Propagator do
 
       ## Events that trigger propagation
       def events() do
-        CPSolver.Common.domain_changes()
+        CPSolver.Common.domain_events()
       end
 
       defoverridable variables: 1

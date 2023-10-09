@@ -57,7 +57,7 @@ defmodule CPSolver.ConstraintStore do
   defmacro __using__(_) do
     quote do
       @behaviour CPSolver.ConstraintStore
-      @domain_changes CPSolver.Common.domain_changes()
+      @domain_events CPSolver.Common.domain_events()
       require Logger
 
       def update(store, variable, operation, args) do
@@ -69,7 +69,7 @@ defmodule CPSolver.ConstraintStore do
           :no_change ->
             on_no_change(store, variable)
 
-          change when change in @domain_changes ->
+          change when change in @domain_events ->
             on_change(store, variable, change)
         end)
       end

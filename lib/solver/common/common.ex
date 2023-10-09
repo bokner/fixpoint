@@ -3,7 +3,7 @@ defmodule CPSolver.Common do
   @type domain_get_operation :: :size | :fixed? | :min | :max | :contains?
   @type domain_update_operation :: :remove | :removeAbove | :removeBelow | :fix
 
-  def domain_changes() do
+  def domain_events() do
     [:fixed, :domain_change, :min_change, :max_change]
   end
 end
