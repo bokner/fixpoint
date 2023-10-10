@@ -8,27 +8,27 @@ defmodule CPSolverTest.Examples.Queens do
 
   ## No solutions
   test "3 Queens" do
-    test_queens(3, 0, trials: 1000, timeout: 100)
+    test_queens(3, 0, trials: 100, timeout: 100)
   end
 
   test "4 Queens" do
-    test_queens(4, 2, trials: 100, timeout: 1000)
+    test_queens(4, 2, trials: 10, timeout: 1000)
   end
 
   test "5 Queens" do
-    test_queens(5, 10, timeout: 500)
+    test_queens(5, 10, trials: 10, timeout: 500)
   end
 
   test "6 Queens" do
-    test_queens(6, 4, timeout: 500)
+    test_queens(6, 4, trials: 10, timeout: 500)
   end
 
   test "7 Queens" do
-    test_queens(7, 10, timeout: 2000)
+    test_queens(7, 40, trials: 1, timeout: 1000)
   end
 
   test "8 Queens" do
-    test_queens(8, 92, timeout: 2000)
+    test_queens(8, 92, trials: 10, timeout: 1000)
   end
 
   defp test_queens(n, expected_solutions, opts \\ []) do
@@ -36,11 +36,18 @@ defmodule CPSolverTest.Examples.Queens do
       Keyword.merge([timeout: 1000, trials: 1], opts)
       |> Keyword.put(:solution_handler, ExamplesUtils.notify_client_handler())
 
-    Enum.each(1..opts[:trials], fn _ ->
+    Enum.each(1..opts[:trials], fn i ->
       ExamplesUtils.flush_solutions()
       {:ok, solver} = Queens.solve(n, opts)
-      ExamplesUtils.wait_for_solutions(expected_solutions, opts[:timeout], &assert_solution/1)
-      assert CPSolver.statistics(solver).solution_count == expected_solutions
+
+      num_solutions =
+        ExamplesUtils.wait_for_solutions(expected_solutions, opts[:timeout], &assert_solution/1)
+
+      Process.sleep(10)
+      solution_count = CPSolver.statistics(solver).solution_count
+
+      assert solution_count == expected_solutions,
+             "Failed on trial #{i} with #{inspect(solution_count)} out of #{expected_solutions} solution(s)"
     end)
   end
 

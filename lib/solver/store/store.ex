@@ -147,7 +147,7 @@ defmodule CPSolver.ConstraintStore do
     affected_subscriber_pids =
       Enum.flat_map(subscriptions, fn s -> (notify_subscriber?(s, event) && [s.pid]) || [] end)
 
-    notify_space(variable, {:schedule, affected_subscriber_pids})
+    notify_space(variable, {event, affected_subscriber_pids})
 
     Enum.each(affected_subscriber_pids, fn s_pid -> notify_process(s_pid, var_id, event) end)
   end
@@ -160,7 +160,10 @@ defmodule CPSolver.ConstraintStore do
     notify_process(store.space, var_id, :fail)
   end
 
-  defp notify_space(%{id: var_id, store: store} = _variable, {:schedule, propagator_pids} = event)
+  defp notify_space(
+         %{id: var_id, store: store} = _variable,
+         {_domain_change, propagator_pids} = event
+       )
        when is_list(propagator_pids) do
     length(propagator_pids) > 0 && notify_process(store.space, var_id, event)
   end

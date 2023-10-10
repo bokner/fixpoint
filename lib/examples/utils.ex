@@ -19,17 +19,21 @@ defmodule CPSolver.Examples.Utils do
     |> tap(fn _ -> flush_solutions() end)
   end
 
-  def wait_for_solutions(0, _timeout, _solution_checker_fun) do
-    :ok
+  def wait_for_solutions(expected, timeout, solution_checker_fun) do
+    wait_for_solutions(expected, timeout, solution_checker_fun, 0)
   end
 
-  def wait_for_solutions(num, timeout, solution_checker_fun) do
+  def wait_for_solutions(0, _timeout, _solution_checker_fun, successes) do
+    successes
+  end
+
+  def wait_for_solutions(num, timeout, solution_checker_fun, successes) do
     case wait_for_solution(timeout, solution_checker_fun) do
       {:error, :timeout} ->
         {:error, :timeout}
 
       true ->
-        wait_for_solutions(num - 1, timeout, solution_checker_fun)
+        wait_for_solutions(num - 1, timeout, solution_checker_fun, successes + 1)
     end
   end
 

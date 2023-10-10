@@ -148,7 +148,7 @@ defmodule CPSolver.Space do
     end
   end
 
-  def propagating(:info, {{:schedule, propagator_threads}, _variable_id}, data) do
+  def propagating(:info, {{_domain_change, propagator_threads}, variable_id}, data) do
     updated_data =
       Enum.reduce(propagator_threads, data, fn pid, acc ->
         set_propagator_stable(acc, pid, false)
