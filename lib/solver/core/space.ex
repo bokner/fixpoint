@@ -100,7 +100,6 @@ defmodule CPSolver.Space do
       keep_alive: keep_alive,
       variables: space_variables,
       propagators: propagators,
-      propagator_graph: make_propagator_graph(propagators),
       store: store,
       solver: solver,
       opts: space_opts,
@@ -374,10 +373,4 @@ defmodule CPSolver.Space do
     ConstraintStore.dispose(store, variables)
   end
 
-  def make_propagator_graph(propagators) do
-    Enum.reduce(propagators, Graph.new(), fn {propagator_id, {p, args}}, acc ->
-      p.variables(args)
-      |> Enum.reduce(acc, fn v, acc2 -> Graph.add_edge(acc2, v.id, {propagator_id, p}, label: p) end)
-    end)
-  end
 end
