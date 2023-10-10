@@ -25,10 +25,12 @@ defmodule CPSolver.Propagator do
     end
   end
 
+  @spec normalize([Propagator.t()], ConstraintStore.t()) :: %{reference() => Propagator.t()}
   def normalize(propagators, store) when is_list(propagators) do
     propagators
     |> Enum.map(fn p -> normalize(p, store) end)
     |> Enum.uniq()
+    |> Map.new(fn p -> {make_ref(), p} end)
   end
 
   def normalize({mod, args} = _propagator, store) when is_list(args) do

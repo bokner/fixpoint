@@ -24,6 +24,7 @@ defmodule CPSolver.Space do
             keep_alive: false,
             variables: [],
             propagators: [],
+            propagator_graph: Graph.new(),
             propagator_threads: %{},
             store: nil,
             space: nil,
@@ -99,6 +100,7 @@ defmodule CPSolver.Space do
       keep_alive: keep_alive,
       variables: space_variables,
       propagators: propagators,
+      propagator_graph: make_propagator_graph(propagators),
       store: store,
       solver: solver,
       opts: space_opts,
@@ -148,7 +150,7 @@ defmodule CPSolver.Space do
     end
   end
 
-  def propagating(:info, {{_domain_change, propagator_threads}, variable_id}, data) do
+  def propagating(:info, {{_domain_change, propagator_threads}, _variable_id}, data) do
     updated_data =
       Enum.reduce(propagator_threads, data, fn pid, acc ->
         set_propagator_stable(acc, pid, false)
@@ -199,16 +201,14 @@ defmodule CPSolver.Space do
   end
 
   defp create_propagator_threads(propagators, data) do
-    Enum.reduce(propagators, Map.new(), fn p, acc ->
-      propagator_id = make_ref()
-
+    Map.new(propagators, fn {propagator_id, p} ->
       {:ok, thread} =
         PropagatorThread.create_thread(self(), p,
           id: propagator_id,
           store: data.store
         )
 
-      Map.put(acc, propagator_id, %{thread: thread, propagator: p, stable: false})
+      {propagator_id, %{thread: thread, propagator: p, stable: false}}
     end)
   end
 
@@ -372,5 +372,12 @@ defmodule CPSolver.Space do
   def terminate(_reason, _current_state, %{store: store, variables: variables} = data) do
     Enum.each(data.propagator_threads, fn {_ref, thread} -> PropagatorThread.dispose(thread) end)
     ConstraintStore.dispose(store, variables)
+  end
+
+  def make_propagator_graph(propagators) do
+    Enum.reduce(propagators, Graph.new(), fn {propagator_id, {p, args}}, acc ->
+      p.variables(args)
+      |> Enum.reduce(acc, fn v, acc2 -> Graph.add_edge(acc2, v.id, {propagator_id, p}, label: p) end)
+    end)
   end
 end
