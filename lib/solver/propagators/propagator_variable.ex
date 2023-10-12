@@ -1,5 +1,8 @@
 defmodule CPSolver.Propagator.Variable do
   alias CPSolver.Variable
+  alias CPSolver.Propagator
+
+  @propagator_events Propagator.propagator_events()
 
   @variable_op_results_key :variable_op_results
   defdelegate domain(var), to: Variable
@@ -23,6 +26,11 @@ defmodule CPSolver.Propagator.Variable do
 
   def fix(var, val) do
     wrap(:fix, var, val)
+  end
+
+  def set_propagate_on(%Variable{} = var, propagator_event)
+      when propagator_event in @propagator_events do
+    Map.put(var, :propagate_on, propagator_event)
   end
 
   defp wrap(op, var, val) do

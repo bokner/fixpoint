@@ -5,6 +5,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   the propagator receives upon varable's domain change.
   """
   alias CPSolver.Propagator
+  alias CPSolver.Variable
 
   @spec create([Propagator.t()]) :: Graph.t()
   def create(propagators) do
@@ -14,15 +15,13 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       args
       |> propagator_mod.variables()
       |> Enum.reduce(acc, fn var, acc2 ->
-        Graph.add_edge(acc2, var.id, {:propagator, propagator_id},
-          label: get_notification(propagator_mod, var)
-        )
+        Graph.add_edge(acc2, var.id, {:propagator, propagator_id}, label: get_propagate_on(var))
       end)
     end)
   end
 
   ## TODO: compute notification from propagator definition
-  defp get_notification(_propagator_mod, _variable) do
-    :fixed
+  defp get_propagate_on(%Variable{} = variable) do
+    Map.get(variable, :propagate_on, :fixed)
   end
 end

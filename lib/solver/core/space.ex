@@ -372,5 +372,4 @@ defmodule CPSolver.Space do
     Enum.each(data.propagator_threads, fn {_ref, thread} -> PropagatorThread.dispose(thread) end)
     ConstraintStore.dispose(store, variables)
   end
-
 end

@@ -1,10 +1,11 @@
 defmodule CPSolver.Variable do
-  defstruct [:id, :name, :domain, :store]
+  defstruct [:id, :name, :domain, :store, :propagate_on]
 
   @type t :: %__MODULE__{
           id: reference(),
           name: String.t(),
-          domain: Domain.t()
+          domain: Domain.t(),
+          propagate_on: Propagator.propagator_event()
         }
 
   alias CPSolver.Variable

@@ -1,5 +1,5 @@
 defmodule CPSolver.Propagator do
-  @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change
+  @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change | :fixed
 
   @callback filter(args :: list()) :: map() | :stable | :failure
   @callback variables(args :: list()) :: list()
@@ -12,7 +12,7 @@ defmodule CPSolver.Propagator do
     quote do
       @behaviour CPSolver.Propagator
       def variables(args) do
-        args
+        CPSolver.Propagator.default_variables_impl(args)
       end
 
       ## Events that trigger propagation
@@ -25,7 +25,22 @@ defmodule CPSolver.Propagator do
     end
   end
 
+  def propagator_events() do
+    [:domain_change, :bound_change, :min_change, :max_change, :fixed]
+  end
+
+  def default_variables_impl(args) do
+    args
+    |> Enum.filter(fn
+      %Variable{} -> true
+      _ -> false
+    end)
+  end
+
   @spec normalize([Propagator.t()], ConstraintStore.t()) :: %{reference() => Propagator.t()}
+
+  def normalize(propagators, store \\ nil)
+
   def normalize(propagators, store) when is_list(propagators) do
     propagators
     |> Enum.map(fn p -> normalize(p, store) end)
@@ -38,9 +53,9 @@ defmodule CPSolver.Propagator do
      Enum.map(
        args,
        fn
-         %Variable{} = arg ->
-           arg
-           |> Map.put(:store, store)
+         %Variable{} = var ->
+           var
+           |> then(fn var -> (store && Map.put(var, :store, store)) || var end)
 
          const ->
            const

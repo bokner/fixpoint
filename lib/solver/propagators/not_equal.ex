@@ -1,11 +1,13 @@
 defmodule CPSolver.Propagator.NotEqual do
   use CPSolver.Propagator
-
+  alias CPSolver.Propagator
   import CPSolver.Propagator.Variable
 
   @impl true
   def variables(args) do
-    Enum.take(args, 2)
+    args
+    |> Propagator.default_variables_impl()
+    |> Enum.map(fn var -> set_propagate_on(var, :fixed) end)
   end
 
   @impl true
