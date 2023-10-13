@@ -148,8 +148,6 @@ defmodule CPSolver.ConstraintStore do
       Enum.flat_map(subscriptions, fn s -> (notify_subscriber?(s, event) && [s.pid]) || [] end)
 
     notify_space(variable, {event, affected_subscriber_pids})
-
-    Enum.each(affected_subscriber_pids, fn s_pid -> notify_process(s_pid, var_id, event) end)
   end
 
   defp notify_subscriber?(%{events: events} = _subscription, event) do
