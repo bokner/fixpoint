@@ -123,15 +123,15 @@ defmodule CPSolver.Store.ETS do
   def handle_request_impl(:update, table, %{domain: domain} = variable, operation, args) do
     case apply(Domain, operation, [domain | args]) do
       :fail ->
+        update_variable_domain(table, variable, :fail, :fail)
         :fail
-        |> tap(fn _ -> update_variable_domain(table, variable, :fail, :fail) end)
 
       :no_change ->
         :no_change
 
       {domain_change, new_domain} ->
+        update_variable_domain(table, variable, new_domain, domain_change)
         domain_change
-        |> tap(fn _ -> update_variable_domain(table, variable, new_domain, domain_change) end)
     end
   end
 end

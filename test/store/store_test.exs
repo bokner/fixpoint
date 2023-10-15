@@ -124,7 +124,7 @@ defmodule CPSolverTest.Store do
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
       {:ok, [v1, v2, _v3] = bound_vars, store} =
-        ConstraintStore.create_store(variables)
+        ConstraintStore.create_store(variables, space: nil)
 
       ## No notifications, if no subscriptions
       assert :max_change == ConstraintStore.update(store, v2, :removeAbove, [5])
