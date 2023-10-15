@@ -53,8 +53,6 @@ defmodule CPSolver.ConstraintStore do
               subscriptions :: [%{pid: pid(), variable: any(), events: [any()]}]
             ) :: :ok | :not_found
 
-  @domain_events CPSolver.Common.domain_events()
-
   ### API
   defmacro __using__(_) do
     quote do
@@ -80,16 +78,17 @@ defmodule CPSolver.ConstraintStore do
     end
   end
 
-  def create_store(variables) do
-    create_store(variables, default_store(), self())
+  def default_store_opts() do
+    [space: self(), store_impl: default_store()]
   end
 
-  def create_store(variables, store_impl) do
-    create_store(variables, store_impl, self())
-  end
+  def create_store(variables, opts \\ [])
 
-  def create_store(variables, store_impl, space) do
-    {:ok, store_handle} = store_impl.create(variables, space: space)
+  def create_store(variables, opts) do
+    opts = Keyword.merge(default_store_opts(), opts)
+    space = Keyword.get(opts, :space)
+    store_impl = Keyword.get(opts, :store_impl)
+    {:ok, store_handle} = store_impl.create(variables, opts)
     store = %{space: space, handle: store_handle, store_impl: store_impl}
 
     {:ok,
@@ -138,37 +137,40 @@ defmodule CPSolver.ConstraintStore do
     :ignore
   end
 
-  def notify(variable, :fail) do
-    notify_space(variable, :fail)
-  end
-
-  def notify(%{id: var_id, subscriptions: subscriptions} = variable, event)
-      when event in @domain_events do
-    affected_subscriber_pids =
+  @doc """
+    Notify on variable event.
+    If space = nil (the store is detached from space), then notifications are passed directly to propagators.
+    Otherwise they go to the space process.
+  """
+  def notify(%{id: var_id, subscriptions: subscriptions, store: store} = variable, event) do
+    propagator_pids =
       Enum.flat_map(subscriptions, fn s -> (notify_subscriber?(s, event) && [s.pid]) || [] end)
 
-    notify_space(variable, {event, affected_subscriber_pids})
+    (store.space &&
+       notify_space(variable, event, propagator_pids)) ||
+      Enum.each(propagator_pids, fn pid -> notify_process(pid, var_id, event) end)
   end
 
   defp notify_subscriber?(%{events: events} = _subscription, event) do
     event in (@mandatory_notifications ++ events)
   end
 
-  defp notify_space(%{id: var_id, store: store} = _variable, :fail) do
+  defp notify_space(%{id: var_id, store: store} = _variable, :fail, _propagator_pids) do
     notify_process(store.space, var_id, :fail)
   end
 
   defp notify_space(
          %{id: var_id, store: store} = _variable,
-         {_domain_change, propagator_pids} = event
+         domain_change,
+         propagator_pids
        )
        when is_list(propagator_pids) do
-    length(propagator_pids) > 0 && notify_process(store.space, var_id, event)
+    length(propagator_pids) > 0 &&
+      notify_process(store.space, var_id, {domain_change, propagator_pids})
   end
 
   defp notify_process(pid, var_id, event) do
-    event = {event, var_id}
-    send(pid, event)
+    send(pid, {event, var_id})
   end
 
   def variable_id(%Variable{id: id}) do

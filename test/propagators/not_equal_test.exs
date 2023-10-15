@@ -83,7 +83,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, [x_var, y_var] = _bound_vars, store} =
-        ConstraintStore.create_store(variables)
+        ConstraintStore.create_store(variables, space: nil)
 
       {:ok, _propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, variables}, store: store)

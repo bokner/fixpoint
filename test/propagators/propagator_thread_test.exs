@@ -16,7 +16,7 @@ defmodule CPSolverTest.Propagator.Thread do
       variables = Enum.map([x, y, z], fn d -> IntVariable.new(d) end)
 
       {:ok, [x_var, y_var, z_var] = _bound_vars, store} =
-        ConstraintStore.create_store(variables)
+        ConstraintStore.create_store(variables, space: nil)
 
       {:ok, _propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, x_var, y_var},
@@ -47,8 +47,9 @@ defmodule CPSolverTest.Propagator.Thread do
       y = -5..5
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
+      ## space = nil results in Store notifying propagators directly
       {:ok, [x_var, y_var] = bound_vars, store} =
-        ConstraintStore.create_store(variables)
+        ConstraintStore.create_store(variables, space: nil)
 
       {:ok, propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, bound_vars}, store: store)
@@ -103,7 +104,7 @@ defmodule CPSolverTest.Propagator.Thread do
       y = 1..3
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
-      {:ok, [x_var, y_var] = vars, store} = ConstraintStore.create_store(variables)
+      {:ok, [x_var, y_var] = vars, store} = ConstraintStore.create_store(variables, space: nil)
 
       ## Detects stability on a startup
       {:ok, propagator_thread} =

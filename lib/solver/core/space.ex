@@ -90,7 +90,7 @@ defmodule CPSolver.Space do
     solver = Keyword.get(space_opts, :solver)
 
     {:ok, space_variables, store} =
-      ConstraintStore.create_store(variables, store_impl)
+      ConstraintStore.create_store(variables, store_impl: store_impl, space: self())
 
     propagators = Keyword.get(args, :propagators) |> Propagator.normalize(store)
 
