@@ -16,7 +16,7 @@ defmodule CPSolver do
   """
   @spec solve(Model.t(), Keyword.t()) :: any()
   def solve(model, opts \\ []) do
-    {:ok, _solver} = GenServer.start_link(CPSolver, [model, opts])
+    {:ok, _solver} = GenServer.start(CPSolver, [model, opts])
   end
 
   def statistics(solver) when is_pid(solver) do
@@ -102,18 +102,19 @@ defmodule CPSolver do
     ## we prevent spaces from emitting new solutions?
   end
 
-  defp handle_event(:failure, %{failure_count: count} = state) do
-    %{state | failure_count: count + 1}
-  end
-
   defp handle_event({:nodes, new_nodes}, %{node_count: count, active_nodes: nodes} = state) do
     new_nodes_set = MapSet.new(new_nodes)
     n = MapSet.size(new_nodes_set)
     %{state | node_count: count + n, active_nodes: MapSet.union(nodes, new_nodes_set)}
   end
 
-  defp handle_event({:shutdown_space, node}, %{active_nodes: nodes} = state) do
-    %{state | active_nodes: MapSet.delete(nodes, node)}
+  defp handle_event({:shutdown_space, {node, :failure}}, %{failure_count: failures} = state) do
+    %{state | failure_count: failures + 1}
+    |> delete_node(node)
+  end
+
+  defp handle_event({:shutdown_space, {node, _reason}}, state) do
+    delete_node(state, node)
   end
 
   defp handle_event(unexpected, state) do
@@ -128,6 +129,10 @@ defmodule CPSolver do
 
   def handle_call(:get_solutions, _from, state) do
     {:reply, get_solutions(state), state}
+  end
+
+  defp delete_node(%{active_nodes: nodes} = state, node) do
+    %{state | active_nodes: MapSet.delete(nodes, node)}
   end
 
   defp get_stats(state) do

@@ -10,9 +10,11 @@ defmodule CPSolver.Propagator do
 
   defmacro __using__(_) do
     quote do
-      @behaviour CPSolver.Propagator
+      alias CPSolver.Propagator
+      import CPSolver.Propagator.Variable
+      @behaviour Propagator
       def variables(args) do
-        CPSolver.Propagator.default_variables_impl(args)
+        Propagator.default_variables_impl(args)
       end
 
       ## Events that trigger propagation

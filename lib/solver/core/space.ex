@@ -43,7 +43,7 @@ defmodule CPSolver.Space do
 
   def create(variables, propagators, space_opts \\ [], gen_statem_opts \\ []) do
     {:ok, _space} =
-      :gen_statem.start_link(
+      :gen_statem.start(
         __MODULE__,
         [
           variables: variables,
@@ -252,7 +252,6 @@ defmodule CPSolver.Space do
   end
 
   defp handle_failure(data) do
-    publish(data, :failure)
     shutdown(data, :failure)
   end
 
@@ -359,9 +358,9 @@ defmodule CPSolver.Space do
     send(data.solver, message)
   end
 
-  defp shutdown(%{keep_alive: keep_alive} = data, _reason) do
+  defp shutdown(%{keep_alive: keep_alive} = data, reason) do
     if !keep_alive do
-      publish(data, {:shutdown_space, self()})
+      publish(data, {:shutdown_space, {self(), reason}})
       {:stop, :normal, data}
     else
       :keep_state_and_data
@@ -369,8 +368,12 @@ defmodule CPSolver.Space do
   end
 
   @impl true
-  def terminate(_reason, _current_state, %{store: store, variables: variables} = data) do
-    Enum.each(data.propagator_threads, fn {_ref, thread} -> PropagatorThread.dispose(thread) end)
+  def terminate(_reason, _current_state, data) do
+    cleanup(data)
+  end
+
+  defp cleanup(%{propagator_threads: threads, store: store, variables: variables} = _data) do
+    Enum.each(threads, fn {_ref, thread} -> PropagatorThread.dispose(thread) end)
     ConstraintStore.dispose(store, variables)
   end
 end

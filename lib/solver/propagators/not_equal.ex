@@ -1,7 +1,5 @@
 defmodule CPSolver.Propagator.NotEqual do
   use CPSolver.Propagator
-  alias CPSolver.Propagator
-  import CPSolver.Propagator.Variable
 
   @impl true
   def variables(args) do
