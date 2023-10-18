@@ -48,7 +48,7 @@ defmodule CPSolverTest.Propagator.Thread do
       variables = Enum.map([x, y], fn d -> IntVariable.new(d) end)
 
       {:ok, [x_var, y_var] = bound_vars, store} =
-        ConstraintStore.create_store(variables)
+        ConstraintStore.create_store(variables, space: nil)
 
       {:ok, propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, bound_vars}, store: store)
