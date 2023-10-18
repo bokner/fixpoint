@@ -201,9 +201,10 @@ defmodule CPSolver.Space do
   end
 
   defp create_propagator_threads(propagators, data) do
+    space = self()
     Map.new(propagators, fn {propagator_id, p} ->
       {:ok, thread} =
-        PropagatorThread.create_thread(self(), p,
+        PropagatorThread.create_thread(space, p,
           id: propagator_id,
           store: data.store
         )

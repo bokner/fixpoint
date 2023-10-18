@@ -84,9 +84,11 @@ defmodule CPSolver.ConstraintStore do
     create_store(variables, default_store(), self())
   end
 
-  def create_store(variables, store_impl) do
+  def create_store(variables, store_impl) when is_atom(store_impl) do
     create_store(variables, store_impl, self())
   end
+
+  
 
   def create_store(variables, store_impl, space) do
     {:ok, store_handle} = store_impl.create(variables, space: space)
