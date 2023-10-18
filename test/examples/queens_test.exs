@@ -12,11 +12,11 @@ defmodule CPSolverTest.Examples.Queens do
   end
 
   test "4 Queens" do
-    test_queens(4, 2, trials: 10, timeout: 1000)
+    test_queens(4, 2, trials: 100, timeout: 1000)
   end
 
   test "5 Queens" do
-    test_queens(5, 10, trials: 10, timeout: 500)
+    test_queens(5, 10, trials: 100, timeout: 500)
   end
 
   test "6 Queens" do
@@ -24,7 +24,7 @@ defmodule CPSolverTest.Examples.Queens do
   end
 
   test "7 Queens" do
-    test_queens(7, 40, trials: 1, timeout: 1000)
+    test_queens(7, 40, trials: 10, timeout: 1000)
   end
 
   test "8 Queens" do
