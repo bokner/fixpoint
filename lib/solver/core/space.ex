@@ -24,7 +24,7 @@ defmodule CPSolver.Space do
             keep_alive: false,
             variables: [],
             propagators: [],
-            propagator_graph: Graph.new(),
+            constraint_graph: Graph.new(),
             propagator_threads: %{},
             store: nil,
             space: nil,

@@ -1,4 +1,4 @@
-defmodule CPSolverTest.Propagator.Graph do
+defmodule CPSolverTest.Propagator.ConstraintGraph do
   use ExUnit.Case
 
   describe "Propagator graph" do
