@@ -28,9 +28,13 @@ defmodule CPSolver.Propagator.Variable do
     wrap(:fix, var, val)
   end
 
+  def set_propagate_on(var, nil) do
+    set_propagate_on(var, :fixed)
+  end
+
   def set_propagate_on(%Variable{} = var, propagator_event)
       when propagator_event in @propagator_events do
-    Map.put(var, :propagate_on, propagator_event)
+    Map.put(var, :propagate_on, Propagator.to_domain_events(propagator_event))
   end
 
   defp wrap(op, var, val) do

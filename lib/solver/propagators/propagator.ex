@@ -90,9 +90,7 @@ defmodule CPSolver.Propagator do
     end
   end
 
-  ## How domain events map to propagator events
-  ## (see Propagator.events() callback).
-
+  ## How propagator events map to domain events
   def to_domain_events(:domain_change) do
     [:domain_change, :min_change, :max_change, :fixed]
   end

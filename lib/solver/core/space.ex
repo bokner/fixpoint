@@ -13,6 +13,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.DefaultDomain, as: Domain
+  # alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils
 
   require Logger
@@ -93,6 +94,8 @@ defmodule CPSolver.Space do
       ConstraintStore.create_store(variables, store_impl: store_impl, space: self())
 
     propagators = Keyword.get(args, :propagators) |> Propagator.normalize(store)
+
+    # constraint_graph = ConstraintGraph.create(propagators)
 
     space_data = %Space{
       id: space_id,

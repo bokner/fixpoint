@@ -1,14 +1,11 @@
 defmodule CPSolver.Propagator.Thread do
   alias CPSolver.Variable
-  alias CPSolver.Common
   alias CPSolver.Propagator
   alias CPSolver.ConstraintStore
 
   require Logger
 
   @behaviour GenServer
-
-  @domain_events Common.domain_events()
 
   @doc """
   Create a propagator thread; 'propagator' is a tuple {propagator_mod, args} where propagator_mod
@@ -47,9 +44,9 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   ## Subscribe propagator thread to variables' events
-  defp subscribe_to_variables(store, thread, variables, events) do
+  defp subscribe_to_variables(store, thread, variables) do
     variables
-    |> Enum.map(fn var -> %{pid: thread, variable: var, events: events} end)
+    |> Enum.map(fn var -> %{pid: thread, variable: var, events: var.propagate_on} end)
     |> then(fn subscriptions -> ConstraintStore.subscribe(store, subscriptions) end)
   end
 
@@ -70,10 +67,7 @@ defmodule CPSolver.Propagator.Thread do
 
     propagator_vars = propagator_mod.variables(propagator_args)
 
-    domain_events =
-      Keyword.get(opts, :propagate_on, propagator_mod.events()) |> to_domain_events()
-
-    subscribe_to_variables(store, self(), propagator_vars, domain_events)
+    subscribe_to_variables(store, self(), propagator_vars)
     propagator_id = Keyword.get(opts, :id, make_ref())
 
     {:ok,
@@ -83,7 +77,6 @@ defmodule CPSolver.Propagator.Thread do
        store: store,
        stable: false,
        propagator_impl: propagator_mod,
-       propagate_on: domain_events,
        filter_on_startup: Keyword.get(opts, :filter_on_startup, true),
        args: propagator_args,
        unfixed_variables:
@@ -116,12 +109,8 @@ defmodule CPSolver.Propagator.Thread do
     |> filter()
   end
 
-  def handle_info({domain_change, _var}, data) when domain_change in @domain_events do
-    if domain_change in data.propagate_on do
-      filter(data)
-    else
-      noop(data)
-    end
+  def handle_info({_domain_change, _var}, data) do
+    filter(data)
   end
 
   ### end of GenServer callbacks
@@ -185,17 +174,6 @@ defmodule CPSolver.Propagator.Thread do
 
     new_unfixed = MapSet.reject(unfixed, fn v -> v in fixed_vars end)
     %{data | unfixed_variables: new_unfixed}
-  end
-
-  defp to_domain_events(propagator_events) do
-    propagator_events
-    |> Enum.reduce(
-      [:fixed],
-      fn p_event, acc ->
-        Propagator.to_domain_events(p_event) ++ acc
-      end
-    )
-    |> Enum.uniq()
   end
 
   defp publish(%{id: id, space: space} = _data, message) do

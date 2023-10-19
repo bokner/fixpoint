@@ -7,7 +7,6 @@ defmodule CPSolverTest.Propagator.Thread do
     alias CPSolver.IntVariable
     alias CPSolver.Variable
     alias CPSolver.Propagator.NotEqual
-    alias CPSolver.Common
 
     test "create propagator thread" do
       x = 1..1
@@ -19,10 +18,7 @@ defmodule CPSolverTest.Propagator.Thread do
         ConstraintStore.create_store(variables, space: nil)
 
       {:ok, _propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, x_var, y_var},
-          propagate_on: Common.domain_events(),
-          store: store
-        )
+        PropagatorThread.create_thread(self(), {NotEqual, x_var, y_var}, store: store)
 
       ## ...filters its variables upon start (happens in handle_continue, so needs a small timeout here)
       Process.sleep(10)
@@ -31,7 +27,6 @@ defmodule CPSolverTest.Propagator.Thread do
       ## Note: we start propagator thread, but don't filter on a startup
       {:ok, _propagator_thread} =
         PropagatorThread.create_thread(self(), {NotEqual, y_var, z_var},
-          propagate_on: Common.domain_events(),
           filter_on_startup: false,
           store: store
         )

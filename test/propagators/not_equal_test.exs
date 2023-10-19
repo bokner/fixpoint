@@ -8,6 +8,13 @@ defmodule CPSolverTest.Propagator.NotEqual do
     alias CPSolver.Propagator.Thread, as: PropagatorThread
     alias CPSolver.Propagator.NotEqual
 
+    test "propagation events" do
+      x = 1..10
+      y = -5..5
+      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+      assert Enum.all?(NotEqual.variables(variables), fn v -> v.propagate_on == [:fixed] end)
+    end
+
     test "filtering, unfixed domains" do
       ## Both vars are unfixed
       x = 1..10
