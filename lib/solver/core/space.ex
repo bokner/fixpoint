@@ -122,11 +122,11 @@ defmodule CPSolver.Space do
     propagators
     |> ConstraintGraph.create()
     |> then(fn graph ->
-      table_id =
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+      |> tap(fn table_id -> :ets.insert(table_id, {:constraint_graph, graph}) end)
 
-      :ets.insert(table_id, {:constraint_graph, graph})
-      table_id
+      # make_ref()
+      # |> tap(fn graph_id -> :persistent_term.put(graph_id, graph) end)
     end)
   end
 
