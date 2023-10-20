@@ -1,7 +1,7 @@
 defmodule CPSolver.Propagator.ConstraintGraph do
   @moduledoc """
   The constraint graph connects propagators and their variables.
-  The edge between a propagator and variable represents a notification
+  The edge between a propagator and a variable represents a notification
   the propagator receives upon varable's domain change.
   """
   alias CPSolver.Propagator
@@ -28,6 +28,11 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
+  def get_propagators(graph_table, variable_id, domain_change) when is_reference(graph_table) do
+    [{:constraint_graph, graph}] = :ets.lookup(graph_table, :constraint_graph)
+    get_propagators(graph, variable_id, domain_change)
+  end
+
   ## Get a list of propagator ids that "listen" to the domain change of given variable.
   def get_propagators(
         constraint_graph,
@@ -35,15 +40,14 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         domain_change
       ) do
     constraint_graph
-    |> Graph.edges(variable_id)
+    |> Graph.edges({:variable, variable_id})
     |> Enum.flat_map(fn edge ->
       (domain_change in edge.label &&
          [edge.v2 |> elem(1)]) || []
     end)
   end
 
-  ## TODO: compute notification from propagator definition
   defp get_propagate_on(%Variable{} = variable) do
-    Map.get(variable, :propagate_on, :fixed)
+    Map.get(variable, :propagate_on, Propagator.to_domain_events(:fixed))
   end
 end

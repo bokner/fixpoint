@@ -150,13 +150,17 @@ defmodule CPSolver.ConstraintStore do
     Otherwise they go to the space process.
   """
   def notify(%{id: var_id, subscriptions: subscriptions, store: store} = variable, event) do
-    propagator_pids =
-      Enum.flat_map(subscriptions, fn s -> (notify_subscriber?(s, event) && [s.pid]) || [] end)
-    #propagator_refs = ConstraintGraph.get_propagators(store.constraint_graph, var_id, event)
+    (store.constraint_graph &&
+       (
+         propagator_refs = ConstraintGraph.get_propagators(store.constraint_graph, var_id, event)
+         notify_space(variable, event, propagator_refs)
+       )) ||
+      (
+        propagator_pids =
+          Enum.flat_map(subscriptions, fn s -> (notify_subscriber?(s, event) && [s.pid]) || [] end)
 
-    (store.space &&
-       notify_space(variable, event, propagator_pids)) ||
-      Enum.each(propagator_pids, fn pid -> notify_process(pid, var_id, event) end)
+        Enum.each(propagator_pids, fn pid -> notify_process(pid, var_id, event) end)
+      )
   end
 
   defp notify_subscriber?(%{events: events} = _subscription, event) do

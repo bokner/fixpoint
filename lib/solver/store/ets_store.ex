@@ -11,7 +11,13 @@ defmodule CPSolver.Store.ETS do
 
     space = Keyword.get(opts, :space)
     constraint_graph = Keyword.get(opts, :constraint_graph)
-    store = %{space: space, handle: table_id, store_impl: __MODULE__, constraint_graph: constraint_graph}
+
+    store = %{
+      space: space,
+      handle: table_id,
+      store_impl: __MODULE__,
+      constraint_graph: constraint_graph
+    }
 
     Enum.each(
       variables,

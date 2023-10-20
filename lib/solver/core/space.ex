@@ -108,7 +108,7 @@ defmodule CPSolver.Space do
       variables: space_variables,
       propagators: propagators,
       constraint_graph: constraint_graph,
-      store: Map.put(store, :constraint_graph, constraint_graph),
+      store: store,
       solver: solver,
       opts: space_opts,
       solution_handler: solution_handler,
@@ -122,11 +122,12 @@ defmodule CPSolver.Space do
     propagators
     |> ConstraintGraph.create()
     |> then(fn graph ->
-      #:ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
-      #|> tap(fn table_id -> :ets.insert(table_id, {:constraint_graph, graph})
-      # Temporary
-      graph end)
+      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+      |> tap(fn table_id -> :ets.insert(table_id, {:constraint_graph, graph}) end)
 
+      # Temporary
+      # graph
+    end)
   end
 
   @impl true
@@ -170,9 +171,8 @@ defmodule CPSolver.Space do
 
   def propagating(:info, {{domain_change, propagator_threads}, variable_id}, data) do
     updated_data =
-      Enum.reduce(propagator_threads, data, fn pid, acc ->
-        set_propagator_stable(acc, pid, false)
-        |> tap(fn _ -> send(pid, {domain_change, variable_id}) end)
+      Enum.reduce(propagator_threads, data, fn p_ref, acc ->
+        notify_propagator(acc, p_ref, {domain_change, variable_id})
       end)
 
     {:keep_state, updated_data}
@@ -235,27 +235,33 @@ defmodule CPSolver.Space do
     Enum.all?(threads, fn {_id, thread} -> thread.stable end)
   end
 
-  defp set_propagator_stable(%{propagator_threads: threads} = data, propagator, stable?) do
-    Enum.reduce_while(threads, threads, fn {id, propagator_data} = propagator_rec, acc ->
-      if propagator_match?(propagator_rec, propagator) do
-        {:halt,
-         Map.put(propagator_data, :stable, stable?)
-         |> then(fn updated ->
-           updated_threads = Map.put(acc, id, updated)
-           Map.put(data, :propagator_threads, updated_threads)
-         end)}
-      else
-        {:cont, acc}
-      end
+  defp set_propagator_stable(
+         %{propagator_threads: threads} = data,
+         propagator_id,
+         stable?,
+         thread_action \\ nil
+       ) do
+    threads
+    |> Map.get(propagator_id)
+    |> then(fn
+      nil ->
+        data
+
+      thread_rec ->
+        thread_action && thread_action.(thread_rec)
+
+        %{
+          data
+          | propagator_threads:
+              Map.put(threads, propagator_id, Map.put(thread_rec, :stable, stable?))
+        }
     end)
   end
 
-  defp propagator_match?({_id, propagator_data}, propagator) when is_pid(propagator) do
-    propagator_data.thread == propagator
-  end
-
-  defp propagator_match?({id, _propagator_data}, propagator) do
-    id == propagator
+  defp notify_propagator(data, propagator_id, domain_change_event) do
+    set_propagator_stable(data, propagator_id, false, fn thread ->
+      send(thread.thread, domain_change_event)
+    end)
   end
 
   def update_entailed(%{propagator_threads: threads} = data, propagator_thread) do

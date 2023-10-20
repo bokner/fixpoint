@@ -93,7 +93,10 @@ defmodule CPSolverTest.Propagator.NotEqual do
         ConstraintStore.create_store(variables, space: nil)
 
       {:ok, _propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, variables}, store: store)
+        PropagatorThread.create_thread(self(), {NotEqual, variables},
+          store: store,
+          subscribe_to_events: true
+        )
 
       Process.sleep(5)
       assert 1 == Variable.min(x_var)

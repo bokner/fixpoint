@@ -23,9 +23,9 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
 
       variables =
         Graph.vertices(graph)
-        |> Enum.filter(fn
-          {:variable, _v} -> true
-          _ -> false
+        |> Enum.flat_map(fn
+          {:variable, v} -> [v]
+          _ -> []
         end)
 
       ## For each variable, there are 2 propagators listening to ':fixed' domain change

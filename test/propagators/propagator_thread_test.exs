@@ -47,7 +47,10 @@ defmodule CPSolverTest.Propagator.Thread do
         ConstraintStore.create_store(variables, space: nil)
 
       {:ok, propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, bound_vars}, store: store)
+        PropagatorThread.create_thread(self(), {NotEqual, bound_vars},
+          store: store,
+          subscribe_to_events: true
+        )
 
       ConstraintStore.update(store, x_var, :fix, [1])
       Process.sleep(10)
@@ -103,7 +106,10 @@ defmodule CPSolverTest.Propagator.Thread do
 
       ## Detects stability on a startup
       {:ok, propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, vars}, store: store)
+        PropagatorThread.create_thread(self(), {NotEqual, vars},
+          store: store,
+          subscribe_to_events: true
+        )
 
       Process.sleep(10)
 

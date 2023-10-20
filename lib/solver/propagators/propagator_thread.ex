@@ -44,7 +44,7 @@ defmodule CPSolver.Propagator.Thread do
   end
 
   ## Subscribe propagator thread to variables' events
-  defp subscribe_to_variables(store, thread, variables) do
+  defp subscribe_to_events(store, thread, variables) do
     variables
     |> Enum.map(fn var -> %{pid: thread, variable: var, events: var.propagate_on} end)
     |> then(fn subscriptions -> ConstraintStore.subscribe(store, subscriptions) end)
@@ -67,7 +67,7 @@ defmodule CPSolver.Propagator.Thread do
 
     propagator_vars = propagator_mod.variables(propagator_args)
 
-    subscribe_to_variables(store, self(), propagator_vars)
+    Keyword.get(opts, :subscribe_to_events) && subscribe_to_events(store, self(), propagator_vars)
     propagator_id = Keyword.get(opts, :id, make_ref())
 
     {:ok,
