@@ -123,7 +123,7 @@ defmodule CPSolver.Space do
     |> ConstraintGraph.create()
     |> then(fn graph ->
       :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
-      |> tap(fn table_id -> :ets.insert(table_id, {:constraint_graph, graph}) end)
+      |> tap(fn table_id -> ConstraintGraph.update_graph(graph, table_id) end)
 
       # Temporary
       # graph
@@ -264,12 +264,16 @@ defmodule CPSolver.Space do
     end)
   end
 
-  def update_entailed(%{propagator_threads: threads} = data, propagator_thread) do
+  def update_entailed(
+        %{propagator_threads: threads, constraint_graph: graph} = data,
+        propagator_thread
+      ) do
     Map.put(
       data,
       :propagator_threads,
       Map.delete(threads, propagator_thread)
     )
+    |> tap(fn _data -> ConstraintGraph.remove_propagator(graph, propagator_thread) end)
   end
 
   defp solved?(data) do
