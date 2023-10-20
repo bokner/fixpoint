@@ -3,7 +3,6 @@ defmodule CPSolver.Propagator do
 
   @callback filter(args :: list()) :: map() | :stable | :failure
   @callback variables(args :: list()) :: list()
-  @callback events() :: list()
 
   alias CPSolver.Variable
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
@@ -17,13 +16,7 @@ defmodule CPSolver.Propagator do
         Propagator.default_variables_impl(args)
       end
 
-      ## Events that trigger propagation
-      def events() do
-        CPSolver.Common.domain_events()
-      end
-
       defoverridable variables: 1
-      defoverridable events: 0
     end
   end
 

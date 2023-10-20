@@ -9,11 +9,6 @@ defmodule CPSolver.Propagator.NotEqual do
   end
 
   @impl true
-  def events() do
-    []
-  end
-
-  @impl true
   def filter([x, y]) do
     filter([x, y, 0])
   end
