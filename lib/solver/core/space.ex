@@ -325,12 +325,6 @@ defmodule CPSolver.Space do
         variable_clones
       ) do
     case branching(variable_clones, search_strategy) do
-      :fail ->
-        handle_failure(data)
-
-      {:error, :all_vars_fixed} ->
-        handle_solved(data)
-
       {:ok, {var_to_branch_on, domain_partitions}} ->
         Enum.map(domain_partitions, fn partition ->
           variable_copies =

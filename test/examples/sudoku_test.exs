@@ -29,6 +29,7 @@ defmodule CPSolverTest.Examples.Sudoku do
       ExamplesUtils.flush_solutions()
       {:ok, solver} = Sudoku.solve(puzzle_instance, opts)
       ExamplesUtils.wait_for_solutions(expected_solutions, opts[:timeout], &assert_solution/1)
+      Process.sleep(100)
       assert CPSolver.statistics(solver).solution_count == expected_solutions
     end)
   end
