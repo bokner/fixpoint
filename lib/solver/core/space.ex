@@ -150,7 +150,7 @@ defmodule CPSolver.Space do
   end
 
   def propagating(:info, {:stable, propagator_thread}, data) do
-    updated_data = set_propagator_stable(data, propagator_thread, true)
+    updated_data = update_scheduled(data, propagator_thread, false)
 
     if fixpoint?(updated_data) do
       {:next_state, :stable, updated_data}
@@ -227,18 +227,18 @@ defmodule CPSolver.Space do
           store: data.store
         )
 
-      {propagator_id, %{thread: thread, propagator: p, stable: false}}
+      {propagator_id, %{thread: thread, propagator: p, scheduled_runs: 1}}
     end)
   end
 
   defp fixpoint?(%{propagator_threads: threads} = _data) do
-    Enum.all?(threads, fn {_id, thread} -> thread.stable end)
+    Enum.all?(threads, fn {_id, thread} -> thread.scheduled_runs == 0 end)
   end
 
-  defp set_propagator_stable(
+  defp update_scheduled(
          %{propagator_threads: threads} = data,
          propagator_id,
-         stable?,
+         scheduled?,
          thread_action \\ nil
        ) do
     threads
@@ -247,19 +247,24 @@ defmodule CPSolver.Space do
       nil ->
         data
 
-      thread_rec ->
+      %{scheduled_runs: scheduled_runs} = thread_rec ->
         thread_action && thread_action.(thread_rec)
+        inc_dec = (scheduled? && 1) || -1
 
         %{
           data
           | propagator_threads:
-              Map.put(threads, propagator_id, Map.put(thread_rec, :stable, stable?))
+              Map.put(
+                threads,
+                propagator_id,
+                Map.put(thread_rec, :scheduled_runs, scheduled_runs + inc_dec)
+              )
         }
     end)
   end
 
   defp notify_propagator(data, propagator_id, domain_change_event) do
-    set_propagator_stable(data, propagator_id, false, fn thread ->
+    update_scheduled(data, propagator_id, true, fn thread ->
       send(thread.thread, domain_change_event)
     end)
   end

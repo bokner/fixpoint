@@ -75,7 +75,6 @@ defmodule CPSolver.Propagator.Thread do
        id: propagator_id,
        space: space,
        store: store,
-       stable: false,
        propagator_impl: propagator_mod,
        filter_on_startup: Keyword.get(opts, :filter_on_startup, true),
        args: propagator_args,
