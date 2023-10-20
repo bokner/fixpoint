@@ -5,8 +5,8 @@ defmodule CPSolver.ConstraintStore do
   update and keep track of variables' domains.
   """
   #################
-  alias CPSolver.Common
-  alias CPSolver.Variable
+  alias CPSolver.{Common, Variable}
+  alias CPSolver.Propagator.ConstraintGraph
 
   @type get_operation :: Common.domain_get_operation() | nil
   @type update_operation :: Common.domain_update_operation()
@@ -152,6 +152,7 @@ defmodule CPSolver.ConstraintStore do
   def notify(%{id: var_id, subscriptions: subscriptions, store: store} = variable, event) do
     propagator_pids =
       Enum.flat_map(subscriptions, fn s -> (notify_subscriber?(s, event) && [s.pid]) || [] end)
+    #propagator_refs = ConstraintGraph.get_propagators(store.constraint_graph, var_id, event)
 
     (store.space &&
        notify_space(variable, event, propagator_pids)) ||
