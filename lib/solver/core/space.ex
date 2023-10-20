@@ -13,7 +13,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.DefaultDomain, as: Domain
-  # alias CPSolver.Propagator.ConstraintGraph
+  alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils
 
   require Logger
@@ -25,7 +25,7 @@ defmodule CPSolver.Space do
             keep_alive: false,
             variables: [],
             propagators: [],
-            constraint_graph: Graph.new(),
+            constraint_graph: nil,
             propagator_threads: %{},
             store: nil,
             space: nil,
@@ -90,12 +90,16 @@ defmodule CPSolver.Space do
     search_strategy = Keyword.get(space_opts, :search)
     solver = Keyword.get(space_opts, :solver)
 
+    propagators = Keyword.get(args, :propagators) |> Propagator.normalize()
+
+    constraint_graph = create_constraint_graph(propagators)
+
     {:ok, space_variables, store} =
-      ConstraintStore.create_store(variables, store_impl: store_impl, space: self())
-
-    propagators = Keyword.get(args, :propagators) |> Propagator.normalize(store)
-
-    # constraint_graph = ConstraintGraph.create(propagators)
+      ConstraintStore.create_store(variables,
+        store_impl: store_impl,
+        space: self(),
+        constraint_graph: constraint_graph
+      )
 
     space_data = %Space{
       id: space_id,
@@ -103,7 +107,8 @@ defmodule CPSolver.Space do
       keep_alive: keep_alive,
       variables: space_variables,
       propagators: propagators,
-      store: store,
+      constraint_graph: constraint_graph,
+      store: Map.put(store, :constraint_graph, constraint_graph),
       solver: solver,
       opts: space_opts,
       solution_handler: solution_handler,
@@ -111,6 +116,18 @@ defmodule CPSolver.Space do
     }
 
     {:ok, :start_propagation, space_data, [{:next_event, :internal, {:propagate, propagators}}]}
+  end
+
+  defp create_constraint_graph(propagators) do
+    propagators
+    |> ConstraintGraph.create()
+    |> then(fn graph ->
+      table_id =
+        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+
+      :ets.insert(table_id, {:constraint_graph, graph})
+      table_id
+    end)
   end
 
   @impl true

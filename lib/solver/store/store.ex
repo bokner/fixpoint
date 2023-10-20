@@ -88,8 +88,15 @@ defmodule CPSolver.ConstraintStore do
     opts = Keyword.merge(default_store_opts(), opts)
     space = Keyword.get(opts, :space)
     store_impl = Keyword.get(opts, :store_impl)
+    constraint_graph = Keyword.get(opts, :constraint_graph)
     {:ok, store_handle} = store_impl.create(variables, opts)
-    store = %{space: space, handle: store_handle, store_impl: store_impl}
+
+    store = %{
+      space: space,
+      handle: store_handle,
+      store_impl: store_impl,
+      constraint_graph: constraint_graph
+    }
 
     {:ok,
      Enum.map(variables, fn var ->
