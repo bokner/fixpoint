@@ -117,8 +117,8 @@ defmodule CPSolver.Propagator.Thread do
     {:noreply, data}
   end
 
-  defp filter(%{propagator_impl: mod, args: args} = data) do
-    case Propagator.filter(mod, args) do
+  defp filter(%{id: id, propagator_impl: mod, args: args} = data) do
+    case Propagator.filter(mod, args, id) do
       {:fail, var} ->
         handle_failure(var, data)
 

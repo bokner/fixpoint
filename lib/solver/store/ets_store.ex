@@ -49,7 +49,9 @@ defmodule CPSolver.Store.ETS do
 
   @impl true
   def update_domain(store, variable, operation, args) do
-    handle_request(:update, store, variable, operation, args)
+    handle_request(:update, store, variable, operation, args,
+      source: Map.get(variable, :propagator_id)
+    )
   end
 
   @impl true
@@ -90,10 +92,11 @@ defmodule CPSolver.Store.ETS do
          table,
          %{id: var_id} = variable,
          domain,
-         event
+         event,
+         opts \\ []
        ) do
     :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
-    |> tap(fn _ -> ConstraintStore.notify(variable, event) end)
+    |> tap(fn _ -> ConstraintStore.notify(variable, event, opts) end)
   end
 
   @impl true
@@ -114,30 +117,32 @@ defmodule CPSolver.Store.ETS do
     |> elem(1)
   end
 
-  defp handle_request(kind, table, var_id, operation, args) do
+  defp handle_request(kind, table, var_id, operation, args, opts \\ [])
+
+  defp handle_request(kind, table, var_id, operation, args, opts) do
     variable = lookup(table, var_id)
-    handle_request_impl(kind, table, variable, operation, args)
+    handle_request_impl(kind, table, variable, operation, args, opts)
   end
 
-  def handle_request_impl(_kind, _table, %{domain: :fail} = _variable, _operation, _args) do
+  def handle_request_impl(_kind, _table, %{domain: :fail} = _variable, _operation, _args, _opts) do
     :fail
   end
 
-  def handle_request_impl(:get, _table, %{domain: domain} = _variable, operation, args) do
+  def handle_request_impl(:get, _table, %{domain: domain} = _variable, operation, args, _opts) do
     apply(Domain, operation, [domain | args])
   end
 
-  def handle_request_impl(:update, table, %{domain: domain} = variable, operation, args) do
+  def handle_request_impl(:update, table, %{domain: domain} = variable, operation, args, opts) do
     case apply(Domain, operation, [domain | args]) do
       :fail ->
-        update_variable_domain(table, variable, :fail, :fail)
+        update_variable_domain(table, variable, :fail, :fail, opts)
         :fail
 
       :no_change ->
         :no_change
 
       {domain_change, new_domain} ->
-        update_variable_domain(table, variable, new_domain, domain_change)
+        update_variable_domain(table, variable, new_domain, domain_change, opts)
         domain_change
     end
   end

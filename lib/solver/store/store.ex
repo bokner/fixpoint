@@ -8,6 +8,8 @@ defmodule CPSolver.ConstraintStore do
   alias CPSolver.{Common, Variable}
   alias CPSolver.Propagator.ConstraintGraph
 
+  require Logger
+
   @type get_operation :: Common.domain_get_operation() | nil
   @type update_operation :: Common.domain_update_operation()
 
@@ -140,7 +142,9 @@ defmodule CPSolver.ConstraintStore do
     %{subscription | variable: variable_id(variable), events: normalize_events(events)}
   end
 
-  def notify(_variable, :no_change) do
+  def notify(_variable, _event, opts \\ [])
+
+  def notify(_variable, :no_change, _opts) do
     :ignore
   end
 
@@ -149,10 +153,16 @@ defmodule CPSolver.ConstraintStore do
     If space = nil (the store is detached from space), then notifications are passed directly to propagators.
     Otherwise they go to the space process.
   """
-  def notify(%{id: var_id, subscriptions: subscriptions, store: store} = variable, event) do
+  def notify(%{id: var_id, subscriptions: subscriptions, store: store} = variable, event, opts) do
     (store.constraint_graph &&
        (
-         propagator_refs = ConstraintGraph.get_propagators(store.constraint_graph, var_id, event)
+         ## Don't notify the propagator that fired this event.
+         source_propagator = Keyword.get(opts, :source)
+
+         propagator_refs =
+           ConstraintGraph.get_propagators(store.constraint_graph, var_id, event)
+           |> List.delete(source_propagator)
+
          notify_space(variable, event, propagator_refs)
        )) ||
       (

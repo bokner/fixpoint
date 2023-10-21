@@ -50,8 +50,9 @@ defmodule CPSolver.Propagator do
     normalize({mod, args})
   end
 
-  def filter(mod, args) do
+  def filter(mod, args, id \\ nil) do
     PropagatorVariable.reset_variable_ops()
+    PropagatorVariable.set_propagator_id(id)
 
     case mod.filter(args) do
       :stable ->
