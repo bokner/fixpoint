@@ -90,12 +90,14 @@ defmodule CPSolver.Store.ETS do
 
   defp update_variable_domain(
          table,
-         %{id: var_id} = variable,
+         %{id: var_id, store: store} = variable,
          domain,
          event,
-         opts \\ []
+         opts
        ) do
-    :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
+    unless store.space && event == :fail do
+      :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
+    end
     |> tap(fn _ -> ConstraintStore.notify(variable, event, opts) end)
   end
 

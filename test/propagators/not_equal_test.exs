@@ -54,7 +54,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       y = 0..0
       [_x_var, y_var] = variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables, space: nil)
       assert :fail == NotEqual.filter(bound_vars)
       assert PropagatorVariable.get_variable_ops() == {:fail, y_var.id}
       ## One of variables (depending on filtering implementation) will fail
