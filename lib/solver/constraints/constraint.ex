@@ -1,31 +1,28 @@
 defmodule CPSolver.Constraint do
-  alias CPSolver.Variable
   alias CPSolver.Propagator
 
-  @callback propagators(args :: list()) :: [atom()]
-  @callback variables(args :: list()) :: [Variable.t()]
-
+  @callback new(args :: list()) :: Constraint.t()
+  @callback propagators(args :: list()) :: [Propagator.t()]
   defmacro __using__(_) do
     quote do
       @behaviour CPSolver.Constraint
-      def variables(args) do
-        args
-      end
+      alias CPSolver.Constraint
 
-      defoverridable variables: 1
+      def new(args) do
+        Constraint.new(__MODULE__, args)
+      end
     end
+
+    # defoverridable new: 1
   end
 
-  def new(constraint_impl, args) do
-    %{
-      propagators: constraint_impl.propagators(args)
-    }
+  def new(constraint_mod, args) do
+    {constraint_mod, constraint_mod.propagators(args)}
   end
 
   def constraint_to_propagators({constraint_mod, args}) when is_list(args) do
     args
     |> constraint_mod.propagators()
-    |> Enum.map(&Propagator.normalize/1)
   end
 
   def constraint_to_propagators(constraint) when is_tuple(constraint) do

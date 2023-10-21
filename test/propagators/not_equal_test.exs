@@ -6,13 +6,15 @@ defmodule CPSolverTest.Propagator.NotEqual do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Propagator.Variable, as: PropagatorVariable
     alias CPSolver.Propagator.Thread, as: PropagatorThread
+    alias CPSolver.Propagator
     alias CPSolver.Propagator.NotEqual
 
     test "propagation events" do
       x = 1..10
       y = -5..5
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-      assert Enum.all?(NotEqual.variables(variables), fn v -> v.propagate_on == [:fixed] end)
+      propagator = NotEqual.new(variables)
+      assert Enum.all?(Propagator.variables(propagator), fn v -> v.propagate_on == [:fixed] end)
     end
 
     test "filtering, unfixed domains" do
@@ -93,7 +95,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
         ConstraintStore.create_store(variables, space: nil)
 
       {:ok, _propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, variables},
+        PropagatorThread.create_thread(self(), NotEqual.new(variables),
           store: store,
           subscribe_to_events: true
         )

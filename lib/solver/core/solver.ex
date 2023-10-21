@@ -4,7 +4,6 @@ defmodule CPSolver do
   """
 
   alias CPSolver.Space
-  alias CPSolver.Constraint
   alias CPSolver.Solution
 
   use GenServer
@@ -32,8 +31,8 @@ defmodule CPSolver do
   @impl true
   def init([%{constraints: constraints, variables: variables} = _model, solver_opts]) do
     propagators =
-      Enum.reduce(constraints, [], fn constraint, acc ->
-        acc ++ Constraint.constraint_to_propagators(constraint)
+      Enum.reduce(constraints, [], fn {_constraint_mod, constraint_propagators}, acc ->
+        acc ++ constraint_propagators
       end)
 
     stop_on = Keyword.get(solver_opts, :stop_on)

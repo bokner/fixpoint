@@ -37,8 +37,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
     defp build_graph(constraint_impl, n) do
       domain = 1..n
       variables = Enum.map(1..n, fn _ -> Variable.new(domain) end)
-      constraint = {constraint_impl, variables}
-      propagators = Constraint.constraint_to_propagators(constraint)
+      {^constraint_impl, propagators} = Constraint.new(constraint_impl, variables)
       ConstraintGraph.create(propagators)
     end
   end

@@ -6,7 +6,7 @@ defmodule CPSolver.Constraint.AllDifferent do
   def propagators(variables) do
     for i <- 0..(length(variables) - 2) do
       for j <- (i + 1)..(length(variables) - 1) do
-        {NotEqual, Enum.at(variables, i), Enum.at(variables, j)}
+        NotEqual.new(Enum.at(variables, i), Enum.at(variables, j))
       end
     end
     |> List.flatten()

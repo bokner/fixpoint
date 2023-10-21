@@ -1,6 +1,8 @@
 defmodule CPSolver.Propagator do
   @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change | :fixed
 
+  @callback new(args :: list()) :: Propagator.t()
+  @callback declare(args :: list()) :: list()
   @callback filter(args :: list()) :: map() | :stable | :failure
   @callback variables(args :: list()) :: list()
 
@@ -16,12 +18,29 @@ defmodule CPSolver.Propagator do
         Propagator.default_variables_impl(args)
       end
 
+      def new(args) when is_list(args) do
+        Propagator.new(__MODULE__, declare(args))
+      end
+
       defoverridable variables: 1
+      defoverridable new: 1
     end
   end
 
   def propagator_events() do
     [:domain_change, :bound_change, :min_change, :max_change, :fixed]
+  end
+
+  def new(propagator_impl, args) do
+    {propagator_impl, args}
+  end
+
+  def variables({propagator_impl, args}) do
+    propagator_impl.variables(args)
+  end
+
+  def implementation({propagator_impl, _args}) do
+    propagator_impl
   end
 
   def default_variables_impl(args) do

@@ -23,7 +23,7 @@ defmodule CPSolverTest.Constraint.AllDifferent do
 
       model = %{
         variables: variables,
-        constraints: [{AllDifferent, variables}]
+        constraints: [AllDifferent.new(variables)]
       }
 
       {:ok, solver} = CPSolver.solve(model)
