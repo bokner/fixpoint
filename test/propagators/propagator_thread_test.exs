@@ -18,7 +18,7 @@ defmodule CPSolverTest.Propagator.Thread do
         ConstraintStore.create_store(variables, space: nil)
 
       {:ok, _propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, x_var, y_var}, store: store)
+        PropagatorThread.create_thread(self(), NotEqual.new(x_var, y_var), store: store)
 
       ## ...filters its variables upon start (happens in handle_continue, so needs a small timeout here)
       Process.sleep(10)
@@ -26,7 +26,7 @@ defmodule CPSolverTest.Propagator.Thread do
 
       ## Note: we start propagator thread, but don't filter on a startup
       {:ok, _propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, y_var, z_var},
+        PropagatorThread.create_thread(self(), NotEqual.new(y_var, z_var),
           filter_on_startup: false,
           store: store
         )
@@ -47,7 +47,7 @@ defmodule CPSolverTest.Propagator.Thread do
         ConstraintStore.create_store(variables, space: nil)
 
       {:ok, propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, bound_vars},
+        PropagatorThread.create_thread(self(), NotEqual.new(bound_vars),
           store: store,
           subscribe_to_events: true
         )
@@ -74,7 +74,7 @@ defmodule CPSolverTest.Propagator.Thread do
       {:ok, bound_vars, store} = ConstraintStore.create_store(variables)
 
       {:ok, propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, bound_vars}, store: store)
+        PropagatorThread.create_thread(self(), NotEqual.new(bound_vars), store: store)
 
       ## Propagator thread discards itself on entailment
       Process.sleep(10)
@@ -90,7 +90,7 @@ defmodule CPSolverTest.Propagator.Thread do
       {:ok, vars, store} = ConstraintStore.create_store(variables)
 
       {:ok, propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, vars}, store: store)
+        PropagatorThread.create_thread(self(), NotEqual.new(vars), store: store)
 
       PropagatorThread.dispose(propagator_thread)
       Process.sleep(10)
@@ -106,7 +106,7 @@ defmodule CPSolverTest.Propagator.Thread do
 
       ## Detects stability on a startup
       {:ok, propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, vars},
+        PropagatorThread.create_thread(self(), NotEqual.new(vars),
           store: store,
           subscribe_to_events: true
         )
@@ -144,13 +144,13 @@ defmodule CPSolverTest.Propagator.Thread do
         ConstraintStore.create_store(variables, space: nil)
 
       {:ok, _threadXY} =
-        PropagatorThread.create_thread(self(), {NotEqual, [x_var, y_var]},
+        PropagatorThread.create_thread(self(), NotEqual.new(x_var, y_var),
           id: "X != Y",
           store: store
         )
 
       {:ok, _threadYZ} =
-        PropagatorThread.create_thread(self(), {NotEqual, [y_var, z_var]},
+        PropagatorThread.create_thread(self(), NotEqual.new(y_var, z_var),
           id: "Y != Z",
           store: store
         )

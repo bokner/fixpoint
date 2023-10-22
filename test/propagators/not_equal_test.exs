@@ -93,7 +93,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
         ConstraintStore.create_store(variables, space: nil)
 
       {:ok, _propagator_thread} =
-        PropagatorThread.create_thread(self(), {NotEqual, variables},
+        PropagatorThread.create_thread(self(), NotEqual.new(variables),
           store: store,
           subscribe_to_events: true
         )

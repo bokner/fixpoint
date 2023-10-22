@@ -13,7 +13,7 @@ defmodule CPSolverTest.Space do
       z_values = 0..2
       values = [x_values, y_values, z_values]
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
-      propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
+      propagators = [NotEqual.new(x, y), NotEqual.new(y, z)]
 
       {:ok, space} = Space.create(variables, propagators)
       # Process.sleep(1)
@@ -78,7 +78,7 @@ defmodule CPSolverTest.Space do
 
       values = [x_values, y_values, z_values]
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
-      propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
+      propagators = [NotEqual.new(x, y), NotEqual.new(y, z)]
 
       Process.flag(:trap_exit, true)
       {:ok, space} = Space.create(variables, propagators)
@@ -130,7 +130,7 @@ defmodule CPSolverTest.Space do
 
       values = [x_values, y_values, z_values]
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
-      propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
+      propagators = [NotEqual.new(x, y), NotEqual.new(y, z)]
 
       {:ok, space} =
         Space.create(variables, propagators, Keyword.put(space_opts, :keep_alive, true))
@@ -145,7 +145,7 @@ defmodule CPSolverTest.Space do
       z_values = 1..2
       values = [x_values, y_values, z_values]
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
-      propagators = [{NotEqual, [x, y]}, {NotEqual, [y, z]}]
+      propagators = [NotEqual.new(x, y), NotEqual.new(y, z)]
 
       {:ok, space} = Space.create(variables, propagators, space_opts)
       {_, space_data} = :sys.get_state(space)

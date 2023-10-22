@@ -1,6 +1,10 @@
 defmodule CPSolver.Propagator.NotEqual do
   use CPSolver.Propagator
 
+  def new(x, y, offset \\ 0) do
+    new([x, y, offset])
+  end
+
   @impl true
   def variables(args) do
     args

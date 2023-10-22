@@ -4,6 +4,6 @@ defmodule CPSolver.Constraint.NotEqual do
 
   @impl true
   def propagators(args) do
-    [{NotEqualPropagator, args}]
+    [NotEqualPropagator.new(args)]
   end
 end
