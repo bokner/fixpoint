@@ -2,6 +2,10 @@ defmodule CPSolver.Constraint.NotEqual do
   use CPSolver.Constraint
   alias CPSolver.Propagator.NotEqual, as: NotEqualPropagator
 
+  def new(x, y, offset \\ 0) do
+    new([x, y, offset])
+  end
+
   @impl true
   def propagators(args) do
     [NotEqualPropagator.new(args)]

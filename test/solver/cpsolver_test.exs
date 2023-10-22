@@ -10,7 +10,7 @@ defmodule CpSolverTest do
 
     model = %{
       variables: [x, y],
-      constraints: [{NotEqual, x, y}]
+      constraints: [NotEqual.new(x, y)]
     }
 
     {:ok, solver} = CPSolver.solve(model)

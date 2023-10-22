@@ -18,11 +18,11 @@ defmodule CPSolver.Examples.Queens do
           # queens q[i] and q[i] not on ...
           [
             ## ... the same line
-            {NotEqual, Enum.at(q, i), Enum.at(q, j), 0},
+            NotEqual.new(Enum.at(q, i), Enum.at(q, j), 0),
             ## ... the same left diagonal
-            {NotEqual, Enum.at(q, i), Enum.at(q, j), i - j},
+            NotEqual.new(Enum.at(q, i), Enum.at(q, j), i - j),
             ## ... the same right diagonal
-            {NotEqual, Enum.at(q, i), Enum.at(q, j), j - i}
+            NotEqual.new(Enum.at(q, i), Enum.at(q, j), j - i)
           ]
         end
       end
