@@ -71,7 +71,7 @@ defmodule CPSolver.DefaultDomain do
     if contains?(domain, value) do
       {:fixed, :gb_sets.from_list([value])}
     else
-      :no_change
+      :fail
     end
   end
 
