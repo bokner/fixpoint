@@ -78,7 +78,7 @@ defmodule CPSolverTest.Store do
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, store} = ConstraintStore.create_store(variables, space: nil)
 
       [v1, v2, v3] = bound_vars
       # remove
