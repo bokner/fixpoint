@@ -2,7 +2,7 @@ defmodule CPSolver.Propagator do
   @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change | :fixed
 
   @callback new(args :: list()) :: Propagator.t()
-  @callback filter(args :: list()) :: map() | :stable | :failure
+  @callback filter(args :: list()) :: map() | :stable | :fail | propagator_event()
   @callback variables(args :: list()) :: list()
 
   alias CPSolver.Variable
