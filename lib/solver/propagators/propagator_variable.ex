@@ -3,6 +3,8 @@ defmodule CPSolver.Propagator.Variable do
   alias CPSolver.Propagator
 
   @propagator_events Propagator.propagator_events()
+  @domain_events CPSolver.Common.domain_events()
+
   @propagator_id_key :propagator_id_key
 
   @variable_op_results_key :variable_op_results
@@ -39,34 +41,30 @@ defmodule CPSolver.Propagator.Variable do
   end
 
   defp wrap(op, var, val) do
-    save_in_dict(
-      var,
-      apply(Variable, op, [
-        Map.put(var, :propagator_id, get_propagator_id()),
-        val
-      ])
-    )
+    case apply(Variable, op, [
+           Map.put(var, :propagator_id, get_propagator_id()),
+           val
+         ]) do
+      :fail ->
+        throw({:fail, var.id})
+
+      res ->
+        save_op(var, res)
+        res
+    end
   end
 
-  defp save_in_dict(var, result) do
-    result
-    |> tap(fn
-      :fail ->
-        Process.put(@variable_op_results_key, {:fail, var.id})
+  defp save_op(_var, :no_change) do
+    :ok
+  end
 
-      _ ->
-        case get_variable_ops() do
-          {:fail, _var} ->
-            :fail
-
-          current ->
-            Process.put(@variable_op_results_key, Map.put(current, var.id, result))
-        end
-    end)
+  defp save_op(var, domain_change) when domain_change in @domain_events do
+    current_changes = ((changes = get_variable_ops()) && changes) || Map.new()
+    Process.put(@variable_op_results_key, Map.put(current_changes, var.id, domain_change))
   end
 
   def get_variable_ops() do
-    Process.get(@variable_op_results_key, Map.new())
+    Process.get(@variable_op_results_key)
   end
 
   def reset_variable_ops() do

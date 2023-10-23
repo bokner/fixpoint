@@ -20,15 +20,14 @@ defmodule CPSolver.Propagator.LessOrEqual do
   end
 
   def filter(x, y, offset \\ 0) do
-
-      if (max(x) <= plus(min(y), offset)) do
-        ## TODO: it doesn't make sense to call propagator at all after this happens.
-        ## as it will be stable forever.
-        ## Consider setting some kind of :active flag
-        :stable
-      else
-        removeAbove(x, plus(max(y), offset))
-        removeBelow(y, plus(min(x), -offset))
-      end
+    if max(x) <= plus(min(y), offset) do
+      ## TODO: it doesn't make sense to filter at all after this happens.
+      ## as it will be stable forever.
+      ## Consider setting :active flag to exclude propagators from propagation process.
+      :stable
+    else
+      removeAbove(x, plus(max(y), offset))
+      removeBelow(y, plus(min(x), -offset))
+    end
   end
 end

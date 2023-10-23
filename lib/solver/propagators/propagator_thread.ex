@@ -102,9 +102,9 @@ defmodule CPSolver.Propagator.Thread do
     handle_failure(var, data)
   end
 
-  def handle_info({:fixed, _var} = fix, data) do
+  def handle_info({:fixed, var} = _fix, data) do
     data
-    |> update_unfixed(fix)
+    |> update_unfixed(var)
     |> filter()
   end
 
@@ -158,20 +158,22 @@ defmodule CPSolver.Propagator.Thread do
     MapSet.size(vars) == 0
   end
 
-  defp update_unfixed(data, {_change_type, _var} = change) do
-    update_unfixed(data, [change])
+  defp update_unfixed(%{unfixed_variables: unfixed} = data, var_id) when is_reference(var_id) do
+    %{data | unfixed_variables: MapSet.delete(unfixed, var_id)}
   end
 
   defp update_unfixed(%{unfixed_variables: unfixed} = data, variable_changes)
-       when is_list(variable_changes) do
-    ## variable_changes is a list of {:change_type, variable_id}
-    fixed_vars =
-      Enum.flat_map(variable_changes, fn
-        {:fixed, var} -> [var]
-        _ -> []
+       when is_map(variable_changes) do
+    ## variable_changes is a map of var_id => domain_change
+    new_unfixed =
+      Enum.reduce(variable_changes, unfixed, fn
+        {var_id, :fixed}, acc ->
+          MapSet.delete(acc, var_id)
+
+        {_var_id, _domain_change}, acc ->
+          acc
       end)
 
-    new_unfixed = MapSet.reject(unfixed, fn v -> v in fixed_vars end)
     %{data | unfixed_variables: new_unfixed}
   end
 

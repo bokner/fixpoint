@@ -22,13 +22,13 @@ defmodule CPSolverTest.Propagator.NotEqual do
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
-      assert :stable == NotEqual.filter(bound_vars)
-      assert PropagatorVariable.get_variable_ops() == %{}
+      assert :stable == reset_and_filter(bound_vars)
+      refute PropagatorVariable.get_variable_ops()
 
       [x_var, y_var] = bound_vars
       ## Fix one of vars
       assert :fixed = Variable.fix(x_var, 5)
-      assert :domain_change == NotEqual.filter(bound_vars)
+      assert :domain_change == reset_and_filter(bound_vars)
       assert PropagatorVariable.get_variable_ops() == %{y_var.id => :domain_change}
 
       ## The filtering should have removed '5' from y_var
@@ -37,8 +37,8 @@ defmodule CPSolverTest.Propagator.NotEqual do
 
       ## Fix second var and filter again
       assert :fixed == Variable.fix(y_var, 4)
-      assert :no_change == NotEqual.filter(bound_vars)
-      assert PropagatorVariable.get_variable_ops() == %{y_var.id => :no_change}
+      assert :no_change == reset_and_filter(bound_vars)
+      refute PropagatorVariable.get_variable_ops()
       ## Make sure filtering doesn't fail on further calls
       refute Enum.any?(
                [x_var, y_var],
@@ -46,7 +46,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
              )
 
       ## Consequent filtering does not trigger domain change events
-      assert :no_change == NotEqual.filter(bound_vars)
+      assert :no_change == reset_and_filter(bound_vars)
     end
 
     test "inconsistency" do
@@ -55,8 +55,8 @@ defmodule CPSolverTest.Propagator.NotEqual do
       [_x_var, y_var] = variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, bound_vars, _store} = ConstraintStore.create_store(variables, space: nil)
-      assert :fail == NotEqual.filter(bound_vars)
-      assert PropagatorVariable.get_variable_ops() == {:fail, y_var.id}
+      assert catch_throw(NotEqual.filter(bound_vars)) == {:fail, y_var.id}
+      assert PropagatorVariable.get_variable_ops() == nil
       ## One of variables (depending on filtering implementation) will fail
       assert Enum.any?(
                bound_vars,
@@ -104,6 +104,11 @@ defmodule CPSolverTest.Propagator.NotEqual do
       _domain_change = Variable.fix(y_var, 1)
       Process.sleep(5)
       assert 2 == Variable.min(x_var)
+    end
+
+    defp reset_and_filter(args) do
+      PropagatorVariable.reset_variable_ops()
+      NotEqual.filter(args)
     end
   end
 end

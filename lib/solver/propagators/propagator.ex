@@ -64,20 +64,19 @@ defmodule CPSolver.Propagator do
     PropagatorVariable.reset_variable_ops()
     PropagatorVariable.set_propagator_id(id)
 
-    case mod.filter(args) do
+    try do
+      mod.filter(args)
+    catch
+      {:fail, var_id} ->
+        {:fail, var_id}
+    else
       :stable ->
         :stable
 
       _res ->
         ## If propagator doesn't explicitly return 'stable',
-        ## we retrieve the map of variable operations created by PropagatorVariable wrapper
-        case PropagatorVariable.get_variable_ops() do
-          {:fail, var} ->
-            {:fail, var}
-
-          op_results when is_map(op_results) ->
-            process_op_changes(op_results)
-        end
+        ## we retrieve the map of variable operation results created by PropagatorVariable wrapper
+        get_filter_changes()
     end
   end
 
@@ -102,13 +101,10 @@ defmodule CPSolver.Propagator do
     [:fixed]
   end
 
-  @spec process_op_changes(%{reference() => atom()}) ::
+  @spec get_filter_changes() ::
           :stable | {:changed, [{atom(), reference()}]}
-  defp process_op_changes(op_results) do
-    op_results
-    |> Enum.flat_map(fn {var, result} ->
-      (result == :no_change && []) || [{result, var}]
-    end)
-    |> then(fn changes -> (changes == [] && :stable) || {:changed, changes} end)
+  defp get_filter_changes() do
+    filter_changes = PropagatorVariable.get_variable_ops()
+    (filter_changes && {:changed, filter_changes}) || :stable
   end
 end
