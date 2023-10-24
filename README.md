@@ -12,6 +12,7 @@ WIP. Not suitable for use in production. Significant API changes and core implem
 ### Implemented constraints
 
 - `not_equal`
+- `less_or_equal`
 - `all_different` (decomposition to `not_equal`)
 
 
@@ -19,3 +20,4 @@ WIP. Not suitable for use in production. Significant API changes and core implem
 - Sudoku
 - Graph Coloring
 - N-Queens
+- Reindeers
