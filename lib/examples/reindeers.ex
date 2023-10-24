@@ -26,8 +26,9 @@ defmodule CPSolver.Examples.Reindeers do
   """
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Constraint.LessOrEqual
+  alias CPSolver.Constraint.AllDifferent
 
-  def solve() do
+  def solve(opts \\ []) do
     reindeers = [
       Blitzen,
       Comet,
@@ -42,11 +43,11 @@ defmodule CPSolver.Examples.Reindeers do
 
     domain = 1..length(reindeers)
 
-    vars =
+    positions =
       [blitzen, comet, cupid, dancer, dasher, donder, prancer, rudolph, vixen] =
-      Enum.map(reindeers, fn r -> Variable.new(domain, name: r) end)
+      Enum.map(reindeers, fn name -> Variable.new(domain, name: name) end)
 
-    constraints =
+    rules =
       behind(comet, [rudolph, prancer, cupid]) ++
         behind(blitzen, [cupid]) ++
         in_front_of(blitzen, [donder, vixen, dancer]) ++
@@ -64,19 +65,14 @@ defmodule CPSolver.Examples.Reindeers do
         behind(vixen, [rudolph, prancer, dasher])
 
     model = %{
-      variables: vars,
-      constraints: constraints
+      variables: positions,
+      ## AllDifferent is optional
+      constraints: [AllDifferent.new(positions) | rules]
     }
 
     {:ok, _solver} =
       CPSolver.solve(model,
-        solution_handler: fn sol ->
-          sol
-          |> Enum.sort_by(fn {_r, place} -> place end)
-          |> Enum.map(fn {r, _place} -> inspect(r) end)
-          |> Enum.join(" -> ")
-          |> IO.puts()
-        end
+        solution_handler: Keyword.get(opts, :solution_handler, &print/1)
       )
   end
 
@@ -86,5 +82,14 @@ defmodule CPSolver.Examples.Reindeers do
 
   defp in_front_of(reindeer, list) do
     Enum.map(list, fn r -> LessOrEqual.new(r, reindeer, -1) end)
+  end
+
+  defp print(solution) do
+    solution
+    |> Enum.sort_by(fn {_r, place} -> place end)
+    |> Enum.map(fn {r, _place} -> inspect(r) end)
+    |> Enum.join(" ")
+    |> then(fn str -> " -> #{str} ->" end)
+    |> IO.puts()
   end
 end
