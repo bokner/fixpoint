@@ -9,6 +9,10 @@ The implementation follows the ideas described in Chapter 12, "Concepts, Techniq
 
 WIP. Not suitable for use in production. Significant API changes and core implementation rewrites are expected.
 
+### Intro
+
+[LiveBook](https://github.com/bokner/fixpoint/blob/main/livebooks/fixpoint.livemd)
+
 ### Implemented constraints
 
 - `not_equal`
