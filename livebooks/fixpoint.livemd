@@ -2,9 +2,9 @@
 
 ## Introduction
 
-Fixpoint is a [Constraint Programming](https://en.wikipedia.org/wiki/Constraint_programming) solver. Constraint Programming is widely used for solving hard combinatorial problems, such as planning, scheduling, production and resource optimization, and more.
+Fixpoint is a [Constraint Programming](https://en.wikipedia.org/wiki/Constraint_programming) solver. Constraint programming is widely used for solving hard combinatorial problems, such as planning, scheduling, production and resource optimization, and more.
 
-Constraint programming is declarative. That is, instead of coding the solution to the problem, the programmer creates a set of constraints that describe it (usually called a "model"), and feeds it to CP solver. the solver then produces solutions that satisfy the model.
+Constraint programming is declarative. That is, instead of coding the solution to the problem, the programmer formulates it as a [**constraint satisfaction**](https://en.wikipedia.org/wiki/Constraint_satisfaction_problem) problem. This is done by putting together a set of constraints (usually called a "model") that describes the problem and then feeding it to CP solver. The solver then either produces solutions that satisfy the model, if any; otherwise, the solver reports the problem unsolvable in terms of the model.
 
 To make it more concrete, we will solve some puzzles using Fixpoint.
 
