@@ -22,6 +22,8 @@ Mix.install([:fixpoint])
 
 ## Solve Sudoku
 
+[Sudoku code](https://github.com/bokner/fixpoint/blob/main/lib/examples/sudoku.ex)
+
 ```elixir
 alias CPSolver.Examples.Sudoku
 puzzles = Sudoku.puzzles()
@@ -113,6 +115,8 @@ The n-queens problem is about finding how many different ways queens can be plac
 
 <!-- livebook:{"break_markdown":true} -->
 
+[N-Queens code](https://github.com/bokner/fixpoint/blob/main/lib/examples/queens.ex)
+
 Let's solve 8-queens
 
 ```elixir
@@ -145,6 +149,8 @@ alias CPSolver.Examples.Queens
 ```
 
 ## Reindeers
+
+[Reindeers code](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex)
 
 Santa always leaves plans for his elves to determine the order in which the
   reindeer will pull his sleigh. This year, for the European leg of his
