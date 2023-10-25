@@ -1,0 +1,98 @@
+# Fixpoint
+
+## Introduction
+
+Fixpoint is a [Constraint Programming](https://en.wikipedia.org/wiki/Constraint_programming) solver. Constraint Programming is widely used for solving hard combinatorial problems, such as planning, scheduling, production and resource optimization, and more.
+
+Constraint programming is a declarative method. That is, instead of coding the solution to the problem, the programmer creates a set of constraints that describe it (usually called a "model"), and feeds it to CP solver. the solver then produces solutions that satisfy the model.
+
+To make it more concrete, we will solve some puzzles using Fixpoint.
+
+## Install Fixpoint
+
+```elixir
+Mix.install([:fixpoint])
+```
+
+## Solve Sudoku
+
+```elixir
+alias CPSolver.Examples.Sudoku
+puzzles = Sudoku.puzzles()
+IO.puts("We will solve this one:")
+Sudoku.print_grid(puzzles.hard9x9) |> IO.puts()
+```
+
+```elixir
+Sudoku.solve_and_print(puzzles.hard9x9)
+```
+
+## N-Queens
+
+The n-queens problem is about finding how many different ways queens can be placed on a chessboard so that none attack each other.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Let's solve 8-queens
+
+```elixir
+alias CPSolver.Examples.Queens
+{:ok, solver} = Queens.solve_and_print(8)
+```
+
+## Reindeers
+
+Santa always leaves plans for his elves to determine the order in which the
+  reindeer will pull his sleigh. This year, for the European leg of his
+  journey, his elves are working to the following schedule, which will form a
+  single line of nine reindeer.
+
+Here are the rules:
+
+```
+Comet behind Rudolph, Prancer and Cupid
+Blitzen behind Cupid
+Blitzen in front of Donder, Vixen and Dancer
+Cupid in front of Comet, Blitzen and Vixen
+Donder behind Vixen, Dasher and Prancer
+Rudolph behind Prancer
+Rudolph in front of Donder, Dancer and Dasher
+Vixen in front of Dancer and Comet
+Dancer behind Donder, Rudolph and Blitzen
+Prancer in front of Cupid, Donder and Blitzen
+Dasher behind Prancer
+Dasher in front of Vixen, Dancer and Blitzen
+Donder behind Comet and Cupid
+Cupid in front of Rudolph and Dancer
+Vixen behind Rudolph, Prancer and Dasher.
+```
+
+Try to solve it by hand first!
+
+<!-- livebook:{"break_markdown":true} -->
+
+These rules are encoded as constraints [here](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex#L52-L65). The implementation of `behind/2` and `in_front_of/2` uses a universal `LessOrEqual` constraint.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+  defp behind(reindeer, list) do
+    Enum.map(list, fn r -> LessOrEqual.new(reindeer, r, -1) end)
+  end
+
+  defp in_front_of(reindeer, list) do
+    Enum.map(list, fn r -> LessOrEqual.new(r, reindeer, -1) end)
+  end
+
+```
+
+So the encoding of the rules does not require any programming except wiring rules to the constraint implementations.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Let's solve it now:
+
+```elixir
+alias CPSolver.Examples.Reindeers
+Reindeers.solve()
+```
