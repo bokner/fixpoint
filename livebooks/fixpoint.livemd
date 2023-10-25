@@ -4,7 +4,7 @@
 
 Fixpoint is a [Constraint Programming](https://en.wikipedia.org/wiki/Constraint_programming) solver. Constraint Programming is widely used for solving hard combinatorial problems, such as planning, scheduling, production and resource optimization, and more.
 
-Constraint programming is a declarative method. That is, instead of coding the solution to the problem, the programmer creates a set of constraints that describe it (usually called a "model"), and feeds it to CP solver. the solver then produces solutions that satisfy the model.
+Constraint programming is declarative. That is, instead of coding the solution to the problem, the programmer creates a set of constraints that describe it (usually called a "model"), and feeds it to CP solver. the solver then produces solutions that satisfy the model.
 
 To make it more concrete, we will solve some puzzles using Fixpoint.
 
@@ -12,6 +12,12 @@ To make it more concrete, we will solve some puzzles using Fixpoint.
 
 ```elixir
 Mix.install([:fixpoint])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
 ## Solve Sudoku
@@ -23,8 +29,82 @@ IO.puts("We will solve this one:")
 Sudoku.print_grid(puzzles.hard9x9) |> IO.puts()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+We will solve this one:
+
++-------+-------+-------+
+| 4 . . | . 3 9 | . 2 . | 
+| . 5 6 | . . . | . . . | 
+| . . . | . . . | 6 . 4 | 
++-------+-------+-------+
+| . . . | . . . | 9 . . | 
+| 5 . . | 1 . . | 2 . . | 
+| . 9 . | . 2 7 | . 3 . | 
++-------+-------+-------+
+| . 3 7 | . . . | . . . | 
+| . . . | . . . | 8 . 6 | 
+| 9 . 8 | . 1 . | . . . | 
++-------+-------+-------+
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+Solve it!
+
 ```elixir
 Sudoku.solve_and_print(puzzles.hard9x9)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Sudoku:
+
++-------+-------+-------+
+| 4 . . | . 3 9 | . 2 . | 
+| . 5 6 | . . . | . . . | 
+| . . . | . . . | 6 . 4 | 
++-------+-------+-------+
+| . . . | . . . | 9 . . | 
+| 5 . . | 1 . . | 2 . . | 
+| . 9 . | . 2 7 | . 3 . | 
++-------+-------+-------+
+| . 3 7 | . . . | . . . | 
+| . . . | . . . | 8 . 6 | 
+| 9 . 8 | . 1 . | . . . | 
++-------+-------+-------+
+
+
++-------+-------+-------+
+| 4 8 1 | 6 3 9 | 7 2 5 | 
+| 7 5 6 | 4 8 2 | 1 9 3 | 
+| 3 2 9 | 7 5 1 | 6 8 4 | 
++-------+-------+-------+
+| 8 1 2 | 3 4 5 | 9 6 7 | 
+| 5 7 3 | 1 9 6 | 2 4 8 | 
+| 6 9 4 | 8 2 7 | 5 3 1 | 
++-------+-------+-------+
+| 1 3 7 | 2 6 8 | 4 5 9 | 
+| 2 4 5 | 9 7 3 | 8 1 6 | 
+| 9 6 8 | 5 1 4 | 3 7 2 | 
++-------+-------+-------+
+
+
+15:55:39.876 [notice] Solution checked!
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, #PID<0.215.0>}
 ```
 
 ## N-Queens
@@ -38,6 +118,30 @@ Let's solve 8-queens
 ```elixir
 alias CPSolver.Examples.Queens
 {:ok, solver} = Queens.solve_and_print(8)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+
+. ♕ . . . . . .
+. . . ♕ . . . .
+. . . . . ♕ . .
+. . . . . . . ♕
+. . ♕ . . . . .
+♕ . . . . . . .
+. . . . . . ♕ .
+. . . . ♕ . . .
+
+
+15:55:49.529 [notice] Solution checked!
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, #PID<0.33413.0>}
 ```
 
 ## Reindeers
@@ -95,4 +199,16 @@ Let's solve it now:
 ```elixir
 alias CPSolver.Examples.Reindeers
 Reindeers.solve()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, #PID<0.48292.0>}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Dancer -> Donder -> Comet -> Vixen -> Blitzen -> Dasher -> Rudolph -> Cupid -> Prancer
 ```
