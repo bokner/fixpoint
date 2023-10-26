@@ -7,6 +7,8 @@ defmodule CPSolver do
   alias CPSolver.Constraint
   alias CPSolver.Solution
 
+  import CPSolver.Shared
+
   use GenServer
 
   require Logger
@@ -190,16 +192,5 @@ defmodule CPSolver do
   defp stop_spaces(%{active_nodes: spaces} = data) do
     Enum.each(spaces, fn s -> Process.alive?(s) && Process.exit(s, :kill) end)
     data
-  end
-
-  defp init_shared_data() do
-    %{
-      statistics:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
-      solutions:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
-      active_nodes:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
-    }
   end
 end

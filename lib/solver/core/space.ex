@@ -16,6 +16,8 @@ defmodule CPSolver.Space do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils
 
+  alias CPSolver.Shared
+
   require Logger
 
   @behaviour :gen_statem
@@ -286,6 +288,7 @@ defmodule CPSolver.Space do
   end
 
   defp handle_failure(data) do
+    Shared.add_failure(data.solver_data)
     shutdown(data, :failure)
   end
 
@@ -297,6 +300,7 @@ defmodule CPSolver.Space do
         handle_failure(data)
 
       solution ->
+        Shared.add_solution(data.solver_data, solution)
         publish(data, {:solution, solution})
         Solution.run_handler(solution, solution_handler)
         shutdown(data, :solved)
@@ -360,6 +364,7 @@ defmodule CPSolver.Space do
           child_space
         end)
         |> tap(fn new_nodes ->
+          Shared.add_active_spaces(data.solver_data, new_nodes)
           publish(data, {:nodes, new_nodes})
         end)
 
@@ -387,6 +392,8 @@ defmodule CPSolver.Space do
   end
 
   defp shutdown(%{keep_alive: keep_alive} = data, reason) do
+    Shared.remove_space(data.solver_data, self(), reason)
+
     if !keep_alive do
       publish(data, {:shutdown_space, {self(), reason}})
       {:stop, :normal, data}
