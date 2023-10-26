@@ -29,7 +29,7 @@ defmodule CPSolver.Space do
             propagator_threads: %{},
             store: nil,
             space: nil,
-            solver: nil,
+            solver_data: nil,
             solution_handler: nil,
             search: nil,
             opts: []
@@ -61,7 +61,7 @@ defmodule CPSolver.Space do
   end
 
   defp inject_solver(space_opts) do
-    Keyword.put_new(space_opts, :solver, self())
+    Keyword.put_new(space_opts, :solver_data, self())
   end
 
   def get_state_and_data(space) do
@@ -88,7 +88,7 @@ defmodule CPSolver.Space do
 
     solution_handler = Keyword.get(space_opts, :solution_handler)
     search_strategy = Keyword.get(space_opts, :search)
-    solver = Keyword.get(space_opts, :solver)
+    solver_data = Keyword.get(space_opts, :solver_data)
 
     propagators = Keyword.get(args, :propagators) |> Propagator.normalize()
 
@@ -109,7 +109,7 @@ defmodule CPSolver.Space do
       propagators: propagators,
       constraint_graph: constraint_graph,
       store: store,
-      solver: solver,
+      solver_data: solver_data,
       opts: space_opts,
       solution_handler: solution_handler,
       search: search_strategy
@@ -383,7 +383,7 @@ defmodule CPSolver.Space do
   end
 
   defp publish(data, message) do
-    send(data.solver, message)
+    send(data.solver_data.solver, message)
   end
 
   defp shutdown(%{keep_alive: keep_alive} = data, reason) do

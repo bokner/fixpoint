@@ -133,7 +133,13 @@ defmodule CPSolverTest.Space do
       propagators = [NotEqual.new(x, y), NotEqual.new(y, z)]
 
       {:ok, space} =
-        Space.create(variables, propagators, Keyword.put(space_opts, :keep_alive, true))
+        Space.create(
+          variables,
+          propagators,
+          space_opts
+          |> Keyword.put(:solver_data, %{solver: self()})
+          |> Keyword.put(:keep_alive, true)
+        )
 
       {_, space_data} = :sys.get_state(space)
       %{space: space, propagators: propagators, variables: space_data.variables}
@@ -147,7 +153,14 @@ defmodule CPSolverTest.Space do
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
       propagators = [NotEqual.new(x, y), NotEqual.new(y, z)]
 
-      {:ok, space} = Space.create(variables, propagators, space_opts)
+      {:ok, space} =
+        Space.create(
+          variables,
+          propagators,
+          space_opts
+          |> Keyword.put(:solver_data, %{solver: self()})
+        )
+
       {_, space_data} = :sys.get_state(space)
 
       %{space: space, propagators: propagators, variables: space_data.variables, domains: values}

@@ -16,15 +16,35 @@ defmodule CPSolver do
   """
   @spec solve(Model.t(), Keyword.t()) :: any()
   def solve(model, opts \\ []) do
-    {:ok, _solver} = GenServer.start(CPSolver, [model, opts])
+    shared_data = init_shared_data()
+    {:ok, solver} = GenServer.start(CPSolver, [model, Keyword.put(opts, :shared, shared_data)])
+    {:ok, Map.put(shared_data, :solver_pid, solver)}
   end
 
   def statistics(solver) when is_pid(solver) do
     GenServer.call(solver, :get_stats)
   end
 
+  def statistics(solver) when is_map(solver) do
+    # :ets.tab2list(solver.shared.statistics)
+    statistics(solver.solver_pid)
+  end
+
   def solutions(solver) when is_pid(solver) do
     GenServer.call(solver, :get_solutions)
+  end
+
+  def solutions(solver) when is_map(solver) do
+    # :ets.tab2list(solver.shared.statistics)
+    solutions(solver.solver_pid)
+  end
+
+  def get_state(solver) when is_pid(solver) do
+    :sys.get_state(solver)
+  end
+
+  def get_state(solver) when is_map(solver) do
+    get_state(solver.solver_pid)
   end
 
   ## GenServer callbacks
@@ -37,6 +57,8 @@ defmodule CPSolver do
       end)
 
     stop_on = Keyword.get(solver_opts, :stop_on)
+    ## Some data (stats, solutions, possibly more - TBD) has to be shared between spaces
+    shared = Keyword.get(solver_opts, :shared)
 
     {:ok,
      %{
@@ -46,6 +68,7 @@ defmodule CPSolver do
        solution_count: 0,
        failure_count: 0,
        node_count: 1,
+       shared: Map.put(shared, :solver, self()),
        solutions: [],
        active_nodes: MapSet.new(),
        stop_on: stop_on,
@@ -56,7 +79,12 @@ defmodule CPSolver do
   @impl true
   def handle_continue(
         :solve,
-        %{variables: variables, propagators: propagators, solver_opts: solver_opts} = state
+        %{
+          variables: variables,
+          propagators: propagators,
+          solver_opts: solver_opts,
+          shared: shared
+        } = state
       ) do
     solution_handler_fun =
       solver_opts
@@ -68,7 +96,7 @@ defmodule CPSolver do
         variables,
         propagators,
         solver_opts
-        |> Keyword.put(:solver, self())
+        |> Keyword.put(:solver_data, shared)
         |> Keyword.put(:solution_handler, solution_handler_fun)
       )
 
@@ -162,5 +190,16 @@ defmodule CPSolver do
   defp stop_spaces(%{active_nodes: spaces} = data) do
     Enum.each(spaces, fn s -> Process.alive?(s) && Process.exit(s, :kill) end)
     data
+  end
+
+  defp init_shared_data() do
+    %{
+      statistics:
+        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
+      solutions:
+        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
+      active_nodes:
+        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
+    }
   end
 end

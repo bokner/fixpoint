@@ -27,7 +27,7 @@ defmodule CpSolverTest do
     ## to 5 nodes.
     assert CPSolver.statistics(solver).node_count == 5
     assert CPSolver.statistics(solver).solution_count == 3
-    solver_state = :sys.get_state(solver)
+    solver_state = CPSolver.get_state(solver)
 
     solutions =
       Enum.map(solver_state.solutions, fn solution ->
