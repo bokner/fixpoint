@@ -19,6 +19,41 @@ defmodule CPSolver do
     {:ok, _solver} = GenServer.start(CPSolver, [model, opts])
   end
 
+  @spec solve_sync(Model.t(), Keyword.t()) ::
+          {:ok, map()} | {:error, reason :: any(), info :: any()}
+  def solve_sync(model, opts \\ []) do
+    {:ok, solver} = solve(model, add_sync_handler(opts))
+
+    solver
+    |> wait_for_completion()
+    |> get_results()
+  end
+
+  defp add_sync_handler(opts) do
+    {_opts, updated} =
+      Keyword.get_and_update(
+        :solution_handler,
+        fn h -> {h, make_sync_handler(h)} end
+      )
+
+    updated
+  end
+
+  ## Wraps the solution handler into the sync logic
+  defp make_sync_handler(solution_handler) do
+    caller = self()
+
+    fn solution ->
+      solution_handler.handle(solution)
+
+      if completed() do
+        send(caller, {:completed, get_solver_results()})
+      end
+
+      cleanup()
+    end
+  end
+
   def statistics(solver) when is_pid(solver) do
     GenServer.call(solver, :get_stats)
   end
