@@ -27,10 +27,9 @@ defmodule CpSolverTest do
     ## to 5 nodes.
     assert CPSolver.statistics(solver).node_count == 5
     assert CPSolver.statistics(solver).solution_count == 3
-    solver_state = CPSolver.get_state(solver)
 
     solutions =
-      Enum.map(solver_state.solutions, fn solution ->
+      Enum.map(CPSolver.solutions(solver), fn solution ->
         Enum.map(solution, fn {_ref, value} -> value end)
       end)
       |> Enum.sort_by(fn [x, y] -> x + y end)

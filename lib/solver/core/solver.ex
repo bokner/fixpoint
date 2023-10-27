@@ -7,7 +7,7 @@ defmodule CPSolver do
   alias CPSolver.Constraint
   alias CPSolver.Solution
 
-  import CPSolver.Shared
+  alias CPSolver.Shared
 
   use GenServer
 
@@ -18,7 +18,7 @@ defmodule CPSolver do
   """
   @spec solve(Model.t(), Keyword.t()) :: any()
   def solve(model, opts \\ []) do
-    shared_data = init_shared_data()
+    shared_data = Shared.init_shared_data()
     {:ok, solver} = GenServer.start(CPSolver, [model, Keyword.put(opts, :shared, shared_data)])
     {:ok, Map.put(shared_data, :solver_pid, solver)}
   end

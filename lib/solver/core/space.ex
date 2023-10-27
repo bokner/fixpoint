@@ -6,7 +6,6 @@ defmodule CPSolver.Space do
   """
 
   alias CPSolver.Utils
-  alias __MODULE__, as: Space
   alias CPSolver.ConstraintStore
   alias CPSolver.Propagator
   alias CPSolver.Propagator.Thread, as: PropagatorThread
@@ -21,20 +20,6 @@ defmodule CPSolver.Space do
   require Logger
 
   @behaviour :gen_statem
-
-  defstruct id: nil,
-            parent: nil,
-            keep_alive: false,
-            variables: [],
-            propagators: [],
-            constraint_graph: nil,
-            propagator_threads: %{},
-            store: nil,
-            space: nil,
-            solver_data: nil,
-            solution_handler: nil,
-            search: nil,
-            opts: []
 
   defp default_space_opts() do
     [
@@ -86,6 +71,7 @@ defmodule CPSolver.Space do
     solution_handler = Keyword.get(space_opts, :solution_handler)
     search_strategy = Keyword.get(space_opts, :search)
     solver_data = Keyword.get(space_opts, :solver_data)
+    # Logger.error("Space Opts: #{inspect space_opts}")
 
     propagators = Keyword.get(args, :propagators) |> Propagator.normalize()
 
@@ -98,7 +84,7 @@ defmodule CPSolver.Space do
         constraint_graph: constraint_graph
       )
 
-    space_data = %Space{
+    space_data = %{
       id: space_id,
       parent: parent,
       keep_alive: keep_alive,
@@ -361,7 +347,6 @@ defmodule CPSolver.Space do
         |> tap(fn new_nodes ->
           Shared.remove_space(data.solver_data, self(), :distribute)
           Shared.add_active_spaces(data.solver_data, new_nodes)
-          publish(data, {:nodes, new_nodes})
         end)
 
         shutdown(data, :distribute)
@@ -391,7 +376,6 @@ defmodule CPSolver.Space do
     Shared.remove_space(data.solver_data, self(), reason)
 
     if !keep_alive do
-      publish(data, {:shutdown_space, {self(), reason}})
       {:stop, :normal, data}
     else
       :keep_state_and_data
