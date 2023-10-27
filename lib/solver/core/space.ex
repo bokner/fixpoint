@@ -51,8 +51,7 @@ defmodule CPSolver.Space do
         [
           variables: variables,
           propagators: propagators,
-          # Inject solver, if wasn't passed in opts
-          space_opts: inject_solver(space_opts)
+          space_opts: space_opts
         ],
         gen_statem_opts
       )
@@ -60,10 +59,6 @@ defmodule CPSolver.Space do
 
   def stop(space) do
     Process.alive?(space) && :gen_statem.stop(space)
-  end
-
-  defp inject_solver(space_opts) do
-    Keyword.put_new(space_opts, :solver_data, self())
   end
 
   def get_state_and_data(space) do
@@ -364,6 +359,7 @@ defmodule CPSolver.Space do
           child_space
         end)
         |> tap(fn new_nodes ->
+          Shared.remove_space(data.solver_data, self(), :distribute)
           Shared.add_active_spaces(data.solver_data, new_nodes)
           publish(data, {:nodes, new_nodes})
         end)
