@@ -34,7 +34,7 @@ defmodule CPSolverTest.Space do
     end
 
     test "stable space" do
-      %{space: space} = create_stable_space()
+      %{space: space} = create_stable_space(solution_handler: test_solution_handler())
 
       Process.sleep(100)
 
@@ -79,13 +79,7 @@ defmodule CPSolverTest.Space do
     end
 
     test "solution handler as function" do
-      target_pid = self()
-
-      ## The solution will be send to the current process
-      solution_handler = fn solution ->
-        send(target_pid, Enum.sort_by(solution, fn {var, _value} -> var end))
-      end
-
+      solution_handler = test_solution_handler()
       ## Create a space with the solution handler as a function
       %{variables: space_variables} =
         create_solved_space(solution_handler: solution_handler)
@@ -100,7 +94,7 @@ defmodule CPSolverTest.Space do
     end
 
     test "solution handler as a module" do
-      solution_handler = Solution.default_handler()
+      solution_handler = test_solution_handler()
 
       ## Create a space with the solution handler as a function
       %{variables: space_variables} =
@@ -156,6 +150,15 @@ defmodule CPSolverTest.Space do
       {_, space_data} = :sys.get_state(space)
 
       %{space: space, propagators: propagators, variables: space_data.variables, domains: values}
+    end
+
+    defp test_solution_handler() do
+      target_pid = self()
+
+      ## The solution will be send to the current process
+      fn solution ->
+        send(target_pid, {:solution, solution})
+      end
     end
   end
 end
