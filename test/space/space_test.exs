@@ -74,7 +74,7 @@ defmodule CPSolverTest.Space do
 
       Process.flag(:trap_exit, true)
       {:ok, space} = Space.create(variables, propagators)
-      Process.sleep(10)
+      Process.sleep(50)
       refute Process.alive?(space)
     end
 

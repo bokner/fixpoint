@@ -29,9 +29,8 @@ defmodule CpSolverTest do
     assert CPSolver.statistics(solver).solution_count == 3
 
     solutions =
-      Enum.map(CPSolver.solutions(solver), fn solution ->
-        Enum.map(solution, fn {_ref, value} -> value end)
-      end)
+      solver
+      |> CPSolver.solutions()
       |> Enum.sort_by(fn [x, y] -> x + y end)
 
     assert solutions == [[1, 0], [2, 0], [2, 1]]

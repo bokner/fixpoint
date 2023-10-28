@@ -29,7 +29,8 @@ defmodule CPSolver do
 
   def statistics(solver) when is_map(solver) do
     # :ets.tab2list(solver.shared.statistics)
-    statistics(solver.solver_pid)
+    # statistics(solver.solver_pid)
+    Shared.statistics(solver)
   end
 
   def solutions(solver) when is_pid(solver) do
@@ -38,7 +39,8 @@ defmodule CPSolver do
 
   def solutions(solver) when is_map(solver) do
     # :ets.tab2list(solver.shared.statistics)
-    solutions(solver.solver_pid)
+    # solutions(solver.solver_pid)
+    Shared.solutions(solver)
   end
 
   def get_state(solver) when is_pid(solver) do
@@ -124,57 +126,6 @@ defmodule CPSolver do
           solutions: [Solution.reconcile(new_solution, variables) | solutions]
       }
     end
-
-    ## TODO: check for stopping condition here.
-
-    ## Q: spaces are async and handle solutions on their own,
-    ## so even if stopping condition is handled here, how do (or should)
-    ## we prevent spaces from emitting new solutions?
-  end
-
-  defp handle_event({:nodes, new_nodes}, %{node_count: count, active_nodes: nodes} = state) do
-    new_nodes_set = MapSet.new(new_nodes)
-    n = MapSet.size(new_nodes_set)
-    %{state | node_count: count + n, active_nodes: MapSet.union(nodes, new_nodes_set)}
-  end
-
-  defp handle_event({:shutdown_space, {node, :failure}}, %{failure_count: failures} = state) do
-    %{state | failure_count: failures + 1}
-    |> delete_node(node)
-  end
-
-  defp handle_event({:shutdown_space, {node, _reason}}, state) do
-    delete_node(state, node)
-  end
-
-  defp handle_event(unexpected, state) do
-    Logger.error("Solver: unexpected message #{inspect(unexpected)}")
-    state
-  end
-
-  @impl true
-  def handle_call(:get_stats, _from, state) do
-    {:reply, get_stats(state), state}
-  end
-
-  def handle_call(:get_solutions, _from, state) do
-    {:reply, get_solutions(state), state}
-  end
-
-  defp delete_node(%{active_nodes: nodes} = state, node) do
-    %{state | active_nodes: MapSet.delete(nodes, node)}
-  end
-
-  defp get_stats(state) do
-    Map.take(state, [:solution_count, :failure_count, :node_count])
-  end
-
-  defp get_solutions(%{solutions: solutions} = _state) do
-    solutions
-    |> Enum.map(fn solution ->
-      solution
-      |> Enum.map(fn {_var_name, value} -> value end)
-    end)
   end
 
   defp check_for_stop(nil, _solution, _data) do

@@ -54,12 +54,21 @@ defmodule CPSolver.Shared do
     }
   end
 
+  def solutions(%{solutions: solution_table} = _solver) do
+    solution_table
+    |> :ets.tab2list()
+    |> Enum.map(fn {_ref, solution} ->
+      Enum.map(solution, fn {_var, value} ->
+        value
+      end)
+    end)
+  end
+
   def add_failure(%{statistics: stats_table} = _solver) do
     update_stats_counters(stats_table, [{@failure_count_pos, 1}])
   end
 
-  def add_solution(%{statistics: stats_table, solutions: solution_table} = _solver, solution) do
-    update_stats_counters(stats_table, [{@solution_count_pos, 1}])
+  def add_solution(%{solutions: solution_table} = _solver, solution) do
     :ets.insert(solution_table, {make_ref(), solution})
   end
 end
