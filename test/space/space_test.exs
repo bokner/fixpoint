@@ -88,8 +88,6 @@ defmodule CPSolverTest.Space do
       store_vars =
         Map.new(space_variables, fn v -> {v.id, Variable.min(v)} end)
 
-      # |> Enum.sort_by(fn {var, _value} -> var end)
-
       assert_receive {:solution, ^store_vars}, 10
     end
 

@@ -124,6 +124,7 @@ defmodule CPSolver.Space do
 
   ## Callbacks
   def start_propagation(:enter, :start_propagation, data) do
+    Shared.add_active_spaces(data.solver_data, [self()])
     {:keep_state, data}
   end
 
@@ -284,7 +285,6 @@ defmodule CPSolver.Space do
         handle_failure(data)
 
       solution ->
-        Shared.add_solution(data.solver_data, solution)
         Solution.run_handler(solution, solution_handler)
         shutdown(data, :solved)
     end)
@@ -337,17 +337,14 @@ defmodule CPSolver.Space do
                end)}
             end)
 
-          {:ok, child_space} =
-            create(
-              Map.values(variable_copies),
-              propagator_copies,
-              Keyword.put(data.opts, :parent, data.id)
-            )
+          #          {:ok, child_space} =
+          create(
+            Map.values(variable_copies),
+            propagator_copies,
+            Keyword.put(data.opts, :parent, data.id)
+          )
 
-          child_space
-        end)
-        |> tap(fn new_nodes ->
-          Shared.add_active_spaces(data.solver_data, new_nodes)
+          #          child_space
         end)
 
         shutdown(data, :distribute)

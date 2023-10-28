@@ -88,6 +88,7 @@ defmodule CPSolver do
     solution_handler_fun =
       solver_opts
       |> Keyword.get(:solution_handler, Solution.default_handler())
+      |> build_solution_handler(state)
       |> Solution.solution_handler(variables)
 
     {:ok, top_space} =
@@ -109,5 +110,37 @@ defmodule CPSolver do
 
   def handle_event(_event, state) do
     state
+  end
+
+  ## Build a solution handler on top of initial one.
+  ## For now, this adds handling logic for stop conditions
+  defp build_solution_handler(solution_handler, solver_state) do
+    fn solution ->
+      if not CPSolver.complete?(solver_state.shared) do
+        solution
+        |> Solution.run_handler(solution_handler)
+        |> tap(fn _ -> Shared.add_solution(solver_state.shared, solution) end)
+        |> tap(fn result -> maybe_set_solving_complete(result, solution, solver_state) end)
+      end
+    end
+  end
+
+  defp maybe_set_solving_complete(handler_result, solution, solver_state) do
+    stop_on_opt = get_in(solver_state, [:solver_opts, :stop_on])
+
+    stop_on_opt &&
+      condition_fun(stop_on_opt).(handler_result, solution, solver_state) &&
+      Shared.set_complete(solver_state.shared)
+  end
+
+  defp condition_fun({:max_solutions, max_solutions}) do
+    fn _handler_result, _solution, solver_state ->
+      solution_count = Shared.statistics(solver_state.shared).solution_count
+      max_solutions < solution_count
+    end
+  end
+
+  defp condition_fun(opts) do
+    Logger.error("Stop condition with #{inspect(opts)} is not implemented")
   end
 end
