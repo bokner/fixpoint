@@ -30,16 +30,20 @@ defmodule CPSolver.Space do
   end
 
   def create(variables, propagators, space_opts \\ [], gen_statem_opts \\ []) do
-    {:ok, _space} =
-      :gen_statem.start(
-        __MODULE__,
-        [
-          variables: variables,
-          propagators: propagators,
-          space_opts: space_opts
-        ],
-        gen_statem_opts
-      )
+    if Shared.complete() do
+      {:error, :complete}
+    else
+      {:ok, _space} =
+        :gen_statem.start(
+          __MODULE__,
+          [
+            variables: variables,
+            propagators: propagators,
+            space_opts: space_opts
+          ],
+          gen_statem_opts
+        )
+    end
   end
 
   def stop(space) do

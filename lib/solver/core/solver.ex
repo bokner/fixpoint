@@ -28,8 +28,6 @@ defmodule CPSolver do
   end
 
   def statistics(solver) when is_map(solver) do
-    # :ets.tab2list(solver.shared.statistics)
-    # statistics(solver.solver_pid)
     Shared.statistics(solver)
   end
 
@@ -38,8 +36,6 @@ defmodule CPSolver do
   end
 
   def solutions(solver) when is_map(solver) do
-    # :ets.tab2list(solver.shared.statistics)
-    # solutions(solver.solver_pid)
     Shared.solutions(solver)
   end
 
@@ -69,12 +65,7 @@ defmodule CPSolver do
        space: nil,
        variables: variables,
        propagators: propagators,
-       solution_count: 0,
-       failure_count: 0,
-       node_count: 1,
-       shared: Map.put(shared, :solver, self()),
-       solutions: [],
-       active_nodes: MapSet.new(),
+       shared: shared,
        stop_on: stop_on,
        solver_opts: solver_opts
      }, {:continue, :solve}}
@@ -112,36 +103,7 @@ defmodule CPSolver do
     {:noreply, handle_event(event, state)}
   end
 
-  defp handle_event(
-         {:solution, new_solution},
-         %{solution_count: count, solutions: solutions, variables: variables, stop_on: stop_on} =
-           state
-       ) do
-    if check_for_stop(stop_on, new_solution, state) do
-      stop_spaces(state)
-    else
-      %{
-        state
-        | solution_count: count + 1,
-          solutions: [Solution.reconcile(new_solution, variables) | solutions]
-      }
-    end
-  end
-
-  defp check_for_stop(nil, _solution, _data) do
-    false
-  end
-
-  defp check_for_stop({:max_solutions, max}, _solution, data) do
-    max == data.solution_count
-  end
-
-  defp check_for_stop(condition, solution, data) when is_function(condition, 2) do
-    condition.(solution, data)
-  end
-
-  defp stop_spaces(%{active_nodes: spaces} = data) do
-    Enum.each(spaces, fn s -> Process.alive?(s) && Process.exit(s, :kill) end)
-    data
+  def handle_event(_event, state) do
+    state
   end
 end

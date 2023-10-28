@@ -87,10 +87,11 @@ defmodule CPSolverTest.Space do
       Process.sleep(10)
       ## Check the solution against the store
       store_vars =
-        Enum.map(space_variables, fn v -> {v.id, Variable.min(v)} end)
-        |> Enum.sort_by(fn {var, _value} -> var end)
+        Map.new(space_variables, fn v -> {v.id, Variable.min(v)} end)
 
-      assert_receive ^store_vars, 10
+      # |> Enum.sort_by(fn {var, _value} -> var end)
+
+      assert_receive {:solution, ^store_vars}, 10
     end
 
     test "solution handler as a module" do

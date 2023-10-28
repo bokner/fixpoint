@@ -1,7 +1,7 @@
 defmodule CPSolver.Shared do
   def init_shared_data(solver_pid \\ self()) do
     %{
-      solver: solver_pid,
+      solver_pid: solver_pid,
       statistics:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
         |> tap(fn stats_ref -> :ets.insert(stats_ref, {:stats, 1, 0, 0, 1}) end),
@@ -10,6 +10,10 @@ defmodule CPSolver.Shared do
       active_nodes:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
     }
+  end
+
+  def complete() do
+    false
   end
 
   @active_node_count_pos 2
