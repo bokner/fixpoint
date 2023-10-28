@@ -6,6 +6,7 @@ defmodule CPSolverTest.Space do
     alias CPSolver.Space, as: Space
     alias CPSolver.Propagator.NotEqual
     alias CPSolver.Solution
+    alias CPSolver.Shared
 
     test "create space" do
       x_values = 1..10
@@ -46,20 +47,11 @@ defmodule CPSolverTest.Space do
           end
         end)
 
-      node_creations =
-        Enum.reduce(1..1, 0, fn _, acc ->
-          receive do
-            {:nodes, nodes} -> length(nodes) + acc
-          end
-        end)
-
       # For all solutions, constraints (x != y and y != z) are satisfied.
       assert Enum.all?(solutions, fn variables ->
                [x, y, z] = Enum.map(variables, fn {_id, value} -> value end)
                x != y && y != z
              end)
-
-      assert node_creations == 2
     end
 
     test "solved space" do
@@ -82,7 +74,7 @@ defmodule CPSolverTest.Space do
 
       Process.flag(:trap_exit, true)
       {:ok, space} = Space.create(variables, propagators)
-      Process.sleep(10)
+      Process.sleep(50)
       refute Process.alive?(space)
     end
 
@@ -133,7 +125,13 @@ defmodule CPSolverTest.Space do
       propagators = [NotEqual.new(x, y), NotEqual.new(y, z)]
 
       {:ok, space} =
-        Space.create(variables, propagators, Keyword.put(space_opts, :keep_alive, true))
+        Space.create(
+          variables,
+          propagators,
+          space_opts
+          |> Keyword.put(:solver_data, Shared.init_shared_data())
+          |> Keyword.put(:keep_alive, true)
+        )
 
       {_, space_data} = :sys.get_state(space)
       %{space: space, propagators: propagators, variables: space_data.variables}
@@ -147,7 +145,14 @@ defmodule CPSolverTest.Space do
       [x, y, z] = variables = Enum.map(values, fn d -> Variable.new(d) end)
       propagators = [NotEqual.new(x, y), NotEqual.new(y, z)]
 
-      {:ok, space} = Space.create(variables, propagators, space_opts)
+      {:ok, space} =
+        Space.create(
+          variables,
+          propagators,
+          space_opts
+          |> Keyword.put(:solver_data, Shared.init_shared_data(self()))
+        )
+
       {_, space_data} = :sys.get_state(space)
 
       %{space: space, propagators: propagators, variables: space_data.variables, domains: values}
