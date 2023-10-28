@@ -8,12 +8,22 @@ defmodule CPSolver.Shared do
       solutions:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       active_nodes:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
+        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
+      complete_flag: init_complete_flag()
     }
   end
 
-  def complete() do
-    false
+  def complete?(%{complete_flag: complete_flag} = _solver) do
+    :persistent_term.get(complete_flag)
+  end
+
+  def set_complete(%{complete_flag: complete_flag} = _solver) do
+    :persistent_term.put(complete_flag, true)
+  end
+
+  defp init_complete_flag() do
+    make_ref()
+    |> tap(fn ref -> :persistent_term.put(ref, false) end)
   end
 
   @active_node_count_pos 2

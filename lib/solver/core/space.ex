@@ -25,12 +25,13 @@ defmodule CPSolver.Space do
     [
       store: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
-      search: CPSolver.Search.Strategy.default_strategy()
+      search: CPSolver.Search.Strategy.default_strategy(),
+      solver_data: Shared.init_shared_data()
     ]
   end
 
-  def create(variables, propagators, space_opts \\ [], gen_statem_opts \\ []) do
-    if Shared.complete() do
+  def create(variables, propagators, space_opts \\ default_space_opts(), gen_statem_opts \\ []) do
+    if CPSolver.complete?(space_opts[:solver_data]) do
       {:error, :complete}
     else
       {:ok, _space} =
@@ -75,7 +76,6 @@ defmodule CPSolver.Space do
     solution_handler = Keyword.get(space_opts, :solution_handler)
     search_strategy = Keyword.get(space_opts, :search)
     solver_data = Keyword.get(space_opts, :solver_data)
-    # Logger.error("Space Opts: #{inspect space_opts}")
 
     propagators = Keyword.get(args, :propagators) |> Propagator.normalize()
 

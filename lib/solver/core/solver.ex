@@ -47,6 +47,10 @@ defmodule CPSolver do
     get_state(solver.solver_pid)
   end
 
+  def complete?(solver) when is_map(solver) do
+    Shared.complete?(solver)
+  end
+
   ## GenServer callbacks
 
   @impl true

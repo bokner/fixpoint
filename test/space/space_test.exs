@@ -5,7 +5,6 @@ defmodule CPSolverTest.Space do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Space, as: Space
     alias CPSolver.Propagator.NotEqual
-    alias CPSolver.Solution
     alias CPSolver.Shared
 
     test "create space" do
