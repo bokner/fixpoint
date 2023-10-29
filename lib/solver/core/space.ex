@@ -25,21 +25,26 @@ defmodule CPSolver.Space do
     [
       store: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
-      search: CPSolver.Search.Strategy.default_strategy()
+      search: CPSolver.Search.Strategy.default_strategy(),
+      solver_data: Shared.init_shared_data()
     ]
   end
 
-  def create(variables, propagators, space_opts \\ [], gen_statem_opts \\ []) do
-    {:ok, _space} =
-      :gen_statem.start(
-        __MODULE__,
-        [
-          variables: variables,
-          propagators: propagators,
-          space_opts: space_opts
-        ],
-        gen_statem_opts
-      )
+  def create(variables, propagators, space_opts \\ default_space_opts(), gen_statem_opts \\ []) do
+    if CPSolver.complete?(space_opts[:solver_data]) do
+      {:error, :complete}
+    else
+      {:ok, _space} =
+        :gen_statem.start(
+          __MODULE__,
+          [
+            variables: variables,
+            propagators: propagators,
+            space_opts: space_opts
+          ],
+          gen_statem_opts
+        )
+    end
   end
 
   def stop(space) do
@@ -71,7 +76,6 @@ defmodule CPSolver.Space do
     solution_handler = Keyword.get(space_opts, :solution_handler)
     search_strategy = Keyword.get(space_opts, :search)
     solver_data = Keyword.get(space_opts, :solver_data)
-    # Logger.error("Space Opts: #{inspect space_opts}")
 
     propagators = Keyword.get(args, :propagators) |> Propagator.normalize()
 
@@ -120,6 +124,7 @@ defmodule CPSolver.Space do
 
   ## Callbacks
   def start_propagation(:enter, :start_propagation, data) do
+    Shared.add_active_spaces(data.solver_data, [self()])
     {:keep_state, data}
   end
 
@@ -280,7 +285,6 @@ defmodule CPSolver.Space do
         handle_failure(data)
 
       solution ->
-        Shared.add_solution(data.solver_data, solution)
         Solution.run_handler(solution, solution_handler)
         shutdown(data, :solved)
     end)
@@ -333,17 +337,14 @@ defmodule CPSolver.Space do
                end)}
             end)
 
-          {:ok, child_space} =
-            create(
-              Map.values(variable_copies),
-              propagator_copies,
-              Keyword.put(data.opts, :parent, data.id)
-            )
+          #          {:ok, child_space} =
+          create(
+            Map.values(variable_copies),
+            propagator_copies,
+            Keyword.put(data.opts, :parent, data.id)
+          )
 
-          child_space
-        end)
-        |> tap(fn new_nodes ->
-          Shared.add_active_spaces(data.solver_data, new_nodes)
+          #          child_space
         end)
 
         shutdown(data, :distribute)

@@ -1,15 +1,29 @@
 defmodule CPSolver.Shared do
   def init_shared_data(solver_pid \\ self()) do
     %{
-      solver: solver_pid,
+      solver_pid: solver_pid,
       statistics:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
-        |> tap(fn stats_ref -> :ets.insert(stats_ref, {:stats, 1, 0, 0, 1}) end),
+        |> tap(fn stats_ref -> :ets.insert(stats_ref, {:stats, 0, 0, 0, 0}) end),
       solutions:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       active_nodes:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
+        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
+      complete_flag: init_complete_flag()
     }
+  end
+
+  def complete?(%{complete_flag: complete_flag} = _solver) do
+    :persistent_term.get(complete_flag)
+  end
+
+  def set_complete(%{complete_flag: complete_flag} = _solver) do
+    :persistent_term.put(complete_flag, true)
+  end
+
+  defp init_complete_flag() do
+    make_ref()
+    |> tap(fn ref -> :persistent_term.put(ref, false) end)
   end
 
   @active_node_count_pos 2
@@ -17,13 +31,25 @@ defmodule CPSolver.Shared do
   @solution_count_pos 4
   @node_count_pos 5
 
-  def add_active_spaces(%{statistics: stats_table} = _solver, spaces) do
+  def add_active_spaces(
+        %{statistics: stats_table, active_nodes: active_nodes_table} = _solver,
+        spaces
+      ) do
     incr = length(spaces)
     update_stats_counters(stats_table, [{@active_node_count_pos, incr}, {@node_count_pos, incr}])
+    Enum.each(spaces, fn n -> :ets.insert(active_nodes_table, {n, n}) end)
   end
 
-  def remove_space(%{statistics: stats_table}, _space, reason) do
-    update_stats_counters(stats_table, [{@active_node_count_pos, -1} | update_stats_ops(reason)])
+  def remove_space(
+        %{statistics: stats_table, active_nodes: active_nodes_table} = _solver,
+        space,
+        reason
+      ) do
+    update_stats_counters(stats_table, [
+      {@active_node_count_pos, -1} | update_stats_ops(reason)
+    ])
+
+    :ets.delete(active_nodes_table, space)
   end
 
   defp update_stats_ops(:failure) do
@@ -31,7 +57,7 @@ defmodule CPSolver.Shared do
   end
 
   defp update_stats_ops(:solved) do
-    [{@solution_count_pos, 1}]
+    []
   end
 
   defp update_stats_ops(_) do
@@ -64,11 +90,16 @@ defmodule CPSolver.Shared do
     end)
   end
 
+  def active_nodes(%{active_nodes: active_nodes_table} = _solver) do
+    :ets.tab2list(active_nodes_table) |> Enum.map(fn {_k, n} -> n end)
+  end
+
   def add_failure(%{statistics: stats_table} = _solver) do
     update_stats_counters(stats_table, [{@failure_count_pos, 1}])
   end
 
-  def add_solution(%{solutions: solution_table} = _solver, solution) do
+  def add_solution(%{solutions: solution_table, statistics: stats_table} = _solver, solution) do
+    update_stats_counters(stats_table, [{@solution_count_pos, 1}])
     :ets.insert(solution_table, {make_ref(), solution})
   end
 end

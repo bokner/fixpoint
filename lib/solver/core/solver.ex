@@ -63,8 +63,6 @@ defmodule CPSolver do
   end
 
   def statistics(solver) when is_map(solver) do
-    # :ets.tab2list(solver.shared.statistics)
-    # statistics(solver.solver_pid)
     Shared.statistics(solver)
   end
 
@@ -73,8 +71,6 @@ defmodule CPSolver do
   end
 
   def solutions(solver) when is_map(solver) do
-    # :ets.tab2list(solver.shared.statistics)
-    # solutions(solver.solver_pid)
     Shared.solutions(solver)
   end
 
@@ -84,6 +80,10 @@ defmodule CPSolver do
 
   def get_state(solver) when is_map(solver) do
     get_state(solver.solver_pid)
+  end
+
+  def complete?(solver) when is_map(solver) do
+    Shared.complete?(solver)
   end
 
   ## GenServer callbacks
@@ -104,12 +104,7 @@ defmodule CPSolver do
        space: nil,
        variables: variables,
        propagators: propagators,
-       solution_count: 0,
-       failure_count: 0,
-       node_count: 1,
-       shared: Map.put(shared, :solver, self()),
-       solutions: [],
-       active_nodes: MapSet.new(),
+       shared: shared,
        stop_on: stop_on,
        solver_opts: solver_opts
      }, {:continue, :solve}}
@@ -128,6 +123,7 @@ defmodule CPSolver do
     solution_handler_fun =
       solver_opts
       |> Keyword.get(:solution_handler, Solution.default_handler())
+      |> build_solution_handler(state)
       |> Solution.solution_handler(variables)
 
     {:ok, top_space} =
@@ -147,36 +143,39 @@ defmodule CPSolver do
     {:noreply, handle_event(event, state)}
   end
 
-  defp handle_event(
-         {:solution, new_solution},
-         %{solution_count: count, solutions: solutions, variables: variables, stop_on: stop_on} =
-           state
-       ) do
-    if check_for_stop(stop_on, new_solution, state) do
-      stop_spaces(state)
-    else
-      %{
-        state
-        | solution_count: count + 1,
-          solutions: [Solution.reconcile(new_solution, variables) | solutions]
-      }
+  def handle_event(_event, state) do
+    state
+  end
+
+  ## Build a solution handler on top of initial one.
+  ## For now, this adds handling logic for stop conditions
+  defp build_solution_handler(solution_handler, solver_state) do
+    fn solution ->
+      if not CPSolver.complete?(solver_state.shared) do
+        solution
+        |> Solution.run_handler(solution_handler)
+        |> tap(fn _ -> Shared.add_solution(solver_state.shared, solution) end)
+        |> tap(fn result -> maybe_set_solving_complete(result, solution, solver_state) end)
+      end
     end
   end
 
-  defp check_for_stop(nil, _solution, _data) do
-    false
+  defp maybe_set_solving_complete(handler_result, solution, solver_state) do
+    stop_on_opt = get_in(solver_state, [:solver_opts, :stop_on])
+
+    stop_on_opt &&
+      condition_fun(stop_on_opt).(handler_result, solution, solver_state) &&
+      Shared.set_complete(solver_state.shared)
   end
 
-  defp check_for_stop({:max_solutions, max}, _solution, data) do
-    max == data.solution_count
+  defp condition_fun({:max_solutions, max_solutions}) do
+    fn _handler_result, _solution, solver_state ->
+      solution_count = Shared.statistics(solver_state.shared).solution_count
+      max_solutions < solution_count
+    end
   end
 
-  defp check_for_stop(condition, solution, data) when is_function(condition, 2) do
-    condition.(solution, data)
-  end
-
-  defp stop_spaces(%{active_nodes: spaces} = data) do
-    Enum.each(spaces, fn s -> Process.alive?(s) && Process.exit(s, :kill) end)
-    data
+  defp condition_fun(opts) do
+    Logger.error("Stop condition with #{inspect(opts)} is not implemented")
   end
 end
