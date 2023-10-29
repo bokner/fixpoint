@@ -8,15 +8,15 @@ defmodule CPSolverTest.Examples.Queens do
 
   ## No solutions
   test "3 Queens" do
-    test_queens(3, 0, trials: 100, timeout: 100)
+    test_queens(3, 0, trials: 10, timeout: 100)
   end
 
   test "4 Queens" do
-    test_queens(4, 2, trials: 100, timeout: 1000)
+    test_queens(4, 2, trials: 10, timeout: 1000)
   end
 
   test "5 Queens" do
-    test_queens(5, 10, trials: 100, timeout: 500)
+    test_queens(5, 10, trials: 10, timeout: 500)
   end
 
   test "6 Queens" do

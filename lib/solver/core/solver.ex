@@ -7,6 +7,8 @@ defmodule CPSolver do
   alias CPSolver.Constraint
   alias CPSolver.Solution
 
+  alias CPSolver.Shared
+
   use GenServer
 
   require Logger
@@ -16,15 +18,37 @@ defmodule CPSolver do
   """
   @spec solve(Model.t(), Keyword.t()) :: any()
   def solve(model, opts \\ []) do
-    {:ok, _solver} = GenServer.start(CPSolver, [model, opts])
+    shared_data = Shared.init_shared_data()
+    {:ok, solver} = GenServer.start(CPSolver, [model, Keyword.put(opts, :shared, shared_data)])
+    {:ok, Map.put(shared_data, :solver_pid, solver)}
   end
 
   def statistics(solver) when is_pid(solver) do
     GenServer.call(solver, :get_stats)
   end
 
+  def statistics(solver) when is_map(solver) do
+    Shared.statistics(solver)
+  end
+
   def solutions(solver) when is_pid(solver) do
     GenServer.call(solver, :get_solutions)
+  end
+
+  def solutions(solver) when is_map(solver) do
+    Shared.solutions(solver)
+  end
+
+  def get_state(solver) when is_pid(solver) do
+    :sys.get_state(solver)
+  end
+
+  def get_state(solver) when is_map(solver) do
+    get_state(solver.solver_pid)
+  end
+
+  def complete?(solver) when is_map(solver) do
+    Shared.complete?(solver)
   end
 
   ## GenServer callbacks
@@ -37,17 +61,15 @@ defmodule CPSolver do
       end)
 
     stop_on = Keyword.get(solver_opts, :stop_on)
+    ## Some data (stats, solutions, possibly more - TBD) has to be shared between spaces
+    shared = Keyword.get(solver_opts, :shared)
 
     {:ok,
      %{
        space: nil,
        variables: variables,
        propagators: propagators,
-       solution_count: 0,
-       failure_count: 0,
-       node_count: 1,
-       solutions: [],
-       active_nodes: MapSet.new(),
+       shared: shared,
        stop_on: stop_on,
        solver_opts: solver_opts
      }, {:continue, :solve}}
@@ -56,11 +78,17 @@ defmodule CPSolver do
   @impl true
   def handle_continue(
         :solve,
-        %{variables: variables, propagators: propagators, solver_opts: solver_opts} = state
+        %{
+          variables: variables,
+          propagators: propagators,
+          solver_opts: solver_opts,
+          shared: shared
+        } = state
       ) do
     solution_handler_fun =
       solver_opts
       |> Keyword.get(:solution_handler, Solution.default_handler())
+      |> build_solution_handler(state)
       |> Solution.solution_handler(variables)
 
     {:ok, top_space} =
@@ -68,7 +96,7 @@ defmodule CPSolver do
         variables,
         propagators,
         solver_opts
-        |> Keyword.put(:solver, self())
+        |> Keyword.put(:solver_data, shared)
         |> Keyword.put(:solution_handler, solution_handler_fun)
       )
 
@@ -80,87 +108,39 @@ defmodule CPSolver do
     {:noreply, handle_event(event, state)}
   end
 
-  defp handle_event(
-         {:solution, new_solution},
-         %{solution_count: count, solutions: solutions, variables: variables, stop_on: stop_on} =
-           state
-       ) do
-    if check_for_stop(stop_on, new_solution, state) do
-      stop_spaces(state)
-    else
-      %{
-        state
-        | solution_count: count + 1,
-          solutions: [Solution.reconcile(new_solution, variables) | solutions]
-      }
-    end
-
-    ## TODO: check for stopping condition here.
-
-    ## Q: spaces are async and handle solutions on their own,
-    ## so even if stopping condition is handled here, how do (or should)
-    ## we prevent spaces from emitting new solutions?
-  end
-
-  defp handle_event({:nodes, new_nodes}, %{node_count: count, active_nodes: nodes} = state) do
-    new_nodes_set = MapSet.new(new_nodes)
-    n = MapSet.size(new_nodes_set)
-    %{state | node_count: count + n, active_nodes: MapSet.union(nodes, new_nodes_set)}
-  end
-
-  defp handle_event({:shutdown_space, {node, :failure}}, %{failure_count: failures} = state) do
-    %{state | failure_count: failures + 1}
-    |> delete_node(node)
-  end
-
-  defp handle_event({:shutdown_space, {node, _reason}}, state) do
-    delete_node(state, node)
-  end
-
-  defp handle_event(unexpected, state) do
-    Logger.error("Solver: unexpected message #{inspect(unexpected)}")
+  def handle_event(_event, state) do
     state
   end
 
-  @impl true
-  def handle_call(:get_stats, _from, state) do
-    {:reply, get_stats(state), state}
+  ## Build a solution handler on top of initial one.
+  ## For now, this adds handling logic for stop conditions
+  defp build_solution_handler(solution_handler, solver_state) do
+    fn solution ->
+      if not CPSolver.complete?(solver_state.shared) do
+        solution
+        |> Solution.run_handler(solution_handler)
+        |> tap(fn _ -> Shared.add_solution(solver_state.shared, solution) end)
+        |> tap(fn result -> maybe_set_solving_complete(result, solution, solver_state) end)
+      end
+    end
   end
 
-  def handle_call(:get_solutions, _from, state) do
-    {:reply, get_solutions(state), state}
+  defp maybe_set_solving_complete(handler_result, solution, solver_state) do
+    stop_on_opt = get_in(solver_state, [:solver_opts, :stop_on])
+
+    stop_on_opt &&
+      condition_fun(stop_on_opt).(handler_result, solution, solver_state) &&
+      Shared.set_complete(solver_state.shared)
   end
 
-  defp delete_node(%{active_nodes: nodes} = state, node) do
-    %{state | active_nodes: MapSet.delete(nodes, node)}
+  defp condition_fun({:max_solutions, max_solutions}) do
+    fn _handler_result, _solution, solver_state ->
+      solution_count = Shared.statistics(solver_state.shared).solution_count
+      max_solutions < solution_count
+    end
   end
 
-  defp get_stats(state) do
-    Map.take(state, [:solution_count, :failure_count, :node_count])
-  end
-
-  defp get_solutions(%{solutions: solutions} = _state) do
-    solutions
-    |> Enum.map(fn solution ->
-      solution
-      |> Enum.map(fn {_var_name, value} -> value end)
-    end)
-  end
-
-  defp check_for_stop(nil, _solution, _data) do
-    false
-  end
-
-  defp check_for_stop({:max_solutions, max}, _solution, data) do
-    max == data.solution_count
-  end
-
-  defp check_for_stop(condition, solution, data) when is_function(condition, 2) do
-    condition.(solution, data)
-  end
-
-  defp stop_spaces(%{active_nodes: spaces} = data) do
-    Enum.each(spaces, fn s -> Process.alive?(s) && Process.exit(s, :kill) end)
-    data
+  defp condition_fun(opts) do
+    Logger.error("Stop condition with #{inspect(opts)} is not implemented")
   end
 end
