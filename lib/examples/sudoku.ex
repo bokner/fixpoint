@@ -67,7 +67,7 @@ defmodule CPSolver.Examples.Sudoku do
       CPSolver.solve(model(puzzle, dimension), solver_opts)
   end
 
-  defp model(puzzle, dimension) do
+  def model(puzzle, dimension) do
     numbers = 1..dimension
 
     ## Variables
