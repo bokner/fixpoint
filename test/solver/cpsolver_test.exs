@@ -3,6 +3,7 @@ defmodule CpSolverTest do
 
   alias CPSolver.IntVariable
   alias CPSolver.Constraint.NotEqual
+  alias CPSolver.Examples.Queens
 
   test "Solves CSP with 2 variables and a single constraint" do
     x = IntVariable.new([1, 2])
@@ -38,10 +39,17 @@ defmodule CpSolverTest do
 
   test "Stops on max_solutions reached" do
     max_solutions = 2
-    {:ok, solver} = CPSolver.Examples.Queens.solve(5, stop_on: {:max_solutions, max_solutions})
+    {:ok, solver} = Queens.solve(5, stop_on: {:max_solutions, max_solutions})
     Process.sleep(100)
     assert CPSolver.complete?(solver)
     ## TODO: this assertion will be relevant with sync solving.
     # assert CPSolver.statistics(solver).solution_count == max_solutions
+  end
+
+  test "Synchronous solver" do
+    {:ok, result} = CPSolver.solve_sync(Queens.model(8))
+    assert result.statistics.solution_count == 92
+    ## No active nodes - solving is done
+    assert result.statistics.active_node_count == 0
   end
 end

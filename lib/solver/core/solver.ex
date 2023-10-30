@@ -13,49 +13,52 @@ defmodule CPSolver do
 
   require Logger
 
+  @default_timeout 30_000
+
   @doc """
 
   """
   @spec solve(Model.t(), Keyword.t()) :: any()
   def solve(model, opts \\ []) do
-    shared_data = Shared.init_shared_data()
-    {:ok, solver} = GenServer.start(CPSolver, [model, Keyword.put(opts, :shared, shared_data)])
-    {:ok, Map.put(shared_data, :solver_pid, solver)}
+    shared_data = Shared.init_shared_data() |> Map.put(:sync_mode, opts[:sync_mode])
+
+    {:ok, solver_pid} =
+      GenServer.start(CPSolver, [model, Keyword.put(opts, :shared, shared_data)])
+
+    {:ok, Map.put(shared_data, :solver_pid, solver_pid)}
   end
 
   @spec solve_sync(Model.t(), Keyword.t()) ::
           {:ok, map()} | {:error, reason :: any(), info :: any()}
   def solve_sync(model, opts \\ []) do
-    {:ok, solver} = solve(model, add_sync_handler(opts))
+    {:ok, solver} = solve(model, Keyword.put(opts, :sync_mode, true))
 
-    solver
-    |> wait_for_completion()
-    |> get_results()
+    :ok = wait_for_completion(solver, Keyword.get(opts, :timeout, @default_timeout))
+
+    get_results(solver)
+    |> tap(fn _ -> cleanup(solver) end)
   end
 
-  defp add_sync_handler(opts) do
-    {_opts, updated} =
-      Keyword.get_and_update(
-        :solution_handler,
-        fn h -> {h, make_sync_handler(h)} end
-      )
-
-    updated
-  end
-
-  ## Wraps the solution handler into the sync logic
-  defp make_sync_handler(solution_handler) do
-    caller = self()
-
-    fn solution ->
-      solution_handler.handle(solution)
-
-      if completed() do
-        send(caller, {:completed, get_solver_results()})
-      end
-
-      cleanup()
+  defp wait_for_completion(%{complete_flag: complete_flag} = solver, timeout) do
+    receive do
+      {:solver_completed, ^complete_flag} -> :ok
+    after
+      timeout ->
+        Logger.error("Timeout waiting on solver completion")
+        CPSolver.set_complete(solver)
     end
+  end
+
+  defp get_results(solver) do
+    {:ok,
+     %{
+       statistics: statistics(solver),
+       solutions: solutions(solver)
+     }}
+  end
+
+  defp cleanup(solver) do
+    Shared.cleanup(solver)
   end
 
   def statistics(solver) when is_pid(solver) do
@@ -84,6 +87,10 @@ defmodule CPSolver do
 
   def complete?(solver) when is_map(solver) do
     Shared.complete?(solver)
+  end
+
+  def set_complete(solver) do
+    Shared.set_complete(solver)
   end
 
   ## GenServer callbacks
@@ -150,19 +157,19 @@ defmodule CPSolver do
   ## Build a solution handler on top of initial one.
   ## For now, this adds handling logic for stop conditions
   defp build_solution_handler(solution_handler, solver_state) do
+    stop_on_opt = get_in(solver_state, [:solver_opts, :stop_on])
+
     fn solution ->
       if not CPSolver.complete?(solver_state.shared) do
         solution
         |> Solution.run_handler(solution_handler)
         |> tap(fn _ -> Shared.add_solution(solver_state.shared, solution) end)
-        |> tap(fn result -> maybe_set_solving_complete(result, solution, solver_state) end)
+        |> tap(fn result -> check_stop_condition(stop_on_opt, result, solution, solver_state) end)
       end
     end
   end
 
-  defp maybe_set_solving_complete(handler_result, solution, solver_state) do
-    stop_on_opt = get_in(solver_state, [:solver_opts, :stop_on])
-
+  defp check_stop_condition(stop_on_opt, handler_result, solution, solver_state) do
     stop_on_opt &&
       condition_fun(stop_on_opt).(handler_result, solution, solver_state) &&
       Shared.set_complete(solver_state.shared)
@@ -171,7 +178,7 @@ defmodule CPSolver do
   defp condition_fun({:max_solutions, max_solutions}) do
     fn _handler_result, _solution, solver_state ->
       solution_count = Shared.statistics(solver_state.shared).solution_count
-      max_solutions < solution_count
+      max_solutions <= solution_count
     end
   end
 

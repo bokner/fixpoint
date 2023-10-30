@@ -64,10 +64,10 @@ defmodule CPSolver.Examples.Sudoku do
     end
 
     {:ok, _solver} =
-      CPSolver.solve(make_model(puzzle, dimension), solver_opts)
+      CPSolver.solve(model(puzzle, dimension), solver_opts)
   end
 
-  defp make_model(puzzle, dimension) do
+  defp model(puzzle, dimension) do
     numbers = 1..dimension
 
     ## Variables
