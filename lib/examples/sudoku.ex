@@ -46,14 +46,22 @@ defmodule CPSolver.Examples.Sudoku do
     }
   end
 
-  def solve(puzzle, solver_opts \\ [])
-
-  def solve(puzzle, solver_opts) when is_binary(puzzle) do
-    sudoku_string_to_grid(puzzle)
-    |> solve(solver_opts)
+  def solve(puzzle, solver_opts \\ []) do
+    puzzle
+    |> normalize()
+    |> model()
+    |> CPSolver.solve(solver_opts)
   end
 
-  def solve(puzzle, solver_opts) when is_list(puzzle) do
+  defp normalize(puzzle) when is_binary(puzzle) do
+    sudoku_string_to_grid(puzzle)
+  end
+
+  defp normalize(puzzle) when is_list(puzzle) do
+    puzzle
+  end
+
+  def model(puzzle) do
     dimension = length(puzzle)
     ## Check if puzzle is valid
     sq_root = :math.sqrt(dimension)
@@ -63,11 +71,6 @@ defmodule CPSolver.Examples.Sudoku do
       throw({:puzzle_not_valid, %{rows: dimension, cols: cols, square: square}})
     end
 
-    {:ok, _solver} =
-      CPSolver.solve(model(puzzle, dimension), solver_opts)
-  end
-
-  defp model(puzzle, dimension) do
     numbers = 1..dimension
 
     ## Variables
