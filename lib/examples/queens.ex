@@ -8,6 +8,11 @@ defmodule CPSolver.Examples.Queens do
   @queen_symbol "\u2655"
 
   def solve(n, solver_opts \\ []) when is_integer(n) do
+    {:ok, _solver} =
+      CPSolver.solve(model(n), solver_opts)
+  end
+
+  def model(n) do
     range = 1..n
     ## Queen positions
     q = Enum.map(range, fn _ -> IntVariable.new(range) end)
@@ -28,13 +33,10 @@ defmodule CPSolver.Examples.Queens do
       end
       |> List.flatten()
 
-    model = %{
+    %{
       variables: q,
       constraints: constraints
     }
-
-    {:ok, _solver} =
-      CPSolver.solve(model, solver_opts)
   end
 
   def solve_and_print(nqueens, opts \\ [timeout: 1000]) do

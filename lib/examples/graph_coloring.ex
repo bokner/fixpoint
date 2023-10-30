@@ -11,6 +11,12 @@ defmodule CPSolver.Examples.GraphColoring do
   end
 
   def solve(data, solver_opts) do
+    {:ok, _solver} =
+      CPSolver.solve(model(data), solver_opts)
+      |> tap(fn _ -> Process.sleep(100) end)
+  end
+
+  def model(data) do
     color_vars = Enum.map(1..data.vertices, fn _idx -> IntVariable.new(1..data.max_color) end)
 
     edge_color_constraints =
@@ -18,14 +24,10 @@ defmodule CPSolver.Examples.GraphColoring do
         NotEqual.new(Enum.at(color_vars, v1), Enum.at(color_vars, v2))
       end)
 
-    model = %{
+    %{
       variables: color_vars,
       constraints: edge_color_constraints
     }
-
-    {:ok, _solver} =
-      CPSolver.solve(model, solver_opts)
-      |> tap(fn _ -> Process.sleep(100) end)
   end
 
   defp parse_instance(instance) do
