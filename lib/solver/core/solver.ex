@@ -25,7 +25,10 @@ defmodule CPSolver do
     {:ok, solver_pid} =
       GenServer.start(CPSolver, [model, Keyword.put(opts, :shared, shared_data)])
 
-    {:ok, Map.put(shared_data, :solver_pid, solver_pid)}
+    {:ok,
+     shared_data
+     |> Map.put(:solver_pid, solver_pid)
+     |> Map.put(:variable_names, Enum.map(model.variables, & &1.name))}
   end
 
   @spec solve_sync(Model.t(), Keyword.t()) ::
@@ -53,6 +56,7 @@ defmodule CPSolver do
     {:ok,
      %{
        statistics: statistics(solver),
+       variables: solver.variable_names,
        solutions: solutions(solver)
      }}
   end

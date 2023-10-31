@@ -85,11 +85,16 @@ defmodule CPSolver.Examples.Reindeers do
     Enum.map(list, fn r -> LessOrEqual.new(r, reindeer, -1) end)
   end
 
-  defp print(solution) do
+  def order(solution) do
     solution
     |> Enum.sort_by(fn {_r, place} -> place end)
-    |> Enum.map(fn {r, _place} -> inspect(r) end)
-    |> Enum.join(" ")
+    |> Enum.map(fn {r, _place} -> r end)
+  end
+
+  def print(solution) do
+    solution
+    |> order
+    |> Enum.map_join(" ", fn name -> inspect(name) end)
     |> then(fn str -> " -> #{str} ->" end)
     |> IO.puts()
   end

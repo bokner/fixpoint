@@ -40,7 +40,7 @@ defmodule CPSolverTest.Examples.Queens do
       ExamplesUtils.flush_solutions()
       {:ok, solver} = Queens.solve(n, opts)
 
-      num_solutions =
+      _num_solutions =
         ExamplesUtils.wait_for_solutions(expected_solutions, opts[:timeout], &assert_solution/1)
 
       Process.sleep(10)

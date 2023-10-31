@@ -23,7 +23,6 @@ defmodule CPSolver.Solution do
   def reconcile(solution, variables) do
     ## We want to present a solution (which is var_name => value map) in order of initial variable names.
     solution
-    |> Map.to_list()
     |> Enum.sort_by(fn {var_name, _val} ->
       Enum.find_index(
         variables,

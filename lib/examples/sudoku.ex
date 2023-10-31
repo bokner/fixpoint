@@ -48,7 +48,6 @@ defmodule CPSolver.Examples.Sudoku do
 
   def solve(puzzle, solver_opts \\ []) do
     puzzle
-    |> normalize()
     |> model()
     |> CPSolver.solve(solver_opts)
   end
@@ -61,7 +60,7 @@ defmodule CPSolver.Examples.Sudoku do
     puzzle
   end
 
-  def model(puzzle) do
+  def model(puzzle) when is_list(puzzle) do
     dimension = length(puzzle)
     ## Check if puzzle is valid
     sq_root = :math.sqrt(dimension)
@@ -104,6 +103,12 @@ defmodule CPSolver.Examples.Sudoku do
       variables: cells |> List.flatten(),
       constraints: row_constraints ++ column_constraints ++ subsquare_constraints
     }
+  end
+
+  def model(puzzle) when is_binary(puzzle) do
+    puzzle
+    |> normalize()
+    |> model()
   end
 
   def solve_and_print(puzzle, timeout \\ 5_000) do
