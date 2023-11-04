@@ -21,12 +21,13 @@ defmodule CPSolver.Space do
 
   @behaviour :gen_statem
 
-  defp default_space_opts() do
+  def default_space_opts() do
     [
-      store: CPSolver.ConstraintStore.default_store(),
+      store_impl: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
       search: CPSolver.Search.Strategy.default_strategy(),
-      solver_data: Shared.init_shared_data()
+      solver_data: Shared.init_shared_data(),
+      keep_alive: false
     ]
   end
 
@@ -68,14 +69,7 @@ defmodule CPSolver.Space do
   def init(args) do
     variables = Keyword.get(args, :variables)
     space_id = make_ref()
-    space_opts = Keyword.merge(default_space_opts(), Keyword.get(args, :space_opts, []))
-    store_impl = Keyword.get(space_opts, :store)
-    parent = Keyword.get(space_opts, :parent)
-    keep_alive = Keyword.get(space_opts, :keep_alive, false)
-
-    solution_handler = Keyword.get(space_opts, :solution_handler)
-    search_strategy = Keyword.get(space_opts, :search)
-    solver_data = Keyword.get(space_opts, :solver_data)
+    space_opts = Keyword.get(args, :space_opts, [])
 
     propagators = Keyword.get(args, :propagators) |> Propagator.normalize()
 
@@ -83,26 +77,21 @@ defmodule CPSolver.Space do
 
     {:ok, space_variables, store} =
       ConstraintStore.create_store(variables,
-        store_impl: store_impl,
+        store_impl: space_opts[:store_impl],
         space: self(),
         constraint_graph: constraint_graph
       )
 
     space_data = %{
       id: space_id,
-      parent: parent,
-      keep_alive: keep_alive,
       variables: space_variables,
       propagators: propagators,
       constraint_graph: constraint_graph,
       store: store,
-      solver_data: solver_data,
-      opts: space_opts,
-      solution_handler: solution_handler,
-      search: search_strategy
+      opts: space_opts
     }
 
-    {:ok, :start_propagation, space_data, [{:next_event, :internal, {:propagate, propagators}}]}
+    {:ok, :start_propagation, space_data, [{:next_event, :internal, :propagate}]}
   end
 
   defp create_constraint_graph(propagators) do
@@ -111,9 +100,6 @@ defmodule CPSolver.Space do
     |> then(fn graph ->
       :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
       |> tap(fn table_id -> ConstraintGraph.update_graph(graph, table_id) end)
-
-      # Temporary
-      # graph
     end)
   end
 
@@ -124,12 +110,12 @@ defmodule CPSolver.Space do
 
   ## Callbacks
   def start_propagation(:enter, :start_propagation, data) do
-    Shared.add_active_spaces(data.solver_data, [self()])
+    Shared.add_active_spaces(data.opts[:solver_data], [self()])
     {:keep_state, data}
   end
 
-  def start_propagation(:internal, {:propagate, propagators}, data) do
-    propagator_threads = create_propagator_threads(propagators, data)
+  def start_propagation(:internal, :propagate, data) do
+    propagator_threads = create_propagator_threads(data.propagators, data)
     {:next_state, :propagating, Map.put(data, :propagator_threads, propagator_threads)}
   end
 
@@ -277,7 +263,7 @@ defmodule CPSolver.Space do
     shutdown(data, :failure)
   end
 
-  defp handle_solved(%{solution_handler: solution_handler} = data) do
+  defp handle_solved(data) do
     data
     |> solution()
     |> then(fn
@@ -285,7 +271,7 @@ defmodule CPSolver.Space do
         handle_failure(data)
 
       solution ->
-        Solution.run_handler(solution, solution_handler)
+        Solution.run_handler(solution, data.opts[:solution_handler])
         shutdown(data, :solved)
     end)
   end
@@ -307,11 +293,11 @@ defmodule CPSolver.Space do
   def do_distribute(
         %{
           propagator_threads: threads,
-          search: search_strategy
+          opts: opts
         } = data,
         variable_clones
       ) do
-    case branching(variable_clones, search_strategy) do
+    case branching(variable_clones, opts[:search]) do
       {:ok, {var_to_branch_on, domain_partitions}} ->
         Enum.map(domain_partitions, fn partition ->
           variable_copies =
@@ -337,14 +323,11 @@ defmodule CPSolver.Space do
                end)}
             end)
 
-          #          {:ok, child_space} =
           create(
             Map.values(variable_copies),
             propagator_copies,
-            Keyword.put(data.opts, :parent, data.id)
+            data.opts
           )
-
-          #          child_space
         end)
 
         shutdown(data, :distribute)
@@ -366,10 +349,10 @@ defmodule CPSolver.Space do
     end
   end
 
-  defp shutdown(%{keep_alive: keep_alive} = data, reason) do
-    Shared.remove_space(data.solver_data, self(), reason)
+  defp shutdown(data, reason) do
+    Shared.remove_space(data.opts[:solver_data], self(), reason)
 
-    if !keep_alive do
+    if !data.opts[:keep_alive] do
       {:stop, :normal, data}
     else
       :keep_state_and_data

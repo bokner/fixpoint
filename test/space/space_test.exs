@@ -5,7 +5,6 @@ defmodule CPSolverTest.Space do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Space, as: Space
     alias CPSolver.Propagator.NotEqual
-    alias CPSolver.Shared
 
     test "create space" do
       x_values = 1..10
@@ -120,8 +119,7 @@ defmodule CPSolverTest.Space do
         Space.create(
           variables,
           propagators,
-          space_opts
-          |> Keyword.put(:solver_data, Shared.init_shared_data())
+          Keyword.merge(Space.default_space_opts(), space_opts)
           |> Keyword.put(:keep_alive, true)
         )
 
@@ -141,8 +139,7 @@ defmodule CPSolverTest.Space do
         Space.create(
           variables,
           propagators,
-          space_opts
-          |> Keyword.put(:solver_data, Shared.init_shared_data(self()))
+          Keyword.merge(Space.default_space_opts(), space_opts)
         )
 
       {_, space_data} = :sys.get_state(space)

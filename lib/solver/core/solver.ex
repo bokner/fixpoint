@@ -117,7 +117,7 @@ defmodule CPSolver do
        propagators: propagators,
        shared: shared,
        stop_on: stop_on,
-       solver_opts: solver_opts
+       solver_opts: Keyword.merge(Space.default_space_opts(), solver_opts)
      }, {:continue, :solve}}
   end
 
