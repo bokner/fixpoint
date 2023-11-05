@@ -14,16 +14,16 @@ To make it more concrete, we will solve some puzzles using Fixpoint.
 Mix.install([:fixpoint])
 ```
 
-## Ordering reindeers
+## Reindeer Ordering
 
-[Reindeers code](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex)
+https://dmcommunity.org/challenge/challenge-dec-2017/
 
-Santa always leaves plans for his elves to determine the order in which the
+**Santa always leaves plans for his elves to determine the order in which the
   reindeer will pull his sleigh. This year, for the European leg of his
   journey, his elves are working to the following schedule, which will form a
-  single line of nine reindeer.
+  single line of nine reindeer.**
 
-Here are the rules:
+##### Here are the rules:
 
 ```
 Comet behind Rudolph, Prancer and Cupid
@@ -44,6 +44,8 @@ Vixen behind Rudolph, Prancer and Dasher.
 ```
 
 Try to solve it by hand first!
+
+[Reindeers code](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex)
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -73,6 +75,22 @@ alias CPSolver.Examples.Reindeers
 Reindeers.solve()
 ```
 
+## N-Queens
+
+**The n-queens problem is about finding how many different ways queens can be placed on a chessboard so that none attack each other.**
+
+<!-- livebook:{"break_markdown":true} -->
+
+[N-Queens code](https://github.com/bokner/fixpoint/blob/main/lib/examples/queens.ex)
+
+Let's solve 8-Queens
+
+```elixir
+alias CPSolver.Examples.Queens
+Queens.solve_and_print(8)
+:ok
+```
+
 ## Solve Sudoku
 
 [Sudoku code](https://github.com/bokner/fixpoint/blob/main/lib/examples/sudoku.ex)
@@ -92,21 +110,4 @@ Solve it!
 
 ```elixir
 Sudoku.solve_and_print(puzzles.hard9x9)
-```
-
-## N-Queens
-
-The n-queens problem is about finding how many different ways queens can be placed on a chessboard so that none attack each other.
-
-<!-- livebook:{"break_markdown":true} -->
-
-[N-Queens code](https://github.com/bokner/fixpoint/blob/main/lib/examples/queens.ex)
-
-Let's solve 8-queens
-
-<!-- livebook:{"reevaluate_automatically":true} -->
-
-```elixir
-alias CPSolver.Examples.Queens
-{:ok, solver} = Queens.solve_and_print(10)
 ```

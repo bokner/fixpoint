@@ -42,8 +42,6 @@ defmodule CpSolverTest do
     {:ok, solver} = Queens.solve(5, stop_on: {:max_solutions, max_solutions})
     Process.sleep(100)
     assert CPSolver.complete?(solver)
-    ## TODO: this assertion will be relevant with sync solving.
-    # assert CPSolver.statistics(solver).solution_count == max_solutions
   end
 
   test "Synchronous solver" do

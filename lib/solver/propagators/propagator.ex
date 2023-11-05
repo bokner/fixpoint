@@ -60,6 +60,12 @@ defmodule CPSolver.Propagator do
     normalize({mod, args})
   end
 
+  def filter({_mod, _args} = propagator) do
+    filter(propagator, nil)
+  end
+  def filter({mod, args} = _propagator, id) do
+    filter(mod, args, id)
+  end
   def filter(mod, args, id \\ nil) do
     PropagatorVariable.reset_variable_ops()
     PropagatorVariable.set_propagator_id(id)
