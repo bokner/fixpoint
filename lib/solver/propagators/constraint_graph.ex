@@ -16,12 +16,14 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def create(propagators) when is_map(propagators) do
-    Enum.reduce(propagators, Graph.new(), fn {propagator_id, {propagator_mod, args}} = _propagator,
+    Enum.reduce(propagators, Graph.new(), fn {propagator_id, {propagator_mod, args}} = propagator,
                                              acc ->
       args
       |> propagator_mod.variables()
       |> Enum.reduce(acc, fn var, acc2 ->
-        Graph.add_edge(acc2, {:variable, var.id}, {:propagator, propagator_id},
+        Graph.add_vertex(acc2, {:propagator, propagator_id})
+        |> Graph.label_vertex({:propagator, propagator_id}, propagator)
+        |> Graph.add_edge({:variable, var.id}, {:propagator, propagator_id},
           label: get_propagate_on(var)
         )
       end)

@@ -57,7 +57,6 @@ defmodule CPSolver.Space.Propagation do
 
       {:changed, changes} ->
         wakeup(changes, constraint_graph)
-        |> filter_propagators_by_ids(propagators)
         |> run_impl(constraint_graph)
     end
   end
@@ -79,10 +78,10 @@ defmodule CPSolver.Space.Propagation do
     Enum.reduce(changes, [], fn {var_id, change}, acc ->
       acc ++ ConstraintGraph.get_propagators(constraint_graph, var_id, change)
     end)
-  end
-
-  defp filter_propagators_by_ids(ids, propagators) do
-    Map.take(propagators, ids)
+    |> Enum.uniq()
+    |> Enum.map(fn propagator_id ->
+      Graph.vertex_labels(constraint_graph, {:propagator, propagator_id}) |> hd
+    end)
   end
 
   defp remove_fixed_variables(graph, vars) do
