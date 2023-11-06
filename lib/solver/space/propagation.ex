@@ -3,10 +3,11 @@ defmodule CPSolver.Space.Propagation do
   alias CPSolver.Variable
   alias CPSolver.Propagator
 
-  def propagate([]) do
+  def propagate(map) when map_size(map) == 0 do
     :no_changes
   end
 
+  @spec propagate(map()) :: :fail | :no_changes | {:changes, map()}
   def propagate(propagators) do
     Enum.reduce_while(propagators, %{}, fn {_ref, p}, acc ->
       case Propagator.filter(p) do
@@ -14,6 +15,16 @@ defmodule CPSolver.Space.Propagation do
         :stable -> {:cont, acc}
         {:fail, _var} -> {:halt, :fail}
       end
+    end)
+    |> then(fn
+      :fail ->
+        :fail
+
+      changes when map_size(changes) > 0 ->
+        {:changed, changes}
+
+      _no_changes ->
+        :no_changes
     end)
   end
 
@@ -27,23 +38,28 @@ defmodule CPSolver.Space.Propagation do
   def run(propagators, variables) when is_map(propagators) and map_size(propagators) > 0 do
     constraint_graph = ConstraintGraph.create(propagators)
 
+    propagators
+    |> run_impl(constraint_graph)
+    |> finalize(constraint_graph, variables)
+  end
+
+  def run_impl(propagators, _constyraint_graph) when map_size(propagators) == 0 do
+    :no_changes
+  end
+
+  def run_impl(propagators, constraint_graph) do
     case propagate(propagators) do
       :fail ->
         :fail
 
-      :stable ->
+      :no_changes ->
         :no_changes
 
-      changes ->
+      {:changed, changes} ->
         wakeup(changes, constraint_graph)
         |> filter_propagators_by_ids(propagators)
-        |> run(variables)
+        |> run_impl(constraint_graph)
     end
-    |> finalize(constraint_graph, variables)
-  end
-
-  def run(propagators, _variables) when map_size(propagators) == 0 do
-    :no_changes
   end
 
   defp finalize(:fail, _constraint_graph, _variables) do
@@ -51,7 +67,7 @@ defmodule CPSolver.Space.Propagation do
   end
 
   ## At this point, the space is either solved or stable.
-  ## Reduce constraint graph and interpret the result
+  ## Reduce constraint graph and interpret the result.
   defp finalize(:no_changes, constraint_graph, variables) do
     remove_fixed_variables(constraint_graph, variables)
     |> remove_entailed_propagators()
