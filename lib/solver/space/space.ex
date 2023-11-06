@@ -8,18 +8,16 @@ defmodule CPSolver.Space do
   alias CPSolver.Utils
   alias CPSolver.ConstraintStore
   alias CPSolver.Propagator
-  alias CPSolver.Propagator.Thread, as: PropagatorThread
   alias CPSolver.Solution, as: Solution
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils
+  alias CPSolver.Space.Propagation
 
   alias CPSolver.Shared
 
   require Logger
-
-  @behaviour :gen_statem
 
   def default_space_opts() do
     [
@@ -31,232 +29,81 @@ defmodule CPSolver.Space do
     ]
   end
 
-  def create(variables, propagators, space_opts \\ default_space_opts(), gen_statem_opts \\ []) do
+  def create(variables, propagators, space_opts \\ default_space_opts()) do
     if CPSolver.complete?(space_opts[:solver_data]) do
       {:error, :complete}
     else
       {:ok, _space} =
-        :gen_statem.start(
-          __MODULE__,
-          [
-            variables: variables,
-            propagators: propagators,
-            space_opts: space_opts
-          ],
-          gen_statem_opts
-        )
+        create(%{
+          variables: variables,
+          propagators: Map.new(propagators, fn p -> {make_ref(), Propagator.normalize(p)} end),
+          opts: space_opts
+        })
     end
   end
 
-  def stop(space) do
-    Process.alive?(space) && :gen_statem.stop(space)
-  end
-
-  def get_state_and_data(space) do
-    {_state, _data} = :sys.get_state(space)
-  end
-
-  def solution(%{variables: variables, store: store} = _data) do
-    Enum.reduce_while(variables, Map.new(), fn var, acc ->
-      case ConstraintStore.get(store, var, :min) do
-        :fail -> {:halt, :fail}
-        val -> {:cont, Map.put(acc, var.name, val)}
-      end
-    end)
-  end
-
-  @impl true
-  def init(args) do
-    variables = Keyword.get(args, :variables)
+  def create(%{variables: variables, propagators: propagators, opts: space_opts} = data) do
     space_id = make_ref()
-    space_opts = Keyword.get(args, :space_opts, [])
-
-    propagators = Keyword.get(args, :propagators) |> Propagator.normalize()
-
-    constraint_graph = create_constraint_graph(propagators)
 
     {:ok, space_variables, store} =
       ConstraintStore.create_store(variables,
         store_impl: space_opts[:store_impl],
         space: self(),
-        constraint_graph: constraint_graph
+        constraint_graph: nil
       )
+
+    space_propagators =
+      bind_propagators(propagators, store)
 
     space_data = %{
       id: space_id,
       variables: space_variables,
-      propagators: propagators,
-      constraint_graph: constraint_graph,
+      propagators: space_propagators,
+      constraint_graph:
+        Map.get(data, :constraint_graph) || ConstraintGraph.create(space_propagators),
       store: store,
       opts: space_opts
     }
 
-    {:ok, :start_propagation, space_data, [{:next_event, :internal, :propagate}]}
+    propagate(space_data)
   end
 
-  defp create_constraint_graph(propagators) do
-    propagators
-    |> ConstraintGraph.create()
-    |> then(fn graph ->
-      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
-      |> tap(fn table_id -> ConstraintGraph.update_graph(graph, table_id) end)
-    end)
-  end
-
-  @impl true
-  def callback_mode() do
-    [:state_functions, :state_enter]
-  end
-
-  ## Callbacks
-  def start_propagation(:enter, :start_propagation, data) do
-    Shared.add_active_spaces(data.opts[:solver_data], [self()])
-    {:keep_state, data}
-  end
-
-  def start_propagation(:internal, :propagate, data) do
-    propagator_threads = create_propagator_threads(data.propagators, data)
-    {:next_state, :propagating, Map.put(data, :propagator_threads, propagator_threads)}
-  end
-
-  def propagating(:enter, :start_propagation, _data) do
-    :keep_state_and_data
-  end
-
-  def propagating(:info, {:stable, propagator_thread}, data) do
-    updated_data = update_scheduled(data, propagator_thread, false)
-
-    if fixpoint?(updated_data) do
-      {:next_state, :stable, updated_data}
-    else
-      {:keep_state, updated_data}
-    end
-  end
-
-  def propagating(:info, {:entailed, propagator_thread}, data) do
-    updated_data = update_entailed(data, propagator_thread)
-
-    cond do
-      solved?(updated_data) -> {:next_state, :solved, updated_data}
-      fixpoint?(updated_data) -> {:next_state, :stable, updated_data}
-      true -> {:keep_state, updated_data}
-    end
-  end
-
-  def propagating(:info, {{domain_change, propagator_threads}, variable_id}, data) do
-    updated_data =
-      Enum.reduce(propagator_threads, data, fn p_ref, acc ->
-        notify_propagator(acc, p_ref, {domain_change, variable_id})
-      end)
-
-    {:keep_state, updated_data}
-  end
-
-  def propagating(:info, {:fail, _variable_id}, data) do
-    {:next_state, :failed, data}
-  end
-
-  def propagating(:info, :solved, data) do
-    {:next_state, :solved, data}
-  end
-
-  @spec failed(any, any, any) :: :keep_state_and_data
-  def failed(:enter, :propagating, data) do
-    handle_failure(data)
-  end
-
-  def failed(kind, message, _data) do
-    unexpected_message(:failed, kind, message)
-  end
-
-  def solved(:enter, :propagating, data) do
-    handle_solved(data)
-  end
-
-  def solved(kind, message, _data) do
-    unexpected_message(:solved, kind, message)
-  end
-
-  def stable(:enter, :propagating, data) do
-    handle_stable(data)
-  end
-
-  def stable(kind, message, _data) do
-    unexpected_message(:stable, kind, message)
-  end
-
-  defp unexpected_message(state, kind, message) do
-    Logger.error(
-      "Unexpected message in state #{inspect(state)}: #{inspect(kind)}: #{inspect(message)}"
+  defp bind_propagators(propagators, store) do
+    Map.new(
+      propagators,
+      fn {ref, {mod, args}} ->
+        {ref,
+         {mod,
+          Enum.map(args, fn
+            %CPSolver.Variable{} = arg -> Map.put(arg, :store, store)
+            const -> const
+          end)}}
+      end
     )
-
-    :keep_state_and_data
   end
 
-  defp create_propagator_threads(propagators, data) do
-    Map.new(propagators, fn {propagator_id, p} ->
-      {:ok, thread} =
-        PropagatorThread.create_thread(self(), p,
-          id: propagator_id,
-          store: data.store
-        )
+  def propagate(
+        %{propagators: propagators, variables: variables, constraint_graph: constraint_graph} =
+          data
+      ) do
+    Shared.add_active_spaces(data.opts[:solver_data], [self()])
 
-      {propagator_id, %{thread: thread, propagator: p, scheduled_runs: 1}}
-    end)
-  end
+    case Propagation.run(propagators, variables, constraint_graph) do
+      :fail ->
+        handle_failure(data)
 
-  defp fixpoint?(%{propagator_threads: threads} = _data) do
-    Enum.all?(threads, fn {_id, thread} -> thread.scheduled_runs == 0 end)
-  end
+      :solved ->
+        handle_solved(data)
 
-  defp update_scheduled(
-         %{propagator_threads: threads} = data,
-         propagator_id,
-         scheduled?,
-         thread_action \\ nil
-       ) do
-    threads
-    |> Map.get(propagator_id)
-    |> then(fn
-      nil ->
-        data
-
-      %{scheduled_runs: scheduled_runs} = thread_rec ->
-        thread_action && thread_action.(thread_rec)
-        inc_dec = (scheduled? && 1) || -1
-
+      {:stable, reduced_constraint_graph, reduced_propagators} ->
         %{
           data
-          | propagator_threads:
-              Map.put(
-                threads,
-                propagator_id,
-                Map.put(thread_rec, :scheduled_runs, scheduled_runs + inc_dec)
-              )
+          | constraint_graph: reduced_constraint_graph,
+            propagators: reduced_propagators,
+            variables: variables
         }
-    end)
-  end
-
-  defp notify_propagator(data, propagator_id, domain_change_event) do
-    update_scheduled(data, propagator_id, true, fn thread ->
-      send(thread.thread, domain_change_event)
-    end)
-  end
-
-  def update_entailed(
-        %{propagator_threads: threads, constraint_graph: graph} = data,
-        propagator_thread
-      ) do
-    Map.put(
-      data,
-      :propagator_threads,
-      Map.delete(threads, propagator_thread)
-    )
-    |> tap(fn _data -> ConstraintGraph.remove_propagator(graph, propagator_thread) end)
-  end
-
-  defp solved?(data) do
-    map_size(data.propagator_threads) == 0
+        |> handle_stable()
+    end
   end
 
   defp handle_failure(data) do
@@ -276,57 +123,43 @@ defmodule CPSolver.Space do
     end)
   end
 
-  defp handle_stable(data) do
-    distribute(data)
+  defp solution(%{variables: variables, store: store} = _data) do
+    Enum.reduce_while(variables, Map.new(), fn var, acc ->
+      case ConstraintStore.get(store, var, :min) do
+        :fail -> {:halt, :fail}
+        val -> {:cont, Map.put(acc, var.name, val)}
+      end
+    end)
+  end
+
+  defp handle_stable(%{variables: variables} = data) do
+    {localized_vars, _all_fixed?} = Utils.localize_variables(variables)
+    distribute(%{data | variables: localized_vars})
   end
 
   def distribute(
         %{
-          variables: variables
+          opts: opts,
+          variables: localized_variables
         } = data
       ) do
-    {localized_vars, _all_fixed?} = Utils.localize_variables(variables)
+    Logger.error("Distribute: #{inspect(localized_variables)}")
 
-    do_distribute(data, localized_vars)
-  end
-
-  def do_distribute(
-        %{
-          propagator_threads: threads,
-          opts: opts
-        } = data,
-        variable_clones
-      ) do
-    case branching(variable_clones, opts[:search]) do
+    case branching(localized_variables, opts[:search]) do
       {:ok, {var_to_branch_on, domain_partitions}} ->
         Enum.map(domain_partitions, fn partition ->
           variable_copies =
-            Map.new(variable_clones, fn %{id: clone_id} = clone ->
+            Enum.map(localized_variables, fn %{id: clone_id} = clone ->
               if clone_id == var_to_branch_on.id do
-                {clone_id, Variable.copy(clone) |> Map.put(:domain, Domain.new(partition))}
+                Variable.copy(clone) |> Map.put(:domain, Domain.new(partition))
               else
-                {clone_id, Variable.copy(clone)}
+                Variable.copy(clone)
               end
             end)
 
-          propagator_copies =
-            Enum.map(threads, fn {_ref, thread} ->
-              {propagator_mod, args} = thread.propagator
-              ## Replace variables in args to their copies
-              {propagator_mod,
-               Enum.map(args, fn
-                 %CPSolver.Variable{id: id} = _arg ->
-                   Map.get(variable_copies, id)
-
-                 const ->
-                   const
-               end)}
-            end)
-
           create(
-            Map.values(variable_copies),
-            propagator_copies,
-            data.opts
+            data
+            |> Map.put(:variables, variable_copies)
           )
         end)
 
@@ -351,21 +184,9 @@ defmodule CPSolver.Space do
 
   defp shutdown(data, reason) do
     Shared.remove_space(data.opts[:solver_data], self(), reason)
-
-    if !data.opts[:keep_alive] do
-      {:stop, :normal, data}
-    else
-      :keep_state_and_data
-    end
   end
 
-  @impl true
-  def terminate(_reason, _current_state, data) do
-    cleanup(data)
-  end
-
-  defp cleanup(%{propagator_threads: threads, store: store, variables: variables} = _data) do
-    Enum.each(threads, fn {_ref, thread} -> PropagatorThread.dispose(thread) end)
-    ConstraintStore.dispose(store, variables)
+  def get_state_and_data(space) do
+    {_state, _data} = :sys.get_state(space)
   end
 end

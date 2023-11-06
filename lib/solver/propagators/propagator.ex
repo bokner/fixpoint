@@ -47,7 +47,6 @@ defmodule CPSolver.Propagator do
   def normalize(propagators) when is_list(propagators) do
     propagators
     |> Enum.map(&normalize/1)
-    |> Enum.uniq()
     |> Map.new(fn p -> {make_ref(), p} end)
   end
 

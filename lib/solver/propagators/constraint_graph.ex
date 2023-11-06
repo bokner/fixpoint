@@ -30,14 +30,15 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
-  def get_propagators(graph_table, variable_id, domain_change) when is_reference(graph_table) do
+  def get_propagator_ids(graph_table, variable_id, domain_change)
+      when is_reference(graph_table) do
     graph_table
     |> read_graph()
-    |> get_propagators(variable_id, domain_change)
+    |> get_propagator_ids(variable_id, domain_change)
   end
 
   ## Get a list of propagator ids that "listen" to the domain change of given variable.
-  def get_propagators(
+  def get_propagator_ids(
         constraint_graph,
         variable_id,
         domain_change
@@ -48,6 +49,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       (domain_change in edge.label &&
          [edge.v2 |> elem(1)]) || []
     end)
+  end
+
+  def get_propagator(%Graph{} = graph, propagator_id) do
+    Graph.vertex_labels(graph, {:propagator, propagator_id}) |> hd
   end
 
   def remove_propagator(table_or_graph, propagator_id) do

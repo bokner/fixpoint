@@ -160,7 +160,7 @@ defmodule CPSolver.ConstraintStore do
          source_propagator = Keyword.get(opts, :source)
 
          propagator_refs =
-           ConstraintGraph.get_propagators(store.constraint_graph, var_id, event)
+           ConstraintGraph.get_propagator_ids(store.constraint_graph, var_id, event)
            |> List.delete(source_propagator)
 
          notify_space(variable, event, propagator_refs)

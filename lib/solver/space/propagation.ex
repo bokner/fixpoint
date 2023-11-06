@@ -3,12 +3,12 @@ defmodule CPSolver.Space.Propagation do
   alias CPSolver.Variable
   alias CPSolver.Propagator
 
-  def propagate(map) when map_size(map) == 0 do
+  defp propagate(map) when map_size(map) == 0 do
     :no_changes
   end
 
   @spec propagate(map()) :: :fail | :no_changes | {:changes, map()}
-  def propagate(propagators) do
+  defp propagate(propagators) do
     Enum.reduce_while(propagators, %{}, fn {_ref, p}, acc ->
       case Propagator.filter(p) do
         {:changed, change} -> {:cont, Map.merge(acc, change)}
@@ -36,18 +36,20 @@ defmodule CPSolver.Space.Propagation do
   end
 
   def run(propagators, variables) when is_map(propagators) and map_size(propagators) > 0 do
-    constraint_graph = ConstraintGraph.create(propagators)
-
-    propagators
-    |> run_impl(constraint_graph)
-    |> finalize(constraint_graph, variables)
+    run(propagators, variables, ConstraintGraph.create(propagators))
   end
 
-  def run_impl(propagators, _constyraint_graph) when map_size(propagators) == 0 do
+  def run(propagators, variables, constraint_graph) when is_map(propagators) do
+    propagators
+    |> run_impl(constraint_graph)
+    |> finalize(constraint_graph, propagators, variables)
+  end
+
+  defp run_impl(propagators, _constraint_graph) when map_size(propagators) == 0 do
     :no_changes
   end
 
-  def run_impl(propagators, constraint_graph) do
+  defp run_impl(propagators, constraint_graph) do
     case propagate(propagators) do
       :fail ->
         :fail
@@ -61,26 +63,31 @@ defmodule CPSolver.Space.Propagation do
     end
   end
 
-  defp finalize(:fail, _constraint_graph, _variables) do
+  defp finalize(:fail, _constraint_graph, _propagators, _variables) do
     :fail
   end
 
   ## At this point, the space is either solved or stable.
   ## Reduce constraint graph and interpret the result.
-  defp finalize(:no_changes, constraint_graph, variables) do
+  defp finalize(:no_changes, constraint_graph, propagators, variables) do
     remove_fixed_variables(constraint_graph, variables)
     |> remove_entailed_propagators()
-    |> then(fn residue -> (Graph.vertices(residue) == [] && :solved) || {:stable, residue} end)
+    |> then(fn {removed_propagator_ids, residue} ->
+      (Graph.vertices(residue) == [] && :solved) ||
+        {:stable, residue, Map.drop(propagators, removed_propagator_ids)}
+    end)
   end
 
   ## Wake up propagators based on the changes
   defp wakeup(changes, constraint_graph) when is_map(changes) do
-    Enum.reduce(changes, [], fn {var_id, change}, acc ->
-      acc ++ ConstraintGraph.get_propagators(constraint_graph, var_id, change)
+    changes
+    |> Enum.uniq()
+    |> Enum.reduce([], fn {var_id, change}, acc ->
+      acc ++ ConstraintGraph.get_propagator_ids(constraint_graph, var_id, change)
     end)
     |> Enum.uniq()
     |> Enum.map(fn propagator_id ->
-      Graph.vertex_labels(constraint_graph, {:propagator, propagator_id}) |> hd
+      ConstraintGraph.get_propagator(constraint_graph, propagator_id)
     end)
   end
 
@@ -95,8 +102,13 @@ defmodule CPSolver.Space.Propagation do
   end
 
   defp remove_entailed_propagators(constraint_graph) do
-    Enum.reduce(Graph.vertices(constraint_graph), constraint_graph, fn v, acc ->
-      (Graph.neighbors(acc, v) == [] && Graph.delete_vertex(acc, v)) || acc
+    Enum.reduce(Graph.vertices(constraint_graph), {[], constraint_graph}, fn
+      {:propagator, id} = v, {removed_propagator_ids, graph} = acc ->
+        (Graph.neighbors(graph, v) == [] &&
+           {[id | removed_propagator_ids], Graph.delete_vertex(graph, v)}) || acc
+
+      _v, acc ->
+        acc
     end)
   end
 end
