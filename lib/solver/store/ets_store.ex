@@ -2,7 +2,6 @@ defmodule CPSolver.Store.ETS do
   alias CPSolver.DefaultDomain, as: Domain
 
   use CPSolver.ConstraintStore
-  alias CPSolver.ConstraintStore
 
   @impl true
   def create(variables, opts \\ []) do
@@ -10,13 +9,11 @@ defmodule CPSolver.Store.ETS do
       :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
 
     space = Keyword.get(opts, :space)
-    constraint_graph = Keyword.get(opts, :constraint_graph)
 
     store = %{
       space: space,
       handle: table_id,
-      store_impl: __MODULE__,
-      constraint_graph: constraint_graph
+      store_impl: __MODULE__
     }
 
     Enum.each(
@@ -24,7 +21,7 @@ defmodule CPSolver.Store.ETS do
       fn var ->
         :ets.insert(
           table_id,
-          {var.id, %{id: var.id, store: store, domain: Domain.new(var.domain), subscriptions: []}}
+          {var.id, %{id: var.id, store: store, domain: Domain.new(var.domain)}}
         )
       end
     )
@@ -69,36 +66,16 @@ defmodule CPSolver.Store.ETS do
     :ok
   end
 
-  @impl true
-  def subscribe(table, subscriptions) do
-    subscriptions_by_var =
-      subscriptions
-      |> Enum.map(&ConstraintStore.normalize_subscription/1)
-      |> Enum.group_by(fn s -> s.variable end)
-
-    Enum.each(subscriptions_by_var, fn {var_id, subscrs} ->
-      var_rec = lookup(table, var_id)
-
-      updated_rec = %{
-        var_rec
-        | subscriptions: (var_rec.subscriptions ++ subscrs) |> Enum.uniq_by(fn rec -> rec.pid end)
-      }
-
-      true = :ets.insert(table, {var_id, updated_rec})
-    end)
-  end
-
   defp update_variable_domain(
          table,
          %{id: var_id, store: store} = variable,
          domain,
          event,
-         opts
+         _opts
        ) do
     unless store.space && event == :fail do
       :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
     end
-    |> tap(fn _ -> ConstraintStore.notify(variable, event, opts) end)
   end
 
   @impl true

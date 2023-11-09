@@ -9,7 +9,6 @@ defmodule CPSolver.Space do
   alias CPSolver.ConstraintStore
   alias CPSolver.Propagator
   alias CPSolver.Solution, as: Solution
-  alias CPSolver.IntVariable, as: Variable
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils
@@ -18,6 +17,8 @@ defmodule CPSolver.Space do
   alias CPSolver.Shared
 
   require Logger
+
+  @behaviour GenServer
 
   def default_space_opts() do
     [
@@ -42,14 +43,18 @@ defmodule CPSolver.Space do
     end
   end
 
-  def create(%{variables: variables, propagators: propagators, opts: space_opts} = data) do
+  def create(data) do
+    GenServer.start(__MODULE__, data)
+  end
+
+  @impl true
+  def init(%{variables: variables, propagators: propagators, opts: space_opts} = data) do
     space_id = make_ref()
 
     {:ok, space_variables, store} =
       ConstraintStore.create_store(variables,
         store_impl: space_opts[:store_impl],
-        space: self(),
-        constraint_graph: nil
+        space: self()
       )
 
     space_propagators =
@@ -65,7 +70,7 @@ defmodule CPSolver.Space do
       opts: space_opts
     }
 
-    propagate(space_data)
+    {:ok, space_data, {:continue, :propagate}}
   end
 
   defp bind_propagators(propagators, store) do
@@ -80,6 +85,12 @@ defmodule CPSolver.Space do
           end)}}
       end
     )
+  end
+
+  @impl true
+  def handle_continue(:propagate, data) do
+    propagate(data)
+    {:noreply, data}
   end
 
   def propagate(
@@ -113,14 +124,9 @@ defmodule CPSolver.Space do
   defp handle_solved(data) do
     data
     |> solution()
-    |> then(fn
-      :fail ->
-        handle_failure(data)
+    |> Solution.run_handler(data.opts[:solution_handler])
 
-      solution ->
-        Solution.run_handler(solution, data.opts[:solution_handler])
-        shutdown(data, :solved)
-    end)
+    shutdown(data, :solved)
   end
 
   defp solution(%{variables: variables, store: store} = _data) do
@@ -143,17 +149,15 @@ defmodule CPSolver.Space do
           variables: localized_variables
         } = data
       ) do
-    Logger.error("Distribute: #{inspect(localized_variables)}")
-
     case branching(localized_variables, opts[:search]) do
       {:ok, {var_to_branch_on, domain_partitions}} ->
         Enum.map(domain_partitions, fn partition ->
           variable_copies =
             Enum.map(localized_variables, fn %{id: clone_id} = clone ->
               if clone_id == var_to_branch_on.id do
-                Variable.copy(clone) |> Map.put(:domain, Domain.new(partition))
+                Map.put(clone, :domain, Domain.new(partition))
               else
-                Variable.copy(clone)
+                clone
               end
             end)
 
@@ -184,6 +188,7 @@ defmodule CPSolver.Space do
 
   defp shutdown(data, reason) do
     Shared.remove_space(data.opts[:solver_data], self(), reason)
+    {:stop, :normal, data}
   end
 
   def get_state_and_data(space) do
