@@ -30,13 +30,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
-  def get_propagator_ids(graph_table, variable_id, domain_change)
-      when is_reference(graph_table) do
-    graph_table
-    |> read_graph()
-    |> get_propagator_ids(variable_id, domain_change)
-  end
-
   ## Get a list of propagator ids that "listen" to the domain change of given variable.
   def get_propagator_ids(
         constraint_graph,
@@ -63,24 +56,8 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     remove_vertex(table_or_graph, {:variable, variable_id})
   end
 
-  def remove_vertex(graph_table, vertex) when is_reference(graph_table) do
-    graph_table
-    |> read_graph()
-    |> remove_vertex(vertex)
-    |> update_graph(graph_table)
-  end
-
   def remove_vertex(graph, vertex) do
     Graph.delete_vertex(graph, vertex)
-  end
-
-  def read_graph(graph_table) do
-    [{:constraint_graph, graph}] = :ets.lookup(graph_table, :constraint_graph)
-    graph
-  end
-
-  def update_graph(graph, graph_table) when is_reference(graph_table) do
-    :ets.insert(graph_table, {:constraint_graph, graph})
   end
 
   defp get_propagate_on(%Variable{} = variable) do
