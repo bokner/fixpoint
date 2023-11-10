@@ -67,9 +67,8 @@ defmodule CPSolver.Propagator do
     filter(mod, args, id)
   end
 
-  def filter(mod, args, id \\ nil) do
+  def filter(mod, args, _id \\ nil) do
     PropagatorVariable.reset_variable_ops()
-    PropagatorVariable.set_propagator_id(id)
 
     try do
       mod.filter(args)

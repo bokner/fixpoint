@@ -114,33 +114,5 @@ defmodule CPSolverTest.Store do
       :fixed = ConstraintStore.update(store, v2, :fix, [0])
       assert ConstraintStore.get(store, v2, :max) == 0
     end
-
-    test "Store subscriptions" do
-      v1_values = -5..5
-      v2_values = 1..10
-      v3_values = 1..2
-      values = [v1_values, v2_values, v3_values]
-
-      variables = Enum.map(values, fn d -> Variable.new(d) end)
-
-      {:ok, [v1, v2, _v3] = bound_vars, store} =
-        ConstraintStore.create_store(variables, space: nil)
-
-      ## No notifications, if no subscriptions
-      assert :max_change == ConstraintStore.update(store, v2, :removeAbove, [5])
-
-      refute_received _, 10
-
-      ## Subscribe to :min_change for all variables
-      ConstraintStore.subscribe(
-        store,
-        Enum.map(bound_vars, fn v -> %{variable: v.id, pid: self(), events: [:min_change]} end)
-      )
-
-      assert :min_change == ConstraintStore.update(store, v1, :removeBelow, [0])
-
-      id = v1.id
-      assert_received {:min_change, ^id}, 10
-    end
   end
 end

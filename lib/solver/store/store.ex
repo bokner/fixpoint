@@ -94,7 +94,7 @@ defmodule CPSolver.ConstraintStore do
     {:ok,
      Enum.map(variables, fn var ->
        var
-       |> Map.put(:id, var.id)
+       # |> Map.put(:id, var.id)
        |> Map.put(:name, var.name)
        |> Map.put(:store, store)
      end), store}

@@ -31,20 +31,20 @@ defmodule CPSolver.Space do
   end
 
   def create(variables, propagators, space_opts \\ default_space_opts()) do
-    if CPSolver.complete?(space_opts[:solver_data]) do
-      {:error, :complete}
-    else
-      {:ok, _space} =
-        create(%{
-          variables: variables,
-          propagators: Map.new(propagators, fn p -> {make_ref(), Propagator.normalize(p)} end),
-          opts: space_opts
-        })
-    end
+    {:ok, _space} =
+      create(%{
+        variables: variables,
+        propagators: Map.new(propagators, fn p -> {make_ref(), Propagator.normalize(p)} end),
+        opts: space_opts
+      })
   end
 
   def create(data) do
-    GenServer.start(__MODULE__, data)
+    if CPSolver.complete?(data.opts[:solver_data]) do
+      {:error, :complete}
+    else
+      GenServer.start(__MODULE__, data)
+    end
   end
 
   @impl true
@@ -90,7 +90,7 @@ defmodule CPSolver.Space do
   @impl true
   def handle_continue(:propagate, data) do
     propagate(data)
-    {:noreply, data}
+    # {:noreply, data}
   end
 
   def propagate(
@@ -124,9 +124,14 @@ defmodule CPSolver.Space do
   defp handle_solved(data) do
     data
     |> solution()
-    |> Solution.run_handler(data.opts[:solution_handler])
+    |> then(fn
+      :fail ->
+        shutdown(data, :fail)
 
-    shutdown(data, :solved)
+      solution ->
+        Solution.run_handler(solution, data.opts[:solution_handler])
+        shutdown(data, :solved)
+    end)
   end
 
   defp solution(%{variables: variables, store: store} = _data) do
@@ -188,7 +193,12 @@ defmodule CPSolver.Space do
 
   defp shutdown(data, reason) do
     Shared.remove_space(data.opts[:solver_data], self(), reason)
-    {:stop, :normal, data}
+
+    if reason == :distribute do
+      {:noreply, data}
+    else
+      {:stop, :normal, data}
+    end
   end
 
   def get_state_and_data(space) do
