@@ -9,8 +9,10 @@ defmodule CPSolver.Space.Propagation do
 
   @spec propagate(map()) :: :fail | :no_changes | {:changes, map()}
   defp propagate(propagators) do
-    Enum.reduce_while(propagators, %{}, fn {_ref, p}, acc ->
-      case Propagator.filter(p) do
+    propagators
+    |> Task.async_stream(fn {_ref, p} -> Propagator.filter(p) end)
+    |> Enum.reduce_while(%{}, fn {:ok, res}, acc ->
+      case res do
         {:changed, change} -> {:cont, Map.merge(acc, change)}
         :stable -> {:cont, acc}
         {:fail, _var} -> {:halt, :fail}

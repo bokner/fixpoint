@@ -1,5 +1,5 @@
 defmodule CPSolverTest.Constraint.AllDifferent do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   describe "AllDifferent" do
     alias CPSolver.Propagator.NotEqual, as: PropagatorNotEqual

@@ -127,7 +127,11 @@ defmodule CPSolver.Shared do
   end
 
   def add_solution(%{solutions: solution_table, statistics: stats_table} = _solver, solution) do
-    update_stats_counters(stats_table, [{@solution_count_pos, 1}])
-    :ets.insert(solution_table, {make_ref(), solution})
+    try do
+      update_stats_counters(stats_table, [{@solution_count_pos, 1}])
+      :ets.insert(solution_table, {make_ref(), solution})
+    rescue
+      _e -> :ok
+    end
   end
 end

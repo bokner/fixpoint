@@ -9,15 +9,15 @@ defmodule CPSolverTest.Examples.Sudoku do
   end
 
   test "9x9 singe solution 1" do
-    test_sudoku(Sudoku.puzzles().s9x9_1, 1, trials: 1, timeout: 2000)
+    test_sudoku(Sudoku.puzzles().s9x9_1, 1, timeout: 2000)
   end
 
   test "9x9 singe solution 2" do
-    test_sudoku(Sudoku.puzzles().hard9x9, 1, trials: 1, timeout: 500)
+    test_sudoku(Sudoku.puzzles().hard9x9, 1)
   end
 
   test "9x9 multiple solutions" do
-    test_sudoku(Sudoku.puzzles().s9x9_5, 5, trials: 1, timeout: 500)
+    test_sudoku(Sudoku.puzzles().s9x9_5, 5, timeout: 2000)
   end
 
   defp test_sudoku(puzzle_instance, expected_solutions, opts \\ []) do

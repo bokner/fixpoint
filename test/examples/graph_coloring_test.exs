@@ -29,11 +29,11 @@ defmodule CPSolverTest.Examples.GraphColoring do
   end
 
   test "gc_15_30_1" do
-    test_graph("gc_15_30_1", 36, timeout: 500, trials: 5)
+    test_graph("gc_15_30_1", 36)
   end
 
   test "gc_15_30_3" do
-    test_graph("gc_15_30_3", 12, timeout: 500, trials: 5)
+    test_graph("gc_15_30_3", 12)
   end
 
   test "Multiple P4 runs" do
@@ -46,7 +46,7 @@ defmodule CPSolverTest.Examples.GraphColoring do
 
   defp test_graph(graph_name, expected_solutions, opts \\ []) do
     opts =
-      Keyword.merge([timeout: 100, trials: 1], opts)
+      Keyword.merge([timeout: 100, trials: 5], opts)
       |> Keyword.put(:solution_handler, ExamplesUtils.notify_client_handler())
 
     instance = "data/graph_coloring/#{graph_name}"
