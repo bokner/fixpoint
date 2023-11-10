@@ -47,7 +47,6 @@ defmodule CPSolver.Propagator do
   def normalize(propagators) when is_list(propagators) do
     propagators
     |> Enum.map(&normalize/1)
-    |> Enum.uniq()
     |> Map.new(fn p -> {make_ref(), p} end)
   end
 
@@ -63,12 +62,13 @@ defmodule CPSolver.Propagator do
   def filter({_mod, _args} = propagator) do
     filter(propagator, nil)
   end
+
   def filter({mod, args} = _propagator, id) do
     filter(mod, args, id)
   end
-  def filter(mod, args, id \\ nil) do
+
+  def filter(mod, args, _id \\ nil) do
     PropagatorVariable.reset_variable_ops()
-    PropagatorVariable.set_propagator_id(id)
 
     try do
       mod.filter(args)

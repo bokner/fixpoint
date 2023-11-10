@@ -38,9 +38,15 @@ defmodule CPSolver.Shared do
         %{statistics: stats_table, active_nodes: active_nodes_table} = _solver,
         spaces
       ) do
-    incr = length(spaces)
-    update_stats_counters(stats_table, [{@active_node_count_pos, incr}, {@node_count_pos, incr}])
-    Enum.each(spaces, fn n -> :ets.insert(active_nodes_table, {n, n}) end)
+    try do
+      incr = length(spaces)
+
+      update_stats_counters(stats_table, [{@active_node_count_pos, incr}, {@node_count_pos, incr}])
+
+      Enum.each(spaces, fn n -> :ets.insert(active_nodes_table, {n, n}) end)
+    rescue
+      _e -> :ok
+    end
   end
 
   def remove_space(
@@ -48,13 +54,17 @@ defmodule CPSolver.Shared do
         space,
         reason
       ) do
-    update_stats_counters(stats_table, [
-      {@active_node_count_pos, -1} | update_stats_ops(reason)
-    ])
+    try do
+      update_stats_counters(stats_table, [
+        {@active_node_count_pos, -1} | update_stats_ops(reason)
+      ])
 
-    :ets.delete(active_nodes_table, space)
-    ## The solving is done when there is no more active nodes
-    :ets.info(active_nodes_table, :size) == 0 && set_complete(solver)
+      :ets.delete(active_nodes_table, space)
+      ## The solving is done when there is no more active nodes
+      :ets.info(active_nodes_table, :size) == 0 && set_complete(solver)
+    rescue
+      _e -> :ok
+    end
   end
 
   def cleanup(%{solver_pid: solver_pid, complete_flag: complete_flag} = solver) do
@@ -117,7 +127,11 @@ defmodule CPSolver.Shared do
   end
 
   def add_solution(%{solutions: solution_table, statistics: stats_table} = _solver, solution) do
-    update_stats_counters(stats_table, [{@solution_count_pos, 1}])
-    :ets.insert(solution_table, {make_ref(), solution})
+    try do
+      update_stats_counters(stats_table, [{@solution_count_pos, 1}])
+      :ets.insert(solution_table, {make_ref(), solution})
+    rescue
+      _e -> :ok
+    end
   end
 end

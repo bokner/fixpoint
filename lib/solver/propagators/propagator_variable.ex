@@ -5,8 +5,6 @@ defmodule CPSolver.Propagator.Variable do
   @propagator_events Propagator.propagator_events()
   @domain_events CPSolver.Common.domain_events()
 
-  @propagator_id_key :propagator_id_key
-
   @variable_op_results_key :variable_op_results
   defdelegate domain(var), to: Variable
   defdelegate size(var), to: Variable
@@ -42,7 +40,7 @@ defmodule CPSolver.Propagator.Variable do
 
   defp wrap(op, var, val) do
     case apply(Variable, op, [
-           Map.put(var, :propagator_id, get_propagator_id()),
+           var,
            val
          ]) do
       :fail ->
@@ -69,14 +67,6 @@ defmodule CPSolver.Propagator.Variable do
 
   def reset_variable_ops() do
     Process.delete(@variable_op_results_key)
-  end
-
-  def set_propagator_id(id) do
-    Process.put(@propagator_id_key, id)
-  end
-
-  def get_propagator_id() do
-    Process.get(@propagator_id_key)
   end
 
   def plus(:fail, _) do

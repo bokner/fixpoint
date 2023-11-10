@@ -5,7 +5,6 @@ defmodule CPSolverTest.Propagator.NotEqual do
     alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Propagator.Variable, as: PropagatorVariable
-    alias CPSolver.Propagator.Thread, as: PropagatorThread
     alias CPSolver.Propagator.NotEqual
 
     test "propagation events" do
@@ -81,29 +80,6 @@ defmodule CPSolverTest.Propagator.NotEqual do
       assert Variable.contains?(y_var, 10)
       NotEqual.filter(x_var, y_var, offset)
       refute Variable.contains?(y_var, 10)
-    end
-
-    test "propagates only when variables become fixed" do
-      ## Both vars are unfixed
-      x = 1..2
-      y = 0..1
-      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-
-      {:ok, [x_var, y_var] = _bound_vars, store} =
-        ConstraintStore.create_store(variables, space: nil)
-
-      {:ok, _propagator_thread} =
-        PropagatorThread.create_thread(self(), NotEqual.new(variables),
-          store: store,
-          subscribe_to_events: true
-        )
-
-      Process.sleep(5)
-      assert 1 == Variable.min(x_var)
-      ## Triggers the filtering; 'x' variable will have '1' removed
-      _domain_change = Variable.fix(y_var, 1)
-      Process.sleep(5)
-      assert 2 == Variable.min(x_var)
     end
 
     defp reset_and_filter(args) do

@@ -143,6 +143,7 @@ defmodule CPSolver do
         propagators,
         solver_opts
         |> Keyword.put(:solver_data, shared)
+        |> Keyword.delete(:shared)
         |> Keyword.put(:solution_handler, solution_handler_fun)
       )
 

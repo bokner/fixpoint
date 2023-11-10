@@ -16,26 +16,22 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def create(propagators) when is_map(propagators) do
-    Enum.reduce(propagators, Graph.new(), fn {propagator_id, {propagator_mod, args}} = _propagator,
+    Enum.reduce(propagators, Graph.new(), fn {propagator_id, {propagator_mod, args}} = propagator,
                                              acc ->
       args
       |> propagator_mod.variables()
       |> Enum.reduce(acc, fn var, acc2 ->
-        Graph.add_edge(acc2, {:variable, var.id}, {:propagator, propagator_id},
+        Graph.add_vertex(acc2, {:propagator, propagator_id})
+        |> Graph.label_vertex({:propagator, propagator_id}, propagator)
+        |> Graph.add_edge({:variable, var.id}, {:propagator, propagator_id},
           label: get_propagate_on(var)
         )
       end)
     end)
   end
 
-  def get_propagators(graph_table, variable_id, domain_change) when is_reference(graph_table) do
-    graph_table
-    |> read_graph()
-    |> get_propagators(variable_id, domain_change)
-  end
-
   ## Get a list of propagator ids that "listen" to the domain change of given variable.
-  def get_propagators(
+  def get_propagator_ids(
         constraint_graph,
         variable_id,
         domain_change
@@ -48,6 +44,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
+  def get_propagator(%Graph{} = graph, propagator_id) do
+    Graph.vertex_labels(graph, {:propagator, propagator_id}) |> hd
+  end
+
   def remove_propagator(table_or_graph, propagator_id) do
     remove_vertex(table_or_graph, {:propagator, propagator_id})
   end
@@ -56,24 +56,8 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     remove_vertex(table_or_graph, {:variable, variable_id})
   end
 
-  def remove_vertex(graph_table, vertex) when is_reference(graph_table) do
-    graph_table
-    |> read_graph()
-    |> remove_vertex(vertex)
-    |> update_graph(graph_table)
-  end
-
   def remove_vertex(graph, vertex) do
     Graph.delete_vertex(graph, vertex)
-  end
-
-  def read_graph(graph_table) do
-    [{:constraint_graph, graph}] = :ets.lookup(graph_table, :constraint_graph)
-    graph
-  end
-
-  def update_graph(graph, graph_table) when is_reference(graph_table) do
-    :ets.insert(graph_table, {:constraint_graph, graph})
   end
 
   defp get_propagate_on(%Variable{} = variable) do
