@@ -48,7 +48,7 @@ defmodule CPSolver.Space do
   end
 
   @impl true
-  def init(%{variables: variables, propagators: propagators, opts: space_opts} = data) do
+  def init(%{variables: variables, propagators: propagators, opts: space_opts} = _data) do
     space_id = make_ref()
 
     {:ok, space_variables, store} =
@@ -64,8 +64,7 @@ defmodule CPSolver.Space do
       id: space_id,
       variables: space_variables,
       propagators: space_propagators,
-      constraint_graph:
-        Map.get(data, :constraint_graph) || ConstraintGraph.create(space_propagators),
+      constraint_graph: ConstraintGraph.create(space_propagators),
       store: store,
       opts: space_opts
     }
@@ -90,13 +89,12 @@ defmodule CPSolver.Space do
   @impl true
   def handle_continue(:propagate, data) do
     propagate(data)
-    # {:noreply, data}
   end
 
-  def propagate(
-        %{propagators: propagators, variables: variables, constraint_graph: constraint_graph} =
-          data
-      ) do
+  defp propagate(
+         %{propagators: propagators, variables: variables, constraint_graph: constraint_graph} =
+           data
+       ) do
     Shared.add_active_spaces(data.opts[:solver_data], [self()])
 
     case Propagation.run(propagators, variables, constraint_graph) do
@@ -193,12 +191,7 @@ defmodule CPSolver.Space do
 
   defp shutdown(data, reason) do
     Shared.remove_space(data.opts[:solver_data], self(), reason)
-
-    if reason == :distribute do
-      {:noreply, data}
-    else
-      {:stop, :normal, data}
-    end
+    {:stop, :normal, data}
   end
 
   def get_state_and_data(space) do
