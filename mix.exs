@@ -1,4 +1,4 @@
-defmodule Cpsolver.MixProject do
+defmodule CPSolver.MixProject do
   use Mix.Project
 
   def project do
