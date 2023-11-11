@@ -15,14 +15,17 @@ defmodule CPSolver.Examples.Queens do
   def model(n) do
     range = 1..n
     ## Queen positions
-    q = Enum.map(range, fn _ -> IntVariable.new(range) end)
+    q =
+      Enum.map(Enum.with_index(range, 1), fn {_, idx} ->
+        IntVariable.new(range, name: "row #{idx}")
+      end)
 
     constraints =
       for i <- 0..(n - 2) do
         for j <- (i + 1)..(n - 1) do
           # queens q[i] and q[i] not on ...
           [
-            ## ... the same line
+            ## ... the same row
             NotEqual.new(Enum.at(q, i), Enum.at(q, j), 0),
             ## ... the same left diagonal
             NotEqual.new(Enum.at(q, i), Enum.at(q, j), i - j),

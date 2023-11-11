@@ -78,11 +78,13 @@ defmodule CPSolver.Examples.Sudoku do
         Enum.map(0..(dimension - 1), fn j ->
           cell = Enum.at(puzzle, i) |> Enum.at(j)
 
+          cell_name = [i + 1, j + 1]
+
           if cell in numbers do
             ## Cell is filled
-            IntVariable.new(cell)
+            IntVariable.new(cell, name: cell_name)
           else
-            IntVariable.new(numbers)
+            IntVariable.new(numbers, name: cell_name)
           end
         end)
       end)
