@@ -19,9 +19,10 @@ defmodule CPSolver.Shared do
     :persistent_term.get(complete_flag)
   end
 
-  def set_complete(%{complete_flag: complete_flag, caller: caller, sync_mode: sync?} = _solver) do
+  def set_complete(%{complete_flag: complete_flag, caller: caller, sync_mode: sync?} = solver) do
     :persistent_term.put(complete_flag, true)
     |> tap(fn _ -> sync? && send(caller, {:solver_completed, complete_flag}) end)
+    |> tap(fn _ -> CPSolver.stop_spaces(solver) end)
   end
 
   defp init_complete_flag() do
@@ -68,16 +69,18 @@ defmodule CPSolver.Shared do
   end
 
   def cleanup(%{solver_pid: solver_pid, complete_flag: complete_flag} = solver) do
-    Enum.each(active_nodes(solver), fn space ->
-      Process.alive?(space) && Process.exit(space, :normal)
-    end)
-
     Enum.each([:solutions, :statistics, :active_nodes], fn item ->
       Map.get(solver, item) |> :ets.delete()
     end)
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
     :persistent_term.erase(complete_flag)
+  end
+
+  def stop_spaces(solver) do
+    Enum.each(active_nodes(solver), fn space ->
+      Process.alive?(space) && Process.exit(space, :normal)
+    end)
   end
 
   defp update_stats_ops(:failure) do
