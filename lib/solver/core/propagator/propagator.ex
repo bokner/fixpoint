@@ -7,6 +7,7 @@ defmodule CPSolver.Propagator do
 
   alias CPSolver.Variable
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
+  alias CPSolver.DefaultDomain, as: Domain
 
   defmacro __using__(_) do
     quote do
@@ -38,40 +39,31 @@ defmodule CPSolver.Propagator do
     end)
   end
 
-  def new(mod, args) do
-    {mod, args}
+  def new(mod, args, opts \\ []) do
+    %{
+      id: Keyword.get_lazy(opts, :id, fn -> make_ref() end),
+      mod: mod,
+      args:
+        Enum.map(args, fn
+          %Variable{domain: domain} = arg ->
+            arg
+            |> Map.drop([:domain])
+            |> Map.put(:fixed?, Domain.fixed?(domain))
+
+          const ->
+            const
+        end)
+    }
   end
 
-  @spec normalize([Propagator.t()]) :: %{reference() => Propagator.t()}
-
-  def normalize(propagators) when is_list(propagators) do
-    propagators
-    |> Enum.map(&normalize/1)
-    |> Map.new(fn p -> {make_ref(), p} end)
-  end
-
-  def normalize({_mod, args} = propagator) when is_list(args) do
-    propagator
-  end
-
-  def normalize(propagator) when is_tuple(propagator) do
-    [mod | args] = Tuple.to_list(propagator)
-    normalize({mod, args})
-  end
-
-  def filter({_mod, _args} = propagator) do
-    filter(propagator, nil)
-  end
-
-  def filter({mod, args} = _propagator, id) do
-    filter(mod, args, id)
-  end
-
-  def filter(mod, args, _id \\ nil) do
+  def filter(%{mod: mod, args: args} = _propagator, opts \\ []) do
     PropagatorVariable.reset_variable_ops()
+    store = Keyword.get(opts, :store)
 
     try do
-      mod.filter(args)
+      args
+      |> bind_variables(store)
+      |> mod.filter()
     catch
       {:fail, var_id} ->
         {:fail, var_id}
@@ -112,5 +104,20 @@ defmodule CPSolver.Propagator do
   defp get_filter_changes() do
     filter_changes = PropagatorVariable.get_variable_ops()
     (filter_changes && {:changed, filter_changes}) || :stable
+  end
+
+  defp bind_variables(args, nil) do
+    args
+  end
+
+  defp bind_variables(args, store) do
+    args
+    |> Enum.map(fn
+      %Variable{} = v ->
+        Map.put(v, :store, store)
+
+      const ->
+        const
+    end)
   end
 end

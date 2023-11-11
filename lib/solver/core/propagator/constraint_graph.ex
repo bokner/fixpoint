@@ -10,13 +10,14 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   @spec create([Propagator.t()] | %{reference() => Propagator.t()}) :: Graph.t()
   def create(propagators) when is_list(propagators) do
     propagators
-    |> Enum.map(fn p -> {make_ref(), p} end)
+    |> Enum.map(fn p -> {p.id, p} end)
     |> Map.new()
     |> create()
   end
 
   def create(propagators) when is_map(propagators) do
-    Enum.reduce(propagators, Graph.new(), fn {propagator_id, {propagator_mod, args}} = propagator,
+    Enum.reduce(propagators, Graph.new(), fn {propagator_id, %{mod: propagator_mod, args: args}} =
+                                               propagator,
                                              acc ->
       args
       |> propagator_mod.variables()

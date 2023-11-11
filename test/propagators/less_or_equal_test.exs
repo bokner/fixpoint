@@ -14,7 +14,7 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, [x_var, y_var] = bound_vars, _store} = ConstraintStore.create_store(variables)
-      {:changed, changes} = Propagator.filter(LessOrEqual, bound_vars)
+      {:changed, changes} = Propagator.filter(LessOrEqual.new(bound_vars))
       assert Map.get(changes, x_var.id) == :max_change
       assert Map.get(changes, y_var.id) == :min_change
       assert 0 == Variable.min(x_var)

@@ -6,6 +6,7 @@ defmodule CPSolver.Propagator.Variable do
   @domain_events CPSolver.Common.domain_events()
 
   @variable_op_results_key :variable_op_results
+
   defdelegate domain(var), to: Variable
   defdelegate size(var), to: Variable
   defdelegate min(var), to: Variable

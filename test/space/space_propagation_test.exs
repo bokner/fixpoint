@@ -34,7 +34,7 @@ defmodule CPSolverTest.SpacePropagation do
     assert length(propagators_from_graph) == 2
 
     propagator_vars_in_graph =
-      Enum.map(propagators_from_graph, fn {_id, {NotEqual, vars}} = _v ->
+      Enum.map(propagators_from_graph, fn {_id, %{mod: NotEqual, args: vars}} = _v ->
         Enum.map(vars, fn v -> v.name end)
       end)
 

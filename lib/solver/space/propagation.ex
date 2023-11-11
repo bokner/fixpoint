@@ -3,14 +3,14 @@ defmodule CPSolver.Space.Propagation do
   alias CPSolver.Variable
   alias CPSolver.Propagator
 
-  defp propagate(map) when map_size(map) == 0 do
+  defp propagate(map, _store) when map_size(map) == 0 do
     :no_changes
   end
 
-  @spec propagate(map()) :: :fail | :no_changes | {:changes, map()}
-  defp propagate(propagators) do
+  @spec propagate(map(), map()) :: :fail | :no_changes | {:changes, map()}
+  defp propagate(propagators, store) do
     propagators
-    |> Task.async_stream(fn {_ref, p} -> Propagator.filter(p) end)
+    |> Task.async_stream(fn {_ref, p} -> Propagator.filter(p, store: store) end)
     |> Enum.reduce_while(%{}, fn {:ok, res}, acc ->
       case res do
         {:changed, change} -> {:cont, Map.merge(acc, change)}
@@ -30,29 +30,31 @@ defmodule CPSolver.Space.Propagation do
     end)
   end
 
-  def run(propagators, variables) when is_list(propagators) do
+  def run(propagators, variables, store \\ nil)
+
+  def run(propagators, variables, store) when is_list(propagators) do
     propagators
     |> Enum.map(fn p -> {make_ref(), p} end)
     |> Map.new()
-    |> run(variables)
+    |> run(variables, store)
   end
 
-  def run(propagators, variables) when is_map(propagators) and map_size(propagators) > 0 do
-    run(propagators, variables, ConstraintGraph.create(propagators))
+  def run(propagators, variables, store) when is_map(propagators) and map_size(propagators) > 0 do
+    run(propagators, variables, ConstraintGraph.create(propagators), store)
   end
 
-  def run(propagators, variables, constraint_graph) when is_map(propagators) do
+  def run(propagators, variables, constraint_graph, store) when is_map(propagators) do
     propagators
-    |> run_impl(constraint_graph)
+    |> run_impl(constraint_graph, store)
     |> finalize(constraint_graph, propagators, variables)
   end
 
-  defp run_impl(propagators, _constraint_graph) when map_size(propagators) == 0 do
+  defp run_impl(propagators, _constraint_graph, _store) when map_size(propagators) == 0 do
     :no_changes
   end
 
-  defp run_impl(propagators, constraint_graph) do
-    case propagate(propagators) do
+  defp run_impl(propagators, constraint_graph, store) do
+    case propagate(propagators, store) do
       :fail ->
         :fail
 
@@ -61,7 +63,7 @@ defmodule CPSolver.Space.Propagation do
 
       {:changed, changes} ->
         wakeup(changes, constraint_graph)
-        |> run_impl(constraint_graph)
+        |> run_impl(constraint_graph, store)
     end
   end
 

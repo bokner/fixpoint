@@ -7,7 +7,6 @@ defmodule CPSolver.Space do
 
   alias CPSolver.Utils
   alias CPSolver.ConstraintStore
-  alias CPSolver.Propagator
   alias CPSolver.Solution, as: Solution
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Propagator.ConstraintGraph
@@ -34,7 +33,7 @@ defmodule CPSolver.Space do
     {:ok, _space} =
       create(%{
         variables: variables,
-        propagators: Map.new(propagators, fn p -> {make_ref(), Propagator.normalize(p)} end),
+        propagators: Map.new(propagators, fn %{id: id} = p -> {id, p} end),
         opts: space_opts
       })
   end
@@ -48,7 +47,7 @@ defmodule CPSolver.Space do
   end
 
   @impl true
-  def init(%{variables: variables, propagators: propagators, opts: space_opts} = _data) do
+  def init(%{variables: variables, propagators: propagators, opts: space_opts} = data) do
     space_id = make_ref()
 
     {:ok, space_variables, store} =
@@ -57,33 +56,17 @@ defmodule CPSolver.Space do
         space: self()
       )
 
-    space_propagators =
-      bind_propagators(propagators, store)
-
     space_data = %{
       id: space_id,
       variables: space_variables,
-      propagators: space_propagators,
-      constraint_graph: ConstraintGraph.create(space_propagators),
+      propagators: propagators,
+      constraint_graph:
+        Map.get_lazy(data, :constraint_graph, fn -> ConstraintGraph.create(propagators) end),
       store: store,
       opts: space_opts
     }
 
     {:ok, space_data, {:continue, :propagate}}
-  end
-
-  defp bind_propagators(propagators, store) do
-    Map.new(
-      propagators,
-      fn {ref, {mod, args}} ->
-        {ref,
-         {mod,
-          Enum.map(args, fn
-            %CPSolver.Variable{} = arg -> Map.put(arg, :store, store)
-            const -> const
-          end)}}
-      end
-    )
   end
 
   @impl true
@@ -92,12 +75,17 @@ defmodule CPSolver.Space do
   end
 
   defp propagate(
-         %{propagators: propagators, variables: variables, constraint_graph: constraint_graph} =
+         %{
+           propagators: propagators,
+           variables: variables,
+           constraint_graph: constraint_graph,
+           store: store
+         } =
            data
        ) do
     Shared.add_active_spaces(data.opts[:solver_data], [self()])
 
-    case Propagation.run(propagators, variables, constraint_graph) do
+    case Propagation.run(propagators, variables, constraint_graph, store) do
       :fail ->
         handle_failure(data)
 

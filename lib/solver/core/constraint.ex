@@ -1,6 +1,5 @@
 defmodule CPSolver.Constraint do
   alias CPSolver.Variable
-  alias CPSolver.Propagator
 
   @callback new(args :: list()) :: Constraint.t()
   @callback propagators(args :: list()) :: [atom()]
@@ -28,9 +27,7 @@ defmodule CPSolver.Constraint do
   end
 
   def constraint_to_propagators({constraint_mod, args}) when is_list(args) do
-    args
-    |> constraint_mod.propagators()
-    |> Enum.map(&Propagator.normalize/1)
+    constraint_mod.propagators(args)
   end
 
   def constraint_to_propagators(constraint) when is_tuple(constraint) do

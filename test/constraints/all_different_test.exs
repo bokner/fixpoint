@@ -12,7 +12,9 @@ defmodule CPSolverTest.Constraint.AllDifferent do
 
       assert variables
              |> AllDifferent.propagators()
-             |> Enum.map(fn {PropagatorNotEqual, [x, y, _]} -> "#{x.name} != #{y.name}" end)
+             |> Enum.map(fn %{mod: PropagatorNotEqual, args: [x, y, _]} ->
+               "#{x.name} != #{y.name}"
+             end)
              |> Enum.sort() ==
                ["x1 != x2", "x1 != x3", "x2 != x3"]
     end
