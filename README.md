@@ -11,7 +11,8 @@ WIP. Not suitable for use in production. Significant API changes and core implem
 
 ### Intro
 
-[LiveBook](https://github.com/bokner/fixpoint/blob/main/livebooks/fixpoint.livemd)
+[![Run in Livebook](https://livebook.dev/badge/v1/black.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Fbokner%2Ffixpoint%2Fblob%2Fmain%2Flivebooks%2Ffixpoint.livemd)
+
 
 ### Implemented constraints
 
