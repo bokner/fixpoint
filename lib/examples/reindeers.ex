@@ -25,7 +25,7 @@ defmodule CPSolver.Examples.Reindeers do
 
   """
   alias CPSolver.IntVariable, as: Variable
-  alias CPSolver.Constraint.LessOrEqual
+  alias CPSolver.Constraint.Less
   alias CPSolver.Constraint.AllDifferent
 
   def solve(opts \\ []) do
@@ -78,11 +78,11 @@ defmodule CPSolver.Examples.Reindeers do
   end
 
   defp behind(reindeer, list) do
-    Enum.map(list, fn r -> LessOrEqual.new(reindeer, r, -1) end)
+    Enum.map(list, fn r -> Less.new(reindeer, r) end)
   end
 
   defp in_front_of(reindeer, list) do
-    Enum.map(list, fn r -> LessOrEqual.new(r, reindeer, -1) end)
+    Enum.map(list, fn r -> Less.new(r, reindeer) end)
   end
 
   def order(solution) do

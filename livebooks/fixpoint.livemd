@@ -49,17 +49,17 @@ Try to solve it by hand first!
 
 <!-- livebook:{"break_markdown":true} -->
 
-These rules are encoded as constraints [here](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex#L52-L65). The implementation of `behind/2` and `in_front_of/2` uses a universal `LessOrEqual` constraint.
+These rules are encoded as constraints [here](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex#L52-L65). The implementation of `behind/2` and `in_front_of/2` uses a universal `Less` constraint.
 
 <!-- livebook:{"force_markdown":true} -->
 
 ```elixir
   defp behind(reindeer, list) do
-    Enum.map(list, fn r -> LessOrEqual.new(reindeer, r, -1) end)
+    Enum.map(list, fn r -> Less.new(reindeer, r) end)
   end
 
   defp in_front_of(reindeer, list) do
-    Enum.map(list, fn r -> LessOrEqual.new(r, reindeer, -1) end)
+    Enum.map(list, fn r -> Less.new(r, reindeer) end)
   end
 
 ```
@@ -77,13 +77,13 @@ Reindeers.solve()
 
 ## N-Queens
 
-**The n-queens problem is about finding how many different ways queens can be placed on a chessboard so that none attack each other.**
+**The N-queens problem is about finding how many different ways queens can be placed on a chessboard so that none attack each other.**
 
 <!-- livebook:{"break_markdown":true} -->
 
 [N-Queens code](https://github.com/bokner/fixpoint/blob/main/lib/examples/queens.ex)
 
-Let's solve 8-Queens
+Let's find one solution to 8-Queens:
 
 ```elixir
 alias CPSolver.Examples.Queens
@@ -100,7 +100,6 @@ Queens.solve_and_print(8)
 ```elixir
 alias CPSolver.Examples.Sudoku
 puzzles = Sudoku.puzzles()
-IO.puts("We will solve this one:")
 Sudoku.print_grid(puzzles.hard9x9) |> IO.puts()
 ```
 
