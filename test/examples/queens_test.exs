@@ -28,12 +28,12 @@ defmodule CPSolverTest.Examples.Queens do
   end
 
   test "8 Queens" do
-    test_queens(8, 92)
+    test_queens(8, 92, timeout: 200)
   end
 
   defp test_queens(n, expected_solutions, opts \\ []) do
     opts =
-      Keyword.merge([timeout: 200, trials: 10], opts)
+      Keyword.merge([timeout: 100, trials: 10], opts)
       |> Keyword.put(:solution_handler, ExamplesUtils.notify_client_handler())
 
     Enum.each(1..opts[:trials], fn i ->
