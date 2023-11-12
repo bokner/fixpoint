@@ -11,8 +11,11 @@ defmodule CPSolver.Propagator.Variable do
   defdelegate size(var), to: Variable
   defdelegate min(var), to: Variable
   defdelegate max(var), to: Variable
-  defdelegate fixed?(var), to: Variable
   defdelegate contains?(var, val), to: Variable
+
+  def fixed?(var) do
+    Map.get(var, :fixed?) || Variable.fixed?(var)
+  end
 
   def remove(var, val) do
     wrap(:remove, var, val)
