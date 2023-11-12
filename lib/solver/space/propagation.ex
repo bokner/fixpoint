@@ -74,7 +74,8 @@ defmodule CPSolver.Space.Propagation do
   ## At this point, the space is either solved or stable.
   ## Reduce constraint graph and interpret the result.
   defp finalize(:no_changes, constraint_graph, propagators, variables) do
-    remove_fixed_variables(constraint_graph, variables)
+    constraint_graph
+    |> remove_fixed_variables(variables)
     |> remove_entailed_propagators()
     |> then(fn {removed_propagator_ids, residue} ->
       (Graph.vertices(residue) == [] && :solved) ||

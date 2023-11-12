@@ -50,12 +50,23 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Graph.vertex_labels(graph, {:propagator, propagator_id}) |> hd
   end
 
-  def remove_propagator(table_or_graph, propagator_id) do
-    remove_vertex(table_or_graph, {:propagator, propagator_id})
+  def remove_propagator(graph, propagator_id) do
+    remove_vertex(graph, {:propagator, propagator_id})
   end
 
-  def remove_variable(table_or_graph, variable_id) do
-    remove_vertex(table_or_graph, {:variable, variable_id})
+  ## Remove variable and all propagators that are isolated points as a result of variable removal
+  def remove_variable(graph, variable_id) do
+    var_vertex = {:variable, variable_id}
+    # var_propagators = Graph.neighbors(graph, var_vertex)
+
+    graph
+    |> remove_vertex(var_vertex)
+
+    # |> then(fn g ->
+    #   Enum.reduce(var_propagators, g, fn p_vertex, acc ->
+    #     (Graph.neighbors(acc, p_vertex) == [] && Graph.delete_vertex(acc, p_vertex)) || acc
+    #   end)
+    # end)
   end
 
   def remove_vertex(graph, vertex) do
