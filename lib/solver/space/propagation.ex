@@ -85,13 +85,8 @@ defmodule CPSolver.Space.Propagation do
   ## Wake up propagators based on the changes
   defp wakeup(changes, constraint_graph) when is_map(changes) do
     changes
-    |> Enum.uniq()
-    |> Enum.reduce([], fn {var_id, change}, acc ->
-      acc ++ ConstraintGraph.get_propagator_ids(constraint_graph, var_id, change)
-    end)
-    |> Enum.uniq()
-    |> Enum.map(fn propagator_id ->
-      ConstraintGraph.get_propagator(constraint_graph, propagator_id)
+    |> Enum.reduce(%{}, fn {var_id, change}, acc ->
+      Map.merge(acc, Map.new(ConstraintGraph.get_propagators(constraint_graph, var_id, change)))
     end)
   end
 

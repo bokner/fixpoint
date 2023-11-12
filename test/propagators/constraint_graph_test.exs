@@ -30,7 +30,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
 
       ## For each variable, there are 2 propagators listening to ':fixed' domain change
       Enum.all?(variables, fn var_id ->
-        assert length(ConstraintGraph.get_propagator_ids(graph, var_id, :fixed)) == 2
+        assert length(ConstraintGraph.get_propagators(graph, var_id, :fixed)) == 2
       end)
     end
 
