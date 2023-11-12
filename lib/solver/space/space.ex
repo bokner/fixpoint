@@ -140,26 +140,25 @@ defmodule CPSolver.Space do
           variables: localized_variables
         } = data
       ) do
-    case branching(localized_variables, opts[:search]) do
-      {:ok, {var_to_branch_on, domain_partitions}} ->
-        Enum.map(domain_partitions, fn partition ->
-          variable_copies =
-            Enum.map(localized_variables, fn %{id: clone_id} = clone ->
-              if clone_id == var_to_branch_on.id do
-                Map.put(clone, :domain, Domain.new(partition))
-              else
-                clone
-              end
-            end)
+    {:ok, {var_to_branch_on, domain_partitions}} = branching(localized_variables, opts[:search])
 
-          create(
-            data
-            |> Map.put(:variables, variable_copies)
-          )
+    Enum.map(domain_partitions, fn partition ->
+      variable_copies =
+        Enum.map(localized_variables, fn %{id: clone_id} = clone ->
+          if clone_id == var_to_branch_on.id do
+            Map.put(clone, :domain, Domain.new(partition))
+          else
+            clone
+          end
         end)
 
-        shutdown(data, :distribute)
-    end
+      create(
+        data
+        |> Map.put(:variables, variable_copies)
+      )
+    end)
+
+    shutdown(data, :distribute)
   end
 
   defp branching(variables, search_strategy) do
