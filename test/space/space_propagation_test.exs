@@ -8,11 +8,9 @@ defmodule CPSolverTest.SpacePropagation do
   alias CPSolver.Propagator.ConstraintGraph
 
   test "Propagation on stable space" do
-    %{propagators: propagators, variables: [_x, y, _z] = variables} = stable_setup()
-    {:stable, constraint_graph, stable_propagators} = Propagation.run(propagators, variables)
+    %{propagators: propagators, variables: [_x, y, _z] = variables, store: store} = stable_setup()
+    {:fixpoint, constraint_graph} = Propagation.run(propagators, store)
     assert Graph.num_vertices(constraint_graph) == 3
-
-    assert map_size(stable_propagators) == 2
 
     assert [y] ==
              Enum.filter(variables, fn var ->
@@ -34,28 +32,24 @@ defmodule CPSolverTest.SpacePropagation do
     assert length(propagators_from_graph) == 2
 
     propagator_vars_in_graph =
-      Enum.map(propagators_from_graph, fn {_id, %{mod: NotEqual, args: vars}} = _v ->
+      Enum.map(propagators_from_graph, fn %{mod: NotEqual, args: vars} = _v ->
         Enum.map(vars, fn v -> v.name end)
       end)
 
     ## Both propagators in constraint graph have "y" variable
     assert Enum.all?(propagator_vars_in_graph, fn vars -> "y" in vars end)
-
-    ## Stable propagators are the same as the ones in constraint graph
-    assert Enum.sort_by(propagators_from_graph, fn {id, _propagator} -> id end) ==
-             Enum.sort_by(stable_propagators, fn {id, _propagator} -> id end)
   end
 
   test "Propagation on solvable space" do
-    %{propagators: propagators, variables: variables} = solved_setup()
+    %{propagators: propagators, variables: variables, store: store} = solved_setup()
     refute Enum.all?(variables, fn var -> Variable.fixed?(var) end)
-    assert :solved == Propagation.run(propagators, variables)
+    assert :solved == Propagation.run(propagators, store)
     assert Enum.all?(variables, fn var -> Variable.fixed?(var) end)
   end
 
   test "Propagation on failed space" do
-    %{propagators: propagators, variables: variables} = fail_setup()
-    assert :fail == Propagation.run(propagators, variables)
+    %{propagators: propagators, store: store} = fail_setup()
+    assert :fail == Propagation.run(propagators, store)
   end
 
   defp stable_setup() do
@@ -86,7 +80,7 @@ defmodule CPSolverTest.SpacePropagation do
     variables =
       Enum.map([{x, "x"}, {y, "y"}, {z, "z"}], fn {d, name} -> Variable.new(d, name: name) end)
 
-    {:ok, [x_var, y_var, z_var] = bound_vars, _store} =
+    {:ok, [x_var, y_var, z_var] = bound_vars, store} =
       ConstraintStore.create_store(variables)
 
     propagators =
@@ -95,6 +89,6 @@ defmodule CPSolverTest.SpacePropagation do
         fn {v1, v2} -> NotEqual.new([v1, v2]) end
       )
 
-    %{propagators: propagators, variables: bound_vars}
+    %{propagators: propagators, variables: bound_vars, store: store}
   end
 end

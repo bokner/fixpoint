@@ -16,18 +16,20 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def create(propagators) when is_map(propagators) do
-    Enum.reduce(propagators, Graph.new(), fn {propagator_id, %{mod: propagator_mod, args: args}} =
-                                               propagator,
+    Enum.reduce(propagators, Graph.new(), fn {propagator_id,
+                                              %{mod: propagator_mod, args: args} = p} =
+                                               _propagator,
                                              acc ->
       args
       |> propagator_mod.variables()
       |> Enum.reduce(acc, fn var, acc2 ->
-        Graph.add_vertex(acc2, {:propagator, propagator_id})
-        |> Graph.add_edge({:variable, var.id}, {:propagator, propagator_id},
-          label: get_propagate_on(var)
-        )
+        (var.fixed? && acc) ||
+          Graph.add_vertex(acc2, {:propagator, propagator_id})
+          |> Graph.add_edge({:variable, var.id}, {:propagator, propagator_id},
+            label: get_propagate_on(var)
+          )
       end)
-      |> Graph.label_vertex({:propagator, propagator_id}, propagator)
+      |> Graph.label_vertex({:propagator, propagator_id}, p)
     end)
   end
 
@@ -47,15 +49,28 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def get_propagator(%Graph{} = graph, propagator_id) do
-    Graph.vertex_labels(graph, {:propagator, propagator_id}) |> hd
+    case Graph.vertex_labels(graph, {:propagator, propagator_id}) do
+      [] -> nil
+      [p] -> p
+    end
   end
 
-  def remove_propagator(table_or_graph, propagator_id) do
-    remove_vertex(table_or_graph, {:propagator, propagator_id})
+  def remove_propagator(graph, propagator_id) do
+    remove_vertex(graph, {:propagator, propagator_id})
   end
 
-  def remove_variable(table_or_graph, variable_id) do
-    remove_vertex(table_or_graph, {:variable, variable_id})
+  ## Remove variable and all propagators that are isolated points as a result of variable removal
+  def remove_variable(graph, variable_id) do
+    var_vertex = {:variable, variable_id}
+    var_propagators = Graph.neighbors(graph, var_vertex)
+
+    graph
+    |> remove_vertex(var_vertex)
+    |> then(fn g ->
+      Enum.reduce(var_propagators, g, fn p_vertex, acc ->
+        (Graph.neighbors(acc, p_vertex) == [] && Graph.delete_vertex(acc, p_vertex)) || acc
+      end)
+    end)
   end
 
   def remove_vertex(graph, vertex) do

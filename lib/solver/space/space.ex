@@ -56,10 +56,10 @@ defmodule CPSolver.Space do
       )
 
     space_data =
-    data
-    |> Map.put(:id, make_ref())
-    |> Map.put(:variables, space_variables)
-    |> Map.put(:store, store)
+      data
+      |> Map.put(:id, make_ref())
+      |> Map.put(:variables, space_variables)
+      |> Map.put(:store, store)
 
     {:ok, space_data, {:continue, :propagate}}
   end
@@ -80,22 +80,36 @@ defmodule CPSolver.Space do
        ) do
     Shared.add_active_spaces(data.opts[:solver_data], [self()])
 
-    case Propagation.run(propagators, variables, constraint_graph, store) do
+    case Propagation.run(propagators, remove_fixed(constraint_graph, variables), store) do
       :fail ->
         handle_failure(data)
 
       :solved ->
         handle_solved(data)
 
-      {:stable, reduced_constraint_graph, reduced_propagators} ->
+      {:fixpoint, reduced_graph} ->
         %{
           data
-          | constraint_graph: reduced_constraint_graph,
-            propagators: reduced_propagators,
+          | constraint_graph: reduced_graph,
+            propagators: reduce_propagators(propagators, reduced_graph),
             variables: variables
         }
         |> handle_stable()
     end
+  end
+
+  defp remove_fixed(constraint_graph, variables) do
+    Enum.reduce(variables, constraint_graph, fn var, acc -> var.fixed? && ConstraintGraph.remove_variable(acc, var.id) || acc end)
+  end
+
+  defp reduce_propagators(propagators, constraint_graph) do
+    propagators
+    |> Enum.reduce(Map.new(), fn {p_id, _p}, acc ->
+      case ConstraintGraph.get_propagator(constraint_graph, p_id) do
+        nil -> acc
+        graph_p -> Map.put(acc, p_id, graph_p)
+      end
+    end)
   end
 
   defp handle_failure(data) do
@@ -175,5 +189,4 @@ defmodule CPSolver.Space do
     Shared.remove_space(data.opts[:solver_data], self(), reason)
     {:stop, :normal, data}
   end
-
 end
