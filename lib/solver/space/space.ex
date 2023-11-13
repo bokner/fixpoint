@@ -34,6 +34,7 @@ defmodule CPSolver.Space do
       create(%{
         variables: variables,
         propagators: Map.new(propagators, fn %{id: id} = p -> {id, p} end),
+        constraint_graph: ConstraintGraph.create(propagators),
         opts: space_opts
       })
   end
@@ -47,24 +48,18 @@ defmodule CPSolver.Space do
   end
 
   @impl true
-  def init(%{variables: variables, propagators: propagators, opts: space_opts} = data) do
-    space_id = make_ref()
-
+  def init(%{variables: variables, opts: space_opts} = data) do
     {:ok, space_variables, store} =
       ConstraintStore.create_store(variables,
         store_impl: space_opts[:store_impl],
         space: self()
       )
 
-    space_data = %{
-      id: space_id,
-      variables: space_variables,
-      propagators: propagators,
-      constraint_graph:
-        Map.get_lazy(data, :constraint_graph, fn -> ConstraintGraph.create(propagators) end),
-      store: store,
-      opts: space_opts
-    }
+    space_data =
+    data
+    |> Map.put(:id, make_ref())
+    |> Map.put(:variables, space_variables)
+    |> Map.put(:store, store)
 
     {:ok, space_data, {:continue, :propagate}}
   end
@@ -181,7 +176,4 @@ defmodule CPSolver.Space do
     {:stop, :normal, data}
   end
 
-  def get_state_and_data(space) do
-    {_state, _data} = :sys.get_state(space)
-  end
 end
