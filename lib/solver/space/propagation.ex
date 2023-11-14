@@ -1,6 +1,6 @@
 defmodule CPSolver.Space.Propagation do
   alias CPSolver.Propagator.ConstraintGraph
-  alias CPSolver.Variable
+  alias CPSolver.Propagator.Variable
   alias CPSolver.Propagator
 
   defp propagate(map, _store) when map_size(map) == 0 do
@@ -75,10 +75,15 @@ defmodule CPSolver.Space.Propagation do
   ## Reduce constraint graph and interpret the result.
   defp finalize(:no_changes, constraint_graph, propagators, variables) do
     remove_fixed_variables(constraint_graph, variables)
-    |> remove_entailed_propagators()
-    |> then(fn {removed_propagator_ids, residue} ->
+    |> then(fn residue ->
       (Graph.vertices(residue) == [] && :solved) ||
-        {:stable, residue, Map.drop(propagators, removed_propagator_ids)}
+        {:stable, residue, propagators_from_graph(residue, propagators)}
+    end)
+  end
+
+  defp propagators_from_graph(graph, propagators) do
+    Enum.reduce(propagators, Map.new(), fn {p_id, p}, acc ->
+      (ConstraintGraph.get_propagator(graph, p_id) && Map.put(acc, p_id, p)) || acc
     end)
   end
 
@@ -86,7 +91,13 @@ defmodule CPSolver.Space.Propagation do
   defp wakeup(changes, constraint_graph) when is_map(changes) do
     changes
     |> Enum.reduce(%{}, fn {var_id, change}, acc ->
-      Map.merge(acc, Map.new(ConstraintGraph.get_propagators(constraint_graph, var_id, change)))
+      Map.merge(
+        acc,
+        Map.new(
+          ConstraintGraph.get_propagators(constraint_graph, var_id, change),
+          fn p -> {p.id, p} end
+        )
+      )
     end)
   end
 
@@ -97,17 +108,6 @@ defmodule CPSolver.Space.Propagation do
       else
         acc
       end
-    end)
-  end
-
-  defp remove_entailed_propagators(constraint_graph) do
-    Enum.reduce(Graph.vertices(constraint_graph), {[], constraint_graph}, fn
-      {:propagator, id} = v, {removed_propagator_ids, graph} = acc ->
-        (Graph.neighbors(graph, v) == [] &&
-           {[id | removed_propagator_ids], Graph.delete_vertex(graph, v)}) || acc
-
-      _v, acc ->
-        acc
     end)
   end
 end

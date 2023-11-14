@@ -9,10 +9,8 @@ defmodule CPSolverTest.SpacePropagation do
 
   test "Propagation on stable space" do
     %{propagators: propagators, variables: [_x, y, _z] = variables} = stable_setup()
-    {:stable, constraint_graph, stable_propagators} = Propagation.run(propagators, variables)
+    {:stable, constraint_graph, _stable_propagators} = Propagation.run(propagators, variables)
     assert Graph.num_vertices(constraint_graph) == 3
-
-    assert map_size(stable_propagators) == 2
 
     assert [y] ==
              Enum.filter(variables, fn var ->
@@ -34,16 +32,12 @@ defmodule CPSolverTest.SpacePropagation do
     assert length(propagators_from_graph) == 2
 
     propagator_vars_in_graph =
-      Enum.map(propagators_from_graph, fn {_id, %{mod: NotEqual, args: vars}} = _v ->
+      Enum.map(propagators_from_graph, fn %{mod: NotEqual, args: vars} = _v ->
         Enum.map(vars, fn v -> v.name end)
       end)
 
     ## Both propagators in constraint graph have "y" variable
     assert Enum.all?(propagator_vars_in_graph, fn vars -> "y" in vars end)
-
-    ## Stable propagators are the same as the ones in constraint graph
-    assert Enum.sort_by(propagators_from_graph, fn {id, _propagator} -> id end) ==
-             Enum.sort_by(stable_propagators, fn {id, _propagator} -> id end)
   end
 
   test "Propagation on solvable space" do

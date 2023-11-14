@@ -34,6 +34,26 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
       end)
     end
 
+    test "Remove variables" do
+      graph = build_graph(AllDifferent, 3)
+
+      variables =
+        [v1, _v2, _v3] =
+        Graph.vertices(graph)
+        |> Enum.flat_map(fn
+          {:variable, v} -> [v]
+          _ -> []
+        end)
+
+      assert graph |> ConstraintGraph.remove_variable(v1) |> Graph.edges() |> length == 4
+
+      assert Enum.reduce(variables, graph, fn v, g ->
+               assert Graph.vertices(g) != []
+               ConstraintGraph.remove_variable(g, v)
+             end)
+             |> Graph.vertices() == []
+    end
+
     defp build_graph(constraint_impl, n) do
       domain = 1..n
       variables = Enum.map(1..n, fn _ -> Variable.new(domain) end)
