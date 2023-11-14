@@ -5,7 +5,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   the propagator receives upon varable's domain change.
   """
   alias CPSolver.Propagator
-  alias CPSolver.Variable
+  alias CPSolver.Propagator.Variable
 
   @spec create([Propagator.t()] | %{reference() => Propagator.t()}) :: Graph.t()
   def create(propagators) when is_list(propagators) do
@@ -71,11 +71,21 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
+  def remove_fixed(graph, vars) do
+    Enum.reduce(vars, graph, fn v, acc ->
+      if Variable.fixed?(v) do
+        remove_variable(acc, v.id)
+      else
+        acc
+      end
+    end)
+  end
+
   def remove_vertex(graph, vertex) do
     Graph.delete_vertex(graph, vertex)
   end
 
-  defp get_propagate_on(%Variable{} = variable) do
+  defp get_propagate_on(variable) do
     Map.get(variable, :propagate_on, Propagator.to_domain_events(:fixed))
   end
 end

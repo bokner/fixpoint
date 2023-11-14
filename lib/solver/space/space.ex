@@ -48,7 +48,7 @@ defmodule CPSolver.Space do
   end
 
   @impl true
-  def init(%{variables: variables, opts: space_opts} = data) do
+  def init(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
     {:ok, space_variables, store} =
       ConstraintStore.create_store(variables,
         store_impl: space_opts[:store_impl],
@@ -60,6 +60,7 @@ defmodule CPSolver.Space do
       |> Map.put(:id, make_ref())
       |> Map.put(:variables, space_variables)
       |> Map.put(:store, store)
+      |> Map.put(:constraint_graph, ConstraintGraph.remove_fixed(graph, space_variables))
 
     {:ok, space_data, {:continue, :propagate}}
   end
@@ -80,7 +81,7 @@ defmodule CPSolver.Space do
        ) do
     Shared.add_active_spaces(data.opts[:solver_data], [self()])
 
-    case Propagation.run(propagators, variables, constraint_graph, store) do
+    case Propagation.run(propagators, constraint_graph, store) do
       :fail ->
         handle_failure(data)
 
