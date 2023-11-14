@@ -50,12 +50,12 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Graph.vertex_labels(graph, {:propagator, propagator_id}) |> hd
   end
 
-  def remove_propagator(table_or_graph, propagator_id) do
-    remove_vertex(table_or_graph, {:propagator, propagator_id})
+  def remove_propagator(graph, propagator_id) do
+    remove_vertex(graph, {:propagator, propagator_id})
   end
 
-  def remove_variable(table_or_graph, variable_id) do
-    remove_vertex(table_or_graph, {:variable, variable_id})
+  def remove_variable(graph, variable_id) do
+    remove_vertex(graph, {:variable, variable_id})
   end
 
   def remove_vertex(graph, vertex) do

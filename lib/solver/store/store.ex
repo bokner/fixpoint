@@ -6,6 +6,7 @@ defmodule CPSolver.ConstraintStore do
   """
   #################
   alias CPSolver.{Common, Variable}
+  alias CPSolver.DefaultDomain, as: Domain
 
   require Logger
 
@@ -92,11 +93,11 @@ defmodule CPSolver.ConstraintStore do
     }
 
     {:ok,
-     Enum.map(variables, fn var ->
+     Enum.map(variables, fn %{fixed?: fixed?, domain: domain} = var ->
        var
-       # |> Map.put(:id, var.id)
        |> Map.put(:name, var.name)
        |> Map.put(:store, store)
+       |> Map.put(:fixed?, fixed? || Domain.fixed?(domain))
      end), store}
   end
 

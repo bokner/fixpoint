@@ -1,10 +1,11 @@
 defmodule CPSolver.Variable do
-  defstruct [:id, :name, :domain, :store, :propagate_on]
+  defstruct [:id, :name, :domain, :store, :fixed?, :propagate_on]
 
   @type t :: %__MODULE__{
           id: reference(),
           name: String.t(),
           domain: Domain.t(),
+          fixed?: boolean(),
           propagate_on: Propagator.propagator_event()
         }
 
@@ -23,10 +24,13 @@ defmodule CPSolver.Variable do
       def new(values, opts \\ []) do
         id = make_ref()
 
+        domain = Domain.new(values)
+
         %Variable{
           id: id,
           name: Keyword.get(opts, :name, id),
-          domain: Domain.new(values)
+          domain: domain,
+          fixed?: Domain.fixed?(domain)
         }
       end
 

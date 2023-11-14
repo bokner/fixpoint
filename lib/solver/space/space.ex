@@ -56,10 +56,10 @@ defmodule CPSolver.Space do
       )
 
     space_data =
-    data
-    |> Map.put(:id, make_ref())
-    |> Map.put(:variables, space_variables)
-    |> Map.put(:store, store)
+      data
+      |> Map.put(:id, make_ref())
+      |> Map.put(:variables, space_variables)
+      |> Map.put(:store, store)
 
     {:ok, space_data, {:continue, :propagate}}
   end
@@ -175,5 +175,4 @@ defmodule CPSolver.Space do
     Shared.remove_space(data.opts[:solver_data], self(), reason)
     {:stop, :normal, data}
   end
-
 end
