@@ -24,7 +24,6 @@ defmodule CPSolver.Space do
       store_impl: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
       search: CPSolver.Search.Strategy.default_strategy(),
-      solver_data: Shared.init_shared_data(),
       keep_alive: false
     ]
   end

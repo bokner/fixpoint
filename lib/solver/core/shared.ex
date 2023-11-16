@@ -16,7 +16,7 @@ defmodule CPSolver.Shared do
   end
 
   def complete?(%{complete_flag: complete_flag} = _solver) do
-    :persistent_term.get(complete_flag)
+    :persistent_term.get(complete_flag, true)
   end
 
   def set_complete(%{complete_flag: complete_flag, caller: caller, sync_mode: sync?} = solver) do
@@ -112,17 +112,25 @@ defmodule CPSolver.Shared do
   end
 
   def solutions(%{solutions: solution_table} = _solver) do
-    solution_table
-    |> :ets.tab2list()
-    |> Enum.map(fn {_ref, solution} ->
-      Enum.map(solution, fn {_var, value} ->
-        value
+    try do
+      solution_table
+      |> :ets.tab2list()
+      |> Enum.map(fn {_ref, solution} ->
+        Enum.map(solution, fn {_var, value} ->
+          value
+        end)
       end)
-    end)
+    rescue
+      _e -> []
+    end
   end
 
   def active_nodes(%{active_nodes: active_nodes_table} = _solver) do
-    :ets.tab2list(active_nodes_table) |> Enum.map(fn {_k, n} -> n end)
+    try do
+      :ets.tab2list(active_nodes_table) |> Enum.map(fn {_k, n} -> n end)
+    rescue
+      _e -> []
+    end
   end
 
   def add_failure(%{statistics: stats_table} = _solver) do

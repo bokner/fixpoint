@@ -1,9 +1,6 @@
 defmodule CPSolver.Examples.Queens do
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.IntVariable
-
-  alias CPSolver.Examples.Utils, as: ExamplesUtils
-
   require Logger
   @queen_symbol "\u2655"
 
@@ -46,40 +43,43 @@ defmodule CPSolver.Examples.Queens do
     Logger.configure(level: :info)
 
     timeout = Keyword.get(opts, :timeout)
-    ExamplesUtils.flush_solutions()
 
-    solve(nqueens,
-      solution_handler: ExamplesUtils.notify_client_handler(),
-      stop_on: {:max_solutions, 1}
-    )
-    |> tap(fn {:ok, _solver} ->
-      ExamplesUtils.wait_for_solution(
-        timeout,
-        fn solution ->
-          check_solution(solution)
-          |> tap(fn _ -> IO.puts(print_board(solution)) end)
-        end
+    {:ok, result} =
+      CPSolver.solve_sync(model(nqueens),
+        stop_on: {:max_solutions, 1},
+        timeout: timeout
       )
-    end)
+
+    case result.solutions do
+      [] ->
+        "No solutions found within #{timeout} milliseconds"
+
+      [s | _rest] ->
+        print_board(s)
+        |> tap(fn _ -> check_solution(s) && Logger.notice("Solution checked!") end)
+    end
+
+    {:ok, result}
   end
 
   def print_board(queens) do
     n = length(queens)
 
-    "\n" <>
-      Enum.join(
-        for i <- 1..n do
-          Enum.join(
-            for j <- 1..n do
-              if Enum.at(queens, i - 1) == j,
-                do: IO.ANSI.red() <> @queen_symbol,
-                else: IO.ANSI.light_blue() <> "."
-            end,
-            " "
-          )
-        end,
-        "\n"
-      ) <> "\n"
+    ("\n" <>
+       Enum.join(
+         for i <- 1..n do
+           Enum.join(
+             for j <- 1..n do
+               if Enum.at(queens, i - 1) == j,
+                 do: IO.ANSI.red() <> @queen_symbol,
+                 else: IO.ANSI.light_blue() <> "."
+             end,
+             " "
+           )
+         end,
+         "\n"
+       ) <> "\n")
+    |> IO.puts()
   end
 
   def check_solution(queens) do
