@@ -1,5 +1,6 @@
 defmodule CPSolver.Examples.Queens do
   alias CPSolver.Constraint.NotEqual
+  alias CPSolver.Constraint.Less
   alias CPSolver.IntVariable
   require Logger
   @queen_symbol "\u2655"
@@ -9,7 +10,7 @@ defmodule CPSolver.Examples.Queens do
       CPSolver.solve(model(n), solver_opts)
   end
 
-  def model(n) do
+  def model(n, symmetry_breaking_mode \\ nil) do
     range = 1..n
     ## Queen positions
     q =
@@ -35,7 +36,7 @@ defmodule CPSolver.Examples.Queens do
 
     %{
       variables: q,
-      constraints: constraints
+      constraints: constraints ++ symmetry_breaking_constraints(q, symmetry_breaking_mode)
     }
   end
 
@@ -45,7 +46,7 @@ defmodule CPSolver.Examples.Queens do
     timeout = Keyword.get(opts, :timeout)
 
     {:ok, result} =
-      CPSolver.solve_sync(model(nqueens),
+      CPSolver.solve_sync(model(nqueens, :half_symmetry),
         stop_on: {:max_solutions, 1},
         timeout: timeout
       )
@@ -100,5 +101,13 @@ defmodule CPSolver.Examples.Queens do
           end)
       end)
     end)
+  end
+
+  defp symmetry_breaking_constraints([q1, q2 | _] = _vars, :half_symmetry) do
+    [Less.new(q1, q2)]
+  end
+
+  defp symmetry_breaking_constraints(_vars, _not_implemented) do
+    []
   end
 end
