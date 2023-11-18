@@ -29,9 +29,14 @@ defmodule CPSolver.Examples.Reindeers do
   alias CPSolver.Constraint.AllDifferent
 
   def solve(opts \\ []) do
-    CPSolver.solve(model(),
-      solution_handler: Keyword.get(opts, :solution_handler, &print/1)
-    )
+    {:ok, res} = CPSolver.solve_sync(model(), opts)
+
+    res.solutions
+    |> hd
+    |> then(fn solution -> Enum.zip(res.variables, solution) end)
+    |> print()
+
+    {:ok, res}
   end
 
   def model() do
@@ -95,7 +100,7 @@ defmodule CPSolver.Examples.Reindeers do
     solution
     |> order
     |> Enum.map_join(" ", fn name -> inspect(name) end)
-    |> then(fn str -> IO.ANSI.red() <> " -> #{str} ->" <> IO.ANSI.reset() end)
+    |> then(fn str -> IO.ANSI.green() <> " -> #{str} ->" <> IO.ANSI.reset() end)
     |> IO.puts()
   end
 end

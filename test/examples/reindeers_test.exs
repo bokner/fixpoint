@@ -5,20 +5,16 @@ defmodule CPSolverTest.Examples.Reindeers do
 
   test "order" do
     order = [Dancer, Donder, Comet, Vixen, Blitzen, Dasher, Rudolph, Cupid, Prancer]
-    pid = self()
 
-    {:ok, _solver} =
-      Reindeers.solve(
-        solution_handler: fn sol ->
-          send(
-            pid,
-            sol
-            |> Enum.sort_by(fn {_name, pos} -> pos end)
-            |> Enum.map(fn {name, _pos} -> name end)
-          )
-        end
-      )
+    {:ok, result} = CPSolver.solve_sync(Reindeers.model())
 
-    assert_receive ^order, 100
+    positions = hd(result.solutions)
+
+    solution_order =
+      Enum.zip(result.variables, positions)
+      |> Enum.sort_by(fn {_name, pos} -> pos end)
+      |> Enum.map(fn {name, _pos} -> name end)
+
+    assert order == solution_order
   end
 end
