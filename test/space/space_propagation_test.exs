@@ -62,6 +62,26 @@ defmodule CPSolverTest.SpacePropagation do
     assert :fail == Propagation.run(propagators, graph, store)
   end
 
+  test "Propagators are not being rescheduled as a result of their own filtering (idempotency)" do
+    x = 1..1
+    y = 1..2
+    z = 1..3
+    %{propagators: propagators, constraint_graph: graph, store: store} = space_setup(x, y, z)
+    {scheduled_propagators, _reduced_graph} = Propagation.propagate(propagators, graph, store)
+    ## Only NotEqual(y, z) is rescheduled.
+    ## Explanation:
+    ## - NotEqual(x, y) changes y => schedules NotEqual(y,z);
+    ## - NotEqual(x, z) changes z => schedules NotEqual(y,z);
+    ## - NotEqual(y, z) changes z and/or y (if not called first) as a result of it's own filtering.
+    ## So, at no point NotEqual(x, y) and NotEqual(x, z) are being rescheduled.
+
+    assert length(Map.values(scheduled_propagators)) == 1
+
+    assert hd(Map.values(scheduled_propagators)).args
+           |> Enum.take(2)
+           |> Enum.map(fn var -> var.name end) == ["y", "z"]
+  end
+
   defp stable_setup() do
     x = 1..1
     y = -5..5
