@@ -1,7 +1,6 @@
 defmodule CPSolver.Examples.Sudoku do
   alias CPSolver.Constraint.AllDifferent
   alias CPSolver.IntVariable
-  alias CPSolver.Examples.Utils, as: ExamplesUtils
 
   require Logger
 
@@ -118,21 +117,23 @@ defmodule CPSolver.Examples.Sudoku do
 
     IO.puts("Sudoku:")
     IO.puts(print_grid(puzzle))
-    ExamplesUtils.flush_solutions()
 
-    solve(puzzle,
-      solution_handler: ExamplesUtils.notify_client_handler(),
-      stop_on: {:max_solutions, 1}
-    )
-    |> tap(fn {:ok, _solver} ->
-      ExamplesUtils.wait_for_solution(
-        timeout,
-        fn solution ->
-          check_solution(solution)
-          |> tap(fn _ -> IO.puts(print_grid(solution)) end)
-        end
+    {:ok, result} =
+      CPSolver.solve_sync(model(puzzle),
+        stop_on: {:max_solutions, 1},
+        timeout: timeout
       )
-    end)
+
+    case result.solutions do
+      [] ->
+        "No solutions found within #{timeout} milliseconds"
+
+      [s | _rest] ->
+        print_grid(s)
+        |> tap(fn _ -> check_solution(s) && Logger.notice("Solution checked!") end)
+    end
+
+    {:ok, result}
   end
 
   def check_solution(solution) do
@@ -183,16 +184,17 @@ defmodule CPSolver.Examples.Sudoku do
 
     gridcol = "| "
 
-    [
-      "\n"
-      | for i <- 0..(dim - 1) do
-          [if(rem(i, square_dim) == 0, do: gridline, else: "")] ++
-            for j <- 0..(dim - 1) do
-              "#{if rem(j, square_dim) == 0, do: gridcol, else: ""}" <>
-                "#{print_cell(Enum.at(Enum.at(grid, i), j))} "
-            end ++ ["#{gridcol}\n"]
-        end
-    ] ++ [gridline]
+    ([
+       "\n"
+       | for i <- 0..(dim - 1) do
+           [if(rem(i, square_dim) == 0, do: gridline, else: "")] ++
+             for j <- 0..(dim - 1) do
+               "#{if rem(j, square_dim) == 0, do: gridcol, else: ""}" <>
+                 "#{print_cell(Enum.at(Enum.at(grid, i), j))} "
+             end ++ ["#{gridcol}\n"]
+         end
+     ] ++ [gridline])
+    |> IO.puts()
   end
 
   defp print_cell(0) do
