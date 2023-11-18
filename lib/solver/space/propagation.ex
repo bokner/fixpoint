@@ -26,42 +26,68 @@ defmodule CPSolver.Space.Propagation do
   end
 
   defp run_impl(propagators, constraint_graph, store) do
-    case propagate(propagators, store) do
+    case propagate(propagators, constraint_graph, store) do
       :fail ->
         :fail
 
-      changes when map_size(changes) == 0 ->
-        constraint_graph
-
-      changes ->
-        {reduced_graph, active_propagators} = wakeup(changes, constraint_graph)
-        run_impl(active_propagators, reduced_graph, store)
+      {scheduled_propagators, reduced_graph} ->
+        run_impl(scheduled_propagators, reduced_graph, store)
     end
   end
 
-  defp propagate(map, _store) when map_size(map) == 0 do
-    :no_changes
-  end
+  @spec propagate(map(), Graph.t(), map()) :: :fail | {map(), Graph.t()} | {:changes, map()}
+  @doc """
+  One pass of propagation.
+  Produces the list (up to implementation) of propagators scheduled for the next pass.
+  Side effect: modifies the constraint graph.
+  The graph will be modified on every individual Propagator.filter/1, if the latter results in any domain changes.
+  """
 
-  @spec propagate(map(), map()) :: :fail | :no_changes | {:changes, map()}
-  defp propagate(propagators, store) do
+  def propagate(propagators, graph, store) do
     propagators
-    |> Task.async_stream(fn {_ref, p} -> Propagator.filter(p, store: store) end)
-    |> Enum.reduce_while(%{}, fn {:ok, res}, acc ->
+    |> Task.async_stream(fn {p_id, p} ->
+      {p_id, Propagator.filter(p, store: store)}
+    end)
+    |> Enum.reduce_while({Map.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = acc ->
       case res do
+        {:fail, _var} ->
+          {:halt, :fail}
+
         {:changed, changes} ->
+          {updated_graph, scheduled_by_propagator} = schedule(p_id, changes, g)
+
           {:cont,
-           Map.merge(acc, changes, fn _var, prev_event, new_event ->
-             merge_events(prev_event, new_event)
-           end)}
+           {
+             Map.merge(scheduled_by_propagator, scheduled),
+             updated_graph
+           }}
 
         :stable ->
           {:cont, acc}
-
-        {:fail, _var} ->
-          {:halt, :fail}
       end
     end)
+  end
+
+  ## Note: we do not reschedule a propagator that was the source of domain changes,
+  ## as we assume idempotence (that is, running propagator for the second time wouldn't change domains).
+  ## We will probably introduce the option to be used in propagator implementations
+  ## to signify that the propagator is not idempotent.
+  ##
+  defp schedule(source_id, domain_changes, graph) do
+    {updated_graph, scheduled_propagators} =
+      domain_changes
+      |> Enum.reduce({graph, %{}}, fn {var_id, domain_change}, {g, propagators} ->
+        {maybe_remove_variable(g, var_id, domain_change),
+         Map.merge(
+           propagators,
+           Map.new(
+             ConstraintGraph.get_propagators(g, var_id, domain_change),
+             fn p -> {p.id, p} end
+           )
+         )}
+      end)
+
+    {updated_graph, Map.delete(scheduled_propagators, source_id)}
   end
 
   defp finalize(:fail, _propagators) do
@@ -81,35 +107,11 @@ defmodule CPSolver.Space.Propagation do
     end)
   end
 
-  ## Wake up propagators based on the changes
-  defp wakeup(changes, graph) when is_map(changes) do
-    changes
-    |> Enum.reduce({graph, %{}}, fn {var_id, domain_change}, {g, propagators} ->
-      {maybe_remove_variable(g, var_id, domain_change),
-       Map.merge(
-         propagators,
-         Map.new(
-           ConstraintGraph.get_propagators(g, var_id, domain_change),
-           fn p -> {p.id, p} end
-         )
-       )}
-    end)
-  end
-
   defp maybe_remove_variable(graph, var_id, :fixed) do
     ConstraintGraph.remove_variable(graph, var_id)
   end
 
   defp maybe_remove_variable(graph, _var_id, _domain_change) do
     graph
-  end
-
-  defp merge_events(prev_event, new_event) when prev_event == :fixed or new_event == :fixed do
-    :fixed
-  end
-
-  ## TODO! Use hierarchy (i.e. fixed -> (min__change or max_change) -> bound_change -> domain_change)
-  defp merge_events(_prev_event, new_event) do
-    new_event
   end
 end
