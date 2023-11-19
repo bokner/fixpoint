@@ -46,6 +46,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
+  def has_variable?(graph, variable_id) do
+    Graph.has_vertex?(graph, {:variable, variable_id})
+  end
   def get_propagator(%Graph{} = graph, propagator_id) do
     case Graph.vertex_labels(graph, {:propagator, propagator_id}) do
       [] -> nil
