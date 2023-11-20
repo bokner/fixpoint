@@ -21,7 +21,8 @@ defmodule CPSolver.Space.Propagation do
     |> finalize(propagators)
   end
 
-  defp run_impl(propagators, constraint_graph, _store) when map_size(propagators) == 0 do
+  defp run_impl(scheduled_propagators, constraint_graph, _store)
+       when map_size(scheduled_propagators) == 0 do
     constraint_graph
   end
 
@@ -35,7 +36,8 @@ defmodule CPSolver.Space.Propagation do
     end
   end
 
-  @spec propagate(map(), Graph.t(), map()) :: :fail | {map(), Graph.t()} | {:changes, map()}
+  @spec propagate(map(), Graph.t(), map()) ::
+          :fail | {map(), Graph.t()} | {:changes, map()}
   @doc """
   One pass of propagation.
   Produces the list (up to implementation) of propagators scheduled for the next pass.
@@ -53,17 +55,17 @@ defmodule CPSolver.Space.Propagation do
         {:fail, _var} ->
           {:halt, :fail}
 
+        :stable ->
+          {:cont, acc}
+
         {:changed, changes} ->
           {updated_graph, scheduled_by_propagator} = schedule(p_id, changes, g)
 
           {:cont,
            {
-             Map.merge(scheduled_by_propagator, scheduled),
+             Map.merge(scheduled, scheduled_by_propagator),
              updated_graph
            }}
-
-        :stable ->
-          {:cont, acc}
       end
     end)
   end
@@ -82,7 +84,7 @@ defmodule CPSolver.Space.Propagation do
            propagators,
            Map.new(
              ConstraintGraph.get_propagators(g, var_id, domain_change),
-             fn p -> {p.id, p} end
+             fn p -> {p.id, fix_propagator_variables(p, var_id, domain_change)} end
            )
          )}
       end)
@@ -95,7 +97,6 @@ defmodule CPSolver.Space.Propagation do
   end
 
   ## At this point, the space is either solved or stable.
-  ## Reduce constraint graph and interpret the result.
   defp finalize(%Graph{} = residue, propagators) do
     (Graph.vertices(residue) == [] && :solved) ||
       {:stable, residue, propagators_from_graph(residue, propagators)}
@@ -113,5 +114,25 @@ defmodule CPSolver.Space.Propagation do
 
   defp maybe_remove_variable(graph, _var_id, _domain_change) do
     graph
+  end
+
+  defp fix_propagator_variables(propagator, var_id, :fixed) do
+    propagator
+    |> Map.update(:args, %{}, fn args ->
+      Enum.map(
+        args,
+        fn
+          %{id: id} = arg when id == var_id ->
+            Map.put(arg, :fixed?, true)
+
+          other ->
+            other
+        end
+      )
+    end)
+  end
+
+  defp fix_propagator_variables(propagator, _var_id, _domain_change) do
+    propagator
   end
 end

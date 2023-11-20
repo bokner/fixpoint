@@ -25,7 +25,7 @@ defmodule CPSolverTest.SpacePropagation do
                Graph.has_vertex?(constraint_graph, {:variable, var.id})
              end)
 
-    ## Variables in constraint graph in stable state are unfixed
+    ## In stable state, variables referenced in constraint graph are unfixed.
     refute Variable.fixed?(y)
 
     propagators_from_graph =
@@ -62,12 +62,16 @@ defmodule CPSolverTest.SpacePropagation do
     assert :fail == Propagation.run(propagators, graph, store)
   end
 
-  test "Propagators are not being rescheduled as a result of their own filtering (idempotency)" do
+  test "Propagation pass" do
     x = 1..1
     y = 1..2
     z = 1..3
     %{propagators: propagators, constraint_graph: graph, store: store} = space_setup(x, y, z)
     {scheduled_propagators, _reduced_graph} = Propagation.propagate(propagators, graph, store)
+
+    ## Propagators are not being rescheduled
+    ## as a result of their own filtering (idempotency).
+    ##
     ## Only NotEqual(y, z) is rescheduled.
     ## Explanation:
     ## - NotEqual(x, y) changes y => schedules NotEqual(y,z);
@@ -75,9 +79,10 @@ defmodule CPSolverTest.SpacePropagation do
     ## - NotEqual(y, z) changes z and/or y (if not called first) as a result of it's own filtering.
     ## So, at no point NotEqual(x, y) and NotEqual(x, z) are being rescheduled.
 
-    assert length(Map.values(scheduled_propagators)) == 1
+    [not_equal_y_z] = Map.values(scheduled_propagators)
+    assert not_equal_y_z.mod == NotEqual
 
-    assert hd(Map.values(scheduled_propagators)).args
+    assert not_equal_y_z.args
            |> Enum.take(2)
            |> Enum.map(fn var -> var.name end) == ["y", "z"]
   end

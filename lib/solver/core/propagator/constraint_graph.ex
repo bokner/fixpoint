@@ -49,6 +49,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   def has_variable?(graph, variable_id) do
     Graph.has_vertex?(graph, {:variable, variable_id})
   end
+
   def get_propagator(%Graph{} = graph, propagator_id) do
     case Graph.vertex_labels(graph, {:propagator, propagator_id}) do
       [] -> nil
@@ -69,32 +70,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     |> remove_vertex(var_vertex)
     |> then(fn g ->
       Enum.reduce(var_propagators, g, fn p_vertex, acc ->
+        # fix_propagator_variable(acc, p_vertex, variable_id)
         (Graph.neighbors(acc, p_vertex) == [] && Graph.delete_vertex(acc, p_vertex)) ||
-          fix_propagator_variable(acc, p_vertex, variable_id)
+          acc
       end)
-    end)
-  end
-
-  defp fix_propagator_variable(graph, p_vertex, variable_id) do
-    graph
-    |> Graph.vertex_labels(p_vertex)
-    |> hd
-    |> Map.update(:args, %{}, fn args ->
-      Enum.map(
-        args,
-        fn
-          %{id: id} = arg when id == variable_id ->
-            Map.put(arg, :fixed?, true)
-
-          other ->
-            other
-        end
-      )
-    end)
-    |> then(fn updated_propagator ->
-      graph
-      |> Graph.remove_vertex_labels(p_vertex)
-      |> Graph.label_vertex(p_vertex, updated_propagator)
     end)
   end
 
