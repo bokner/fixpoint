@@ -24,7 +24,7 @@ defmodule CPSolver.Space do
       store_impl: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
       search: CPSolver.Search.Strategy.default_strategy(),
-      keep_alive: false
+      postpone: false
     ]
   end
 
@@ -46,6 +46,10 @@ defmodule CPSolver.Space do
     end
   end
 
+  def start_propagation(space_pid) when is_pid(space_pid) do
+    :done = GenServer.call(space_pid, :propagate, :infinity)
+  end
+
   @impl true
   def init(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
     {:ok, space_variables, store} =
@@ -61,12 +65,28 @@ defmodule CPSolver.Space do
       |> Map.put(:store, store)
       |> Map.put(:constraint_graph, ConstraintGraph.remove_fixed(graph, space_variables))
 
+    Shared.add_active_spaces(data.opts[:solver_data], [self()])
+
     {:ok, space_data, {:continue, :propagate}}
   end
 
   @impl true
   def handle_continue(:propagate, data) do
-    propagate(data)
+    (data.opts[:postpone] && {:noreply, data}) ||
+      data
+      |> propagate()
+      |> tap(fn _ ->
+        caller = Map.get(data, :caller)
+        caller && GenServer.reply(caller, :done)
+      end)
+  end
+
+  @impl true
+  def handle_call(:propagate, caller, data) do
+    {:noreply,
+     data
+     |> Map.put(:caller, caller)
+     |> Map.put(:opts, Keyword.put(data.opts, :postpone, false)), {:continue, :propagate}}
   end
 
   defp propagate(
@@ -78,8 +98,6 @@ defmodule CPSolver.Space do
          } =
            data
        ) do
-    Shared.add_active_spaces(data.opts[:solver_data], [self()])
-
     case Propagation.run(propagators, constraint_graph, store) do
       :fail ->
         handle_failure(data)
@@ -150,7 +168,19 @@ defmodule CPSolver.Space do
       create(
         data
         |> Map.put(:variables, variable_copies)
+        |> Map.put(:opts, Keyword.put(data.opts, :postpone, true))
       )
+    end)
+    |> then(fn child_spaces ->
+      spawn(fn ->
+        Enum.each(child_spaces, fn
+          {:ok, space_pid} ->
+            start_propagation(space_pid)
+
+          {:error, :complete} ->
+            :ok
+        end)
+      end)
     end)
 
     shutdown(data, :distribute)
