@@ -4,15 +4,15 @@ defmodule CPSolver.Space.Propagation do
 
   def run(propagators, store \\ nil)
 
-  def run(propagators, store) when is_list(propagators) do
+  def run(propagators, store) do
+    run(propagators, ConstraintGraph.create(propagators), store)
+  end
+
+  def run(propagators, constraint_graph, store) when is_list(propagators) do
     propagators
     |> Enum.map(fn p -> {make_ref(), p} end)
     |> Map.new()
-    |> run(store)
-  end
-
-  def run(propagators, store) when is_map(propagators) and map_size(propagators) > 0 do
-    run(propagators, ConstraintGraph.create(propagators), store)
+    |> run(constraint_graph, store)
   end
 
   def run(propagators, constraint_graph, store) when is_map(propagators) do
