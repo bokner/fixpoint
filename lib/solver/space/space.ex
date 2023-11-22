@@ -39,7 +39,7 @@ defmodule CPSolver.Space do
   end
 
   def create(data) do
-    if CPSolver.complete?(data.opts[:solver_data]) do
+    if solving_complete?(data) do
       {:error, :complete}
     else
       GenServer.start(__MODULE__, data)
@@ -47,7 +47,7 @@ defmodule CPSolver.Space do
   end
 
   def start_propagation(space_pid) when is_pid(space_pid) do
-    :done = GenServer.call(space_pid, :propagate, :infinity)
+    GenServer.call(space_pid, :propagate, :infinity)
   end
 
   @impl true
@@ -72,17 +72,18 @@ defmodule CPSolver.Space do
 
   @impl true
   def handle_continue(:propagate, data) do
-    (data.opts[:postpone] && {:noreply, data}) ||
+      (data.opts[:postpone] && {:noreply, data}) ||
       data
       |> propagate()
       |> tap(fn _ ->
+        reply = solving_complete?(data) && :solving_complete || :done
         caller = Map.get(data, :caller)
-        caller && GenServer.reply(caller, :done)
+        caller && send(caller, reply)
       end)
   end
 
   @impl true
-  def handle_call(:propagate, caller, data) do
+  def handle_info({caller, :propagate}, data) do
     {:noreply,
      data
      |> Map.put(:caller, caller)
@@ -155,7 +156,7 @@ defmodule CPSolver.Space do
       ) do
     {:ok, {var_to_branch_on, domain_partitions}} = branching(localized_variables, opts[:search])
 
-    Enum.map(domain_partitions, fn partition ->
+    Enum.take_while(domain_partitions, fn partition ->
       variable_copies =
         Enum.map(localized_variables, fn %{id: clone_id} = clone ->
           if clone_id == var_to_branch_on.id do
@@ -165,23 +166,19 @@ defmodule CPSolver.Space do
           end
         end)
 
-      create(
         data
         |> Map.put(:variables, variable_copies)
         |> Map.put(:opts, Keyword.put(data.opts, :postpone, true))
-      )
-    end)
-    |> then(fn child_spaces ->
-      spawn(fn ->
-        Enum.each(child_spaces, fn
-          {:ok, space_pid} ->
-            start_propagation(space_pid)
-
-          {:error, :complete} ->
-            :ok
+        |> then(fn space_data ->
+            case create(space_data) do
+            {:ok, space_pid} ->
+              :done == sync_propagate(space_pid)
+            {:error, :complete} ->
+              false
+            end
         end)
-      end)
     end)
+
 
     shutdown(data, :distribute)
   end
@@ -204,5 +201,17 @@ defmodule CPSolver.Space do
   defp shutdown(data, reason) do
     Shared.remove_space(data.opts[:solver_data], self(), reason)
     {:stop, :normal, data}
+  end
+
+  defp solving_complete?(data) do
+    CPSolver.complete?(data.opts[:solver_data])
+  end
+
+  defp sync_propagate(space_pid) do
+    caller = self()
+    spawn(fn -> send(space_pid, {caller, :propagate}) end)
+    receive do
+      response -> response
+    end
   end
 end
