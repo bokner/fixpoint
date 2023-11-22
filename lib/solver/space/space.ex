@@ -155,7 +155,7 @@ defmodule CPSolver.Space do
       ) do
     {:ok, {var_to_branch_on, domain_partitions}} = branching(localized_variables, opts[:search])
 
-    Enum.map(domain_partitions, fn partition ->
+    Enum.take_while(domain_partitions, fn partition ->
       variable_copies =
         Enum.map(localized_variables, fn %{id: clone_id} = clone ->
           if clone_id == var_to_branch_on.id do
@@ -165,22 +165,14 @@ defmodule CPSolver.Space do
           end
         end)
 
-      create(
-        data
-        |> Map.put(:variables, variable_copies)
-        |> Map.put(:opts, Keyword.put(data.opts, :postpone, true))
-      )
-    end)
-    |> then(fn child_spaces ->
-      spawn(fn ->
-        Enum.each(child_spaces, fn
-          {:ok, space_pid} ->
-            start_propagation(space_pid)
-
-          {:error, :complete} ->
-            :ok
-        end)
-      end)
+      case create(
+             data
+             |> Map.put(:variables, variable_copies)
+             |> Map.put(:opts, Keyword.put(data.opts, :postpone, true))
+           ) do
+        {:ok, space_pid} -> spawn(fn -> start_propagation(space_pid) end)
+        {:error, :complete} -> false
+      end
     end)
 
     shutdown(data, :distribute)
