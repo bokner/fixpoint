@@ -10,13 +10,6 @@ defmodule CPSolver.Space.Propagation do
 
   def run(propagators, constraint_graph, store) when is_list(propagators) do
     propagators
-    |> Enum.map(fn p -> {make_ref(), p} end)
-    |> Map.new()
-    |> run(constraint_graph, store)
-  end
-
-  def run(propagators, constraint_graph, store) when is_map(propagators) do
-    propagators
     |> run_impl(constraint_graph, store)
     |> finalize(propagators)
   end
@@ -45,10 +38,17 @@ defmodule CPSolver.Space.Propagation do
   The graph will be modified on every individual Propagator.filter/1, if the latter results in any domain changes.
   """
 
-  def propagate(propagators, graph, store) do
+  def propagate(propagators, graph, store) when is_map(propagators) do
     propagators
-    |> Task.async_stream(fn {p_id, p} ->
-      {p_id, Propagator.filter(p, store: store)}
+    |> Map.values()
+    |> reorder()
+    |> propagate(graph, store)
+  end
+
+  def propagate(propagators, graph, store) when is_list(propagators) do
+    propagators
+    |> Task.async_stream(fn p ->
+      {p.id, Propagator.filter(p, store: store)}
     end)
     |> Enum.reduce_while({Map.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = acc ->
       case res do
@@ -71,7 +71,7 @@ defmodule CPSolver.Space.Propagation do
   end
 
   ## Note: we do not reschedule a propagator that was the source of domain changes,
-  ## as we assume idempotence (that is, running propagator for the second time wouldn't change domains).
+  ## as we assume idempotence (that is, running a propagator for the second time wouldn't change domains).
   ## We will probably introduce the option to be used in propagator implementations
   ## to signify that the propagator is not idempotent.
   ##
@@ -90,7 +90,7 @@ defmodule CPSolver.Space.Propagation do
            propagators,
            Map.new(
              ConstraintGraph.get_propagators(g, var_id, domain_change),
-             fn p -> {p.id, fix_propagator_variables(p, var_id, domain_change)} end
+             fn p -> {p.id, p} end
            )
          )}
       end)
@@ -109,8 +109,8 @@ defmodule CPSolver.Space.Propagation do
   end
 
   defp propagators_from_graph(graph, propagators) do
-    Enum.reduce(propagators, Map.new(), fn {p_id, p}, acc ->
-      (ConstraintGraph.get_propagator(graph, p_id) && Map.put(acc, p_id, p)) || acc
+    Enum.flat_map(propagators, fn p ->
+      (p && ConstraintGraph.get_propagator(graph, p.id) && [p]) || []
     end)
   end
 
@@ -122,27 +122,13 @@ defmodule CPSolver.Space.Propagation do
     graph
   end
 
-  defp fix_propagator_variables(propagator, var_id, :fixed) do
-    propagator
-    |> Map.update(:args, %{}, fn args ->
-      Enum.map(
-        args,
-        fn
-          %{id: id} = arg when id == var_id ->
-            Map.put(arg, :fixed?, true)
-
-          other ->
-            other
-        end
-      )
-    end)
-  end
-
-  defp fix_propagator_variables(propagator, _var_id, _domain_change) do
-    propagator
-  end
-
   defp unschedule(scheduled_propagators, p_id) do
     Map.delete(scheduled_propagators, p_id)
+  end
+
+  ## TODO: possible reordering strategy of propagators
+  ## for the next pass
+  defp reorder(propagators) do
+    propagators
   end
 end

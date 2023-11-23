@@ -40,8 +40,12 @@ defmodule CPSolver.Propagator do
   end
 
   def new(mod, args, opts \\ []) do
+    id = Keyword.get_lazy(opts, :id, fn -> make_ref() end)
+    name = Keyword.get(opts, :name, id)
+
     %{
-      id: Keyword.get_lazy(opts, :id, fn -> make_ref() end),
+      id: id,
+      name: name,
       mod: mod,
       args:
         Enum.map(args, fn

@@ -32,7 +32,7 @@ defmodule CPSolver.Space do
     {:ok, _space} =
       create(%{
         variables: variables,
-        propagators: Map.new(propagators, fn %{id: id} = p -> {id, p} end),
+        propagators: propagators,
         constraint_graph: ConstraintGraph.create(propagators),
         opts: space_opts
       })

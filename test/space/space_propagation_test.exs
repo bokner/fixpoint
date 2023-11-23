@@ -5,6 +5,7 @@ defmodule CPSolverTest.SpacePropagation do
   alias CPSolver.Propagator.NotEqual
   alias CPSolver.ConstraintStore
   alias CPSolver.Space.Propagation
+  alias CPSolver.Propagator
   alias CPSolver.Propagator.ConstraintGraph
 
   test "Propagation on stable space" do
@@ -18,7 +19,7 @@ defmodule CPSolverTest.SpacePropagation do
     {:stable, constraint_graph, stable_propagators} = Propagation.run(propagators, graph, store)
     assert Graph.num_vertices(constraint_graph) == 3
 
-    assert map_size(stable_propagators) == 2
+    assert length(stable_propagators) == 2
 
     assert [y] ==
              Enum.filter(variables, fn var ->
@@ -82,9 +83,7 @@ defmodule CPSolverTest.SpacePropagation do
     [not_equal_y_z] = Map.values(scheduled_propagators)
     assert not_equal_y_z.mod == NotEqual
 
-    assert not_equal_y_z.args
-           |> Enum.take(2)
-           |> Enum.map(fn var -> var.name end) == ["y", "z"]
+    assert not_equal_y_z.name == "y != z"
   end
 
   defp stable_setup() do
@@ -120,14 +119,14 @@ defmodule CPSolverTest.SpacePropagation do
 
     propagators =
       Enum.map(
-        [{x_var, y_var}, {y_var, z_var}, {x_var, z_var}],
-        fn {v1, v2} -> NotEqual.new([v1, v2]) end
+        [{x_var, y_var, "x != y"}, {y_var, z_var, "y != z"}, {x_var, z_var, "x != z"}],
+        fn {v1, v2, name} -> Propagator.new(NotEqual, [v1, v2], name: name) end
       )
 
     graph = ConstraintGraph.create(propagators)
 
     %{
-      propagators: Map.new(propagators, fn p -> {p.id, p} end),
+      propagators: propagators,
       variables: bound_vars,
       constraint_graph: ConstraintGraph.remove_fixed(graph, bound_vars),
       store: store
