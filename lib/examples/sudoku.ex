@@ -112,21 +112,20 @@ defmodule CPSolver.Examples.Sudoku do
     |> model()
   end
 
-  def solve_and_print(puzzle, timeout \\ 5_000) do
-    Logger.configure(level: :info)
-
+  def solve_and_print(puzzle, opts \\ []) do
+    opts = Keyword.merge(default_opts(), opts)
     IO.puts("Sudoku:")
     IO.puts(print_grid(puzzle))
 
     {:ok, result} =
-      CPSolver.solve_sync(model(puzzle),
-        stop_on: {:max_solutions, 1},
-        timeout: timeout
+      CPSolver.solve_sync(
+        model(puzzle),
+        opts
       )
 
     case result.solutions do
       [] ->
-        "No solutions found within #{timeout} milliseconds"
+        "No solutions found within #{opts[:timeout]} milliseconds"
 
       [s | _rest] ->
         print_grid(s)
@@ -203,6 +202,10 @@ defmodule CPSolver.Examples.Sudoku do
 
   defp print_cell(cell) do
     to_string(cell)
+  end
+
+  defp default_opts() do
+    [timeout: 2_500, stop_on: {:max_solutions, 1}]
   end
 
   def sudoku_string_to_grid(sudoku_str) do
