@@ -59,11 +59,11 @@ defmodule CPSolver.Space.Propagation do
           {:cont, acc}
 
         {:changed, changes} ->
-          {updated_graph, scheduled_by_propagator} = schedule(p_id, changes, g)
+          {updated_graph, scheduled_by_propagator} = schedule_by_propagator(changes, g)
 
           {:cont,
            {
-             Map.merge(scheduled, scheduled_by_propagator),
+             reschedule(scheduled, p_id, scheduled_by_propagator),
              updated_graph
            }}
       end
@@ -75,7 +75,13 @@ defmodule CPSolver.Space.Propagation do
   ## We will probably introduce the option to be used in propagator implementations
   ## to signify that the propagator is not idempotent.
   ##
-  defp schedule(source_id, domain_changes, graph) do
+  defp reschedule(current_schedule, p_id, scheduled_by_propagator) do
+    current_schedule
+    |> Map.merge(scheduled_by_propagator)
+    |> unschedule(p_id)
+  end
+
+  defp schedule_by_propagator(domain_changes, graph) do
     {updated_graph, scheduled_propagators} =
       domain_changes
       |> Enum.reduce({graph, %{}}, fn {var_id, domain_change}, {g, propagators} ->
@@ -89,7 +95,7 @@ defmodule CPSolver.Space.Propagation do
          )}
       end)
 
-    {updated_graph, Map.delete(scheduled_propagators, source_id)}
+    {updated_graph, scheduled_propagators}
   end
 
   defp finalize(:fail, _propagators) do
@@ -134,5 +140,9 @@ defmodule CPSolver.Space.Propagation do
 
   defp fix_propagator_variables(propagator, _var_id, _domain_change) do
     propagator
+  end
+
+  defp unschedule(scheduled_propagators, p_id) do
+    Map.delete(scheduled_propagators, p_id)
   end
 end
