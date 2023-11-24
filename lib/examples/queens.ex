@@ -41,6 +41,8 @@ defmodule CPSolver.Examples.Queens do
   end
 
   def solve_and_print(nqueens, opts \\ [timeout: 1000]) do
+    Logger.configure(level: :info)
+
     timeout = Keyword.get(opts, :timeout)
 
     {:ok, result} =

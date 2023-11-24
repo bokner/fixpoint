@@ -113,6 +113,8 @@ defmodule CPSolver.Examples.Sudoku do
   end
 
   def solve_and_print(puzzle, opts \\ []) do
+    Logger.configure(level: :info)
+
     opts = Keyword.merge(default_opts(), opts)
     IO.puts("Sudoku:")
     IO.puts(print_grid(puzzle))
