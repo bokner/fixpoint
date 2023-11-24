@@ -40,9 +40,12 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     constraint_graph
     |> Graph.edges({:variable, variable_id})
     |> Enum.flat_map(fn edge ->
-      (domain_change in edge.label &&
-         Graph.vertex_labels(constraint_graph, edge.v2)) ||
+      if domain_change in edge.label do
+        {:propagator, p_id} = edge.v2
+        [p_id]
+      else
         []
+      end
     end)
   end
 
@@ -97,29 +100,34 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Map.get(variable, :propagate_on, Propagator.to_domain_events(:fixed))
   end
 
-  defp fix_propagator_variable(graph, {:propagator, p_id} = p_vertex, variable_id) do
+  ## TODO: decide if we want to do it, or find other way to update propagator vars.
+  defp fix_propagator_variable(graph, {:propagator, _p_id} = _p_vertex, _variable_id) do
     graph
-    |> get_propagator(p_id)
-    |> Map.update(:args, %{}, fn args ->
-      Enum.map(
-        args,
-        fn
-          %{id: id} = arg when id == variable_id ->
-            Map.put(arg, :fixed?, true)
-
-          other ->
-            other
-        end
-      )
-    end)
-    |> then(fn updated_propagator ->
-      graph
-      |> Graph.remove_vertex_labels(p_vertex)
-      |> Graph.label_vertex(p_vertex, updated_propagator)
-    end)
   end
 
-  defp fix_propagator_variable(graph, p_id, variable_id) when is_reference(p_id) do
-    fix_propagator_variable(graph, {:propagator, p_id}, variable_id)
-  end
+  # defp fix_propagator_variable(graph, {:propagator, p_id} = p_vertex, variable_id) do
+  #   graph
+  #   |> get_propagator(p_id)
+  #   |> Map.update(:args, %{}, fn args ->
+  #     Enum.map(
+  #       args,
+  #       fn
+  #         %{id: id} = arg when id == variable_id ->
+  #           Map.put(arg, :fixed?, true)
+
+  #         other ->
+  #           other
+  #       end
+  #     )
+  #   end)
+  #    |> then(fn updated_propagator ->
+  #      graph
+  #      |> Graph.remove_vertex_labels(p_vertex)
+  #      |> Graph.label_vertex(p_vertex, updated_propagator)
+  #   end)
+  # end
+
+  # defp fix_propagator_variable(graph, p_id, variable_id) when is_reference(p_id) do
+  #   fix_propagator_variable(graph, {:propagator, p_id}, variable_id)
+  # end
 end
