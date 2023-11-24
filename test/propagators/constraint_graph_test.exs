@@ -51,7 +51,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
                assert Graph.vertices(g) != []
                ConstraintGraph.remove_variable(g, v)
              end)
-             |> Graph.vertices() == []
+             |> Graph.edges() == []
     end
 
     defp build_graph(constraint_impl, n) do

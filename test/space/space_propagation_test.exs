@@ -68,7 +68,7 @@ defmodule CPSolverTest.SpacePropagation do
     y = 1..2
     z = 1..3
     %{propagators: propagators, constraint_graph: graph, store: store} = space_setup(x, y, z)
-    {scheduled_propagators, _reduced_graph} = Propagation.propagate(propagators, graph, store)
+    {scheduled_propagators, reduced_graph} = Propagation.propagate(propagators, graph, store)
 
     ## Propagators are not being rescheduled
     ## as a result of their own filtering (idempotency).
@@ -80,7 +80,8 @@ defmodule CPSolverTest.SpacePropagation do
     ## - NotEqual(y, z) changes z and/or y (if not called first) as a result of it's own filtering.
     ## So, at no point NotEqual(x, y) and NotEqual(x, z) are being rescheduled.
 
-    [not_equal_y_z] = Map.values(scheduled_propagators)
+    [not_equal_y_z_reference] = MapSet.to_list(scheduled_propagators)
+    not_equal_y_z = ConstraintGraph.get_propagator(reduced_graph, not_equal_y_z_reference)
     assert not_equal_y_z.mod == NotEqual
 
     assert not_equal_y_z.name == "y != z"

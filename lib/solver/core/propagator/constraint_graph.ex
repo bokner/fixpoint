@@ -22,12 +22,12 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       args
       |> propagator_mod.variables()
       |> Enum.reduce(acc, fn var, acc2 ->
-        Graph.add_vertex(acc2, {:propagator, propagator_id})
-        |> Graph.add_edge({:variable, var.id}, {:propagator, propagator_id},
+        Graph.add_vertex(acc2, propagator_vertex(propagator_id))
+        |> Graph.add_edge({:variable, var.id}, propagator_vertex(propagator_id),
           label: get_propagate_on(var)
         )
       end)
-      |> Graph.label_vertex({:propagator, propagator_id}, p)
+      |> Graph.label_vertex(propagator_vertex(propagator_id), p)
     end)
   end
 
@@ -51,14 +51,18 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def get_propagator(%Graph{} = graph, propagator_id) do
-    case Graph.vertex_labels(graph, {:propagator, propagator_id}) do
+    case Graph.vertex_labels(graph, propagator_vertex(propagator_id)) do
       [] -> nil
       [p] -> p
     end
   end
 
+  def propagator_vertex(propagator_id) do
+    {:propagator, propagator_id}
+  end
+
   def remove_propagator(graph, propagator_id) do
-    remove_vertex(graph, {:propagator, propagator_id})
+    remove_vertex(graph, propagator_vertex(propagator_id))
   end
 
   ## Remove variable and all propagators that are isolated points as a result of variable removal
@@ -70,9 +74,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     |> remove_vertex(var_vertex)
     |> then(fn g ->
       Enum.reduce(var_propagators, g, fn p_vertex, acc ->
-        # fix_propagator_variable(acc, p_vertex, variable_id)
-        (Graph.neighbors(acc, p_vertex) == [] && Graph.delete_vertex(acc, p_vertex)) ||
-          acc
+        fix_propagator_variable(acc, p_vertex, variable_id)
       end)
     end)
   end
@@ -93,5 +95,31 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   defp get_propagate_on(variable) do
     Map.get(variable, :propagate_on, Propagator.to_domain_events(:fixed))
+  end
+
+  defp fix_propagator_variable(graph, {:propagator, p_id} = p_vertex, variable_id) do
+    graph
+    |> get_propagator(p_id)
+    |> Map.update(:args, %{}, fn args ->
+      Enum.map(
+        args,
+        fn
+          %{id: id} = arg when id == variable_id ->
+            Map.put(arg, :fixed?, true)
+
+          other ->
+            other
+        end
+      )
+    end)
+    |> then(fn updated_propagator ->
+      graph
+      |> Graph.remove_vertex_labels(p_vertex)
+      |> Graph.label_vertex(p_vertex, updated_propagator)
+    end)
+  end
+
+  defp fix_propagator_variable(graph, p_id, variable_id) when is_reference(p_id) do
+    fix_propagator_variable(graph, {:propagator, p_id}, variable_id)
   end
 end
