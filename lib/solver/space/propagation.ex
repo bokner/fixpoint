@@ -38,17 +38,17 @@ defmodule CPSolver.Space.Propagation do
   The graph will be modified on every individual Propagator.filter/1, if the latter results in any domain changes.
   """
 
-  def propagate(propagators, graph, store) when is_map(propagators) do
+  def propagate(propagators, graph, store) when is_list(propagators) do
     propagators
-    |> Map.values()
-    |> reorder()
+    |> Map.new(fn p -> {p.id, p} end)
     |> propagate(graph, store)
   end
 
-  def propagate(propagators, graph, store) when is_list(propagators) do
+  def propagate(propagators, graph, store) when is_map(propagators) do
     propagators
-    |> Task.async_stream(fn p ->
-      {p.id, Propagator.filter(p, store: store)}
+    |> reorder()
+    |> Task.async_stream(fn {p_id, p} ->
+      {p_id, Propagator.filter(p, store: store)}
     end)
     |> Enum.reduce_while({Map.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = acc ->
       case res do
