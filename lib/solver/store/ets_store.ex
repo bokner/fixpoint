@@ -5,8 +5,17 @@ defmodule CPSolver.Store.ETS do
 
   @impl true
   def create(variables, opts \\ []) do
+    ## TODO: there is a race condition for the updates that fix a variable.
+    ## It goes like this:
+    ## Propagators P1 and P2 run concurrently,
+    ## and the filtering for each of them results
+    ## in fixing the same variable.
+    ## Filter calls for both P1 and P2 read the domain of the variable,
+    ## but the updates are not aware that the domain may have already been fixed.
+    ## The fix to follow; in the meantime, we reduce the probability of race condition
+    ## by making reads and writes sequential.
     table_id =
-      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+      :ets.new(__MODULE__, [:set, :public, read_concurrency: false, write_concurrency: false])
 
     space = Keyword.get(opts, :space)
 
