@@ -8,9 +8,10 @@ defmodule PropagationDebug do
 
   def setup() do
     Replbug.start(
-      ["CPSolver.Propagator.filter/_",
-        "CPSolver.Space.Propagation.reschedule/_"],
-        time: :timer.minutes(10), msgs: 100)
+      ["CPSolver.Propagator.filter/_", "CPSolver.Space.Propagation.reschedule/_"],
+      time: :timer.minutes(10),
+      msgs: 100
+    )
   end
 
   def run() do
@@ -22,12 +23,20 @@ defmodule PropagationDebug do
   end
 
   def analyze() do
-    traces = Replbug.stop
-    calls = Replbug.calls(traces) |> Map.values |> List.flatten |> Enum.sort_by(fn c-> c.call_timestamp end, Time)
+    traces = Replbug.stop()
+
+    calls =
+      Replbug.calls(traces)
+      |> Map.values()
+      |> List.flatten()
+      |> Enum.sort_by(fn c -> c.call_timestamp end, Time)
+
     Enum.map(calls, fn c ->
       {c.call_timestamp, c.function,
-        c.function == :reschedule && {Enum.at(c.args, 1), c.return |> Enum.map(fn {_p_id, p} -> p.name end)}
-        || {hd(c.args).name, c.return}} end)
+       (c.function == :reschedule &&
+          {Enum.at(c.args, 1), c.return |> Enum.map(fn {_p_id, p} -> p.name end)}) ||
+         {hd(c.args).name, c.return}}
+    end)
   end
 
   defp space_setup(x, y, z) do
@@ -39,7 +48,7 @@ defmodule PropagationDebug do
 
     propagators =
       Enum.map(
-        [{x_var, z_var, "x != z"}, {x_var, y_var, "x != y"}, {y_var, z_var, "y != z"} ],
+        [{x_var, z_var, "x != z"}, {x_var, y_var, "x != y"}, {y_var, z_var, "y != z"}],
         fn {v1, v2, name} -> Propagator.new(NotEqual, [v1, v2], name: name) end
       )
       |> Enum.reverse()
@@ -53,5 +62,4 @@ defmodule PropagationDebug do
       store: store
     }
   end
-
 end
