@@ -42,7 +42,7 @@ defmodule CPSolverTest.Propagator do
       ## Variables are not bound to a store
       refute Enum.any?(variables, fn v -> Map.get(v, :store) end)
       propagator = NotEqual.new(variables)
-      ## Not providing 'store' option results in exception
+      ## Not using  'store' option results in exception
       assert_raise FunctionClauseError, fn -> Propagator.filter(propagator) end
       ## Supplying store will make filtering work on unbound variables
       assert {:changed, %{y.id => :fixed}} == Propagator.filter(propagator, store: store)

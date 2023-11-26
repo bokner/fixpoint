@@ -64,6 +64,11 @@ defmodule CPSolver.Store.ETS do
   end
 
   @impl true
+  def on_fix(_store, _variable, _value) do
+    :ok
+  end
+
+  @impl true
   def on_no_change(_store, _variable) do
     :ok
   end
@@ -85,12 +90,16 @@ defmodule CPSolver.Store.ETS do
 
   defp update_variable_domain(
          table,
-         %{id: var_id, store: store} = variable,
+         %{id: var_id} = variable,
          domain,
          event
        ) do
     :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
-    event
+
+    case event do
+      :fixed -> {:fixed, Domain.min(domain)}
+      event -> event
+    end
   end
 
   @impl true
@@ -111,8 +120,6 @@ defmodule CPSolver.Store.ETS do
     |> elem(1)
   end
 
-  defp handle_request(kind, table, var_id, operation, args)
-
   defp handle_request(kind, table, var_id, operation, args) do
     variable = lookup(table, var_id)
     handle_request_impl(kind, table, variable, operation, args)
@@ -130,14 +137,12 @@ defmodule CPSolver.Store.ETS do
     case apply(Domain, operation, [domain | args]) do
       :fail ->
         update_variable_domain(table, variable, :fail, :fail)
-        :fail
 
       :no_change ->
         :no_change
 
       {domain_change, new_domain} ->
         update_variable_domain(table, variable, new_domain, domain_change)
-        domain_change
     end
   end
 end

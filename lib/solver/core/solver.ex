@@ -6,6 +6,7 @@ defmodule CPSolver do
   alias CPSolver.Space
   alias CPSolver.Constraint
   alias CPSolver.Solution
+  alias CPSolver.Propagator
 
   alias CPSolver.Shared
 
@@ -105,14 +106,11 @@ defmodule CPSolver do
 
   @impl true
   def init([%{constraints: constraints, variables: variables} = _model, solver_opts]) do
-    propagators =
-      Enum.reduce(constraints, [], fn constraint, acc ->
-        acc ++ Constraint.constraint_to_propagators(constraint)
-      end)
-
     stop_on = Keyword.get(solver_opts, :stop_on)
     ## Some data (stats, solutions, possibly more - TBD) has to be shared between spaces
     shared = Keyword.get(solver_opts, :shared)
+
+    {variables, propagators} = prepare(variables, constraints)
 
     {:ok,
      %{
@@ -193,5 +191,22 @@ defmodule CPSolver do
 
   defp condition_fun(opts) do
     Logger.error("Stop condition with #{inspect(opts)} is not implemented")
+  end
+
+  defp prepare(variables, constraints) do
+    indexed_variables =
+      variables
+      |> Enum.with_index(1)
+      |> Map.new(fn {v, idx} -> {v.id, Map.put(v, :index, idx)} end)
+
+    bound_propagators =
+      Enum.reduce(constraints, [], fn constraint, acc ->
+        acc ++
+          Enum.map(Constraint.constraint_to_propagators(constraint), fn p ->
+            Propagator.bind_to_variables(p, indexed_variables)
+          end)
+      end)
+
+    {Map.values(indexed_variables) |> Enum.sort_by(fn v -> v.index end), bound_propagators}
   end
 end

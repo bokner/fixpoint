@@ -48,6 +48,7 @@ defmodule CPSolver.ConstraintStore do
               variable :: Variable.t(),
               change :: Common.domain_change()
             ) :: any()
+  @callback on_fix(store :: any(), variable :: Variable.t(), value :: any()) :: any()
 
   @callback get_variables(store :: any()) :: [any()]
 
@@ -64,6 +65,9 @@ defmodule CPSolver.ConstraintStore do
         |> tap(fn
           :fail ->
             on_fail(store, variable)
+
+          {:fixed, value} ->
+            on_fix(store, variable, value)
 
           :no_change ->
             on_no_change(store, variable)
@@ -111,6 +115,10 @@ defmodule CPSolver.ConstraintStore do
      end), store}
   end
 
+  def domain(variable) do
+    domain(variable.store, variable)
+  end
+
   def domain(%{handle: handle, store_impl: store_impl} = _store, variable) do
     store_impl.domain(handle, variable)
   end
@@ -126,6 +134,14 @@ defmodule CPSolver.ConstraintStore do
         args \\ []
       ) do
     store_impl.update(handle, variable, operation, args)
+    |> then(fn
+      {:fixed, value} ->
+        # :fail
+        update_fixed(variable, value)
+
+      result ->
+        result
+    end)
   end
 
   def get_variables(%{handle: handle, store_impl: store_impl} = _store) do
@@ -146,6 +162,12 @@ defmodule CPSolver.ConstraintStore do
 
   def create_fixed_vars_store(variables) do
     :atomics.new(length(variables), signed: true)
+  end
+
+  ## Note: if index is not supplied, this operation is not thread-safe
+  def update_fixed(%{index: nil} = variable, fixed_value) do
+    domain = domain(variable)
+    (Domain.fixed?(domain) && Domain.min(domain) != fixed_value && :fail) || :fixed
   end
 
   def update_fixed(
