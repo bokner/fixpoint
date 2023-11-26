@@ -13,6 +13,8 @@ defmodule CPSolver.ConstraintStore do
   @type get_operation :: Common.domain_get_operation() | nil
   @type update_operation :: Common.domain_update_operation()
 
+  @unfixed Common.unfixed()
+
   def default_store() do
     CPSolver.Store.ETS
   end
@@ -54,6 +56,7 @@ defmodule CPSolver.ConstraintStore do
     quote do
       @behaviour CPSolver.ConstraintStore
       @domain_events CPSolver.Common.domain_events()
+      alias CPSolver.ConstraintStore
       require Logger
 
       def update(store, variable, operation, args) do
@@ -86,18 +89,25 @@ defmodule CPSolver.ConstraintStore do
     store_impl = Keyword.get(opts, :store_impl)
     {:ok, store_handle} = store_impl.create(variables, opts)
 
+    fixed_variables_store = create_fixed_vars_store(variables)
+
     store = %{
       space: space,
       handle: store_handle,
-      store_impl: store_impl
+      store_impl: store_impl,
+      fixed_variables: fixed_variables_store
     }
 
     {:ok,
-     Enum.map(variables, fn %{fixed?: fixed?, domain: domain} = var ->
+     variables
+     |> Enum.with_index(1)
+     |> Enum.map(fn {%{domain: domain} = var, index} = _indexed_var ->
        var
+       |> Map.put(:index, index)
        |> Map.put(:name, var.name)
        |> Map.put(:store, store)
-       |> Map.put(:fixed?, fixed? || Domain.fixed?(domain))
+       |> Map.put(:fixed?, Domain.fixed?(domain))
+       |> tap(fn v -> register_fixed(v) end)
      end), store}
   end
 
@@ -132,5 +142,31 @@ defmodule CPSolver.ConstraintStore do
 
   def variable_id(id) do
     id
+  end
+
+  def create_fixed_vars_store(variables) do
+    :atomics.new(length(variables), signed: true)
+  end
+
+  def update_fixed(
+        %{index: index, store: %{fixed_variables: fixed_vars}} = _variable,
+        fixed_value
+      ) do
+    case :atomics.exchange(fixed_vars, index, fixed_value) do
+      prev_value when prev_value == @unfixed -> :fixed
+      prev_value when prev_value != fixed_value -> :fail
+      _same -> :fixed
+    end
+  end
+
+  def register_fixed(
+        %{index: index, domain: domain, store: %{fixed_variables: fixed_vars}} = _variable
+      ) do
+    value = (Domain.fixed?(domain) && Domain.min(domain)) || @unfixed
+    :atomics.put(fixed_vars, index, value)
+  end
+
+  def fixed?(%{store: %{fixed_variables: fixed_vars}, index: index} = _var) do
+    :atomics.get(fixed_vars, index) != @unfixed
   end
 end
