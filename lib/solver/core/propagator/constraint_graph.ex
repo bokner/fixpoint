@@ -101,10 +101,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   ## TODO: decide if we want to do it, or find other way to update propagator vars.
-  #defp fix_propagator_variable(graph, {:propagator, p_id} = _p_vertex, _variable_id) do
-  #  graph
-  #end
-
   defp fix_propagator_variable(graph, {:propagator, p_id} = p_vertex, variable_id) do
     graph
     |> get_propagator(p_id)
@@ -120,10 +116,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         end
       )
     end)
-     |> then(fn updated_propagator ->
-       graph
-       |> Graph.remove_vertex_labels(p_vertex)
-       |> Graph.label_vertex(p_vertex, updated_propagator)
+    |> then(fn updated_propagator ->
+      graph
+      |> Graph.remove_vertex_labels(p_vertex)
+      |> Graph.label_vertex(p_vertex, updated_propagator)
     end)
   end
 

@@ -1,4 +1,4 @@
-defmodule CPSolver.Constraint.LessOrEqual do
+defmodule CPSolver.Constraint.Sum do
   use CPSolver.Constraint
   alias CPSolver.Propagator.Sum, as: SumPropagator
 
