@@ -1,8 +1,9 @@
 defmodule CPSolver.Variable do
-  defstruct [:id, :name, :domain, :store, :fixed?, :propagate_on]
+  defstruct [:id, :index, :name, :domain, :store, :fixed?, :propagate_on]
 
   @type t :: %__MODULE__{
           id: reference(),
+          index: integer(),
           name: String.t(),
           domain: Domain.t(),
           fixed?: boolean(),

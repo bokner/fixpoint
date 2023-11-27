@@ -13,6 +13,8 @@ defmodule CPSolver.ConstraintStore do
   @type get_operation :: Common.domain_get_operation() | nil
   @type update_operation :: Common.domain_update_operation()
 
+  @unfixed Common.unfixed()
+
   def default_store() do
     CPSolver.Store.ETS
   end
@@ -46,6 +48,7 @@ defmodule CPSolver.ConstraintStore do
               variable :: Variable.t(),
               change :: Common.domain_change()
             ) :: any()
+  @callback on_fix(store :: any(), variable :: Variable.t(), value :: any()) :: any()
 
   @callback get_variables(store :: any()) :: [any()]
 
@@ -54,6 +57,7 @@ defmodule CPSolver.ConstraintStore do
     quote do
       @behaviour CPSolver.ConstraintStore
       @domain_events CPSolver.Common.domain_events()
+      alias CPSolver.ConstraintStore
       require Logger
 
       def update(store, variable, operation, args) do
@@ -61,6 +65,9 @@ defmodule CPSolver.ConstraintStore do
         |> tap(fn
           :fail ->
             on_fail(store, variable)
+
+          {:fixed, value} ->
+            on_fix(store, variable, value)
 
           :no_change ->
             on_no_change(store, variable)
@@ -86,19 +93,30 @@ defmodule CPSolver.ConstraintStore do
     store_impl = Keyword.get(opts, :store_impl)
     {:ok, store_handle} = store_impl.create(variables, opts)
 
+    fixed_variables_store = create_fixed_vars_store(variables)
+
     store = %{
       space: space,
       handle: store_handle,
-      store_impl: store_impl
+      store_impl: store_impl,
+      fixed_variables: fixed_variables_store
     }
 
     {:ok,
-     Enum.map(variables, fn %{fixed?: fixed?, domain: domain} = var ->
+     variables
+     |> Enum.with_index(1)
+     |> Enum.map(fn {%{domain: domain} = var, index} = _indexed_var ->
        var
+       |> Map.put(:index, index)
        |> Map.put(:name, var.name)
        |> Map.put(:store, store)
-       |> Map.put(:fixed?, fixed? || Domain.fixed?(domain))
+       |> Map.put(:fixed?, Domain.fixed?(domain))
+       |> tap(fn v -> register_fixed(v) end)
      end), store}
+  end
+
+  def domain(variable) do
+    domain(variable.store, variable)
   end
 
   def domain(%{handle: handle, store_impl: store_impl} = _store, variable) do
@@ -116,6 +134,14 @@ defmodule CPSolver.ConstraintStore do
         args \\ []
       ) do
     store_impl.update(handle, variable, operation, args)
+    |> then(fn
+      {:fixed, value} ->
+        # :fail
+        update_fixed(variable, value)
+
+      result ->
+        result
+    end)
   end
 
   def get_variables(%{handle: handle, store_impl: store_impl} = _store) do
@@ -132,5 +158,37 @@ defmodule CPSolver.ConstraintStore do
 
   def variable_id(id) do
     id
+  end
+
+  def create_fixed_vars_store(variables) do
+    :atomics.new(length(variables), signed: true)
+  end
+
+  ## Note: if index is not supplied, this operation is not thread-safe
+  def update_fixed(%{index: nil} = variable, fixed_value) do
+    domain = domain(variable)
+    (Domain.fixed?(domain) && Domain.min(domain) != fixed_value && :fail) || :fixed
+  end
+
+  def update_fixed(
+        %{index: index, store: %{fixed_variables: fixed_vars}} = _variable,
+        fixed_value
+      ) do
+    case :atomics.exchange(fixed_vars, index, fixed_value) do
+      prev_value when prev_value == @unfixed -> :fixed
+      prev_value when prev_value != fixed_value -> :fail
+      _same -> :fixed
+    end
+  end
+
+  def register_fixed(
+        %{index: index, domain: domain, store: %{fixed_variables: fixed_vars}} = _variable
+      ) do
+    value = (Domain.fixed?(domain) && Domain.min(domain)) || @unfixed
+    :atomics.put(fixed_vars, index, value)
+  end
+
+  def fixed?(%{store: %{fixed_variables: fixed_vars}, index: index} = _var) do
+    :atomics.get(fixed_vars, index) != @unfixed
   end
 end

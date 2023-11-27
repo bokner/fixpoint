@@ -55,13 +55,16 @@ defmodule CPSolver.Store.ETS do
 
   @impl true
   def update_domain(store, variable, operation, args) do
-    handle_request(:update, store, variable, operation, args,
-      source: Map.get(variable, :propagator_id)
-    )
+    handle_request(:update, store, variable, operation, args)
   end
 
   @impl true
   def on_change(_store, _variable, _change) do
+    :ok
+  end
+
+  @impl true
+  def on_fix(_store, _variable, _value) do
     :ok
   end
 
@@ -77,13 +80,25 @@ defmodule CPSolver.Store.ETS do
 
   defp update_variable_domain(
          table,
-         %{id: var_id, store: store} = variable,
-         domain,
-         event,
-         _opts
+         variable,
+         _domain,
+         :fail
        ) do
-    unless store.space && event == :fail do
-      :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
+    :ets.insert(table, {variable.id, Map.put(variable, :domain, :fail)})
+    :fail
+  end
+
+  defp update_variable_domain(
+         table,
+         %{id: var_id} = variable,
+         domain,
+         event
+       ) do
+    :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
+
+    case event do
+      :fixed -> {:fixed, Domain.min(domain)}
+      event -> event
     end
   end
 
@@ -105,33 +120,29 @@ defmodule CPSolver.Store.ETS do
     |> elem(1)
   end
 
-  defp handle_request(kind, table, var_id, operation, args, opts \\ [])
-
-  defp handle_request(kind, table, var_id, operation, args, opts) do
+  defp handle_request(kind, table, var_id, operation, args) do
     variable = lookup(table, var_id)
-    handle_request_impl(kind, table, variable, operation, args, opts)
+    handle_request_impl(kind, table, variable, operation, args)
   end
 
-  def handle_request_impl(_kind, _table, %{domain: :fail} = _variable, _operation, _args, _opts) do
+  def handle_request_impl(_kind, _table, %{domain: :fail} = _variable, _operation, _args) do
     :fail
   end
 
-  def handle_request_impl(:get, _table, %{domain: domain} = _variable, operation, args, _opts) do
+  def handle_request_impl(:get, _table, %{domain: domain} = _variable, operation, args) do
     apply(Domain, operation, [domain | args])
   end
 
-  def handle_request_impl(:update, table, %{domain: domain} = variable, operation, args, opts) do
+  def handle_request_impl(:update, table, %{domain: domain} = variable, operation, args) do
     case apply(Domain, operation, [domain | args]) do
       :fail ->
-        update_variable_domain(table, variable, :fail, :fail, opts)
-        :fail
+        update_variable_domain(table, variable, :fail, :fail)
 
       :no_change ->
         :no_change
 
       {domain_change, new_domain} ->
-        update_variable_domain(table, variable, new_domain, domain_change, opts)
-        domain_change
+        update_variable_domain(table, variable, new_domain, domain_change)
     end
   end
 end

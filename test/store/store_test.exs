@@ -114,5 +114,56 @@ defmodule CPSolverTest.Store do
       :fixed = ConstraintStore.update(store, v2, :fix, [0])
       assert ConstraintStore.get(store, v2, :max) == 0
     end
+
+    test "registers fixed variables" do
+      v1_values = 1..10
+      v2_values = 0..0
+      v3_values = -5..5
+      v4_values = 1..1
+      values = [v1_values, v2_values, v3_values, v4_values]
+      variables = Enum.map(values, fn d -> Variable.new(d) end)
+
+      {:ok, [v1_var, v2_var, v3_var, v4_var], _store} = ConstraintStore.create_store(variables)
+
+      refute ConstraintStore.fixed?(v1_var) || ConstraintStore.fixed?(v3_var)
+      assert ConstraintStore.fixed?(v2_var) && ConstraintStore.fixed?(v4_var)
+    end
+
+    test "detects conflicts on fixing already fixed variables" do
+      v1_values = 1..10
+      v2_values = 0..5
+      values = [v1_values, v2_values]
+      variables = Enum.map(values, fn d -> Variable.new(d) end)
+
+      {:ok, [v1_var, v2_var], _store} = ConstraintStore.create_store(variables)
+
+      ## Fixing to different values concurrently
+      assert :fail ==
+               Task.async_stream(1..10, fn i -> ConstraintStore.update_fixed(v1_var, i) end)
+               |> Enum.reduce_while(
+                 :ok,
+                 fn
+                   {:ok, :fail}, _acc -> {:halt, :fail}
+                   {:ok, :fixed}, _acc -> {:cont, :ok}
+                 end
+               )
+
+      ## Fixing to the same value concurrently
+      assert :fixed ==
+               Task.async_stream(1..10, fn _i -> ConstraintStore.update_fixed(v2_var, 0) end)
+               |> Enum.reduce_while(
+                 :ok,
+                 fn
+                   {:ok, :fail}, _acc -> {:halt, :fail}
+                   {:ok, :fixed}, _acc -> {:cont, :fixed}
+                 end
+               )
+
+      assert ConstraintStore.fixed?(v2_var)
+      ## Fixing an already fixed variable to the same value
+      assert :fixed == ConstraintStore.update_fixed(v2_var, 0)
+      ## Fixing an already fixed variable to a different value
+      assert :fail == ConstraintStore.update_fixed(v2_var, 1)
+    end
   end
 end

@@ -66,7 +66,7 @@ defmodule CPSolver.Propagator do
 
     try do
       args
-      |> bind_variables(store)
+      |> bind_to_store(store)
       |> mod.filter()
     catch
       {:fail, var_id} ->
@@ -110,11 +110,26 @@ defmodule CPSolver.Propagator do
     (filter_changes && {:changed, filter_changes}) || :stable
   end
 
-  defp bind_variables(args, nil) do
+  def bind_to_variables(propagator, indexed_variables) do
+    bound_args =
+      propagator.args
+      |> Enum.map(fn
+        %Variable{id: id} = arg ->
+          var_idx = Map.get(indexed_variables, id).index
+          Map.put(arg, :index, var_idx)
+
+        const ->
+          const
+      end)
+
+    Map.put(propagator, :args, bound_args)
+  end
+
+  defp bind_to_store(args, nil) do
     args
   end
 
-  defp bind_variables(args, store) do
+  defp bind_to_store(args, store) do
     args
     |> Enum.map(fn
       %Variable{} = v ->
