@@ -6,7 +6,13 @@ Logger.configure(level: :info)
 nqueens = 3
 expected_sols = 0
 number_of_runs = 5000
-trace_pattern = ["CPSolver.Space.Propagation.propagate/_", "CPSolver.Space", "CPSolver.Propagator.filter/_"]
+
+trace_pattern = [
+  "CPSolver.Space.Propagation.propagate/_",
+  "CPSolver.Space",
+  "CPSolver.Propagator.filter/_"
+]
+
 solver_timeout = 100
 
 defmodule DebugQueens do
@@ -114,20 +120,26 @@ defmodule DebugQueens do
 
     filter_calls =
       Enum.filter(
-        all_calls |> Map.get({CPSolver.Propagator, :filter, 2}) |> Enum.sort_by(fn c -> c.call_timestamp end),
+        all_calls
+        |> Map.get({CPSolver.Propagator, :filter, 2})
+        |> Enum.sort_by(fn c -> c.call_timestamp end),
         fn %{args: [_p, opts]} = c ->
-          c.function == :filter
-            && Time.after?(c.call_timestamp, start_ts)
-            && Time.before?(c.return_timestamp, end_ts)
-            && caller_store == opts[:store]
+          c.function == :filter &&
+            Time.after?(c.call_timestamp, start_ts) &&
+            Time.before?(c.return_timestamp, end_ts) &&
+            caller_store == opts[:store]
         end
       )
+
     Logger.notice("Filtering: #{length(filter_calls)}")
     Enum.each(filter_calls, fn c -> explain(c, data) end)
   end
 
-  def explain_call(%{function: :filter, module: CPSolver.Propagator, args: [p, opts], return: res} = call, _data) do
-    Logger.notice("#{inspect propagator_info(p)} -> #{inspect res}")
+  def explain_call(
+        %{function: :filter, module: CPSolver.Propagator, args: [p, opts], return: res} = call,
+        _data
+      ) do
+    Logger.notice("#{inspect(propagator_info(p))} -> #{inspect(res)}")
   end
 
   def explain_call(call, _) do
@@ -136,7 +148,7 @@ defmodule DebugQueens do
 
   defp header(call) do
     Logger.info(
-      "#{inspect(call.call_timestamp)}(#{inspect call.caller_pid}): #{call.module}.#{call.function}/#{length(call.args)}"
+      "#{inspect(call.call_timestamp)}(#{inspect(call.caller_pid)}): #{call.module}.#{call.function}/#{length(call.args)}"
     )
   end
 
