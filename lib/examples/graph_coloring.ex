@@ -6,7 +6,7 @@ defmodule CPSolver.Examples.GraphColoring do
 
   def solve(instance, solver_opts) when is_binary(instance) do
     instance
-    |> parse_instance()
+    |> model()
     |> solve(solver_opts)
   end
 
@@ -16,7 +16,12 @@ defmodule CPSolver.Examples.GraphColoring do
       |> tap(fn _ -> Process.sleep(100) end)
   end
 
-  def model(data) do
+  def model(data) when is_binary(data) do
+    parse_instance(data)
+    |> model()
+  end
+
+  def model(data) when is_map(data) do
     color_vars = Enum.map(1..data.vertices, fn _idx -> IntVariable.new(1..data.max_color) end)
 
     edge_color_constraints =

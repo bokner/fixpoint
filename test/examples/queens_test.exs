@@ -2,7 +2,6 @@ defmodule CPSolverTest.Examples.Queens do
   use ExUnit.Case, async: false
 
   alias CPSolver.Examples.Queens
-  alias CPSolver.Examples.Utils, as: ExamplesUtils
 
   require Logger
 
@@ -34,17 +33,11 @@ defmodule CPSolverTest.Examples.Queens do
   defp test_queens(n, expected_solutions, opts \\ []) do
     opts =
       Keyword.merge([timeout: 100, trials: 10], opts)
-      |> Keyword.put(:solution_handler, ExamplesUtils.notify_client_handler())
 
     Enum.each(1..opts[:trials], fn i ->
-      ExamplesUtils.flush_solutions()
-      {:ok, solver} = Queens.solve(n, opts)
-
-      _num_solutions =
-        ExamplesUtils.wait_for_solutions(expected_solutions, opts[:timeout], &assert_solution/1)
-
-      Process.sleep(10)
-      solution_count = CPSolver.statistics(solver).solution_count
+      {:ok, result} = CPSolver.solve_sync(Queens.model(n), timeout: opts[:timeout])
+      Enum.each(result.solutions, &assert_solution/1)
+      solution_count = result.statistics.solution_count
 
       assert solution_count == expected_solutions,
              "Failed on trial #{i} with #{inspect(solution_count)} out of #{expected_solutions} solution(s)"
