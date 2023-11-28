@@ -3,7 +3,7 @@ defmodule CPSolver.Propagator.Sum do
 
   @moduledoc """
   The propagator for Sum constraint.
-  Sum(x, y) constraints y to be a sum of variables x.
+  Sum(x, y) constrains y to be a sum of variables x.
   """
   @spec new([Variable.t()], Variable.t(), integer()) :: Propagator.t()
   def new(x, y, offset \\ 0) do
@@ -24,11 +24,14 @@ defmodule CPSolver.Propagator.Sum do
   end
 
   def filter([x, y, offset]) do
-    filter(x, y, offset)
+    filter([minus(y) | x], offset)
   end
 
-  def filter(x, y, offset \\ 0) do
-    :todo
+  def filter(all_vars, offset \\ 0) do
+    {sum_min, sum_max} = Enum.reduce(all_vars, {0, 0}, fn v, {s_min, s_max} ->
+      d = Variable.domain(v)
+      {s_min + Domain.min(d), s_max + Domain.max(d)}
+    end)
     :stable
   end
 end

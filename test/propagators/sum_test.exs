@@ -17,10 +17,10 @@ defmodule CPSolverTest.Propagator.Sum do
 
       {:ok, [y_var | x_vars] = bound_vars, _store} = ConstraintStore.create_store([y | x])
 
-      Sum.filter([x_vars, y])
+      :stable = Sum.filter([x_vars, y])
 
-      assert 1 = Variable.min(y_var)
-      assert 15 = Variable.max(y_var)
+      assert 1 == Variable.min(y_var)
+      assert 15 == Variable.max(y_var)
     end
   end
 end

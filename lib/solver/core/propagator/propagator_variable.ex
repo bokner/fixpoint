@@ -73,15 +73,15 @@ defmodule CPSolver.Propagator.Variable do
     Process.delete(@variable_op_results_key)
   end
 
-  def plus(:fail, _) do
+  def plus(:fail, offset) when is_integer(offset) do
     :fail
   end
 
-  def plus(_, :fail) do
+  def plus(offset, :fail) when is_integer(offset) do
     :fail
   end
 
-  def plus(a, b) do
+  def plus(a, b) when is_integer(a) and is_integer(b) do
     a + b
   end
 end
