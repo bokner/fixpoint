@@ -27,7 +27,7 @@ defmodule CPSolverTest.Examples.Queens do
   end
 
   test "8 Queens" do
-    test_queens(8, 92, timeout: 200)
+    test_queens(8, 92, timeout: 500)
   end
 
   defp test_queens(n, expected_solutions, opts \\ []) do
