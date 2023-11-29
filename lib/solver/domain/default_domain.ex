@@ -15,6 +15,18 @@ defmodule CPSolver.DefaultDomain do
       Enum.reduce(domain, :gb_sets.new(), fn v, acc -> :gb_sets.add_element(v, acc) end)
   end
 
+  def map(domain, mapper_fun) when is_function(mapper_fun) do
+    :gb_sets.fold(
+      fn v, acc -> :gb_sets.add_element(mapper_fun.(v), acc) end,
+      :gb_sets.new(),
+      domain
+    )
+  end
+
+  def to_list(domain) do
+    :gb_sets.to_list(domain)
+  end
+
   @spec size(:gb_sets.set(number())) :: non_neg_integer
   def size(domain) do
     :gb_sets.size(domain)
