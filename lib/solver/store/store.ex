@@ -160,6 +160,20 @@ defmodule CPSolver.ConstraintStore do
     id
   end
 
+  ## There is a possible race condition for the updates that fix a variable.
+  ## It goes like this:
+  ## Propagators P1 and P2 run concurrently,
+  ## and the filtering for each of them results
+  ## in fixing the same variable.
+  ## Filter calls for both P1 and P2 read the domain of the variable,
+  ## but the updates are unaware that the domain may have already been fixed by
+  ## another propagator.
+  ##
+  ## The fix: use :atomics to enforce sequential operations when updating variables to
+  ## :fixed state.
+  ## In the scenario above, the code checks if the variable has already been fixed
+  ## by looking up variable index in :atomics list.
+
   def create_fixed_vars_store(variables) do
     :atomics.new(length(variables), signed: true)
   end

@@ -100,7 +100,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Map.get(variable, :propagate_on, Propagator.to_domain_events(:fixed))
   end
 
-  ## TODO: decide if we want to do it, or find other way to update propagator vars.
   defp fix_propagator_variable(graph, {:propagator, p_id} = p_vertex, variable_id) do
     graph
     |> get_propagator(p_id)

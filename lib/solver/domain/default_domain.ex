@@ -15,6 +15,18 @@ defmodule CPSolver.DefaultDomain do
       Enum.reduce(domain, :gb_sets.new(), fn v, acc -> :gb_sets.add_element(v, acc) end)
   end
 
+  def map(domain, mapper_fun) when is_function(mapper_fun) do
+    :gb_sets.fold(
+      fn v, acc -> :gb_sets.add_element(mapper_fun.(v), acc) end,
+      :gb_sets.new(),
+      domain
+    )
+  end
+
+  def to_list(domain) do
+    :gb_sets.to_list(domain)
+  end
+
   @spec size(:gb_sets.set(number())) :: non_neg_integer
   def size(domain) do
     :gb_sets.size(domain)
@@ -86,8 +98,15 @@ defmodule CPSolver.DefaultDomain do
             :no_change
 
           old_size when old_size > new_size ->
-            {(new_size == 1 && :fixed) || change_kind, new_domain}
+            {(new_size == 1 && :fixed) || maybe_bound_change(change_kind, new_domain, domain),
+             new_domain}
         end
     end
+  end
+
+  defp maybe_bound_change(change_kind, new_domain, domain) do
+    (min(new_domain) > min(domain) && :min_change) ||
+      (max(new_domain) > max(domain) && :max_change) ||
+      change_kind
   end
 end
