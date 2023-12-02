@@ -11,6 +11,7 @@ defmodule CPSolver.Variable do
         }
 
   alias CPSolver.Variable
+  alias CPSolver.Variable.View
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.ConstraintStore
 
@@ -87,6 +88,10 @@ defmodule CPSolver.Variable do
     store_op(:fix, variable, value)
   end
 
+  defp store_op(op, %View{variable: variable}, value) do
+    store_op(op, variable, value)
+  end
+
   defp store_op(op, %{store: store} = variable, value)
        when op in [:remove, :removeAbove, :removeBelow, :fix] do
     ConstraintStore.update(store, variable, op, [value])
@@ -95,6 +100,10 @@ defmodule CPSolver.Variable do
   defp store_op(op, %{store: store} = variable, value)
        when op in [:contains?] do
     ConstraintStore.get(store, variable, op, [value])
+  end
+
+  defp store_op(op, %View{variable: variable}) do
+    store_op(op, variable)
   end
 
   defp store_op(op, %{store: store} = variable)

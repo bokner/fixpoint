@@ -3,6 +3,9 @@ defprotocol CPSolver.Variable.Interface do
   alias CPSolver.Variable.View
   alias CPSolver.Common
 
+  @spec id(Variable.t() | View.t()) :: reference()
+  def id(variable)
+
   @spec domain(Variable.t() | View.t()) :: any()
   def domain(variable)
 
