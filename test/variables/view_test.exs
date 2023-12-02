@@ -74,9 +74,10 @@ defmodule CPSolverTest.Variable.View do
       assert -4 == View.min(view1)
 
       ## Fix
-      assert :fixed = View.fix(view2, -1)
+      assert :fixed == View.fix(view2, -1)
       assert View.fixed?(view2) && Variable.fixed?(var2)
       assert View.min(view2) == -1 && Variable.min(var2) == 1
+      assert :fail == View.fix(view3, 1)
     end
   end
 

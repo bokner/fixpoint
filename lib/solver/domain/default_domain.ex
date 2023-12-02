@@ -98,6 +98,7 @@ defmodule CPSolver.DefaultDomain do
             :no_change
 
           old_size when old_size > new_size ->
+            ## TODO: track min_change and max_change here
             {(new_size == 1 && :fixed) || change_kind, new_domain}
         end
     end
