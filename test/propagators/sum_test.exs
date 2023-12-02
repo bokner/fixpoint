@@ -6,8 +6,9 @@ defmodule CPSolverTest.Propagator.Sum do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Propagator
     alias CPSolver.Propagator.Sum
+    import CPSolver.Variable.Interface
 
-    test "Test 1" do
+    test "The domain bounds of 'sum' variable are reduced to the sum of bounds of the summands" do
       y = Variable.new(-100..100, name: "y")
 
       x =
@@ -15,12 +16,49 @@ defmodule CPSolverTest.Propagator.Sum do
           Variable.new(d, name: name)
         end)
 
-      {:ok, [y_var | x_vars] = bound_vars, _store} = ConstraintStore.create_store([y | x])
+      {:ok, [y_var | x_vars] = _bound_vars, store} = ConstraintStore.create_store([y | x])
 
-      :stable = Sum.filter([x_vars, y])
+      # assert :stable ==
+      Propagator.filter(Sum.new(y_var, x_vars), store: store)
+      |> tap(fn res -> IO.inspect(res) end)
 
-      assert 1 == Variable.min(y_var)
-      assert 15 == Variable.max(y_var)
+      assert 1 == min(y_var)
+      assert 15 == max(y_var)
+    end
+
+    test "Test 2" do
+      y = Variable.new(0..100, name: "y")
+
+      x =
+        Enum.map([{-5..5, "x1"}, {[1, 2], "x2"}, {[0, 1], "x3"}], fn {d, name} ->
+          Variable.new(d, name: name)
+        end)
+
+      {:ok, [y_var | x_vars] = bound_vars, store} = ConstraintStore.create_store([y | x])
+
+      [x1_var, x2_var, x3_var] = x_vars
+
+      # Enum.each(bound_vars, fn v -> IO.inspect("#{v.name} => #{inspect v.id}, #{min(v)}..#{max(v)}") end)
+      # assert :stable ==
+      sum_propagator = Sum.new(y_var, x_vars)
+      IO.inspect(sum_propagator.args)
+
+      Propagator.filter(sum_propagator, store: store)
+      |> tap(fn res -> IO.inspect(res) end)
+
+      Propagator.filter(sum_propagator, store: store)
+      |> tap(fn res -> IO.inspect(res) end)
+
+      Propagator.filter(sum_propagator, store: store)
+      |> tap(fn res -> IO.inspect(res) end)
+
+      Enum.each(bound_vars, fn v ->
+        IO.inspect("#{v.__struct__}: #{v.name} => #{inspect(v.id)}, #{min(v)}..#{max(v)}")
+      end)
+
+      assert -3 == min(x1_var)
+      assert 0 == min(y_var)
+      assert 8 == max(y_var)
     end
   end
 end

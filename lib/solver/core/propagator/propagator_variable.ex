@@ -63,7 +63,11 @@ defmodule CPSolver.Propagator.Variable do
 
   defp save_op(var, domain_change) when domain_change in @domain_events do
     current_changes = ((changes = get_variable_ops()) && changes) || Map.new()
-    Process.put(@variable_op_results_key, Map.put(current_changes, var.id, domain_change))
+
+    Process.put(
+      @variable_op_results_key,
+      Map.put(current_changes, Interface.id(var), domain_change)
+    )
   end
 
   def get_variable_ops() do
