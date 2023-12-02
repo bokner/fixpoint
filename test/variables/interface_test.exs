@@ -21,24 +21,29 @@ defmodule CPSolverTest.Variable.Interface do
       [view1, view2] = Enum.map(bound_vars, fn var -> minus(var) end)
 
       ## Domain
+      ##
       assert Interface.domain(var1) |> Domain.to_list() == Enum.to_list(v1_values)
 
       assert Interface.domain(view1) |> Domain.to_list() ==
                Enum.map(v1_values, fn x -> -x end) |> Enum.sort()
 
       ## Size
+      ##
       assert Interface.size(var1) == 10
       assert Interface.size(view1) == 10
 
       ## Min
+      ##
       assert Interface.min(var1) == 1
       assert Interface.min(view1) == -10
 
       ## Max
+      ##
       assert Interface.max(var1) == 10
       assert Interface.max(view1) == -1
 
       ## Contains?
+      ##
       assert Interface.contains?(var1, 5)
       refute Interface.contains?(var1, -5)
       assert Interface.contains?(view1, -5)
@@ -46,17 +51,14 @@ defmodule CPSolverTest.Variable.Interface do
 
       ## Remove
       ##
-      ### NOTE:
-      ### The changes below should be detected as "bounds", and not as "domain",
-      ### but there is a bug in Domain that needs to be fixed.
-      ###
-      assert :domain_change == Interface.remove(var1, 1)
+      assert :min_change == Interface.remove(var1, 1)
       assert :no_change == Interface.remove(var1, -1)
 
-      assert :domain_change == Interface.remove(view2, -1)
+      assert :min_change == Interface.remove(view2, -1)
       assert :no_change == Interface.remove(view2, 1)
 
       ## Remove above/below
+      ##
       assert :max_change == Interface.removeAbove(var1, 5)
       assert :no_change == Interface.removeBelow(var1, -5)
 
@@ -64,6 +66,7 @@ defmodule CPSolverTest.Variable.Interface do
       assert :no_change == Interface.removeAbove(view2, 5)
 
       ## Fix and Fixed?
+      ##
       assert Interface.domain(var1) |> Domain.to_list() == [2, 3, 4, 5]
       assert :fixed == Interface.fix(var1, 2)
       assert Interface.fixed?(var1)
