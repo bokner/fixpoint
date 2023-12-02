@@ -83,7 +83,12 @@ defmodule CPSolverTest.Store do
       [v1, v2, v3] = bound_vars
       # remove
       refute Enum.any?(bound_vars, fn var ->
-               assert ConstraintStore.update(store, var, :remove, [1]) in [:domain_change, :fixed]
+               assert ConstraintStore.update(store, var, :remove, [1]) in [
+                        :domain_change,
+                        :min_change,
+                        :fixed
+                      ]
+
                ConstraintStore.get(store, var, :contains?, [1])
              end)
 
