@@ -14,6 +14,7 @@ defmodule CPSolver.Propagator do
     quote do
       alias CPSolver.Propagator
       import CPSolver.Propagator.Variable
+
       @behaviour Propagator
 
       def new(args) do

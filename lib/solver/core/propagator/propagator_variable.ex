@@ -8,14 +8,14 @@ defmodule CPSolver.Propagator.Variable do
 
   @variable_op_results_key :variable_op_results
 
-  defdelegate domain(var), to: Variable
-  defdelegate size(var), to: Variable
-  defdelegate min(var), to: Variable
-  defdelegate max(var), to: Variable
-  defdelegate contains?(var, val), to: Variable
+  defdelegate domain(var), to: Interface
+  defdelegate size(var), to: Interface
+  defdelegate min(var), to: Interface
+  defdelegate max(var), to: Interface
+  defdelegate contains?(var, val), to: Interface
 
   def fixed?(var) do
-    Map.get(var, :fixed?) || Variable.fixed?(var)
+    Map.get(var, :fixed?) || Interface.fixed?(var)
   end
 
   def remove(var, val) do

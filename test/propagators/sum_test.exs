@@ -18,9 +18,7 @@ defmodule CPSolverTest.Propagator.Sum do
 
       {:ok, [y_var | x_vars] = _bound_vars, store} = ConstraintStore.create_store([y | x])
 
-      # assert :stable ==
       Propagator.filter(Sum.new(y_var, x_vars), store: store)
-      |> tap(fn res -> IO.inspect(res) end)
 
       assert 1 == min(y_var)
       assert 15 == max(y_var)
@@ -34,31 +32,39 @@ defmodule CPSolverTest.Propagator.Sum do
           Variable.new(d, name: name)
         end)
 
-      {:ok, [y_var | x_vars] = bound_vars, store} = ConstraintStore.create_store([y | x])
+      {:ok, [y_var | x_vars] = _bound_vars, store} = ConstraintStore.create_store([y | x])
 
-      [x1_var, x2_var, x3_var] = x_vars
+      [x1_var, _x2_var, _x3_var] = x_vars
 
-      # Enum.each(bound_vars, fn v -> IO.inspect("#{v.name} => #{inspect v.id}, #{min(v)}..#{max(v)}") end)
-      # assert :stable ==
       sum_propagator = Sum.new(y_var, x_vars)
-      IO.inspect(sum_propagator.args)
 
       Propagator.filter(sum_propagator, store: store)
-      |> tap(fn res -> IO.inspect(res) end)
-
-      Propagator.filter(sum_propagator, store: store)
-      |> tap(fn res -> IO.inspect(res) end)
-
-      Propagator.filter(sum_propagator, store: store)
-      |> tap(fn res -> IO.inspect(res) end)
-
-      Enum.each(bound_vars, fn v ->
-        IO.inspect("#{v.__struct__}: #{v.name} => #{inspect(v.id)}, #{min(v)}..#{max(v)}")
-      end)
 
       assert -3 == min(x1_var)
       assert 0 == min(y_var)
       assert 8 == max(y_var)
+    end
+
+    test "fixed 'y' variable" do
+      y = Variable.new([5], name: "y")
+
+      x =
+        Enum.map([{1..5, "x1"}, {[1], "x2"}, {[0, 1], "x3"}], fn {d, name} ->
+          Variable.new(d, name: name)
+        end)
+
+      {:ok, [y_var | x_vars] = _bound_vars, store} = ConstraintStore.create_store([y | x])
+
+      [x1_var, _x2_var, x3_var] = x_vars
+
+      sum_propagator = Sum.new(y_var, x_vars)
+
+      Propagator.filter(sum_propagator, store: store)
+
+      assert 4 == max(x1_var)
+      assert 3 == min(x1_var)
+      assert 1 == max(x3_var)
+      assert 0 == min(x3_var)
     end
   end
 end

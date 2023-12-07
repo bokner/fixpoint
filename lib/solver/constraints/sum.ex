@@ -2,8 +2,9 @@ defmodule CPSolver.Constraint.Sum do
   use CPSolver.Constraint
   alias CPSolver.Propagator.Sum, as: SumPropagator
 
-  def new(x, y, offset \\ 0) do
-    new([x, y, offset])
+  @spec new(Variable.variable_or_view(), Variable.variable_or_view()) :: Propagator.t()
+  def new(x, y) do
+    new([x, y])
   end
 
   @impl true
