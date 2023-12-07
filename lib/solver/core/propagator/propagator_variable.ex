@@ -8,14 +8,14 @@ defmodule CPSolver.Propagator.Variable do
 
   @variable_op_results_key :variable_op_results
 
-  defdelegate domain(var), to: Variable
-  defdelegate size(var), to: Variable
-  defdelegate min(var), to: Variable
-  defdelegate max(var), to: Variable
-  defdelegate contains?(var, val), to: Variable
+  defdelegate domain(var), to: Interface
+  defdelegate size(var), to: Interface
+  defdelegate min(var), to: Interface
+  defdelegate max(var), to: Interface
+  defdelegate contains?(var, val), to: Interface
 
   def fixed?(var) do
-    Map.get(var, :fixed?) || Variable.fixed?(var)
+    Map.get(var, :fixed?) || Interface.fixed?(var)
   end
 
   def remove(var, val) do
@@ -63,7 +63,11 @@ defmodule CPSolver.Propagator.Variable do
 
   defp save_op(var, domain_change) when domain_change in @domain_events do
     current_changes = ((changes = get_variable_ops()) && changes) || Map.new()
-    Process.put(@variable_op_results_key, Map.put(current_changes, var.id, domain_change))
+
+    Process.put(
+      @variable_op_results_key,
+      Map.put(current_changes, Interface.id(var), domain_change)
+    )
   end
 
   def get_variable_ops() do
@@ -74,15 +78,15 @@ defmodule CPSolver.Propagator.Variable do
     Process.delete(@variable_op_results_key)
   end
 
-  def plus(:fail, _) do
+  def plus(:fail, offset) when is_integer(offset) do
     :fail
   end
 
-  def plus(_, :fail) do
+  def plus(offset, :fail) when is_integer(offset) do
     :fail
   end
 
-  def plus(a, b) do
+  def plus(a, b) when is_integer(a) and is_integer(b) do
     a + b
   end
 end

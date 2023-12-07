@@ -6,6 +6,9 @@ defprotocol CPSolver.Variable.Interface do
   @spec id(Variable.t() | View.t()) :: reference()
   def id(variable)
 
+  @spec bind(Variable.t() | View.t(), any()) :: Variable.t() | View.t()
+  def bind(variable, store)
+
   @spec domain(Variable.t() | View.t()) :: any()
   def domain(variable)
 

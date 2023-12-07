@@ -5,14 +5,16 @@ defmodule CPSolver.Propagator do
   @callback filter(args :: list()) :: map() | :stable | :fail | propagator_event()
   @callback variables(args :: list()) :: list()
 
-  alias CPSolver.Variable
+  alias CPSolver.{Variable, View}
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.DefaultDomain, as: Domain
+  alias CPSolver.Variable.Interface
 
   defmacro __using__(_) do
     quote do
       alias CPSolver.Propagator
       import CPSolver.Propagator.Variable
+
       @behaviour Propagator
 
       def new(args) do
@@ -132,8 +134,8 @@ defmodule CPSolver.Propagator do
   defp bind_to_store(args, store) do
     args
     |> Enum.map(fn
-      %Variable{} = v ->
-        Map.put(v, :store, store)
+      v when is_struct(v, Variable) or is_struct(v, View) ->
+        Interface.bind(v, store)
 
       const ->
         const

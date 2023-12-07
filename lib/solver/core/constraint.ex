@@ -9,6 +9,7 @@ defmodule CPSolver.Constraint do
     quote do
       @behaviour CPSolver.Constraint
       alias CPSolver.Constraint
+      alias CPSolver.Common
 
       def new(args) do
         Constraint.new(__MODULE__, args)

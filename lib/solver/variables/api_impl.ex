@@ -5,6 +5,7 @@ alias CPSolver.Variable.View
 
 defimpl Interface, for: Variable do
   def id(var), do: var.id
+  def bind(var, store), do: Map.put(var, :store, store)
   def domain(var), do: Variable.domain(var)
   def size(var), do: Variable.size(var)
   def min(var), do: Variable.min(var)
@@ -19,6 +20,13 @@ end
 
 defimpl Interface, for: View do
   def id(view), do: view.variable.id
+
+  def bind(%{variable: variable} = view, store) do
+    variable
+    |> Map.put(:store, store)
+    |> then(fn bound_var -> Map.put(view, :variable, bound_var) end)
+  end
+
   def domain(view), do: View.domain(view)
   def size(view), do: View.size(view)
   def min(view), do: View.min(view)
