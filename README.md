@@ -19,6 +19,10 @@ WIP. Not suitable for use in production. Significant API changes and core implem
 - `not_equal`
 - `less_or_equal`
 - `all_different` (decomposition to `not_equal`)
+- `sum`
+
+### Features
+- views (linear combinations of variables in constraints)  
 
 
 ### Examples
