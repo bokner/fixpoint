@@ -99,6 +99,16 @@ defmodule CPSolver.Variable.View.Factory do
   alias CPSolver.Variable
 
   def minus(%Variable{} = var) do
-    new(var, -1, 0)
+    linear(var, -1, 0)
+  end
+
+  def mul(%Variable{} = var) do
+    linear(var, 2, 0)
+  end
+
+  def linear(%Variable{} = var, coefficient, offset) when is_integer(coefficient) and
+      is_integer(offset) and
+      coefficient != 0 do
+    new(var, coefficient, offset)
   end
 end
