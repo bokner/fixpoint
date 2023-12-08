@@ -117,16 +117,24 @@ defmodule CPSolver.Propagator do
   def bind_to_variables(propagator, indexed_variables) do
     bound_args =
       propagator.args
-      |> Enum.map(fn
-        %Variable{id: id} = arg ->
-          var_idx = Map.get(indexed_variables, id).index
-          Map.put(arg, :index, var_idx)
-
-        const ->
-          const
-      end)
+      |> List.flatten()
+      |> Enum.map(fn arg -> bind_to_variable(arg, indexed_variables) end)
 
     Map.put(propagator, :args, bound_args)
+  end
+
+  defp bind_to_variable(%Variable{id: id} = var, indexed_variables) do
+        var_idx = Map.get(indexed_variables, id).index
+        Map.put(var, :index, var_idx)
+  end
+
+  defp bind_to_variable(%View{variable: variable} = view, indexed_variables) do
+    bound_var = bind_to_variable(variable, indexed_variables)
+    Map.put(view, :variable, bound_var)
+  end
+
+  defp bind_to_variable(const, _indexed_variables) do
+      const
   end
 
   defp bind_to_store(args, nil) do

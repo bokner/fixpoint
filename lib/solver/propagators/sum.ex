@@ -15,15 +15,11 @@ defmodule CPSolver.Propagator.Sum do
   def variables([y | x]) do
     [
       set_propagate_on(y, :domain_change)
-      | Enum.map(hd(x), fn x_el -> set_propagate_on(x_el, :bound_change) end)
+      | Enum.map(x, fn x_el -> set_propagate_on(x_el, :bound_change) end)
     ]
   end
 
   @impl true
-  def filter([y, x]) do
-    filter([y | x])
-  end
-
   def filter(all_vars) do
     {sum_min, sum_max} = sum_min_max(all_vars)
     filter_impl(all_vars, sum_min, sum_max)

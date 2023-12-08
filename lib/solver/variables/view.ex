@@ -17,9 +17,11 @@ defmodule CPSolver.Variable.View do
   @spec new(Variable.t(), neg_integer() | pos_integer(), integer()) :: View.t()
   def new(variable, a, b) do
     mapper_fun = fn
+      ## Given value from variable domain, returns mapped value from view domain
+      value when is_integer(value) -> a * value + b
       ## Given value from view domain, returns mapped value from variable domain,
       ## or nil, if no mapping exists.
-      value when is_integer(value) ->
+      {value, :reverse} when is_integer(value) ->
         (rem(value - b, a) == 0 && div(value - b, a)) || nil
 
       ## (Used by removeAbove and removeBelow operations)
@@ -27,13 +29,14 @@ defmodule CPSolver.Variable.View do
       ## implied by mapping function.
       ## The caller will change the operation to an opposite, if 2nd element of
       ## the return is 'true'.
-      {value, operation} when operation in [:min, :max, :above, :below] ->
+      {value, operation} when operation in [:above, :below] ->
         {div(value - b, a), a < 0}
 
       ## Used by min and max to decide if the operation has to be flipped
       :flip? ->
         a < 0
 
+      ## Guard from exceptions when performing chained operations
       :fail ->
         :fail
     end
@@ -65,17 +68,17 @@ defmodule CPSolver.Variable.View do
   end
 
   def contains?(%{view: mapper_fun, variable: variable} = _view, value) do
-    source_value = mapper_fun.(value)
+    source_value = mapper_fun.({value, :reverse})
     source_value && Variable.contains?(variable, source_value)
   end
 
   def remove(%{view: mapper_fun, variable: variable} = _view, value) do
-    source_value = mapper_fun.(value)
+    source_value = mapper_fun.({value, :reverse})
     (source_value && Variable.remove(variable, source_value)) || :no_change
   end
 
   def fix(%{view: mapper_fun, variable: variable} = _view, value) do
-    source_value = mapper_fun.(value)
+    source_value = mapper_fun.({value, :reverse})
     (source_value && Variable.fix(variable, source_value)) || :fail
   end
 

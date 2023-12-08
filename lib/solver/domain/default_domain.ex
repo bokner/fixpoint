@@ -106,7 +106,7 @@ defmodule CPSolver.DefaultDomain do
 
   defp maybe_bound_change(change_kind, new_domain, domain) do
     (min(new_domain) > min(domain) && :min_change) ||
-      (max(new_domain) > max(domain) && :max_change) ||
+      (max(new_domain) < max(domain) && :max_change) ||
       change_kind
   end
 end

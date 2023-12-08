@@ -17,13 +17,13 @@ defmodule CPSolverTest.Variable.View do
       values = [v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, [var1, var2, _var3, _var4] = bound_vars, _store} =
+      {:ok, [source_var, var2, _var3, _var4] = bound_vars, _store} =
         ConstraintStore.create_store(variables)
 
       views = [view1, view2, view3, view4] = Enum.map(bound_vars, fn var -> minus(var) end)
       ## Domains of variables that back up views do not change
-      assert Variable.min(var1) == 1
-      assert Variable.max(var1) == 10
+      assert Variable.min(source_var) == 1
+      assert Variable.max(source_var) == 10
       ## :min and :max
       assert View.min(view1) == -10
       assert View.max(view1) == -1
@@ -78,6 +78,47 @@ defmodule CPSolverTest.Variable.View do
       assert View.fixed?(view2) && Variable.fixed?(var2)
       assert View.min(view2) == -1 && Variable.min(var2) == 1
       assert :fail == View.fix(view3, 1)
+    end
+
+    test "'mul' view" do
+      domain = 1..10
+      {:ok, [source_var] = _bound_vars, _store} =
+        ConstraintStore.create_store([Variable.new(domain)])
+
+      view1 = mul(source_var, 1)
+      view2 = mul(source_var, 10)
+      view3 = mul(source_var, -90)
+
+      assert 1 == View.min(view1)
+      assert 10 == View.max(view1)
+      assert 10 == View.min(view2)
+      assert 100 == View.max(view2)
+      assert -900 == View.min(view3)
+      assert -90  == View.max(view3)
+
+      assert Variable.contains?(source_var, 1)
+      assert View.contains?(view1, 1)
+      refute View.contains?(view2, 1)
+
+      assert :no_change == View.remove(view1, 100)
+      assert View.domain(view2) |> Domain.to_list() == Enum.map(1..10, fn val -> 10 * val end)
+      assert :max_change == View.remove(view2, 100)
+      ## After removing from view2, other views will be affected
+      assert 9 == View.max(view1)
+      assert -810 == View.min(view3)
+      ## ...as will the source variable
+      assert 9 == Variable.max(source_var)
+
+      assert :min_change == View.removeAbove(view3, -450)
+      assert 5 == Variable.min(source_var)
+      assert 5 == View.min(view1)
+      assert 50 == View.min(view2)
+      assert -450 == View.max(view3)
+
+      assert :fixed == View.fix(view2, 50)
+      assert View.fixed?(view1) && View.fixed?(view3) && Variable.fixed?(source_var)
+
+
     end
   end
 
