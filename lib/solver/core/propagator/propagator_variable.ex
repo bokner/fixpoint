@@ -1,5 +1,6 @@
 defmodule CPSolver.Propagator.Variable do
   alias CPSolver.Variable
+  alias CPSolver.Variable.View
   alias CPSolver.Variable.Interface
   alias CPSolver.Propagator
 
@@ -36,6 +37,12 @@ defmodule CPSolver.Propagator.Variable do
 
   def set_propagate_on(var, nil) do
     set_propagate_on(var, :fixed)
+  end
+
+  def set_propagate_on(%View{variable: variable} = view, propagator_event) do
+    variable
+    |> set_propagate_on(propagator_event)
+    |> then(fn var -> Map.put(view, :variable, var) end)
   end
 
   def set_propagate_on(%Variable{} = var, propagator_event)

@@ -5,7 +5,8 @@ defmodule CPSolver.Propagator do
   @callback filter(args :: list()) :: map() | :stable | :fail | propagator_event()
   @callback variables(args :: list()) :: list()
 
-  alias CPSolver.{Variable, View}
+  alias CPSolver.Variable
+  alias CPSolver.Variable.View
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Variable.Interface
@@ -68,6 +69,7 @@ defmodule CPSolver.Propagator do
 
     try do
       args
+      |> List.flatten()
       |> bind_to_store(store)
       |> mod.filter()
     catch

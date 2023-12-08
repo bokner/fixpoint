@@ -6,6 +6,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   """
   alias CPSolver.Propagator
   alias CPSolver.Propagator.Variable
+  alias CPSolver.Variable.Interface
 
   @spec create([Propagator.t()] | %{reference() => Propagator.t()}) :: Graph.t()
   def create(propagators) when is_list(propagators) do
@@ -23,7 +24,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       |> propagator_mod.variables()
       |> Enum.reduce(acc, fn var, acc2 ->
         Graph.add_vertex(acc2, propagator_vertex(propagator_id))
-        |> Graph.add_edge({:variable, var.id}, propagator_vertex(propagator_id),
+        |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex(propagator_id),
           label: get_propagate_on(var)
         )
       end)
