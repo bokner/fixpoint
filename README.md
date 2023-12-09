@@ -30,3 +30,4 @@ WIP. Not suitable for use in production. Significant API changes and core implem
 - Graph Coloring
 - N-Queens
 - Reindeers
+- SEND + MORE = MONEY
