@@ -31,6 +31,12 @@ defmodule CPSolver.Propagator.Sum do
 
   defp filter_impl(variables, sum_min, sum_max) do
     case Enum.reduce(variables, {0, 0}, fn v, {s_min, s_max} ->
+           ## TODO: guard against operations on "failed" vars.
+           ## If v is "failed", then we'd have
+           ## ** (ArithmeticError) bad argument in arithmetic expression **
+           ## if min(v) or max(v) are part of arithmetic experssions.
+           ## This is not a big deal, but we don't want exceptions to show up.
+           ##
            cond do
              removeAbove(v, -(sum_min - min(v))) == :fail -> throw({:fail, id(v)})
              removeBelow(v, -(sum_max - max(v))) == :fail -> throw({:fail, id(v)})
