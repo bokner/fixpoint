@@ -79,6 +79,9 @@ defmodule CPSolver.Propagator do
       :stable ->
         :stable
 
+      :fail ->
+        :fail
+
       _res ->
         ## If propagator doesn't explicitly return 'stable',
         ## we retrieve the map of variable operation results created by PropagatorVariable wrapper
@@ -124,8 +127,8 @@ defmodule CPSolver.Propagator do
   end
 
   defp bind_to_variable(%Variable{id: id} = var, indexed_variables) do
-        var_idx = Map.get(indexed_variables, id).index
-        Map.put(var, :index, var_idx)
+    var_idx = Map.get(indexed_variables, id).index
+    Map.put(var, :index, var_idx)
   end
 
   defp bind_to_variable(%View{variable: variable} = view, indexed_variables) do
@@ -134,7 +137,7 @@ defmodule CPSolver.Propagator do
   end
 
   defp bind_to_variable(const, _indexed_variables) do
-      const
+    const
   end
 
   defp bind_to_store(args, nil) do

@@ -18,7 +18,9 @@ defmodule CPSolver.Variable.View do
   def new(variable, a, b) do
     mapper_fun = fn
       ## Given value from variable domain, returns mapped value from view domain
-      value when is_integer(value) -> a * value + b
+      value when is_integer(value) ->
+        a * value + b
+
       ## Given value from view domain, returns mapped value from variable domain,
       ## or nil, if no mapping exists.
       {value, :reverse} when is_integer(value) ->
@@ -26,11 +28,18 @@ defmodule CPSolver.Variable.View do
 
       ## (Used by removeAbove and removeBelow operations)
       ## Given value from view domain, computes the closest integer value
-      ## implied by mapping function.
-      ## The caller will change the operation to an opposite, if 2nd element of
-      ## the return is 'true'.
-      {value, operation} when operation in [:above, :below] ->
-        {div(value - b, a), a < 0}
+      ## implied by mapping function, and the operation to be applied.
+      {value, :above} when a > 0 ->
+        {floor((value - b) / a), :removeAbove}
+
+      {value, :above} when a < 0 ->
+        {ceil(value - b) / a, :removeBelow}
+
+      {value, :below} when a > 0 ->
+        {ceil((value - b) / a), :removeBelow}
+
+      {value, :below} when a < 0 ->
+        {floor((value - b) / a), :removeAbove}
 
       ## Used by min and max to decide if the operation has to be flipped
       :flip? ->
@@ -83,17 +92,13 @@ defmodule CPSolver.Variable.View do
   end
 
   def removeAbove(%{view: mapper_fun, variable: variable} = _view, value) do
-    {source_value, flip?} = mapper_fun.({value, :above})
-
-    (flip? && Variable.removeBelow(variable, source_value)) ||
-      Variable.removeAbove(variable, source_value)
+    {source_value, operation} = mapper_fun.({value, :above})
+    apply(Variable, operation, [variable, source_value])
   end
 
   def removeBelow(%{view: mapper_fun, variable: variable} = _view, value) do
-    {source_value, flip?} = mapper_fun.({value, :below})
-
-    (flip? && Variable.removeAbove(variable, source_value)) ||
-      Variable.removeBelow(variable, source_value)
+    {source_value, operation} = mapper_fun.({value, :below})
+    apply(Variable, operation, [variable, source_value])
   end
 end
 
@@ -109,9 +114,10 @@ defmodule CPSolver.Variable.View.Factory do
     linear(var, coefficient, 0)
   end
 
-  def linear(%Variable{} = var, coefficient, offset) when is_integer(coefficient) and
-      is_integer(offset) and
-      coefficient != 0 do
+  def linear(%Variable{} = var, coefficient, offset)
+      when is_integer(coefficient) and
+             is_integer(offset) and
+             coefficient != 0 do
     new(var, coefficient, offset)
   end
 end

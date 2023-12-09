@@ -56,6 +56,9 @@ defmodule CPSolver.Space.Propagation do
         {:fail, _var} ->
           {:halt, :fail}
 
+        :fail ->
+          {:halt, :fail}
+
         :stable ->
           {:cont, acc}
 

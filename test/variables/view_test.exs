@@ -7,6 +7,7 @@ defmodule CPSolverTest.Variable.View do
     alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Variable.View
+    alias CPSolver.Variable.Interface
     import CPSolver.Variable.View.Factory
 
     test "'minus' view" do
@@ -82,6 +83,7 @@ defmodule CPSolverTest.Variable.View do
 
     test "'mul' view" do
       domain = 1..10
+
       {:ok, [source_var] = _bound_vars, _store} =
         ConstraintStore.create_store([Variable.new(domain)])
 
@@ -94,7 +96,7 @@ defmodule CPSolverTest.Variable.View do
       assert 10 == View.min(view2)
       assert 100 == View.max(view2)
       assert -900 == View.min(view3)
-      assert -90  == View.max(view3)
+      assert -90 == View.max(view3)
 
       assert Variable.contains?(source_var, 1)
       assert View.contains?(view1, 1)
@@ -117,8 +119,38 @@ defmodule CPSolverTest.Variable.View do
 
       assert :fixed == View.fix(view2, 50)
       assert View.fixed?(view1) && View.fixed?(view3) && Variable.fixed?(source_var)
+    end
 
+    test "remove value that falls in the hole" do
+      {:ok, [x] = _bound_vars, _store} =
+        ConstraintStore.create_store([Variable.new(0..5, name: "x")])
 
+      y_plus = mul(x, 20)
+      y_minus = mul(x, -20)
+
+      ## View with positive coefficient
+      assert 0 == View.min(y_plus)
+      ## 10 is in the domain hole for the view
+      assert :min_change == View.removeBelow(y_plus, 10)
+      assert 20 == View.min(y_plus)
+      ## 30 is in the domain hole as well
+      assert :max_change == View.removeAbove(y_plus, 70)
+
+      assert 1 == Variable.min(x)
+      assert 3 == Variable.max(x)
+
+      ## View with negative coefficient
+      assert -60 == View.min(y_minus)
+      assert :min_change == View.removeAbove(y_minus, -30)
+      assert -40 == View.max(y_minus)
+      assert :fixed == View.removeBelow(y_minus, -50)
+
+      ## All views and the source variable are fixed
+      assert Enum.all?([x, y_plus, y_minus], fn v -> Interface.fixed?(v) end)
+      ## Views are fixed to the values that correspond their coefficients
+      assert 2 == Interface.min(x)
+      assert 2 * 20 == Interface.min(y_plus)
+      assert 2 * -20 == Interface.min(y_minus)
     end
   end
 

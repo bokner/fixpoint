@@ -14,6 +14,7 @@ defmodule CPSolver.Propagator.Variable do
   defdelegate min(var), to: Interface
   defdelegate max(var), to: Interface
   defdelegate contains?(var, val), to: Interface
+  defdelegate id(var), to: Interface
 
   def fixed?(var) do
     Map.get(var, :fixed?) || Interface.fixed?(var)

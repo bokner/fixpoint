@@ -25,14 +25,16 @@ defmodule CPSolver.Propagator.Sum do
     filter_impl(all_vars, sum_min, sum_max)
   end
 
+  defp filter_impl(_variables, sum_min, sum_max) when sum_min > 0 or sum_max < 0 do
+    :fail
+  end
+
   defp filter_impl(variables, sum_min, sum_max) do
-    case Enum.reduce_while(variables, {0, 0}, fn v, {s_min, s_max} ->
-           if sum_min > 0 || sum_max < 0 do
-             {:halt, :fail}
-           else
-             ((removeAbove(v, -(sum_min - min(v))) == :fail ||
-                 removeBelow(v, -(sum_max - max(v))) == :fail) && {:halt, :fail}) ||
-               {:cont, {s_min + min(v), s_max + max(v)}}
+    case Enum.reduce(variables, {0, 0}, fn v, {s_min, s_max} ->
+           cond do
+             removeAbove(v, -(sum_min - min(v))) == :fail -> throw({:fail, id(v)})
+             removeBelow(v, -(sum_max - max(v))) == :fail -> throw({:fail, id(v)})
+             true -> {s_min + min(v), s_max + max(v)}
            end
          end) do
       :fail ->

@@ -7,6 +7,7 @@ defmodule CPSolverTest.Propagator.Sum do
     alias CPSolver.Propagator
     alias CPSolver.Propagator.Sum
     import CPSolver.Variable.Interface
+    import CPSolver.Variable.View.Factory
 
     test "The domain bounds of 'sum' variable are reduced to the sum of bounds of the summands" do
       y = Variable.new(-100..100, name: "y")
@@ -45,7 +46,7 @@ defmodule CPSolverTest.Propagator.Sum do
       assert 8 == max(y_var)
     end
 
-    test "fixed 'y' variable" do
+    test "when 'y' variable is fixed" do
       y = Variable.new([5], name: "y")
 
       x =
@@ -65,6 +66,32 @@ defmodule CPSolverTest.Propagator.Sum do
       assert 3 == min(x1_var)
       assert 1 == max(x3_var)
       assert 0 == min(x3_var)
+    end
+
+    test "fails on inconsistency" do
+      y = Variable.new(10, name: "y")
+      x1 = Variable.new(0..4, name: "x1")
+      x2 = Variable.new(0..5, name: "x2")
+
+      {:ok, [y_var, x1_var, x2_var] = _bound_vars, store} =
+        ConstraintStore.create_store([y, x1, x2])
+
+      assert :fail == Propagator.filter(Sum.new(y_var, [x1_var, x2_var]), store: store)
+    end
+
+    test "when summands are views" do
+      y = Variable.new(50, name: "y")
+      x1 = Variable.new(0..2, name: "x1")
+      x2 = Variable.new(1..2, name: "x2")
+
+      {:ok, [y_var, x1_var, x2_var] = _bound_vars, store} =
+        ConstraintStore.create_store([y, x1, x2])
+
+      refute :fail ==
+               Propagator.filter(Sum.new(y_var, [mul(x1_var, 10), mul(x2_var, 20)]), store: store)
+
+      assert 1 == Variable.min(x1_var)
+      assert 1 == Variable.max(x1_var)
     end
   end
 end
