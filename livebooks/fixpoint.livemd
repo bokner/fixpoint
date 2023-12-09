@@ -68,7 +68,7 @@ So the encoding of the rules does not require any programming except wiring rule
 
 <!-- livebook:{"break_markdown":true} -->
 
-Let's solve it now:
+#### Let's solve it now:
 
 ```elixir
 alias CPSolver.Examples.Reindeers
@@ -83,7 +83,7 @@ Reindeers.solve()
 
 [N-Queens code](https://github.com/bokner/fixpoint/blob/main/lib/examples/queens.ex)
 
-Let's find one solution to 8-Queens:
+#### Let's find one solution to 8-Queens:
 
 ```elixir
 alias CPSolver.Examples.Queens
@@ -91,22 +91,45 @@ Queens.solve_and_print(8)
 :ok
 ```
 
-## Solve Sudoku
+## Sudoku
 
-[Sudoku code](https://github.com/bokner/fixpoint/blob/main/lib/examples/sudoku.ex)
+https://en.wikipedia.org/wiki/Sudoku
 
-<!-- livebook:{"reevaluate_automatically":true} -->
+<!-- livebook:{"break_markdown":true} -->
+
+The instance below is taken from http://www.tellmehowto.net/sudoku/veryhardsudoku.html
+
+It's not really hard for CP solvers.
+
+#### Let's solve it!
 
 ```elixir
 alias CPSolver.Examples.Sudoku
-puzzles = Sudoku.puzzles()
-Sudoku.print_grid(puzzles.hard9x9) |> IO.puts()
+Sudoku.solve_and_print(Sudoku.puzzles().hard9x9)
 ```
 
-Solve it!
+[Sudoku code](https://github.com/bokner/fixpoint/blob/main/lib/examples/sudoku.ex)
 
-<!-- livebook:{"reevaluate_automatically":true} -->
+## SEND + MORE = MONEY
+
+This is a classic "cryptarithmetic" problem. Each letter corresponds to a separate digit, we want to find this correspondence, so SEND + MORE = MONEY holds.
+
+#### Solve it!
 
 ```elixir
-Sudoku.solve_and_print(puzzles.hard9x9)
+alias CPSolver.Examples.SendMoreMoney
+SendMoreMoney.solve()
 ```
+
+##### Indeed:
+
+```text
+     9 5 6 7
+   + 1 0 8 5
+   _________
+ = 1 0 6 5 2
+```
+
+<!-- livebook:{"break_markdown":true} -->
+
+[SEND+MORE=MONEY code](https://github.com/bokner/fixpoint/blob/main/lib/examples/send_more_money.ex)
