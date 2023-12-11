@@ -1,7 +1,7 @@
 # Fixpoint
 
 ```elixir
-Mix.install([{:fixpoint, path: "/Users/bokner/projects/cpsolver"}, {:kino, "~> 0.10.0"}])
+Mix.install([:fixpoint, {:kino, "~> 0.10.0"}])
 
 defmodule RenderHTML do
   use Kino.JS
