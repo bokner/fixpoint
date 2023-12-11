@@ -1,5 +1,130 @@
 # Fixpoint
 
+```elixir
+Mix.install([{:fixpoint, path: "/Users/bokner/projects/cpsolver"}, {:kino, "~> 0.10.0"}])
+
+defmodule RenderHTML do
+  use Kino.JS
+
+  def new(html) when is_binary(html) do
+    Kino.JS.new(__MODULE__, html)
+  end
+
+  asset "main.js" do
+    """
+    export function init(ctx, html) {
+      ctx.root.innerHTML = html;
+    }
+    """
+  end
+
+  ## Sudoku rendering
+  ## Grid is NxN array
+  def render_sudoku(grid) when is_list(hd(grid)) do
+    header = """
+    <div id="sudoku">
+    """
+
+    body = Enum.reduce(grid, "", fn row, acc -> acc <> row_to_string(row) end)
+
+    footer = """
+    </div>
+    """
+
+    ## Render
+    new(header <> body <> footer)
+  end
+
+  def render_sudoku(array1d) do
+    dim = floor(:math.sqrt(length(array1d)))
+
+    Enum.chunk_every(array1d, dim)
+    |> render_sudoku()
+  end
+
+  defp row_to_string(row) do
+    "<div>\n" <> Enum.map_join(row, "\n", fn cell -> sudoku_cell(cell) end) <> "\n</div>"
+  end
+
+  defp sudoku_cell(value) do
+    """
+    <input style="background: white;
+      width: 30px;
+      height: 30px;
+      color: blue;
+      border: 2px solid;
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;" maxlength="1" size="1" value="#{(value == 0 && "") || value}" disabled="">
+    """
+  end
+
+  ## N-Queens rendering
+  def render_nqueens(solution) do
+    (nqueens_header() <>
+       nqueens_board(solution) <>
+       nqueens_footer())
+    |> new()
+  end
+
+  defp nqueens_header() do
+    """
+    <head>
+        <title></title>
+        <meta charset="UTF-8">
+        <style>
+            .chess-board { border-spacing: 0; border-collapse: collapse; }
+            .chess-board th { padding: .5em; }
+            .chess-board th + th { border-bottom: 1px solid #000; }
+            .chess-board th:first-child,
+            .chess-board td:last-child { border-right: 1px solid #000; }
+            .chess-board tr:last-child td { border-bottom: 1px solid; }
+            .chess-board th:empty { border: none; }
+            .chess-board td { width: 1.5em; height: 1.5em; text-align: center; font-size: 32px; line-height: 0;}
+            .chess-board .light { background: rgb(227,193,111); }
+            .chess-board .dark { background: rgb(184,139,74); }
+        </style>
+    </head>
+    <body>
+        <table class="chess-board">
+            <tbody>
+    """
+  end
+
+  defp nqueens_board(solution) do
+    {board_html, _} =
+      Enum.reduce(solution, {"", false}, fn q, {board, even} ->
+        {board <> nqueens_board_row(q, length(solution), even), !even}
+      end)
+
+    board_html
+  end
+
+  defp nqueens_board_row(queen_pos, num_rows, even_row?) do
+    white_queen_sym = "♕"
+    black_queen_sym = "♛"
+    light? = !even_row?
+
+    {row_str, _} =
+      Enum.reduce(1..num_rows, {"", light?}, fn p, {cell, l?} ->
+        {cell <>
+           "<td class=#{(l? && "light") || "dark"}>#{(p == queen_pos && ((l? && white_queen_sym) || black_queen_sym)) || ""}</td>",
+         !l?}
+      end)
+
+    "<tr>" <> row_str <> "</tr>"
+  end
+
+  defp nqueens_footer() do
+    """
+          </tbody>
+        </table>
+    </body>
+    """
+  end
+end
+```
+
 ## Introduction
 
 Fixpoint is a [Constraint Programming](https://en.wikipedia.org/wiki/Constraint_programming) solver. Constraint programming is widely used for solving hard combinatorial problems, such as planning, scheduling, production and resource optimization, and more.
@@ -7,12 +132,6 @@ Fixpoint is a [Constraint Programming](https://en.wikipedia.org/wiki/Constraint_
 Constraint programming is declarative. That is, instead of coding the solution to the problem, we formulate it as a [**constraint satisfaction problem**](https://en.wikipedia.org/wiki/Constraint_satisfaction_problem). This is done by putting together a set of constraints (usually called a "model") that describes the problem and then feeding it to CP solver. The solver then either produces solutions that satisfy the model, if any; otherwise, the solver reports the problem unsolvable in terms of the model.
 
 To make it more concrete, we will solve some puzzles using Fixpoint.
-
-## Install Fixpoint
-
-```elixir
-Mix.install([:fixpoint])
-```
 
 ## Reindeer Ordering
 
@@ -87,8 +206,8 @@ Reindeers.solve()
 
 ```elixir
 alias CPSolver.Examples.Queens
-Queens.solve_and_print(8)
-:ok
+{:ok, res} = CPSolver.solve_sync(Queens.model(8), stop_on: {:max_solutions, 1})
+RenderHTML.render_nqueens(hd(res.solutions))
 ```
 
 ## Sudoku
@@ -99,13 +218,17 @@ https://en.wikipedia.org/wiki/Sudoku
 
 The instance below is taken from http://www.tellmehowto.net/sudoku/veryhardsudoku.html
 
-It's not really hard for CP solvers.
-
-#### Let's solve it!
-
 ```elixir
 alias CPSolver.Examples.Sudoku
-Sudoku.solve_and_print(Sudoku.puzzles().hard9x9)
+hard_puzzle = Sudoku.puzzles().hard9x9
+RenderHTML.render_sudoku(hard_puzzle)
+```
+
+### Let's solve it!
+
+```elixir
+{:ok, res} = CPSolver.solve_sync(Sudoku.model(hard_puzzle))
+RenderHTML.render_sudoku(hd(res.solutions))
 ```
 
 [Sudoku code](https://github.com/bokner/fixpoint/blob/main/lib/examples/sudoku.ex)
@@ -118,7 +241,10 @@ This is a classic "cryptarithmetic" problem. Each letter corresponds to a separa
 
 ```elixir
 alias CPSolver.Examples.SendMoreMoney
+
 SendMoreMoney.solve()
+|> Enum.map_join(", ", fn {letter, digit} -> "#{inspect(letter)} = #{digit}" end)
+|> IO.puts()
 ```
 
 ##### Indeed:

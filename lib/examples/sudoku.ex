@@ -45,6 +45,7 @@ defmodule CPSolver.Examples.Sudoku do
       s9x9_5: "8..6..9.5.............2.31...7318.6.24.....73...........279.1..5...8..36..3......",
       s4x4: [[1, 0, 0, 0], [2, 3, 1, 0], [0, 0, 0, 2], [0, 2, 0, 0]]
     }
+    |> Map.new(fn {name, puzzle} -> {name, normalize(puzzle)} end)
   end
 
   def solve(puzzle, solver_opts \\ []) do
