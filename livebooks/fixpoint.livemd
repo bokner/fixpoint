@@ -81,8 +81,8 @@ defmodule RenderHTML do
             .chess-board tr:last-child td { border-bottom: 1px solid; }
             .chess-board th:empty { border: none; }
             .chess-board td { width: 1.5em; height: 1.5em; text-align: center; font-size: 32px; line-height: 0;}
-            .chess-board .light { background: rgb(227,193,111); }
-            .chess-board .dark { background: rgb(184,139,74); }
+            .chess-board .light { background: rgb(255, 233, 197); }
+            .chess-board .dark { background: rgb(128, 149, 183); } <!-- 184,139,74 -->
         </style>
     </head>
     <body>
@@ -92,8 +92,13 @@ defmodule RenderHTML do
   end
 
   defp nqueens_board(solution) do
+    by_rows =
+      Enum.with_index(solution)
+      |> Enum.sort_by(fn {_q, idx} -> idx end)
+      |> Enum.map(fn {q, _idx} -> q end)
+
     {board_html, _} =
-      Enum.reduce(solution, {"", false}, fn q, {board, even} ->
+      Enum.reduce(by_rows, {"", false}, fn q, {board, even} ->
         {board <> nqueens_board_row(q, length(solution), even), !even}
       end)
 
@@ -207,6 +212,7 @@ Reindeers.solve()
 ```elixir
 alias CPSolver.Examples.Queens
 {:ok, res} = CPSolver.solve_sync(Queens.model(8), stop_on: {:max_solutions, 1})
+IO.inspect(res)
 RenderHTML.render_nqueens(hd(res.solutions))
 ```
 
