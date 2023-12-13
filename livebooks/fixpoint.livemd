@@ -111,7 +111,7 @@ defmodule RenderHTML do
     light? = !even_row?
 
     {row_str, _} =
-      Enum.reduce(1..num_rows, {"", light?}, fn p, {cell, l?} ->
+      Enum.reduce(1..num_rows, {"", !light?}, fn p, {cell, l?} ->
         {cell <>
            "<td class=#{(l? && "light") || "dark"}>#{(p == queen_pos && ((l? && white_queen_sym) || black_queen_sym)) || ""}</td>",
          !l?}

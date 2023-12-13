@@ -3,6 +3,7 @@ defmodule CPSolver do
   Solver API.
   """
 
+  alias CPSolver.Model
   alias CPSolver.Space
   alias CPSolver.Constraint
   alias CPSolver.Solution
@@ -23,13 +24,15 @@ defmodule CPSolver do
   def solve(model, opts \\ []) do
     shared_data = Shared.init_shared_data() |> Map.put(:sync_mode, opts[:sync_mode])
 
+    solver_model = Model.new(model)
+
     {:ok, solver_pid} =
-      GenServer.start(CPSolver, [model, Keyword.put(opts, :shared, shared_data)])
+      GenServer.start(CPSolver, [solver_model, Keyword.put(opts, :shared, shared_data)])
 
     {:ok,
      shared_data
      |> Map.put(:solver_pid, solver_pid)
-     |> Map.put(:variable_names, Enum.map(model.variables, & &1.name))}
+     |> Map.put(:variable_names, Enum.map(solver_model.variables, & &1.name))}
   end
 
   @spec solve_sync(Model.t(), Keyword.t()) ::
@@ -110,7 +113,7 @@ defmodule CPSolver do
     ## Some data (stats, solutions, possibly more - TBD) has to be shared between spaces
     shared = Keyword.get(solver_opts, :shared)
 
-    {variables, propagators} = prepare(variables, constraints)
+    {variables, propagators} = prepare(constraints, variables)
 
     {:ok,
      %{
@@ -193,7 +196,7 @@ defmodule CPSolver do
     Logger.error("Stop condition with #{inspect(opts)} is not implemented")
   end
 
-  defp prepare(variables, constraints) do
+  defp prepare(constraints, variables) do
     indexed_variables =
       variables
       |> Enum.with_index(1)

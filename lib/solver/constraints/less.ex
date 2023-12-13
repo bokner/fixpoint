@@ -3,7 +3,7 @@ defmodule CPSolver.Constraint.Less do
   alias CPSolver.Constraint.LessOrEqual, as: LessOrEqual
 
   def new(x, y, offset \\ 0) do
-    LessOrEqual.new([x, y, offset - 1])
+    LessOrEqual.new(x, y, offset - 1)
   end
 
   @impl true

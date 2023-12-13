@@ -1,8 +1,15 @@
 defmodule CPSolver.Constraint.LessOrEqual do
   use CPSolver.Constraint
   alias CPSolver.Propagator.LessOrEqual, as: LessOrEqualPropagator
+  alias CPSolver.IntVariable, as: Variable
 
-  def new(x, y, offset \\ 0) do
+  def new(x, y, offset \\ 0)
+
+  def new(x, y, offset) when is_integer(y) do
+    new(x, Variable.new(y), offset)
+  end
+
+  def new(x, y, offset) do
     new([x, y, offset])
   end
 
