@@ -111,6 +111,10 @@ defmodule CPSolver.Variable do
     ConstraintStore.get(store, variable, op)
   end
 
+  defp store_op(:domain, %{store: nil, domain: domain}) do
+    domain
+  end
+
   defp store_op(:domain, %{store: store} = variable) do
     ConstraintStore.domain(store, variable)
   end
