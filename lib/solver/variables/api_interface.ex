@@ -6,6 +6,10 @@ defprotocol CPSolver.Variable.Interface do
   @spec id(Variable.t() | View.t()) :: reference()
   def id(variable)
 
+  @spec variable(Variable.t() | View.t() | any()) :: Variable.t() | nil
+  @fallback_to_any true
+  def variable(arg)
+
   @spec bind(Variable.t() | View.t(), any()) :: Variable.t() | View.t()
   def bind(variable, store)
 
