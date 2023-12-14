@@ -23,7 +23,7 @@ WIP. Not suitable for use in production. Significant API changes and core implem
 
 ### Features
 - views (linear combinations of variables in constraints)  
-
+- solving for satisfaction (CSP) and optimization (COP)  
 
 ### Examples
 - Sudoku
@@ -31,3 +31,4 @@ WIP. Not suitable for use in production. Significant API changes and core implem
 - N-Queens
 - Reindeers
 - SEND + MORE = MONEY
+- Knapsack

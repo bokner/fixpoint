@@ -111,7 +111,7 @@ defmodule RenderHTML do
     light? = !even_row?
 
     {row_str, _} =
-      Enum.reduce(1..num_rows, {"", !light?}, fn p, {cell, l?} ->
+      Enum.reduce(1..num_rows, {"", light?}, fn p, {cell, l?} ->
         {cell <>
            "<td class=#{(l? && "light") || "dark"}>#{(p == queen_pos && ((l? && white_queen_sym) || black_queen_sym)) || ""}</td>",
          !l?}
@@ -132,72 +132,13 @@ end
 
 ## Introduction
 
-Fixpoint is a [Constraint Programming](https://en.wikipedia.org/wiki/Constraint_programming) solver. Constraint programming is widely used for solving hard combinatorial problems, such as planning, scheduling, production and resource optimization, and more.
+***Fixpoint*** is a [Constraint Programming](https://en.wikipedia.org/wiki/Constraint_programming) solver. Constraint programming is widely used for solving hard combinatorial problems, such as planning, scheduling, production and resource optimization, and more.
 
-Constraint programming is declarative. That is, instead of coding the solution to the problem, we formulate it as a [**constraint satisfaction problem**](https://en.wikipedia.org/wiki/Constraint_satisfaction_problem). This is done by putting together a set of constraints (usually called a "model") that describes the problem and then feeding it to CP solver. The solver then either produces solutions that satisfy the model, if any; otherwise, the solver reports the problem unsolvable in terms of the model.
+Constraint programming is declarative. That is, instead of coding the solution to the problem, we formulate it as a [**constraint satisfaction problem**](https://en.wikipedia.org/wiki/Constraint_satisfaction_problem), abbreviated as **CSP**. This is done by putting together a set of constraints (usually called a "model") that describes the problem and then feeding it to CP solver. The solver then either produces solutions that satisfy the model, if any; otherwise, the solver reports the problem unsolvable in terms of the model.
 
-To make it more concrete, we will solve some puzzles using Fixpoint.
+In addition, CSP could be extended to **constraint optimization problem (COP)**. For COP, the among CSP solutions, the solver will select the optimal one, according to the oblective function provided by the model.
 
-## Reindeer Ordering
-
-https://dmcommunity.org/challenge/challenge-dec-2017/
-
-**Santa always leaves plans for his elves to determine the order in which the
-  reindeer will pull his sleigh. This year, for the European leg of his
-  journey, his elves are working to the following schedule, which will form a
-  single line of nine reindeer.**
-
-##### Here are the rules:
-
-```
-Comet behind Rudolph, Prancer and Cupid
-Blitzen behind Cupid
-Blitzen in front of Donder, Vixen and Dancer
-Cupid in front of Comet, Blitzen and Vixen
-Donder behind Vixen, Dasher and Prancer
-Rudolph behind Prancer
-Rudolph in front of Donder, Dancer and Dasher
-Vixen in front of Dancer and Comet
-Dancer behind Donder, Rudolph and Blitzen
-Prancer in front of Cupid, Donder and Blitzen
-Dasher behind Prancer
-Dasher in front of Vixen, Dancer and Blitzen
-Donder behind Comet and Cupid
-Cupid in front of Rudolph and Dancer
-Vixen behind Rudolph, Prancer and Dasher.
-```
-
-Try to solve it by hand first!
-
-[Reindeers code](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex)
-
-<!-- livebook:{"break_markdown":true} -->
-
-These rules are encoded as constraints [here](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex#L52-L65). The implementation of `behind/2` and `in_front_of/2` uses a universal `Less` constraint.
-
-<!-- livebook:{"force_markdown":true} -->
-
-```elixir
-  defp behind(reindeer, list) do
-    Enum.map(list, fn r -> Less.new(reindeer, r) end)
-  end
-
-  defp in_front_of(reindeer, list) do
-    Enum.map(list, fn r -> Less.new(r, reindeer) end)
-  end
-
-```
-
-So the encoding of the rules does not require any programming except wiring rules to the constraint implementations.
-
-<!-- livebook:{"break_markdown":true} -->
-
-#### Let's solve it now:
-
-```elixir
-alias CPSolver.Examples.Reindeers
-Reindeers.solve()
-```
+To make it more concrete, we will solve some puzzles using ***Fixpoint***.
 
 ## N-Queens
 
@@ -238,6 +179,67 @@ RenderHTML.render_sudoku(hd(res.solutions))
 ```
 
 [Sudoku code](https://github.com/bokner/fixpoint/blob/main/lib/examples/sudoku.ex)
+
+## Reindeer Ordering
+
+https://dmcommunity.org/challenge/challenge-dec-2017/
+
+**Santa always leaves plans for his elves to determine the order in which the
+  reindeer will pull his sleigh. This year, for the European leg of his
+  journey, his elves are working to the following schedule, which will form a
+  single line of nine reindeer.**
+
+##### Here are the rules:
+
+```
+Comet behind Rudolph, Prancer and Cupid
+Blitzen behind Cupid
+Blitzen in front of Donder, Vixen and Dancer
+Cupid in front of Comet, Blitzen and Vixen
+Donder behind Vixen, Dasher and Prancer
+Rudolph behind Prancer
+Rudolph in front of Donder, Dancer and Dasher
+Vixen in front of Dancer and Comet
+Dancer behind Donder, Rudolph and Blitzen
+Prancer in front of Cupid, Donder and Blitzen
+Dasher behind Prancer
+Dasher in front of Vixen, Dancer and Blitzen
+Donder behind Comet and Cupid
+Cupid in front of Rudolph and Dancer
+Vixen behind Rudolph, Prancer and Dasher.
+```
+
+Try to solve it by hand first!
+
+[Reindeers code](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex)
+
+<!-- livebook:{"break_markdown":true} -->
+
+The rules above are encoded as constraints [here](https://github.com/bokner/fixpoint/blob/main/lib/examples/reindeers.ex#L61-L76). The implementation of `behind/2` and `in_front_of/2` uses a universal `Less` constraint.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+  defp behind(reindeer, list) do
+    Enum.map(list, fn r -> Less.new(reindeer, r) end)
+  end
+
+  defp in_front_of(reindeer, list) do
+    Enum.map(list, fn r -> Less.new(r, reindeer) end)
+  end
+
+```
+
+So the encoding of the rules does not require any programming except wiring rules to the constraint implementations.
+
+<!-- livebook:{"break_markdown":true} -->
+
+#### Let's solve it now:
+
+```elixir
+alias CPSolver.Examples.Reindeers
+Reindeers.solve()
+```
 
 ## SEND + MORE = MONEY
 
