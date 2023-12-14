@@ -16,8 +16,8 @@ defmodule CPSolver.Examples.Knapsack do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Constraint.Sum
   alias CPSolver.Constraint.LessOrEqual
-  import CPSolver.Solution.Objective
   import CPSolver.Variable.View.Factory
+  alias CPSolver.Objective
 
   def model(values, weights, capacity) do
     items = Enum.map(1..length(values), fn i -> Variable.new(0..1, name: "item_#{i}") end)
@@ -45,7 +45,7 @@ defmodule CPSolver.Examples.Knapsack do
     %{
       variables: items ++ [total_weight, total_value],
       constraints: constraints,
-      objective: maximize(total_value)
+      objective: Objective.maximize(total_value)
     }
   end
 

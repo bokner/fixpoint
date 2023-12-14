@@ -108,7 +108,7 @@ defmodule CPSolver do
   ## GenServer callbacks
 
   @impl true
-  def init([%{constraints: constraints, variables: variables} = _model, solver_opts]) do
+  def init([%{constraints: constraints, variables: variables} = model, solver_opts]) do
     stop_on = Keyword.get(solver_opts, :stop_on)
     ## Some data (stats, solutions, possibly more - TBD) has to be shared between spaces
     shared = Keyword.get(solver_opts, :shared)
@@ -120,6 +120,7 @@ defmodule CPSolver do
        space: nil,
        variables: variables,
        propagators: propagators,
+       objective: Map.get(model, :objective),
        shared: shared,
        stop_on: stop_on,
        solver_opts: Keyword.merge(Space.default_space_opts(), solver_opts)
@@ -132,6 +133,7 @@ defmodule CPSolver do
         %{
           variables: variables,
           propagators: propagators,
+          objective: objective,
           solver_opts: solver_opts,
           shared: shared
         } = state
@@ -147,6 +149,7 @@ defmodule CPSolver do
         variables,
         propagators,
         solver_opts
+        |> Keyword.put(:objective, objective)
         |> Keyword.put(:solver_data, shared)
         |> Keyword.delete(:shared)
         |> Keyword.put(:solution_handler, solution_handler_fun)

@@ -12,6 +12,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils
   alias CPSolver.Space.Propagation
+  alias CPSolver.Objective
 
   alias CPSolver.Shared
 
@@ -29,6 +30,8 @@ defmodule CPSolver.Space do
   end
 
   def create(variables, propagators, space_opts \\ default_space_opts()) do
+    propagators = maybe_add_objective_propagator(propagators, space_opts[:objective])
+
     {:ok, _space} =
       create(%{
         variables: variables,
@@ -36,6 +39,14 @@ defmodule CPSolver.Space do
         constraint_graph: ConstraintGraph.create(propagators),
         opts: space_opts
       })
+  end
+
+  defp maybe_add_objective_propagator(propagators, nil) do
+    propagators
+  end
+
+  defp maybe_add_objective_propagator(propagators, objective) do
+    [objective.propagator | propagators]
   end
 
   def create(data) do
@@ -60,6 +71,7 @@ defmodule CPSolver.Space do
 
     space_data =
       data
+      |> maybe_bind_objective_variable(store)
       |> Map.put(:id, make_ref())
       |> Map.put(:variables, space_variables)
       |> Map.put(:store, store)
@@ -68,6 +80,16 @@ defmodule CPSolver.Space do
     Shared.add_active_spaces(data.opts[:solver_data], [self()])
 
     {:ok, space_data, {:continue, :propagate}}
+  end
+
+  defp maybe_bind_objective_variable(data, store) do
+    case data.opts[:objective] do
+      nil ->
+        data
+
+      objective ->
+        put_in(data, [:opts, :objective], Objective.bind_to_store(objective, store))
+    end
   end
 
   @impl true
@@ -128,6 +150,7 @@ defmodule CPSolver.Space do
         shutdown(data, :fail)
 
       solution ->
+        maybe_tighten_objective_bound(data.opts[:objective])
         Solution.run_handler(solution, data.opts[:solution_handler])
         shutdown(data, :solved)
     end)
@@ -140,6 +163,14 @@ defmodule CPSolver.Space do
         val -> {:cont, Map.put(acc, var.name, val)}
       end
     end)
+  end
+
+  defp maybe_tighten_objective_bound(nil) do
+    :ok
+  end
+
+  defp maybe_tighten_objective_bound(objective) do
+    Objective.tighten(objective)
   end
 
   defp handle_stable(%{variables: variables} = data) do
