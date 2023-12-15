@@ -15,13 +15,15 @@ defmodule CPSolver.Objective do
 
     %{
       propagator: propagator,
-      variable: variable,
-      bound_handle: bound_handle
+      variable: variable |> Map.delete(:domain),
+      bound_handle: bound_handle,
+      target: :minimize
     }
   end
 
   def maximize(variable) do
     minimize(minus(variable))
+    |> Map.put(:target, :maximize)
   end
 
   def get_bound(%{bound_handle: handle}) do
@@ -53,11 +55,23 @@ defmodule CPSolver.Objective do
 
   def init_bound_handle() do
     ref = :atomics.new(1, signed: true)
-    :atomics.put(ref, 1, :atomics.info(ref).max)
+    reset_bound_handle(ref)
     ref
+  end
+
+  def reset_bound_handle(%{bound_handle: ref} = _objective) do
+    reset_bound_handle(ref)
+  end
+
+  def reset_bound_handle(ref) do
+    :atomics.put(ref, 1, :atomics.info(ref).max)
   end
 
   def bind_to_store(%{variable: variable} = objective, store) do
     Map.put(objective, :variable, Interface.bind(variable, store))
+  end
+
+  def get_objective_value(%{target: target, bound_handle: handle} = _objective) do
+    (get_bound(handle) + 1) * ((target == :minimize && 1) || -1)
   end
 end

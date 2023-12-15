@@ -13,6 +13,9 @@ defprotocol CPSolver.Variable.Interface do
   @spec bind(Variable.t() | View.t(), any()) :: Variable.t() | View.t()
   def bind(variable, store)
 
+  @spec map(Variable.t() | View.t(), integer()) :: integer()
+  def map(variable, value)
+
   @spec domain(Variable.t() | View.t()) :: any()
   def domain(variable)
 

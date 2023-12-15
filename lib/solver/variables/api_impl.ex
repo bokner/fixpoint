@@ -7,6 +7,7 @@ defimpl Interface, for: Variable do
   def id(var), do: var.id
   def variable(var), do: var
   def bind(var, store), do: Map.put(var, :store, store)
+  def map(_var, value), do: value
   def domain(var), do: Variable.domain(var)
   def size(var), do: Variable.size(var)
   def min(var), do: Variable.min(var)
@@ -30,6 +31,8 @@ defimpl Interface, for: View do
     |> then(fn bound_var -> Map.put(view, :variable, bound_var) end)
   end
 
+  def map(view, value), do: view.view.(value)
+
   def domain(view), do: View.domain(view)
   def size(view), do: View.size(view)
   def min(view), do: View.min(view)
@@ -46,6 +49,7 @@ defimpl Interface, for: Any do
   def variable(_any), do: nil
   def id(var), do: not_supported(:id, var)
   def bind(var, _store), do: not_supported(:bind, var)
+  def map(var, _value), do: not_supported(:bind, var)
   def domain(var), do: not_supported(:domain, var)
   def size(var), do: not_supported(:size, var)
   def min(var), do: not_supported(:min, var)

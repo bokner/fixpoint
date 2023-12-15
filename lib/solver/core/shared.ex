@@ -1,4 +1,7 @@
 defmodule CPSolver.Shared do
+  alias CPSolver.Objective
+  alias CPSolver.Variable.Interface
+
   def init_shared_data(solver_pid \\ self()) do
     %{
       caller: self(),
@@ -68,13 +71,16 @@ defmodule CPSolver.Shared do
     end
   end
 
-  def cleanup(%{solver_pid: solver_pid, complete_flag: complete_flag} = solver) do
+  def cleanup(
+        %{solver_pid: solver_pid, complete_flag: complete_flag, objective: objective} = solver
+      ) do
     Enum.each([:solutions, :statistics, :active_nodes], fn item ->
       Map.get(solver, item) |> :ets.delete()
     end)
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
     :persistent_term.erase(complete_flag)
+    objective && Objective.reset_bound_handle(objective)
   end
 
   def stop_spaces(solver) do
@@ -115,14 +121,25 @@ defmodule CPSolver.Shared do
     try do
       solution_table
       |> :ets.tab2list()
-      |> Enum.map(fn {_ref, solution} ->
-        Enum.map(solution, fn {_var, value} ->
-          value
-        end)
-      end)
+      ## Sort solutions by the objective value (the best solution is placed last)
+      |> Enum.sort_by(
+        fn {_ref, %{objective_value: objective_value}} ->
+          objective_value
+        end,
+        :desc
+      )
+      |> Enum.map(fn {_ref, %{solution: solution}} -> solution end)
     rescue
       _e -> []
     end
+  end
+
+  def objective_value(%{objective: nil} = _solver) do
+    nil
+  end
+
+  def objective_value(%{objective: objective_record} = _solver) do
+    Objective.get_objective_value(objective_record)
   end
 
   def active_nodes(%{active_nodes: active_nodes_table} = _solver) do
@@ -137,12 +154,32 @@ defmodule CPSolver.Shared do
     update_stats_counters(stats_table, [{@failure_count_pos, 1}])
   end
 
-  def add_solution(%{solutions: solution_table, statistics: stats_table} = _solver, solution) do
+  def add_solution(
+        solution,
+        %{solutions: solution_table, statistics: stats_table, objective: objective_rec} = _solver
+      ) do
     try do
       update_stats_counters(stats_table, [{@solution_count_pos, 1}])
-      :ets.insert(solution_table, {make_ref(), solution})
+
+      :ets.insert(
+        solution_table,
+        {make_ref(),
+         %{
+           solution: Enum.map(solution, fn {_var_id, value} -> value end),
+           objective_value:
+             objective_rec && objective_value_from_solution(solution, objective_rec)
+         }}
+      )
     rescue
       _e -> :ok
     end
+  end
+
+  defp objective_value_from_solution(solution, %{variable: objective_variable} = _objective_rec) do
+    obj_var = Interface.variable(objective_variable)
+
+    Enum.find_value(solution, fn {var_name, value} ->
+      var_name == obj_var.name && Interface.map(objective_variable, value)
+    end)
   end
 end

@@ -1,7 +1,12 @@
 # Fixpoint
 
 ```elixir
-Mix.install([:fixpoint, {:kino, "~> 0.10.0"}])
+Mix.install([
+  :fixpoint,
+  {:kino, "~> 0.10.0"}
+])
+
+Logger.configure(level: :notice)
 
 defmodule RenderHTML do
   use Kino.JS
@@ -252,7 +257,7 @@ alias CPSolver.Examples.SendMoreMoney
 
 SendMoreMoney.solve()
 |> Enum.map_join(", ", fn {letter, digit} -> "#{inspect(letter)} = #{digit}" end)
-|> IO.puts()
+|> then(fn output -> IO.puts(IO.ANSI.cyan() <> output <> IO.ANSI.reset()) end)
 ```
 
 ##### Indeed:
@@ -267,3 +272,94 @@ SendMoreMoney.solve()
 <!-- livebook:{"break_markdown":true} -->
 
 [SEND+MORE=MONEY code](https://github.com/bokner/fixpoint/blob/main/lib/examples/send_more_money.ex)
+
+## Knapsack
+
+Enough puzzles, we want to do something practical now.
+How about packing a knapsack?
+
+https://rosettacode.org/wiki/Knapsack_problem/0-1
+
+This is a ***constraint optimization problem (COP)***, as opposed to ***constraint satisfaction problems (CSPs)*** we've seen before. That is, we want to satisfy constraints (in this case, the items we choose have to fit into the knapsack), and we also want a total value of items in the knapsack to be maximized (it's our objective).
+
+We will derive a model for this instance from ```elixir CPSolver.Examples.Knapsack.model/3 ```, and then solve it:
+
+```elixir
+alias CPSolver.Examples.Knapsack
+## Instance data
+items = [
+  {:map, 9, 150},
+  {:compass, 13, 35},
+  {:water, 153, 200},
+  {:sandwich, 50, 160},
+  {:glucose, 15, 60},
+  {:tin, 68, 45},
+  {:banana, 27, 60},
+  {:apple, 39, 40},
+  {:cheese, 23, 30},
+  {:beer, 52, 10},
+  {:suntan_cream, 11, 70},
+  {:camera, 32, 30},
+  {:t_shirt, 24, 15},
+  {:trousers, 48, 10},
+  {:umbrella, 73, 40},
+  {:waterproof_trousers, 42, 70},
+  {:waterproof_overclothes, 43, 75},
+  {:note_case, 22, 80},
+  {:sunglasses, 7, 20},
+  {:towel, 18, 12},
+  {:socks, 4, 50},
+  {:book, 30, 10}
+]
+
+capacity = 400
+###########
+
+#### Build data for the model
+{item_names, weights, values} =
+  List.foldr(items, {[], [], []}, fn {n, w, v}, {n_acc, w_acc, v_acc} = _acc ->
+    {[n | n_acc], [w | w_acc], [v | v_acc]}
+  end)
+
+model = Knapsack.model(values, weights, capacity)
+
+## Solve
+{:ok, res} = CPSolver.solve_sync(model, timeout: 5_000)
+
+## The best (in this case, optimal) solution is the last in the list of feasible solutions
+optimal_solution = List.last(res.solutions)
+
+## Build the output
+## If item variable was resolved to 1, we'll pack it
+## In the meantime, we will compute the total value off the item values.
+## That's for sanity check only, as the solver provides an objective value,
+## which is a total value.
+
+{items_to_pick, total_value, total_weight} =
+  List.foldr(Enum.with_index(item_names), {[], 0, 0}, fn {item, idx},
+                                                         {item_list, total_value, total_weight} ->
+    in_the_list = Enum.at(optimal_solution, idx) == 1
+
+    {
+      (in_the_list && [item | item_list]) || item_list,
+      (in_the_list && total_value + Enum.at(values, idx)) || total_value,
+      (in_the_list && total_weight + Enum.at(weights, idx)) || total_weight
+    }
+  end)
+
+formatted_knapsack =
+  Enum.chunk_every(items_to_pick, 3)
+  |> Enum.map_join("\n", fn row -> Enum.join(row, "....") end)
+
+IO.puts("Items to pick: \n\n#{IO.ANSI.blue()}#{formatted_knapsack}#{IO.ANSI.reset()}\n")
+
+IO.puts(
+  "Total value (calculated from optimal solution): #{IO.ANSI.red()}#{total_value}#{IO.ANSI.reset()}"
+)
+
+IO.puts(
+  "Total value (objective value derived by the solver): #{IO.ANSI.red()}#{res.objective}#{IO.ANSI.reset()}"
+)
+
+IO.puts("Total weight: #{IO.ANSI.red()}#{total_weight}/#{capacity}#{IO.ANSI.reset()}")
+```

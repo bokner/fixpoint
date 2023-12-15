@@ -31,8 +31,17 @@ defmodule CPSolver do
 
     {:ok,
      shared_data
+     |> Map.put(:objective, strip_objective(Map.get(solver_model, :objective)))
      |> Map.put(:solver_pid, solver_pid)
      |> Map.put(:variable_names, Enum.map(solver_model.variables, & &1.name))}
+  end
+
+  defp strip_objective(nil) do
+    nil
+  end
+
+  defp strip_objective(objective) do
+    Map.drop(objective, [:variable, :propagator])
   end
 
   @spec solve_sync(Model.t(), Keyword.t()) ::
@@ -61,7 +70,8 @@ defmodule CPSolver do
      %{
        statistics: statistics(solver),
        variables: solver.variable_names,
-       solutions: solutions(solver)
+       solutions: solutions(solver),
+       objective: objective_value(solver)
      }}
   end
 
@@ -89,6 +99,10 @@ defmodule CPSolver do
     Shared.solutions(solver)
   end
 
+  def objective_value(solver) do
+    Shared.objective_value(solver)
+  end
+
   def get_state(solver) when is_pid(solver) do
     :sys.get_state(solver)
   end
@@ -114,14 +128,15 @@ defmodule CPSolver do
     shared = Keyword.get(solver_opts, :shared)
 
     {variables, propagators} = prepare(constraints, variables)
+    objective = Map.get(model, :objective)
 
     {:ok,
      %{
        space: nil,
        variables: variables,
        propagators: propagators,
-       objective: Map.get(model, :objective),
-       shared: shared,
+       objective: objective,
+       shared: Map.put(shared, :objective, objective),
        stop_on: stop_on,
        solver_opts: Keyword.merge(Space.default_space_opts(), solver_opts)
      }, {:continue, :solve}}
@@ -176,7 +191,7 @@ defmodule CPSolver do
       if not CPSolver.complete?(solver_state.shared) do
         solution
         |> Solution.run_handler(solution_handler)
-        |> tap(fn _ -> Shared.add_solution(solver_state.shared, solution) end)
+        |> tap(fn _ -> Shared.add_solution(solution, solver_state.shared) end)
         |> tap(fn result -> check_stop_condition(stop_on_opt, result, solution, solver_state) end)
       end
     end

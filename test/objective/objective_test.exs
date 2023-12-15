@@ -66,4 +66,66 @@ defmodule CpSolverTest.Objective do
       assert {:fail, Interface.id(objective_variable)} == Propagator.filter(min_propagator)
     end
   end
+
+  describe "Objectives in solutions" do
+    alias CPSolver.Constraint.{LessOrEqual, Sum}
+    alias CPSolver.Examples.Knapsack
+
+    test "sanity test for minimization and maximization" do
+      sum_bound = 100
+      x = Variable.new(1..1000, name: "x")
+      y = Variable.new(1..2000, name: "y")
+      z = Variable.new(1..sum_bound)
+
+      variables = [x, y]
+      constraints = [LessOrEqual.new(x, y), Sum.new(z, [x, y])]
+
+      minimization_model = %{
+        variables: variables,
+        constraints: constraints,
+        objective: Objective.minimize(z)
+      }
+
+      maximization_model = %{
+        variables: variables,
+        constraints: constraints,
+        objective: Objective.maximize(z)
+      }
+
+      {:ok, min_res} = CPSolver.solve_sync(minimization_model)
+      assert min_res.objective == 2
+      assert List.last(min_res.solutions) == [1, 1, 2]
+
+      {:ok, max_res} = CPSolver.solve_sync(maximization_model)
+
+      assert max_res.objective == sum_bound
+      [x_val, y_val, sum_bound] = List.last(max_res.solutions)
+      assert x_val + y_val == sum_bound
+    end
+
+    test "The best solution with respect to optimization criterion will be the last in the list" do
+      ## We use a small knapsack instance that is known to emit 2 solutions
+      model_instance = "data/knapsack/ks_4_0"
+      ## Value maximization model
+      value_knapsack_model = Knapsack.model(model_instance, :value_maximization)
+      {:ok, value_res} = CPSolver.solve_sync(value_knapsack_model)
+      total_value_idx = Enum.find_index(value_res.variables, fn name -> name == "total_value" end)
+      assert List.last(value_res.solutions) |> Enum.at(total_value_idx) == value_res.objective
+
+      ## Free space minimization model
+      space_minimization_model =
+        Knapsack.model(model_instance, :free_space_minimization)
+
+      {:ok, space_res} = CPSolver.solve_sync(space_minimization_model)
+
+      total_value_idx =
+        Enum.find_index(space_res.variables, fn name -> name == "total_weight" end)
+
+      ## Note: the solution contains variable values, but not the objective (view) values.
+      ## Thus for the purpose of asserting that the fixed value for the objective variable
+      ## corresponds to the objective value, we will map one onto another.
+      assert List.last(space_res.solutions) |> Enum.at(total_value_idx) ==
+               Interface.map(space_minimization_model.objective.variable, space_res.objective)
+    end
+  end
 end

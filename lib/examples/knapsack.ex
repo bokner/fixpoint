@@ -19,26 +19,48 @@ defmodule CPSolver.Examples.Knapsack do
   import CPSolver.Variable.View.Factory
   alias CPSolver.Objective
 
-  def model(values, weights, capacity) do
+  def prebuild_model(values, weights, capacity) do
     items = Enum.map(1..length(values), fn i -> Variable.new(0..1, name: "item_#{i}") end)
     total_weight = Variable.new(0..capacity, name: "total_weight")
     total_value = Variable.new(0..Enum.sum(values), name: "total_value")
 
+    weight_views =
+      Enum.map(
+        Enum.zip(items, weights),
+        fn {item, weight} -> mul(item, weight) end
+      )
+
+    value_views =
+      Enum.map(
+        Enum.zip(items, values),
+        fn {item, value} -> mul(item, value) end
+      )
+
+    %{
+      items: items,
+      total_value: total_value,
+      total_weight: total_weight,
+      weight_views: weight_views,
+      value_views: value_views
+    }
+  end
+
+  def value_maximization_model(values, weights, capacity) do
+    %{
+      items: items,
+      total_value: total_value,
+      total_weight: total_weight,
+      weight_views: weight_views,
+      value_views: value_views
+    } =
+      prebuild_model(values, weights, capacity)
+
     constraints = [
       Sum.new(
         total_weight,
-        Enum.map(
-          Enum.zip(items, weights),
-          fn {item, weight} -> mul(item, weight) end
-        )
+        weight_views
       ),
-      Sum.new(
-        total_value,
-        Enum.map(
-          Enum.zip(items, values),
-          fn {item, value} -> mul(item, value) end
-        )
-      ),
+      Sum.new(total_value, value_views),
       LessOrEqual.new(total_weight, capacity)
     ]
 
@@ -49,7 +71,7 @@ defmodule CPSolver.Examples.Knapsack do
     }
   end
 
-  def model(input) do
+  def model(input, kind \\ :value_maximization) do
     input
     |> File.read!()
     |> String.trim()
@@ -68,8 +90,51 @@ defmodule CPSolver.Examples.Knapsack do
           }
         end)
 
-      model(values, weights, capacity)
+      model(values, weights, capacity, kind)
     end)
+  end
+
+  def model(values, weights, capacity, kind \\ :value_maximization)
+
+  def model(values, weights, capacity, :value_maximization) do
+    value_maximization_model(values, weights, capacity)
+  end
+
+  def model(values, weights, capacity, :free_space_minimization) do
+    free_space_minimization_model(values, weights, capacity)
+  end
+
+  ## Minimizes free space
+  def free_space_minimization_model(values, weights, capacity) do
+    %{
+      items: items,
+      total_weight: total_weight,
+      weight_views: weight_views
+    } =
+      prebuild_model(values, weights, capacity)
+
+    space_constraints = [
+      Sum.new(total_weight, weight_views),
+      LessOrEqual.new(total_weight, capacity)
+    ]
+
+    %{
+      variables: items ++ [total_weight],
+      constraints: space_constraints,
+      objective: Objective.minimize(linear(total_weight, -1, capacity))
+    }
+  end
+
+  def check_solution(solution, optimal, values, weights, capacity) do
+    item_picks = Enum.take(solution, length(weights))
+    total_weight = sum_products(item_picks, weights)
+
+    total_weight <= capacity && sum_products(item_picks, values) <= optimal
+  end
+
+  defp sum_products(list1, list2) do
+    Enum.zip(list1, list2)
+    |> Enum.reduce(0, fn {el1, el2}, acc -> acc + el1 * el2 end)
   end
 
   @doc """
@@ -156,8 +221,8 @@ defmodule CPSolver.Examples.Knapsack do
 
     model = model(values, weights, capacity)
     {:ok, res} = CPSolver.solve_sync(model, timeout: 5_000)
-    ## total_value variable (which is one in maximization objective) is at pos 23
-    optimal_solution = Enum.max_by(res.solutions, fn sol -> Enum.at(sol, 23) end)
+
+    optimal_solution = List.last(res.solutions)
 
     {items_to_pick, total_value} =
       List.foldr(Enum.with_index(item_names), {[], 0}, fn {item, idx}, {item_list, total_value} ->
@@ -170,6 +235,13 @@ defmodule CPSolver.Examples.Knapsack do
       end)
 
     IO.puts("Items to pick: #{IO.ANSI.blue()}#{inspect(items_to_pick)}#{IO.ANSI.reset()}")
-    IO.puts("Total value: #{IO.ANSI.red()}#{total_value}#{IO.ANSI.reset()}")
+
+    IO.puts(
+      "Total value (calculated from optimal solution): #{IO.ANSI.red()}#{total_value}#{IO.ANSI.reset()}"
+    )
+
+    IO.puts(
+      "Total value (objective value derived by the solver): #{IO.ANSI.red()}#{res.objective}#{IO.ANSI.reset()}"
+    )
   end
 end
