@@ -37,10 +37,15 @@ defmodule CPSolver.Propagator.Sum do
            ## if min(v) or max(v) are part of arithmetic experssions.
            ## This is not a big deal, but we don't want exceptions to show up.
            ##
+           min_v = min(v)
+           min_v == :fail && throw({:fail, id(v)})
+           max_v = max(v)
+           max_v == :fail && throw({:fail, id(v)})
+
            cond do
-             removeAbove(v, -(sum_min - min(v))) == :fail -> throw({:fail, id(v)})
-             removeBelow(v, -(sum_max - max(v))) == :fail -> throw({:fail, id(v)})
-             true -> {s_min + min(v), s_max + max(v)}
+             removeAbove(v, -(sum_min - min_v)) == :fail -> throw({:fail, id(v)})
+             removeBelow(v, -(sum_max - max_v)) == :fail -> throw({:fail, id(v)})
+             true -> {plus(s_min, min(v)), plus(s_max, max(v))}
            end
          end) do
       :fail ->
@@ -56,7 +61,7 @@ defmodule CPSolver.Propagator.Sum do
 
   defp sum_min_max(variables) do
     Enum.reduce(variables, {0, 0}, fn v, {s_min, s_max} = _acc ->
-      {s_min + min(v), s_max + max(v)}
+      {plus(s_min, min(v)), plus(s_max, max(v))}
     end)
   end
 end
