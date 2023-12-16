@@ -14,7 +14,7 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, [x_var, y_var] = bound_vars, _store} = ConstraintStore.create_store(variables)
-      {:changed, changes} = Propagator.filter(LessOrEqual.new(bound_vars))
+      %{changes: changes} = Propagator.filter(LessOrEqual.new(bound_vars))
       assert Map.get(changes, x_var.id) == :max_change
       assert Map.get(changes, y_var.id) == :min_change
       assert 0 == Variable.min(x_var)
@@ -54,6 +54,22 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       assert 5 == Variable.max(x_var)
       assert Variable.min(x_var) == Variable.min(y_var) + offset
       assert Variable.max(x_var) == Variable.max(y_var) + offset
+    end
+
+    test "Filtering reports :passive if the domains intersect in no more than one point" do
+      x = 1..4
+      y = 2..4
+
+      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+      {:ok, [x_var, y_var], _store} = ConstraintStore.create_store(variables)
+      refute :passive == LessOrEqual.filter(x_var, y_var)
+
+      ## Cut domain of x so it intersects with domain of y in exactly one point
+      Variable.removeAbove(x_var, 2)
+      assert :passive == LessOrEqual.filter(x_var, y_var)
+      ## Cut domain of x so it does not intersect with domain of y
+      Variable.remove(x_var, 2)
+      assert :passive == LessOrEqual.filter(x_var, y_var)
     end
   end
 end

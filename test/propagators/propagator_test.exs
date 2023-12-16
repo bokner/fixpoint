@@ -28,7 +28,7 @@ defmodule CPSolverTest.Propagator do
       refute Variable.fixed?(y_bound)
       assert Variable.fixed?(x_bound)
       propagator = NotEqual.new(bound_variables)
-      assert {:changed, %{y_bound.id => :fixed}} == Propagator.filter(propagator)
+      assert %{changes: %{y_bound.id => :fixed}, active?: true} == Propagator.filter(propagator)
       assert ConstraintStore.get(store, y_bound, :fixed?)
     end
 
@@ -47,7 +47,9 @@ defmodule CPSolverTest.Propagator do
       ## Not using  'store' option results in exception
       assert_raise FunctionClauseError, fn -> Propagator.filter(propagator) end
       ## Supplying store will make filtering work on unbound variables
-      assert {:changed, %{y.id => :fixed}} == Propagator.filter(propagator, store: store)
+      assert %{changes: %{y.id => :fixed}, active?: true} ==
+               Propagator.filter(propagator, store: store)
+
       assert ConstraintStore.get(store, y_bound, :fixed?)
     end
 

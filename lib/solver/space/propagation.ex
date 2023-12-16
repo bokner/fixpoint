@@ -62,7 +62,10 @@ defmodule CPSolver.Space.Propagation do
         :stable ->
           {:cont, acc}
 
-        {:changed, changes} ->
+        %{changes: nil} ->
+          {:cont, acc}
+
+        %{changes: changes} ->
           {updated_graph, scheduled_by_propagator} = schedule_by_propagator(changes, g)
 
           {:cont,
