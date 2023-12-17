@@ -8,7 +8,9 @@ defmodule CPSolver.Propagator.Sum do
   """
   @spec new(Common.variable_or_view(), [Common.variable_or_view()]) :: Propagator.t()
   def new(y, x) do
-    new([minus(y) | x])
+    args = [minus(y) | x]
+    new(args)
+    |> Map.put(:state, initial_state(args))
   end
 
   @impl true
@@ -17,6 +19,10 @@ defmodule CPSolver.Propagator.Sum do
       set_propagate_on(y, :domain_change)
       | Enum.map(x, fn x_el -> set_propagate_on(x_el, :bound_change) end)
     ]
+  end
+
+  defp initial_state(args) do
+    %{sum_min_fixed: 0, sum_max_fixed: 0, unfixed: args}
   end
 
   @impl true
