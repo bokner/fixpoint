@@ -3,10 +3,10 @@ defmodule CPSolver.Variable.View do
   alias CPSolver.DefaultDomain, as: Domain
   alias __MODULE__, as: View
 
-  defstruct [:view, :variable]
+  defstruct [:mapper, :variable]
 
   @type t :: %__MODULE__{
-          view: function(),
+          mapper: function(),
           variable: Variable.t()
         }
   @doc """
@@ -50,10 +50,10 @@ defmodule CPSolver.Variable.View do
         :fail
     end
 
-    %View{variable: variable, view: mapper_fun}
+    %View{variable: variable, mapper: mapper_fun}
   end
 
-  def domain(%{view: mapper_fun, variable: variable} = _view) do
+  def domain(%{mapper: mapper_fun, variable: variable} = _view) do
     Variable.domain(variable)
     |> Domain.map(mapper_fun)
   end
@@ -66,37 +66,37 @@ defmodule CPSolver.Variable.View do
     Variable.fixed?(variable)
   end
 
-  def min(%{view: mapper_fun, variable: variable} = _view) do
+  def min(%{mapper: mapper_fun, variable: variable} = _view) do
     domain_value = (mapper_fun.(:flip?) && Variable.max(variable)) || Variable.min(variable)
     mapper_fun.(domain_value)
   end
 
-  def max(%{view: mapper_fun, variable: variable} = _view) do
+  def max(%{mapper: mapper_fun, variable: variable} = _view) do
     domain_value = (mapper_fun.(:flip?) && Variable.min(variable)) || Variable.max(variable)
     mapper_fun.(domain_value)
   end
 
-  def contains?(%{view: mapper_fun, variable: variable} = _view, value) do
+  def contains?(%{mapper: mapper_fun, variable: variable} = _view, value) do
     source_value = mapper_fun.({value, :reverse})
     source_value && Variable.contains?(variable, source_value)
   end
 
-  def remove(%{view: mapper_fun, variable: variable} = _view, value) do
+  def remove(%{mapper: mapper_fun, variable: variable} = _view, value) do
     source_value = mapper_fun.({value, :reverse})
     (source_value && Variable.remove(variable, source_value)) || :no_change
   end
 
-  def fix(%{view: mapper_fun, variable: variable} = _view, value) do
+  def fix(%{mapper: mapper_fun, variable: variable} = _view, value) do
     source_value = mapper_fun.({value, :reverse})
     (source_value && Variable.fix(variable, source_value)) || :fail
   end
 
-  def removeAbove(%{view: mapper_fun, variable: variable} = _view, value) do
+  def removeAbove(%{mapper: mapper_fun, variable: variable} = _view, value) do
     {source_value, operation} = mapper_fun.({value, :above})
     apply(Variable, operation, [variable, source_value])
   end
 
-  def removeBelow(%{view: mapper_fun, variable: variable} = _view, value) do
+  def removeBelow(%{mapper: mapper_fun, variable: variable} = _view, value) do
     {source_value, operation} = mapper_fun.({value, :below})
     apply(Variable, operation, [variable, source_value])
   end

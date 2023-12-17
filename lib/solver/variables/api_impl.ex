@@ -31,7 +31,7 @@ defimpl Interface, for: View do
     |> then(fn bound_var -> Map.put(view, :variable, bound_var) end)
   end
 
-  def map(view, value), do: view.view.(value)
+  def map(view, value), do: view.mapper.(value)
 
   def domain(view), do: View.domain(view)
   def size(view), do: View.size(view)
