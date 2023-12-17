@@ -148,12 +148,8 @@ defmodule CPSolver.Propagator do
 
   defp bind_to_store(args, store) do
     args
-    |> Enum.map(fn
-      v when is_struct(v, Variable) or is_struct(v, View) ->
-        Interface.bind(v, store)
-
-      const ->
-        const
+    |> Enum.map(fn v ->
+      Interface.bind(v, store)
     end)
   end
 end
