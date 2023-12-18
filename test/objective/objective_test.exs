@@ -72,9 +72,11 @@ defmodule CpSolverTest.Objective do
     alias CPSolver.Examples.Knapsack
 
     test "sanity test for minimization and maximization" do
-      sum_bound = 100
-      x = Variable.new(1..1000, name: "x")
-      y = Variable.new(1..2000, name: "y")
+      sum_bound = 1000
+      x_bound = 100
+      y_bound = 200
+      x = Variable.new(1..100, name: "x")
+      y = Variable.new(1..200, name: "y")
       z = Variable.new(1..sum_bound)
 
       variables = [x, y]
@@ -98,7 +100,7 @@ defmodule CpSolverTest.Objective do
 
       {:ok, max_res} = CPSolver.solve_sync(maximization_model)
 
-      assert max_res.objective == sum_bound
+      assert max_res.objective == min(sum_bound, x_bound + y_bound)
       [x_val, y_val, sum_bound] = List.last(max_res.solutions)
       assert x_val + y_val == sum_bound
     end

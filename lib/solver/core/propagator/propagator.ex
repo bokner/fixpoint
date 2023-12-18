@@ -2,7 +2,10 @@ defmodule CPSolver.Propagator do
   @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change | :fixed
 
   @callback new(args :: list()) :: Propagator.t()
+  @callback update(Propagator.t(), changes: any()) :: Propagator.t()
   @callback filter(args :: list()) :: map() | :stable | :fail | propagator_event()
+  @callback filter(args :: list(), state :: map() | nil) ::
+              map() | :stable | :fail | propagator_event()
   @callback variables(args :: list()) :: list()
 
   alias CPSolver.Variable
@@ -14,6 +17,8 @@ defmodule CPSolver.Propagator do
   defmacro __using__(_) do
     quote do
       alias CPSolver.Propagator
+      alias CPSolver.Variable.Interface
+      alias CPSolver.DefaultDomain, as: Domain
       import CPSolver.Propagator.Variable
 
       @behaviour Propagator
@@ -22,11 +27,19 @@ defmodule CPSolver.Propagator do
         Propagator.new(__MODULE__, args)
       end
 
+      def update(propagator, _changes) do
+        propagator
+      end
+
+      def filter(args, _propagator_state) do
+        filter(args)
+      end
+
       def variables(args) do
         Propagator.default_variables_impl(args)
       end
 
-      defoverridable variables: 1
+      defoverridable variables: 1, update: 2, new: 1, filter: 2
     end
   end
 
@@ -53,9 +66,16 @@ defmodule CPSolver.Propagator do
       args:
         Enum.map(args, fn
           %Variable{domain: domain} = arg ->
+            ## We don't want propagator vars to keep domains, as propagator operates on store variables.
+            ## Except when variables are fixed at the time propagator is created.
+            ##
+            ## Drop domain if variable is fixed, otherwise keep the fixed value
+            fixed? = Domain.fixed?(domain)
+            d = (fixed? && Domain.min(domain)) || nil
+
             arg
-            |> Map.drop([:domain])
-            |> Map.put(:fixed?, Domain.fixed?(domain))
+            |> Map.put(:fixed?, fixed?)
+            |> Map.put(:domain, d)
 
           const ->
             const
@@ -63,15 +83,25 @@ defmodule CPSolver.Propagator do
     }
   end
 
-  def filter(%{mod: mod, args: args} = _propagator, opts \\ []) do
+  def update(%{mod: mod} = propagator, changes) do
+    try do
+      mod.update(propagator, changes)
+    catch
+      {:fail, _var_id} ->
+        :fail
+    end
+  end
+
+  def filter(%{mod: mod, args: args} = propagator, opts \\ []) do
     PropagatorVariable.reset_variable_ops()
     store = Keyword.get(opts, :store)
+    state = propagator[:state]
 
     try do
       args
       |> List.flatten()
       |> bind_to_store(store)
-      |> mod.filter()
+      |> mod.filter(state)
     catch
       {:fail, var_id} ->
         {:fail, var_id}

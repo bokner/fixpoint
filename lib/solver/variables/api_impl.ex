@@ -65,3 +65,28 @@ defimpl Interface, for: Any do
     throw({:operation_not_supported, op, for: var})
   end
 end
+
+defmodule CPSolver.Variable.Interface.ThrowIfFails do
+  alias CPSolver.Variable.Interface
+  @behaviour Interface
+
+  defdelegate id(var), to: Interface
+
+  defdelegate variable(var), to: Interface
+  defdelegate bind(var, store), to: Interface
+  defdelegate map(var, value), to: Interface
+
+  def domain(var), do: handle_fail(Interface.domain(var), var)
+  def size(var), do: handle_fail(Interface.size(var), var)
+  def min(var), do: handle_fail(Interface.min(var), var)
+  def max(var), do: handle_fail(Interface.max(var), var)
+  def fixed?(var), do: handle_fail(Interface.fixed?(var), var)
+  def contains?(var, val), do: handle_fail(Interface.contains?(var, val), var)
+  def remove(var, val), do: handle_fail(Interface.remove(var, val), var)
+  def removeAbove(var, val), do: handle_fail(Interface.removeAbove(var, val), var)
+  def removeBelow(var, val), do: handle_fail(Interface.removeBelow(var, val), var)
+  def fix(var, val), do: handle_fail(Interface.fix(var, val), var)
+
+  defp handle_fail(:fail, var), do: throw({:fail, Interface.id(var)})
+  defp handle_fail(result, _var), do: result
+end

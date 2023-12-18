@@ -28,7 +28,7 @@ defmodule CPSolver.Space.Propagation do
   @spec propagate(map(), Graph.t(), map()) ::
           :fail | {map(), Graph.t()} | {:changes, map()}
   @doc """
-  One pass of propagation.
+  A single pass of propagation.
   Produces the list (up to implementation) of propagators scheduled for the next pass.
   Side effect: modifies the constraint graph.
   The graph will be modified on every individual Propagator.filter/1, if the latter results in any domain changes.
@@ -66,13 +66,16 @@ defmodule CPSolver.Space.Propagation do
           {:cont, {unschedule(scheduled, p_id), maybe_remove_propagator(g, p_id, active?)}}
 
         %{changes: changes, active?: active?} ->
-          {updated_graph, scheduled_by_propagator} = schedule_by_propagator(changes, g)
+          case update_propagator(g, p_id, changes, active?) do
+            :fail ->
+              {:halt, :fail}
 
-          {:cont,
-           {
-             reschedule(scheduled, p_id, scheduled_by_propagator),
-             maybe_remove_propagator(updated_graph, p_id, active?)
-           }}
+            updated_graph ->
+              {updated_graph, scheduled_by_propagator} =
+                schedule_by_propagator(changes, updated_graph)
+
+              {:cont, {reschedule(scheduled, p_id, scheduled_by_propagator), updated_graph}}
+          end
       end
     end)
   end
@@ -105,6 +108,21 @@ defmodule CPSolver.Space.Propagation do
 
   defp maybe_remove_propagator(graph, propagator_id, active?) do
     (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
+  end
+
+  ## Update propagator
+  ## Do not update if passive
+  defp update_propagator(graph, _propagator_id, _changes, false) do
+    graph
+  end
+
+  defp update_propagator(graph, propagator_id, changes, true) do
+    graph
+    |> ConstraintGraph.get_propagator(propagator_id)
+    |> Propagator.update(changes)
+    |> then(fn updated_propagator ->
+      ConstraintGraph.update_propagator(graph, propagator_id, updated_propagator)
+    end)
   end
 
   defp finalize(:fail, _propagators) do

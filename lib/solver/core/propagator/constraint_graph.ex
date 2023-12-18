@@ -5,7 +5,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   the propagator receives upon varable's domain change.
   """
   alias CPSolver.Propagator
-  alias CPSolver.Propagator.Variable
   alias CPSolver.Variable.Interface
 
   @spec create([Propagator.t()] | %{reference() => Propagator.t()}) :: Graph.t()
@@ -61,6 +60,14 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end
   end
 
+  def update_propagator(%Graph{} = graph, propagator_id, propagator) do
+    vertex = propagator_vertex(propagator_id)
+
+    graph
+    |> Graph.remove_vertex_labels(vertex)
+    |> Graph.label_vertex(vertex, propagator)
+  end
+
   def propagator_vertex(propagator_id) do
     {:propagator, propagator_id}
   end
@@ -71,21 +78,12 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   ## Remove variable and all propagators that are isolated points as a result of variable removal
   def remove_variable(graph, variable_id) do
-    var_vertex = {:variable, variable_id}
-    var_propagators = Graph.neighbors(graph, var_vertex)
-
-    graph
-    |> remove_vertex(var_vertex)
-    |> then(fn g ->
-      Enum.reduce(var_propagators, g, fn p_vertex, acc ->
-        fix_propagator_variable(acc, p_vertex, variable_id)
-      end)
-    end)
+    remove_vertex(graph, {:variable, variable_id})
   end
 
   def remove_fixed(graph, vars) do
     Enum.reduce(vars, graph, fn v, acc ->
-      if Variable.fixed?(v) do
+      if Interface.fixed?(v) do
         remove_variable(acc, v.id)
       else
         acc
@@ -99,31 +97,5 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   defp get_propagate_on(variable) do
     Map.get(variable, :propagate_on, Propagator.to_domain_events(:fixed))
-  end
-
-  defp fix_propagator_variable(graph, {:propagator, p_id} = p_vertex, variable_id) do
-    graph
-    |> get_propagator(p_id)
-    |> Map.update(:args, %{}, fn args ->
-      Enum.map(
-        args,
-        fn
-          %{id: id} = arg when id == variable_id ->
-            Map.put(arg, :fixed?, true)
-
-          other ->
-            other
-        end
-      )
-    end)
-    |> then(fn updated_propagator ->
-      graph
-      |> Graph.remove_vertex_labels(p_vertex)
-      |> Graph.label_vertex(p_vertex, updated_propagator)
-    end)
-  end
-
-  defp fix_propagator_variable(graph, p_id, variable_id) when is_reference(p_id) do
-    fix_propagator_variable(graph, {:propagator, p_id}, variable_id)
   end
 end
