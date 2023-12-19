@@ -119,6 +119,10 @@ defmodule CPSolver.Propagator do
     end
   end
 
+  def find_variable(args, var_id) do
+    Enum.find(args, fn arg -> Interface.id(arg) == var_id end)
+  end
+
   ## How propagator events map to domain events
   def to_domain_events(:domain_change) do
     [:domain_change, :min_change, :max_change, :fixed]

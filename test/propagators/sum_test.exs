@@ -112,7 +112,7 @@ defmodule CPSolverTest.Propagator.Sum do
       ## There are 2 fixed variables with total 4+5 = 9
       assert sum_fixed == 9
       unfixed_num = length([y | x]) - 2
-      assert map_size(unfixed_vars) == unfixed_num
+      assert MapSet.size(unfixed_vars) == unfixed_num
 
       :fixed = Interface.fix(x1_var, 1)
 
@@ -120,7 +120,7 @@ defmodule CPSolverTest.Propagator.Sum do
       %{sum_fixed: sum_fixed_new, unfixed_vars: unfixed_vars} = updated_sum_propagator.state
 
       assert sum_fixed_new == 10
-      assert map_size(unfixed_vars) == unfixed_num - 1
+      assert MapSet.size(unfixed_vars) == unfixed_num - 1
 
       ## Update with the variable that has already been fixed doesn't change the propagator
       updated_sum_propagator2 = Propagator.update(updated_sum_propagator, %{x1_var.id => :fixed})
