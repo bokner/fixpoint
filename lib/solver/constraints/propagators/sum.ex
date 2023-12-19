@@ -41,8 +41,10 @@ defmodule CPSolver.Propagator.Sum do
 
   @impl true
   def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_vars: unfixed_vars} = _state) do
-    unfixed_vars = Enum.filter(all_vars, fn v -> MapSet.member?(unfixed_vars, Interface.id(v)) end)
-    #unfixed_vars = Map.values(unfixed_vars)
+    unfixed_vars =
+      Enum.filter(all_vars, fn v -> MapSet.member?(unfixed_vars, Interface.id(v)) end)
+
+    # unfixed_vars = Map.values(unfixed_vars)
     {sum_min, sum_max} = sum_min_max(sum_fixed, unfixed_vars)
     filter_impl(unfixed_vars, sum_fixed, sum_min, sum_max)
   end
@@ -80,14 +82,13 @@ defmodule CPSolver.Propagator.Sum do
       Enum.reduce(changes, state, fn
         {var_id, :fixed}, %{sum_fixed: sum_fixed, unfixed_vars: unfixed_vars} = acc ->
           if MapSet.member?(unfixed_vars, var_id) do
-              fixed_value = min(Propagator.find_variable(args, var_id))
-              new_sum = fixed_value + sum_fixed
-              new_unfixed_vars = MapSet.delete(unfixed_vars, var_id)
+            fixed_value = min(Propagator.find_variable(args, var_id))
+            new_sum = fixed_value + sum_fixed
+            new_unfixed_vars = MapSet.delete(unfixed_vars, var_id)
 
-              acc
-              |> Map.put(:sum_fixed, new_sum)
-              |> Map.put(:unfixed_vars, new_unfixed_vars)
-
+            acc
+            |> Map.put(:sum_fixed, new_sum)
+            |> Map.put(:unfixed_vars, new_unfixed_vars)
           else
             acc
           end

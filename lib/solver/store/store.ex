@@ -215,6 +215,10 @@ defmodule CPSolver.ConstraintStore do
     (Domain.fixed?(domain) && Domain.min(domain) != fixed_value && :fail) || :fixed
   end
 
+  def update_fixed(%{store: nil} = variable, fixed_value) do
+    update_fixed(Map.put(variable, :store, get_store_from_dict()), fixed_value)
+  end
+
   def update_fixed(
         %{index: index, store: %{fixed_variables: fixed_vars}} = _variable,
         fixed_value
@@ -226,11 +230,19 @@ defmodule CPSolver.ConstraintStore do
     end
   end
 
+  def register_fixed(%{store: nil} = variable, fixed_value) do
+    register_fixed(Map.put(variable, :store, get_store_from_dict()), fixed_value)
+  end
+
   def register_fixed(
         %{index: index, domain: domain, store: %{fixed_variables: fixed_vars}} = _variable
       ) do
     value = (Domain.fixed?(domain) && Domain.min(domain)) || @unfixed
     :atomics.put(fixed_vars, index, value)
+  end
+
+  def fixed?(%{store: nil} = variable) do
+    fixed?(Map.put(variable, :store, get_store_from_dict()))
   end
 
   def fixed?(%{store: %{fixed_variables: fixed_vars}, index: index} = _var) do

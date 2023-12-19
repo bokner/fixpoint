@@ -48,8 +48,8 @@ end
 defimpl Interface, for: Any do
   def variable(_any), do: nil
   def id(var), do: not_supported(:id, var)
-  def bind(var, _store), do: not_supported(:bind, var)
-  def map(var, _value), do: not_supported(:bind, var)
+  def bind(var, _store), do: var
+  def map(var, _value), do: var
   def domain(var), do: not_supported(:domain, var)
   def size(var), do: not_supported(:size, var)
   def min(var), do: not_supported(:min, var)

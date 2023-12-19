@@ -13,6 +13,7 @@ defmodule CPSolver.Propagator do
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Variable.Interface
+  alias CPSolver.ConstraintStore
 
   defmacro __using__(_) do
     quote do
@@ -96,12 +97,10 @@ defmodule CPSolver.Propagator do
     PropagatorVariable.reset_variable_ops()
     store = Keyword.get(opts, :store)
     state = propagator[:state]
+    ConstraintStore.set_store(store)
 
     try do
-      args
-      |> List.flatten()
-      |> bind_to_store(store)
-      |> mod.filter(state)
+      mod.filter(args, state)
     catch
       {:fail, var_id} ->
         {:fail, var_id}
@@ -156,7 +155,6 @@ defmodule CPSolver.Propagator do
   def bind_to_variables(propagator, indexed_variables) do
     bound_args =
       propagator.args
-      |> List.flatten()
       |> Enum.map(fn arg -> bind_to_variable(arg, indexed_variables) end)
 
     Map.put(propagator, :args, bound_args)
@@ -174,20 +172,5 @@ defmodule CPSolver.Propagator do
 
   defp bind_to_variable(const, _indexed_variables) do
     const
-  end
-
-  defp bind_to_store(args, nil) do
-    args
-  end
-
-  defp bind_to_store(args, store) do
-    args
-    |> Enum.map(fn
-      v when is_struct(v, Variable) or is_struct(v, View) ->
-        Interface.bind(v, store)
-
-      const ->
-        const
-    end)
   end
 end
