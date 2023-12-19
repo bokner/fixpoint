@@ -186,7 +186,7 @@ defmodule CPSolver.Examples.Knapsack do
 
   [dag = decagram = 10 grams]
   """
-  def tourist_knapsack() do
+  def tourist_knapsack_model() do
     items = [
       {:map, 9, 150},
       {:compass, 13, 35},
@@ -219,29 +219,14 @@ defmodule CPSolver.Examples.Knapsack do
         {[n | n_acc], [w | w_acc], [v | v_acc]}
       end)
 
-    model = model(values, weights, capacity)
-    {:ok, res} = CPSolver.solve_sync(model, timeout: 5_000)
+    model(values, weights, capacity)
+    |> replace_variable_names(item_names)
+  end
 
-    optimal_solution = List.last(res.solutions)
-
-    {items_to_pick, total_value} =
-      List.foldr(Enum.with_index(item_names), {[], 0}, fn {item, idx}, {item_list, total_value} ->
-        in_the_list = Enum.at(optimal_solution, idx) == 1
-
-        {
-          (in_the_list && [item | item_list]) || item_list,
-          (in_the_list && total_value + Enum.at(values, idx)) || total_value
-        }
-      end)
-
-    IO.puts("Items to pick: #{IO.ANSI.blue()}#{inspect(items_to_pick)}#{IO.ANSI.reset()}")
-
-    IO.puts(
-      "Total value (calculated from optimal solution): #{IO.ANSI.red()}#{total_value}#{IO.ANSI.reset()}"
-    )
-
-    IO.puts(
-      "Total value (objective value derived by the solver): #{IO.ANSI.red()}#{res.objective}#{IO.ANSI.reset()}"
-    )
+  defp replace_variable_names(%{variables: variables} = model, item_names) do
+    variables
+    |> Enum.zip(item_names)
+    |> Enum.map(fn {var, name} -> Map.put(var, :name, name) end)
+    |> then(fn named_vars -> Map.put(model, :variables, named_vars) end)
   end
 end

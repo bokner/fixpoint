@@ -136,7 +136,9 @@ defmodule CPSolverTest.Propagator.Sum do
       :fixed = Interface.fix(x2_var, 5)
       :fixed = Interface.fix(x3_var, 5)
 
-      updated_sum_propagator4 = Propagator.update(updated_sum_propagator, %{x2_var.id => :fixed, x3_var.id => :fixed})
+      updated_sum_propagator4 =
+        Propagator.update(updated_sum_propagator, %{x2_var.id => :fixed, x3_var.id => :fixed})
+
       assert updated_sum_propagator4.state.sum_fixed == 20
       assert MapSet.size(updated_sum_propagator4.state.unfixed_vars) == 1
 
