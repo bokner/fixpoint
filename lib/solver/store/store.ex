@@ -14,6 +14,7 @@ defmodule CPSolver.ConstraintStore do
   @type update_operation :: Common.domain_update_operation()
 
   @unfixed Common.unfixed()
+  @store_key :space_store_key
 
   def default_store() do
     CPSolver.Store.ETS
@@ -113,25 +114,45 @@ defmodule CPSolver.ConstraintStore do
        |> Map.put(:fixed?, Domain.fixed?(domain))
        |> tap(fn v -> register_fixed(v) end)
      end), store}
+    |> tap(fn _ -> set_store(store) end)
   end
 
   def domain(variable) do
     domain(variable.store, variable)
   end
 
+  def domain(nil, variable) do
+    get_store_from_dict()
+    |> domain(variable)
+  end
+
   def domain(%{handle: handle, store_impl: store_impl} = _store, variable) do
     store_impl.domain(handle, variable)
   end
 
-  def get(%{handle: handle, store_impl: store_impl} = _store, variable, operation, args \\ []) do
+  def get(store, variable, operation, args \\ [])
+
+  def get(nil, variable, operation, args) do
+    get_store_from_dict()
+    |> get(variable, operation, args)
+  end
+
+  def get(%{handle: handle, store_impl: store_impl} = _store, variable, operation, args) do
     store_impl.get(handle, variable, operation, args)
+  end
+
+  def update(store, variable, operation, args \\ [])
+
+  def update(nil, variable, operation, args) do
+    get_store_from_dict()
+    |> update(variable, operation, args)
   end
 
   def update(
         %{handle: handle, store_impl: store_impl} = _store,
         variable,
         operation,
-        args \\ []
+        args
       ) do
     store_impl.update(handle, variable, operation, args)
     |> then(fn
@@ -144,8 +165,18 @@ defmodule CPSolver.ConstraintStore do
     end)
   end
 
+  def get_variables(nil) do
+    get_store_from_dict()
+    |> get_variables()
+  end
+
   def get_variables(%{handle: handle, store_impl: store_impl} = _store) do
     store_impl.get_variables(handle)
+  end
+
+  def dispose(nil, variables) do
+    get_store_from_dict()
+    |> dispose(variables)
   end
 
   def dispose(%{handle: handle, store_impl: store_impl} = _store, variables) do
@@ -184,6 +215,10 @@ defmodule CPSolver.ConstraintStore do
     (Domain.fixed?(domain) && Domain.min(domain) != fixed_value && :fail) || :fixed
   end
 
+  def update_fixed(%{store: nil} = variable, fixed_value) do
+    update_fixed(Map.put(variable, :store, get_store_from_dict()), fixed_value)
+  end
+
   def update_fixed(
         %{index: index, store: %{fixed_variables: fixed_vars}} = _variable,
         fixed_value
@@ -195,6 +230,10 @@ defmodule CPSolver.ConstraintStore do
     end
   end
 
+  def register_fixed(%{store: nil} = variable, fixed_value) do
+    register_fixed(Map.put(variable, :store, get_store_from_dict()), fixed_value)
+  end
+
   def register_fixed(
         %{index: index, domain: domain, store: %{fixed_variables: fixed_vars}} = _variable
       ) do
@@ -202,7 +241,20 @@ defmodule CPSolver.ConstraintStore do
     :atomics.put(fixed_vars, index, value)
   end
 
+  def fixed?(%{store: nil} = variable) do
+    fixed?(Map.put(variable, :store, get_store_from_dict()))
+  end
+
   def fixed?(%{store: %{fixed_variables: fixed_vars}, index: index} = _var) do
     :atomics.get(fixed_vars, index) != @unfixed
+  end
+
+  ## Store handle in dict
+  def set_store(store) do
+    Process.put(@store_key, store)
+  end
+
+  defp get_store_from_dict() do
+    Process.get(@store_key)
   end
 end

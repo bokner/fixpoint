@@ -7,7 +7,7 @@ The implementation follows the ideas described in Chapter 12, "Concepts, Techniq
 [An overview of CP implementation in Mozart/Oz.](http://mozart2.org/mozart-v1/doc-1.4.0/fdt/index.html)
 ## Status
 
-WIP. Not suitable for use in production. Significant API changes and core implementation rewrites are expected.
+Proof of concept. Not suitable for use in production. Significant API changes and core implementation rewrites are expected.
 
 ### Intro
 

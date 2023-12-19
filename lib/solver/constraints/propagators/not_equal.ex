@@ -18,10 +18,10 @@ defmodule CPSolver.Propagator.NotEqual do
   end
 
   def filter([x, y, offset]) do
-    filter(x, y, offset)
+    filter_impl(x, y, offset)
   end
 
-  def filter(x, y, offset \\ 0) do
+  def filter_impl(x, y, offset \\ 0) do
     cond do
       fixed?(x) ->
         remove(y, plus(min(x), -offset))

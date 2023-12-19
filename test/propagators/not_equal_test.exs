@@ -72,13 +72,13 @@ defmodule CPSolverTest.Propagator.NotEqual do
       assert Variable.contains?(y_var, 0)
       # (x != y + 5)
       offset = 5
-      NotEqual.filter(x_var, y_var, offset)
+      NotEqual.filter([x_var, y_var, offset])
       refute Variable.contains?(y_var, 0)
 
       # (x != y - 5)
       offset = -5
       assert Variable.contains?(y_var, 10)
-      NotEqual.filter(x_var, y_var, offset)
+      NotEqual.filter([x_var, y_var, offset])
       refute Variable.contains?(y_var, 10)
     end
 

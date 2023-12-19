@@ -288,6 +288,7 @@ We will derive a model for this instance from ```elixir CPSolver.Examples.Knapsa
 alias CPSolver.Examples.Knapsack
 ## Instance data
 items = [
+  # {name, weight, value}
   {:map, 9, 150},
   {:compass, 13, 35},
   {:water, 153, 200},

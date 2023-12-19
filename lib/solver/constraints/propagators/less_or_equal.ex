@@ -16,10 +16,10 @@ defmodule CPSolver.Propagator.LessOrEqual do
   end
 
   def filter([x, y, offset]) do
-    filter(x, y, offset)
+    filter_impl(x, y, offset)
   end
 
-  def filter(x, y, offset \\ 0) do
+  def filter_impl(x, y, offset \\ 0) do
     if max(x) <= plus(min(y), offset) do
       ## TODO: it doesn't make sense to filter at all after this happens.
       ## as it will be stable forever.

@@ -48,7 +48,7 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
 
       # (x <= y + 5)
       offset = 5
-      LessOrEqual.filter(x_var, y_var, offset)
+      LessOrEqual.filter([x_var, y_var, offset])
       ## The domain of (y+5) variable is -5..5
       assert 0 == Variable.min(x_var)
       assert 5 == Variable.max(x_var)
@@ -62,14 +62,14 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
 
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
       {:ok, [x_var, y_var], _store} = ConstraintStore.create_store(variables)
-      refute :passive == LessOrEqual.filter(x_var, y_var)
+      refute :passive == LessOrEqual.filter([x_var, y_var])
 
       ## Cut domain of x so it intersects with domain of y in exactly one point
       Variable.removeAbove(x_var, 2)
-      assert :passive == LessOrEqual.filter(x_var, y_var)
+      assert :passive == LessOrEqual.filter([x_var, y_var])
       ## Cut domain of x so it does not intersect with domain of y
       Variable.remove(x_var, 2)
-      assert :passive == LessOrEqual.filter(x_var, y_var)
+      assert :passive == LessOrEqual.filter([x_var, y_var])
     end
   end
 end

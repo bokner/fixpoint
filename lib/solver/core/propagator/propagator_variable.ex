@@ -1,7 +1,7 @@
 defmodule CPSolver.Propagator.Variable do
   alias CPSolver.Variable
   alias CPSolver.Variable.View
-  alias CPSolver.Variable.Interface
+  alias CPSolver.Variable.Interface.ThrowIfFails, as: Interface
   alias CPSolver.Propagator
 
   @propagator_events Propagator.propagator_events()
@@ -52,17 +52,11 @@ defmodule CPSolver.Propagator.Variable do
   end
 
   defp wrap(op, var, val) do
-    case apply(Interface, op, [
-           var,
-           val
-         ]) do
-      :fail ->
-        throw({:fail, Interface.id(var)})
-
-      res ->
-        save_op(var, res)
-        res
-    end
+    apply(Interface, op, [
+      var,
+      val
+    ])
+    |> tap(fn res -> save_op(var, res) end)
   end
 
   defp save_op(_var, :no_change) do
