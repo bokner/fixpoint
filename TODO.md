@@ -1,4 +1,4 @@
-1. Stateful propagators (needed for 'sum')
+1. ~~Stateful propagators (needed for 'sum')~~ done
 2. ~~Handle propagators that do not have a chance to be fired (like 'less_or_equal' in case bounds of vars do not intersect)~~ done
 3. Support solver final status (:satisfied, :all_solutions, :optimal, :unsatisfiable)
 4. Add stats for propagators
