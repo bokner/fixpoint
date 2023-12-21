@@ -126,10 +126,10 @@ defmodule CPSolver.Examples.Knapsack do
   end
 
   def check_solution(solution, optimal, values, weights, capacity) do
-    item_picks = Enum.take(solution, length(weights))
-    total_weight = sum_products(item_picks, weights)
+    items_to_pack = Enum.take(solution, length(weights))
+    total_weight = sum_products(items_to_pack, weights)
 
-    total_weight <= capacity && sum_products(item_picks, values) <= optimal
+    total_weight <= capacity && sum_products(items_to_pack, values) <= optimal
   end
 
   defp sum_products(list1, list2) do

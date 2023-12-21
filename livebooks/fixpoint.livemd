@@ -282,11 +282,11 @@ https://rosettacode.org/wiki/Knapsack_problem/0-1
 
 This is a ***constraint optimization problem (COP)***, as opposed to ***constraint satisfaction problems (CSPs)*** we've seen before. That is, we want to satisfy constraints (in this case, the items we choose have to fit into the knapsack), and we also want a total value of items in the knapsack to be maximized (it's our objective).
 
-We will derive a model for this instance from ```elixir CPSolver.Examples.Knapsack.model/3 ```, and then solve it:
+We will derive a model for this instance from `CPSolver.Examples.Knapsack.model/3`, and then solve it:
 
 ```elixir
 alias CPSolver.Examples.Knapsack
-## Instance data
+## Instance data (item list)
 items = [
   # {name, weight, value}
   {:map, 9, 150},
@@ -336,7 +336,7 @@ optimal_solution = List.last(res.solutions)
 ## That's for sanity check only, as the solver provides an objective value,
 ## which is a total value.
 
-{items_to_pick, total_value, total_weight} =
+{items_to_pack, total_value, total_weight} =
   List.foldr(Enum.with_index(item_names), {[], 0, 0}, fn {item, idx},
                                                          {item_list, total_value, total_weight} ->
     in_the_list = Enum.at(optimal_solution, idx) == 1
@@ -349,10 +349,10 @@ optimal_solution = List.last(res.solutions)
   end)
 
 formatted_knapsack =
-  Enum.chunk_every(items_to_pick, 3)
+  Enum.chunk_every(items_to_pack, 3)
   |> Enum.map_join("\n", fn row -> Enum.join(row, "....") end)
 
-IO.puts("Items to pick: \n\n#{IO.ANSI.blue()}#{formatted_knapsack}#{IO.ANSI.reset()}\n")
+IO.puts("Items to pack: \n\n#{IO.ANSI.blue()}#{formatted_knapsack}#{IO.ANSI.reset()}\n")
 
 IO.puts(
   "Total value (calculated from optimal solution): #{IO.ANSI.red()}#{total_value}#{IO.ANSI.reset()}"
