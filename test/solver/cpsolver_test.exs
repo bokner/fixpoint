@@ -4,6 +4,7 @@ defmodule CpSolverTest do
   alias CPSolver.IntVariable
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.Examples.Queens
+  alias CPSolver.Examples.Knapsack
 
   test "Solves CSP with 2 variables and a single constraint" do
     x = IntVariable.new([1, 2])
@@ -49,5 +50,27 @@ defmodule CpSolverTest do
     assert result.statistics.solution_count == 92
     ## No active nodes - solving is done
     assert result.statistics.active_node_count == 0
+  end
+
+  test "Solver status" do
+    ## N-Queens for n = 3 is unatisfiable
+    {:ok, res} = CPSolver.solve_sync(Queens.model(3))
+    assert res.status == :unsatisfiable
+    ## N-Queens for n = 4
+    {:ok, res} = CPSolver.solve_sync(Queens.model(4))
+    assert res.status == :all_solutions
+    ## N-Queens for n = 8, async solving
+    {:ok, solver} = CPSolver.solve(Queens.model(8))
+    Process.sleep(10)
+    {:running, _} = CPSolver.status(solver)
+    Process.sleep(500)
+    assert :all_solutions = CPSolver.status(solver)
+    ## Status for optimization problem
+    {:ok, solver} = CPSolver.solve(Knapsack.model("data/knapsack/ks_4_0"))
+    Process.sleep(1)
+    {:running, info} = CPSolver.status(solver)
+    assert info[:objective]
+    Process.sleep(100)
+    assert {:optimal, [objective: 19]} == CPSolver.status(solver)
   end
 end

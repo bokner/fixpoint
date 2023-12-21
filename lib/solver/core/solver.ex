@@ -75,7 +75,8 @@ defmodule CPSolver do
        statistics: statistics(solver),
        variables: solver.variable_names,
        solutions: solutions(solver),
-       objective: objective_value(solver)
+       objective: objective_value(solver),
+       status: status(solver)
      }}
   end
 
@@ -93,6 +94,31 @@ defmodule CPSolver do
 
   def statistics(solver) when is_map(solver) do
     Shared.statistics(solver)
+  end
+
+  def status(solver) do
+    status(statistics(solver), objective_value(solver), complete?(solver))
+  end
+
+  defp status(%{active_node_count: 0, solution_count: 0}, _objective_value, true) do
+    :unsatisfiable
+  end
+
+  defp status(%{active_node_count: 0}, objective_value, true) do
+    (objective_value && {:optimal, objective: objective_value}) || :all_solutions
+  end
+
+  defp status(%{active_node_count: active_nodes}, objective_value, true) when active_nodes > 0 do
+    (objective_value && {:satisfied, objective: objective_value}) || :satisfied
+  end
+
+  defp status(
+         %{solution_count: solution_count},
+         objective_value,
+         false
+       ) do
+    (objective_value && {:running, solutions_found: solution_count, objective: objective_value}) ||
+      {:running, solutions_found: solution_count}
   end
 
   def solutions(solver) when is_pid(solver) do
