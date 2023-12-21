@@ -25,6 +25,7 @@ defmodule CPSolver.Space do
       store_impl: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
       search: CPSolver.Search.Strategy.default_strategy(),
+      max_space_threads: 8,
       postpone: false
     ]
   end
@@ -58,7 +59,23 @@ defmodule CPSolver.Space do
   end
 
   def start_propagation(space_pid) when is_pid(space_pid) do
-    :done = GenServer.call(space_pid, :propagate, :infinity)
+    try do
+      :done = GenServer.call(space_pid, :propagate, :infinity)
+    catch
+      :exit, {:normal, {GenServer, :call, _}} = _reason ->
+        :ignore
+    end
+  end
+
+  def start_propagation(space_pid, shared) do
+    if Shared.checkout_space_thread(shared) do
+      spawn(fn ->
+        start_propagation(space_pid)
+        Shared.checkin_space_thread(shared)
+      end)
+    else
+      start_propagation(space_pid)
+    end
   end
 
   @impl true
@@ -79,7 +96,8 @@ defmodule CPSolver.Space do
 
     Shared.add_active_spaces(data.opts[:solver_data], [self()])
 
-    {:ok, space_data, {:continue, :propagate}}
+    (space_opts[:postpone] &&
+       {:ok, space_data}) || {:ok, space_data, {:continue, :propagate}}
   end
 
   defp maybe_bind_objective_variable(data, store) do
@@ -105,10 +123,7 @@ defmodule CPSolver.Space do
 
   @impl true
   def handle_call(:propagate, caller, data) do
-    {:noreply,
-     data
-     |> Map.put(:caller, caller)
-     |> Map.put(:opts, Keyword.put(data.opts, :postpone, false)), {:continue, :propagate}}
+    propagate(Map.put(data, :caller, caller))
   end
 
   defp propagate(
@@ -201,8 +216,11 @@ defmodule CPSolver.Space do
              |> Map.put(:variables, variable_copies)
              |> Map.put(:opts, Keyword.put(data.opts, :postpone, true))
            ) do
-        {:ok, space_pid} -> spawn(fn -> start_propagation(space_pid) end)
-        {:error, :complete} -> false
+        {:ok, space_pid} ->
+          start_propagation(space_pid, data.opts[:solver_data])
+
+        {:error, :complete} ->
+          false
       end
     end)
 
@@ -225,7 +243,18 @@ defmodule CPSolver.Space do
   end
 
   defp shutdown(data, reason) do
+    {:stop, :normal, (!data[:finalized] && cleanup(data, reason)) || data}
+  end
+
+  defp cleanup(data, reason) do
     Shared.remove_space(data.opts[:solver_data], self(), reason)
-    {:stop, :normal, data}
+    caller = data[:caller]
+    caller && GenServer.reply(caller, :done)
+    Map.put(data, :finalized, true)
+  end
+
+  @impl true
+  def terminate(reason, data) do
+    shutdown(data, reason)
   end
 end

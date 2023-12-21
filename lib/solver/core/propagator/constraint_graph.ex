@@ -60,12 +60,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end
   end
 
-  def update_propagator(%Graph{} = graph, propagator_id, propagator) do
+  def update_propagator(%Graph{vertex_labels: labels} = graph, propagator_id, propagator) do
     vertex = propagator_vertex(propagator_id)
-
-    graph
-    |> Graph.remove_vertex_labels(vertex)
-    |> Graph.label_vertex(vertex, propagator)
+    Map.put(graph, :vertex_labels, Map.put(labels, vertex, [propagator]))
   end
 
   def propagator_vertex(propagator_id) do

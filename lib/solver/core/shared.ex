@@ -2,11 +2,11 @@ defmodule CPSolver.Shared do
   alias CPSolver.Objective
   alias CPSolver.Variable.Interface
 
-  def init_shared_data(solver_pid \\ self()) do
+  def init_shared_data(max_space_threads: max_space_threads) do
     %{
       caller: self(),
       sync_mode: false,
-      solver_pid: solver_pid,
+      solver_pid: self(),
       statistics:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
         |> tap(fn stats_ref -> :ets.insert(stats_ref, {:stats, 0, 0, 0, 0}) end),
@@ -14,7 +14,8 @@ defmodule CPSolver.Shared do
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       active_nodes:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
-      complete_flag: init_complete_flag()
+      complete_flag: init_complete_flag(),
+      space_thread_counter: init_space_thread_counter(max_space_threads)
     }
   end
 
@@ -31,6 +32,30 @@ defmodule CPSolver.Shared do
   defp init_complete_flag() do
     make_ref()
     |> tap(fn ref -> :persistent_term.put(ref, false) end)
+  end
+
+  ## First element is a thread counter, 2nd is the max number of
+  ## space processes allowed to run simultaneously.
+  defp init_space_thread_counter(max_space_threads) do
+    ref = :counters.new(2, [:atomics])
+    :counters.put(ref, 1, 0)
+    :counters.put(ref, 2, max_space_threads)
+    ref
+  end
+
+  def get_space_thread_counter(%{space_thread_counter: counter_ref} = _shared) do
+    :counters.get(counter_ref, 1)
+  end
+
+  def checkout_space_thread(%{space_thread_counter: counter_ref} = _shared) do
+    if :counters.get(counter_ref, 1) < :counters.get(counter_ref, 2) do
+      :counters.add(counter_ref, 1, 1)
+      true
+    end
+  end
+
+  def checkin_space_thread(%{space_thread_counter: counter_ref} = _shared) do
+    :counters.get(counter_ref, 1) > 0 && :counters.sub(counter_ref, 1, 1)
   end
 
   @active_node_count_pos 2

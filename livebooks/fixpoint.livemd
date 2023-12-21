@@ -325,7 +325,7 @@ capacity = 400
 model = Knapsack.model(values, weights, capacity)
 
 ## Solve
-{:ok, res} = CPSolver.solve_sync(model, timeout: 5_000)
+{:ok, res} = CPSolver.solve_sync(model, timeout: 1_000)
 
 ## The best (in this case, optimal) solution is the last in the list of feasible solutions
 optimal_solution = List.last(res.solutions)

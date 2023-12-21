@@ -22,7 +22,11 @@ defmodule CPSolver do
   """
   @spec solve(Model.t(), Keyword.t()) :: any()
   def solve(model, opts \\ []) do
-    shared_data = Shared.init_shared_data() |> Map.put(:sync_mode, opts[:sync_mode])
+    opts = Keyword.merge(Space.default_space_opts(), opts)
+
+    shared_data =
+      Shared.init_shared_data(max_space_threads: opts[:max_space_threads])
+      |> Map.put(:sync_mode, opts[:sync_mode])
 
     solver_model = Model.new(model)
 
@@ -138,7 +142,7 @@ defmodule CPSolver do
        objective: objective,
        shared: Map.put(shared, :objective, objective),
        stop_on: stop_on,
-       solver_opts: Keyword.merge(Space.default_space_opts(), solver_opts)
+       solver_opts: solver_opts
      }, {:continue, :solve}}
   end
 
