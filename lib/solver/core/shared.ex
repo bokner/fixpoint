@@ -15,7 +15,8 @@ defmodule CPSolver.Shared do
       active_nodes:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
       complete_flag: init_complete_flag(),
-      space_thread_counter: init_space_thread_counter(max_space_threads)
+      space_thread_counter: init_space_thread_counter(max_space_threads),
+      times: init_times()
     }
   end
 
@@ -25,13 +26,37 @@ defmodule CPSolver.Shared do
 
   def set_complete(%{complete_flag: complete_flag, caller: caller, sync_mode: sync?} = solver) do
     :persistent_term.put(complete_flag, true)
+
+    set_end_time(solver)
     |> tap(fn _ -> sync? && send(caller, {:solver_completed, complete_flag}) end)
     |> tap(fn _ -> CPSolver.stop_spaces(solver) end)
+  end
+
+  ## Elapsed time in microsecs
+  def elapsed_time(solver) do
+    {start_time, end_time} = get_times(solver)
+
+    (((end_time && end_time) || :erlang.monotonic_time()) - start_time)
+    |> div(1_000)
   end
 
   defp init_complete_flag() do
     make_ref()
     |> tap(fn ref -> :persistent_term.put(ref, false) end)
+  end
+
+  def init_times() do
+    make_ref()
+    |> tap(fn ref -> :persistent_term.put(ref, {:erlang.monotonic_time(), nil}) end)
+  end
+
+  defp get_times(%{times: time_ref} = _solver) do
+    {start_time, end_time} = :persistent_term.get(time_ref)
+  end
+
+  defp set_end_time(%{times: ref} = solver) do
+    {start_time, _end_time} = get_times(solver)
+    :persistent_term.put(ref, {start_time, :erlang.monotonic_time()})
   end
 
   ## First element is a thread counter, 2nd is the max number of
@@ -138,7 +163,8 @@ defmodule CPSolver.Shared do
       active_node_count: active_node_count,
       failure_count: failure_count,
       solution_count: solution_count,
-      node_count: node_count
+      node_count: node_count,
+      elapsed_time: elapsed_time(solver)
     }
   end
 

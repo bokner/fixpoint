@@ -1,7 +1,7 @@
 1. ~~Stateful propagators (needed for 'sum')~~ done
 2. ~~Handle propagators that do not have a chance to be fired (like 'less_or_equal' in case bounds of vars do not intersect)~~ done
 3. ~~Level of parallelism for space processes as a solver option~~ done
-4. Support solver final status (:satisfied, :all_solutions, :optimal, :unsatisfiable)
+4. ~~Support solver final status (:satisfied, :all_solutions, :optimal, :unsatisfiable)~~ done, final and runtime statuses supported
 5. More search strategies
 6. Add stats for propagators
 7. (Maybe) add timestamps and/or elapsed time for solutions

@@ -149,6 +149,10 @@ defmodule CPSolver do
     Shared.set_complete(solver)
   end
 
+  def elapsed_time(solver) do
+    Shared.elapsed_time(solver)
+  end
+
   ## GenServer callbacks
 
   @impl true
