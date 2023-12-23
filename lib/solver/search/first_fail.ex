@@ -28,9 +28,12 @@ defmodule CPSolver.Search.Strategy.FirstFail do
     end
   end
 
-  @impl true
-  def partition(domain) do
+  def indomain_min(domain) do
     ## Choice of value doesn't matter for first_fail
     DomainPartition.by_min(domain)
+  end
+
+  def indomain_max(domain) do
+    DomainPartition.by_max(domain)
   end
 end
