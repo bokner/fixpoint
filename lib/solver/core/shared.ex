@@ -51,7 +51,7 @@ defmodule CPSolver.Shared do
   end
 
   defp get_times(%{times: time_ref} = _solver) do
-    {start_time, end_time} = :persistent_term.get(time_ref)
+    {_start_time, _end_time} = :persistent_term.get(time_ref)
   end
 
   defp set_end_time(%{times: ref} = solver) do

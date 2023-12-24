@@ -1,7 +1,9 @@
 defmodule CPSolver.Search.DomainPartition do
   alias CPSolver.DefaultDomain, as: Domain
+  alias CPSolver.Variable.Interface
 
-  def partition(domain, choice) when choice in [:min, :max] do
+  def partition(variable, choice) when choice in [:min, :max] do
+    domain = Interface.domain(variable)
     val = apply(Domain, choice, [domain])
 
     case Domain.remove(domain, val) do
@@ -10,10 +12,11 @@ defmodule CPSolver.Search.DomainPartition do
     end
   end
 
-  def by_min(domain) do
-    partition(domain, :min)
+  def by_min(variable) do
+    partition(variable, :min)
   end
-  def by_max(domain) do
-    partition(domain, :max)
+
+  def by_max(variable) do
+    partition(variable, :max)
   end
 end
