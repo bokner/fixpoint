@@ -7,8 +7,8 @@ defmodule CPSolver.Space do
 
   alias CPSolver.Utils
   alias CPSolver.ConstraintStore
+  alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
-  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils
   alias CPSolver.Space.Propagation
@@ -24,7 +24,7 @@ defmodule CPSolver.Space do
     [
       store_impl: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
-      search: CPSolver.Search.Strategy.default_strategy(),
+      search: Search.default_strategy(),
       max_space_threads: 8,
       postpone: false
     ]
@@ -199,18 +199,11 @@ defmodule CPSolver.Space do
           variables: localized_variables
         } = data
       ) do
-    {:ok, {var_to_branch_on, domain_partitions}} = branching(localized_variables, opts[:search])
+    ## The search strategy branches off the existing variables.
+    ## Each branch is a list of variables to use by a child space
+    branches = Search.branch(localized_variables, opts[:search])
 
-    Enum.take_while(domain_partitions, fn partition ->
-      variable_copies =
-        Enum.map(localized_variables, fn %{id: clone_id} = clone ->
-          if clone_id == var_to_branch_on.id do
-            Map.put(clone, :domain, Domain.new(partition))
-          else
-            clone
-          end
-        end)
-
+    Enum.take_while(branches, fn variable_copies ->
       case create(
              data
              |> Map.put(:variables, variable_copies)
@@ -225,21 +218,6 @@ defmodule CPSolver.Space do
     end)
 
     shutdown(data, :distribute)
-  end
-
-  defp branching(variables, search_strategy) do
-    case search_strategy.select_variable(variables) do
-      {:ok, var_to_branch_on} ->
-        var_domain = var_to_branch_on.domain
-
-        case search_strategy.partition(var_domain) do
-          :fail -> :fail
-          {:ok, partitions} -> {:ok, {var_to_branch_on, partitions}}
-        end
-
-      error ->
-        error
-    end
   end
 
   defp shutdown(data, reason) do

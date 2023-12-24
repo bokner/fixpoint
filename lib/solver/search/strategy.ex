@@ -1,38 +1,63 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Search.DomainPartition
-  alias CPSolver.Variable
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
-  alias CPSolver.Search.{VariableChoice, ValueChoice}
-  @callback select_variable([Variable.t()]) :: {:ok, Variable.t()} | {:error, any()}
-  @callback partition(domain :: Enum.t()) :: {:ok, [Domain.t() | number()]} | {:error, any()}
-
+  alias CPSolver.Search.VariableSelector.FirstFail
 
   def default_strategy() do
     {
-      &VariableChoice.first_fail/1,
-      &DomainPartition.by_min/1
+      :first_fail,
+      :indomain_min
     }
   end
 
-  def select_variable(variables, variable_choice) do
+  def shortcut(:first_fail) do
+    &FirstFail.select_variable/1
+  end
+
+  def shortcut(:indomain_min) do
+    &DomainPartition.by_min/1
+  end
+
+  def shortcut(:indomain_max) do
+    &DomainPartition.by_max/1
+  end
+
+  def shortcut(:indomain_random) do
+    &DomainPartition.random/1
+  end
+
+  def select_variable(variables, variable_choice) when is_atom(variable_choice) do
+    select_variable(variables, shortcut(variable_choice))
+  end
+
+  def select_variable(variables, variable_choice) when is_function(variable_choice) do
     variables
     |> Enum.reject(fn v -> Interface.fixed?(v) end)
-    |> then(fn [] -> throw(all_vars_fixed_exception())
+    |> then(fn
+      [] -> throw(all_vars_fixed_exception())
       unfixed_vars -> variable_choice.(unfixed_vars)
     end)
   end
 
-  def partition(variable, value_choice) do
+  def partition(variable, value_choice) when is_atom(value_choice) do
+    shortcut(value_choice).(variable)
+  end
+
+  def partition(variable, value_choice) when is_function(value_choice) do
     value_choice.(variable)
   end
 
-  def branch(variables, variable_choice, value_choice) do
-    selected_variable = select_variable(variables, variable_choice)
-    domain_partitions = partition(selected_variable, value_choice)
-    variable_clones = Enum.map(domain_partitions, fn domain -> set_domain(selected_variable, domain) end)
-    variable_partitions(variable_clones, variables)
+  def branch(variables, {variable_choice, partition_strategy}) do
+    branch(variables, variable_choice, partition_strategy)
+  end
 
+  def branch(variables, variable_choice, partition_strategy) do
+    selected_variable = select_variable(variables, variable_choice)
+    {:ok, domain_partitions} = partition(selected_variable, partition_strategy)
+
+    # variable_clones = Enum.map(domain_partitions, fn domain -> set_domain(selected_variable, domain) end)
+    variable_partitions(selected_variable, domain_partitions, variables)
   end
 
   def all_vars_fixed_exception() do
@@ -47,8 +72,13 @@ defmodule CPSolver.Search.Strategy do
     Map.put(variable, :domain, Domain.new(domain))
   end
 
-  defp variable_partitions(variable_clones, variables) do
-    variables_map = Map.new(variables, fn v -> {v.id, v} end)
-    Enum.map(variable_clones, fn clone -> Map.put(variables_map, clone.id, clone) |> Enum.map(fn {_var_id, v} -> v end) end)
+  defp variable_partitions(selected_variable, domain_partitions, variables) do
+    Enum.map(domain_partitions, fn domain ->
+      Enum.map(variables, fn var ->
+        (var.id == selected_variable.id && set_domain(var, domain)) || var
+      end)
+
+      # Map.put(variables_map, clone.id, clone) |> Enum.map(fn {_var_id, v} -> v end) end)
+    end)
   end
 end
