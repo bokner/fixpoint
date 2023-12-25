@@ -88,15 +88,15 @@ defmodule CPSolver.Shared do
   @solution_count_pos 4
   @node_count_pos 5
 
+  def increment_node_counts(%{statistics: stats_table}) do
+    update_stats_counters(stats_table, [{@active_node_count_pos, 1}, {@node_count_pos, 1}])
+  end
+
   def add_active_spaces(
-        %{statistics: stats_table, active_nodes: active_nodes_table} = _solver,
+        %{active_nodes: active_nodes_table} = _solver,
         spaces
       ) do
     try do
-      incr = length(spaces)
-
-      update_stats_counters(stats_table, [{@active_node_count_pos, incr}, {@node_count_pos, incr}])
-
       Enum.each(spaces, fn n -> :ets.insert(active_nodes_table, {n, n}) end)
     rescue
       _e -> :ok
@@ -109,13 +109,14 @@ defmodule CPSolver.Shared do
         reason
       ) do
     try do
-      update_stats_counters(stats_table, [
-        {@active_node_count_pos, -1} | update_stats_ops(reason)
-      ])
+      [active_node_count | _] =
+        update_stats_counters(stats_table, [
+          {@active_node_count_pos, -1} | update_stats_ops(reason)
+        ])
 
       :ets.delete(active_nodes_table, space)
       ## The solving is done when there is no more active nodes
-      :ets.info(active_nodes_table, :size) == 0 && set_complete(solver)
+      active_node_count == 0 && set_complete(solver)
     rescue
       _e -> :ok
     end
