@@ -225,7 +225,7 @@ defmodule CPSolver do
       if not CPSolver.complete?(solver_state.shared) do
         solution
         |> Solution.run_handler(solution_handler)
-        |> tap(fn _ -> Shared.add_solution(solution, solver_state.shared) end)
+        |> tap(fn _ -> Shared.add_solution(solver_state.shared, solution) end)
         |> tap(fn result -> check_stop_condition(stop_on_opt, result, solution, solver_state) end)
       end
     end

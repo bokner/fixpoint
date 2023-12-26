@@ -72,13 +72,17 @@ defmodule CPSolver.Space do
   end
 
   defp spawn_space(data) do
-    shared = shared(data)
-    Shared.increment_node_counts(shared)
+    solver = shared(data)
+    spawn_space_local(data, solver)
+  end
 
-    if Shared.checkout_space_thread(shared) do
+  def spawn_space_local(data, solver) do
+    Shared.increment_node_counts(solver)
+
+    if Shared.checkout_space_thread(solver) do
       spawn(fn ->
         run_space(data)
-        Shared.checkin_space_thread(shared)
+        Shared.checkin_space_thread(solver)
       end)
     else
       run_space(data)
