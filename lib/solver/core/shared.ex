@@ -3,7 +3,10 @@ defmodule CPSolver.Shared do
   alias CPSolver.Variable.Interface
   alias CPSolver.Distributed
 
-  def init_shared_data(max_space_threads: max_space_threads) do
+  def init_shared_data(opts) do
+    distributed = Keyword.get(opts, :distributed, false)
+    max_space_threads = Keyword.get(opts, :max_space_threads)
+
     %{
       caller: self(),
       sync_mode: false,
@@ -17,11 +20,18 @@ defmodule CPSolver.Shared do
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
       complete_flag: init_complete_flag(),
       space_thread_counters: init_space_thread_counters(max_space_threads),
-      times: init_times()
+      times: init_times(),
+      distributed: distributed
     }
   end
 
-  def complete?(%{complete_flag: complete_flag} = _solver) do
+  def complete?(solver) do
+    (on_primary_node?(solver) &&
+       complete_impl(solver)) ||
+      distributed_call(solver, :complete_impl)
+  end
+
+  def complete_impl(%{complete_flag: complete_flag} = _solver) do
     :persistent_term.get(complete_flag, true)
   end
 
@@ -51,11 +61,23 @@ defmodule CPSolver.Shared do
     |> tap(fn ref -> :persistent_term.put(ref, {:erlang.monotonic_time(), nil}) end)
   end
 
-  defp get_times(%{times: time_ref} = _solver) do
+  def get_times(solver) do
+    (on_primary_node?(solver) &&
+       get_times_impl(solver)) ||
+      distributed_call(solver, :get_times_impl)
+  end
+
+  def get_times_impl(%{times: time_ref} = _solver) do
     {_start_time, _end_time} = :persistent_term.get(time_ref)
   end
 
-  defp set_end_time(%{times: ref} = solver) do
+  def set_end_time(solver) do
+    (on_primary_node?(solver) &&
+       set_end_time_impl(solver)) ||
+      distributed_call(solver, :get_times_impl)
+  end
+
+  def set_end_time_impl(%{times: ref} = solver) do
     {start_time, _end_time} = get_times(solver)
     :persistent_term.put(ref, {start_time, :erlang.monotonic_time()})
   end
@@ -85,9 +107,15 @@ defmodule CPSolver.Shared do
     :counters.get(counter_ref, 1)
   end
 
-  def checkout_space_thread(
-        %{space_thread_counters: node_threads_ref} = _shared,
-        node \\ Node.self()
+  def checkout_space_thread(solver, node \\ Node.self()) do
+    (on_primary_node?(solver) &&
+       checkout_space_thread_impl(solver, node)) ||
+      distributed_call(solver, :checkin_space_thread_impl, [node])
+  end
+
+  def checkout_space_thread_impl(
+        %{space_thread_counters: node_threads_ref} = _solver,
+        node
       ) do
     counter_ref = :persistent_term.get(node_threads_ref) |> Map.get(node)
 
@@ -97,8 +125,14 @@ defmodule CPSolver.Shared do
     end
   end
 
-  def checkin_space_thread(
-        %{space_thread_counters: node_threads_ref} = _shared,
+  def checkin_space_thread(solver) do
+    (on_primary_node?(solver) &&
+       checkin_space_thread_impl(solver)) ||
+      distributed_call(solver, :checkin_space_thread_impl)
+  end
+
+  def checkin_space_thread_impl(
+        %{space_thread_counters: node_threads_ref} = _solver,
         node \\ Node.self()
       ) do
     counter_ref = :persistent_term.get(node_threads_ref) |> Map.get(node)
@@ -116,11 +150,11 @@ defmodule CPSolver.Shared do
 
   def increment_node_counts(solver) do
     (on_primary_node?(solver) &&
-       increment_node_counts_local(solver)) ||
-      Distributed.call(solver, :increment_node_counts)
+       increment_node_counts_impl(solver)) ||
+      distributed_call(solver, :increment_node_counts_impl)
   end
 
-  defp increment_node_counts_local(%{statistics: stats_table}) do
+  def increment_node_counts_impl(%{statistics: stats_table}) do
     update_stats_counters(stats_table, [{@active_node_count_pos, 1}, {@node_count_pos, 1}])
   end
 
@@ -129,11 +163,11 @@ defmodule CPSolver.Shared do
         spaces
       ) do
     (on_primary_node?(solver) &&
-       add_active_spaces_local(solver, spaces)) ||
-      Distributed.call(solver, :add_active_spaces, [spaces])
+       add_active_spaces_impl(solver, spaces)) ||
+      distributed_call(solver, :add_active_spaces_impl, [spaces])
   end
 
-  def add_active_spaces_local(%{active_nodes: active_nodes_table} = _solver_state, spaces) do
+  def add_active_spaces_impl(%{active_nodes: active_nodes_table} = _solver_state, spaces) do
     try do
       Enum.each(spaces, fn n -> :ets.insert(active_nodes_table, {n, n}) end)
     rescue
@@ -143,11 +177,11 @@ defmodule CPSolver.Shared do
 
   def remove_space(solver, space, reason) do
     (on_primary_node?(solver) &&
-       remove_space_local(solver, space, reason)) ||
-      Distributed.call(solver, :remove_space, [space, reason])
+       remove_space_impl(solver, space, reason)) ||
+      distributed_call(solver, :remove_space_impl, [space, reason])
   end
 
-  def remove_space_local(
+  def remove_space_impl(
         %{statistics: stats_table, active_nodes: active_nodes_table} = solver,
         space,
         reason
@@ -169,11 +203,11 @@ defmodule CPSolver.Shared do
 
   def cleanup(solver) do
     (on_primary_node?(solver) &&
-       cleanup_local(solver)) ||
-      Distributed.call(solver, :cleanup)
+       cleanup_impl(solver)) ||
+      distributed_call(solver, :cleanup_impl)
   end
 
-  def cleanup_local(
+  def cleanup_impl(
         %{solver_pid: solver_pid, complete_flag: complete_flag, objective: objective} = solver
       ) do
     Enum.each([:solutions, :statistics, :active_nodes], fn item ->
@@ -194,21 +228,21 @@ defmodule CPSolver.Shared do
 
   def add_failure(solver) do
     (on_primary_node?(solver) &&
-       add_failure_local(solver)) ||
-      Distributed.call(solver, :add_failure)
+       add_failure_impl(solver)) ||
+      distributed_call(solver, :add_failure_impl)
   end
 
-  def add_failure_local(%{statistics: stats_table} = _solver) do
+  def add_failure_impl(%{statistics: stats_table} = _solver) do
     update_stats_counters(stats_table, [{@failure_count_pos, 1}])
   end
 
   def add_solution(solver, solution) do
     (on_primary_node?(solver) &&
-       add_solution_local(solver, solution)) ||
-      Distributed.call(solver, :add_solution, [solution])
+       add_solution_impl(solver, solution)) ||
+      distributed_call(solver, :add_solution_impl, [solution])
   end
 
-  def add_solution_local(
+  def add_solution_impl(
         %{solutions: solution_table, statistics: stats_table, objective: objective_rec} = _solver,
         solution
       ) do
@@ -242,10 +276,20 @@ defmodule CPSolver.Shared do
   end
 
   defp update_stats_counters(stats_table, update_ops) do
-    :ets.update_counter(stats_table, :stats, update_ops)
+    try do
+      :ets.update_counter(stats_table, :stats, update_ops)
+    rescue
+      _e -> []
+    end
   end
 
   def statistics(solver) do
+    (on_primary_node?(solver) &&
+       statistics_impl(solver)) ||
+      distributed_call(solver, :statistics_impl)
+  end
+
+  def statistics_impl(solver) do
     [{:stats, active_node_count, failure_count, solution_count, node_count}] =
       :ets.lookup(solver.statistics, :stats)
 
@@ -281,11 +325,11 @@ defmodule CPSolver.Shared do
 
   def objective_value(solver) do
     (on_primary_node?(solver) &&
-       objective_value_local(solver)) ||
-      Distributed.call(solver, :objective_value)
+       objective_value_impl(solver)) ||
+      distributed_call(solver, :objective_value_impl)
   end
 
-  def objective_value_local(%{objective: objective_record} = _solver) do
+  def objective_value_impl(%{objective: objective_record} = _solver) do
     Objective.get_objective_value(objective_record)
   end
 
@@ -303,5 +347,9 @@ defmodule CPSolver.Shared do
     Enum.find_value(solution, fn {var_name, value} ->
       var_name == obj_var.name && Interface.map(objective_variable, value)
     end)
+  end
+
+  defp distributed_call(%{solver_pid: solver_pid} = solver, function, args \\ []) do
+    Distributed.call(node(solver_pid), solver, __MODULE__, function, args)
   end
 end

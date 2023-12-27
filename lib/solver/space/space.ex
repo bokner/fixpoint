@@ -15,6 +15,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Objective
 
   alias CPSolver.Shared
+  alias CPSolver.Distributed
 
   require Logger
 
@@ -25,8 +26,9 @@ defmodule CPSolver.Space do
       store_impl: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
       search: Search.default_strategy(),
-      max_space_threads: 16,
-      postpone: false
+      max_space_threads: 8,
+      postpone: false,
+      distributed: false
     ]
   end
 
@@ -73,24 +75,30 @@ defmodule CPSolver.Space do
 
   defp spawn_space(data) do
     solver = shared(data)
-    spawn_space_local(data, solver)
+    worker_node = Distributed.choose_worker_node(solver.distributed)
+    checked_out? = Shared.checkout_space_thread(solver, worker_node)
+    run_space(worker_node, solver, data, checked_out?)
   end
 
-  def spawn_space_local(data, solver) do
+  def run_space(worker_node, solver, data, checked_out?) do
     Shared.increment_node_counts(solver)
 
-    if Shared.checkout_space_thread(solver) do
-      spawn(fn ->
-        run_space(data)
-        Shared.checkin_space_thread(solver)
-      end)
-    else
-      run_space(data)
-    end
+    (worker_node == Node.self() &&
+       run_space(data, checked_out?)) ||
+      :erpc.call(worker_node, __MODULE__, :run_space, [data, checked_out?])
   end
 
-  defp run_space(data) do
-    shared = shared(data)
+  def run_space(data, checked_out?) do
+    (checked_out? &&
+       spawn(fn ->
+         run_space(data)
+         Shared.checkin_space_thread(shared(data))
+       end)) ||
+      run_space(data)
+  end
+
+  def run_space(data) do
+    solver = shared(data)
 
     {:ok, space_pid} =
       create(
@@ -98,7 +106,7 @@ defmodule CPSolver.Space do
         |> Map.put(:opts, Keyword.put(data.opts, :postpone, true))
       )
 
-    Shared.add_active_spaces(shared, [space_pid])
+    Shared.add_active_spaces(solver, [space_pid])
 
     start_propagation(space_pid)
   end

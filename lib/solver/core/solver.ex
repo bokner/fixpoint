@@ -25,7 +25,10 @@ defmodule CPSolver do
     opts = Keyword.merge(Space.default_space_opts(), opts)
 
     shared_data =
-      Shared.init_shared_data(max_space_threads: opts[:max_space_threads])
+      Shared.init_shared_data(
+        max_space_threads: opts[:max_space_threads],
+        distributed: opts[:distributed]
+      )
       |> Map.put(:sync_mode, opts[:sync_mode])
 
     solver_model = Model.new(model)
