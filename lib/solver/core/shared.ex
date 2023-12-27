@@ -110,7 +110,7 @@ defmodule CPSolver.Shared do
   def checkout_space_thread(solver, node \\ Node.self()) do
     (on_primary_node?(solver) &&
        checkout_space_thread_impl(solver, node)) ||
-      distributed_call(solver, :checkin_space_thread_impl, [node])
+      distributed_call(solver, :checkout_space_thread_impl, [node])
   end
 
   def checkout_space_thread_impl(
@@ -216,7 +216,7 @@ defmodule CPSolver.Shared do
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
     :persistent_term.erase(complete_flag)
-    objective && Objective.reset_bound_handle(objective)
+    objective && Objective.reset_bound(objective)
     :ok
   end
 

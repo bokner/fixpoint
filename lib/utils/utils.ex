@@ -22,4 +22,8 @@ defmodule CPSolver.Utils do
     )
     |> then(fn {vars, res} -> {Enum.reverse(vars), res} end)
   end
+
+  def on_primary_node?(arg) when is_reference(arg) or is_pid(arg) or is_port(arg) do
+    Node.self() == node(arg)
+  end
 end
