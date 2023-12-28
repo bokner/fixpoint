@@ -68,6 +68,7 @@ In this example, we have 2 variables $x$ and $y$ and a single constraint $x$ $\n
 ```elixir
 alias CPSolver.IntVariable
 alias CPSolver.Constraint.NotEqual
+alias CPSolver.Model
 ## Variable constructor takes a domain (i.e., set of values), and optional parameters, such as `name`
 x = IntVariable.new([1, 2], name: "x")
 y = IntVariable.new([0, 1], name: "y")
