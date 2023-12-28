@@ -25,7 +25,10 @@ defmodule CPSolver do
     opts = Keyword.merge(Space.default_space_opts(), opts)
 
     shared_data =
-      Shared.init_shared_data(max_space_threads: opts[:max_space_threads])
+      Shared.init_shared_data(
+        max_space_threads: opts[:max_space_threads],
+        distributed: opts[:distributed]
+      )
       |> Map.put(:sync_mode, opts[:sync_mode])
 
     solver_model = Model.new(model)
@@ -225,7 +228,7 @@ defmodule CPSolver do
       if not CPSolver.complete?(solver_state.shared) do
         solution
         |> Solution.run_handler(solution_handler)
-        |> tap(fn _ -> Shared.add_solution(solution, solver_state.shared) end)
+        |> tap(fn _ -> Shared.add_solution(solver_state.shared, solution) end)
         |> tap(fn result -> check_stop_condition(stop_on_opt, result, solution, solver_state) end)
       end
     end
