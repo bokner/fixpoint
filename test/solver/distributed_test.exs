@@ -21,7 +21,7 @@ defmodule CPSolverTest.Distributed do
     # Collect active spaces and group them by the nodes.
     spaces = CPSolver.Shared.active_nodes(solver)
     spaces_by_node = Enum.group_by(spaces, fn s -> node(s) end)
-    ## All nodes should have
+    ## All nodes participated in the solving
     assert Map.keys(spaces_by_node) |> Enum.sort() == Node.list() |> Enum.sort()
   end
 end
