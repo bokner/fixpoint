@@ -8,6 +8,7 @@ defmodule CPSolver.Examples.SendMoreMoney do
   """
 
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Model
   alias CPSolver.Constraint.Sum
   alias CPSolver.Constraint.AllDifferent
   import CPSolver.Variable.View.Factory
@@ -33,7 +34,7 @@ defmodule CPSolver.Examples.SendMoreMoney do
         mul(m, -9_000)
       ])
 
-    %{variables: variables, constraints: [sum_constraint, AllDifferent.new(variables)]}
+    Model.new(variables, [sum_constraint, AllDifferent.new(variables)])
   end
 
   def solve() do

@@ -1,6 +1,7 @@
 defmodule CPSolver.Examples.Sudoku do
   alias CPSolver.Constraint.AllDifferent
   alias CPSolver.IntVariable
+  alias CPSolver.Model
 
   require Logger
 
@@ -109,10 +110,10 @@ defmodule CPSolver.Examples.Sudoku do
     subsquare_constraints =
       group_by_subsquares(cells) |> Enum.map(fn square_vars -> {AllDifferent, square_vars} end)
 
-    %{
-      variables: cells |> List.flatten(),
-      constraints: row_constraints ++ column_constraints ++ subsquare_constraints
-    }
+    Model.new(
+      cells |> List.flatten(),
+      row_constraints ++ column_constraints ++ subsquare_constraints
+    )
   end
 
   def model(puzzle) when is_binary(puzzle) do

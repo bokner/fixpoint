@@ -2,6 +2,7 @@ defmodule CpSolverTest do
   use ExUnit.Case
 
   alias CPSolver.IntVariable
+  alias CPSolver.Model
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.Examples.Queens
   alias CPSolver.Examples.Knapsack
@@ -10,10 +11,11 @@ defmodule CpSolverTest do
     x = IntVariable.new([1, 2])
     y = IntVariable.new([0, 1])
 
-    model = %{
-      variables: [x, y],
-      constraints: [NotEqual.new(x, y)]
-    }
+    model =
+      Model.new(
+        [x, y],
+        [NotEqual.new(x, y)]
+      )
 
     {:ok, solver} = CPSolver.solve(model)
 

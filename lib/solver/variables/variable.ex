@@ -4,7 +4,7 @@ defmodule CPSolver.Variable do
   @type t :: %__MODULE__{
           id: reference(),
           index: integer(),
-          name: String.t(),
+          name: term(),
           domain: Domain.t(),
           fixed?: boolean(),
           propagate_on: Propagator.propagator_event()

@@ -1,6 +1,7 @@
 defmodule CPSolver.Examples.GraphColoring do
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.IntVariable
+  alias CPSolver.Model
 
   def solve(instance, solver_opts \\ [])
 
@@ -29,10 +30,7 @@ defmodule CPSolver.Examples.GraphColoring do
         NotEqual.new(Enum.at(color_vars, v1), Enum.at(color_vars, v2))
       end)
 
-    %{
-      variables: color_vars,
-      constraints: edge_color_constraints
-    }
+    Model.new(color_vars, edge_color_constraints)
   end
 
   defp parse_instance(instance) do

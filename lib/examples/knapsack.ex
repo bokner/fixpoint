@@ -14,6 +14,7 @@ defmodule CPSolver.Examples.Knapsack do
   Next lines: "value weight"
   """
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Model
   alias CPSolver.Constraint.Sum
   alias CPSolver.Constraint.LessOrEqual
   import CPSolver.Variable.View.Factory
@@ -64,11 +65,11 @@ defmodule CPSolver.Examples.Knapsack do
       LessOrEqual.new(total_weight, capacity)
     ]
 
-    %{
-      variables: items ++ [total_weight, total_value],
-      constraints: constraints,
+    Model.new(
+      items ++ [total_weight, total_value],
+      constraints,
       objective: Objective.maximize(total_value)
-    }
+    )
   end
 
   def model(input, kind \\ :value_maximization) do
@@ -118,11 +119,11 @@ defmodule CPSolver.Examples.Knapsack do
       LessOrEqual.new(total_weight, capacity)
     ]
 
-    %{
-      variables: items ++ [total_weight],
-      constraints: space_constraints,
+    Model.new(
+      items ++ [total_weight],
+      space_constraints,
       objective: Objective.minimize(linear(total_weight, -1, capacity))
-    }
+    )
   end
 
   def check_solution(solution, optimal, values, weights, capacity) do

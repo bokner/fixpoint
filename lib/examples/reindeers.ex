@@ -25,6 +25,7 @@ defmodule CPSolver.Examples.Reindeers do
 
   """
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Model
   alias CPSolver.Constraint.Less
   alias CPSolver.Constraint.AllDifferent
 
@@ -75,11 +76,11 @@ defmodule CPSolver.Examples.Reindeers do
         in_front_of(cupid, [rudolph, dancer]) ++
         behind(vixen, [rudolph, prancer, dasher])
 
-    %{
-      variables: positions,
-      ## AllDifferent is optional
-      constraints: [AllDifferent.new(positions) | rules]
-    }
+    Model.new(
+      positions,
+      ## AllDifferent constraint is optional
+      [AllDifferent.new(positions) | rules]
+    )
   end
 
   defp behind(reindeer, list) do

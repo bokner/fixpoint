@@ -5,6 +5,8 @@ defmodule CPSolverTest.Constraint.AllDifferent do
     alias CPSolver.Propagator.NotEqual, as: PropagatorNotEqual
     alias CPSolver.Constraint.AllDifferent
     alias CPSolver.IntVariable
+    alias CPSolver.Constraint
+    alias CPSolver.Model
 
     test "propagators" do
       domain = 1..3
@@ -23,10 +25,7 @@ defmodule CPSolverTest.Constraint.AllDifferent do
       domain = 1..3
       variables = Enum.map(1..3, fn _ -> IntVariable.new(domain) end)
 
-      model = %{
-        variables: variables,
-        constraints: [{AllDifferent, variables}]
-      }
+      model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
 
       {:ok, solver} = CPSolver.solve(model)
 

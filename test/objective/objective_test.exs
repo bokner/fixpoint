@@ -1,6 +1,7 @@
 defmodule CpSolverTest.Objective do
   use ExUnit.Case
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Model
   alias CPSolver.Objective
   alias CPSolver.Propagator
   alias CPSolver.ConstraintStore
@@ -82,17 +83,19 @@ defmodule CpSolverTest.Objective do
       variables = [x, y]
       constraints = [LessOrEqual.new(x, y), Sum.new(z, [x, y])]
 
-      minimization_model = %{
-        variables: variables,
-        constraints: constraints,
-        objective: Objective.minimize(z)
-      }
+      minimization_model =
+        Model.new(
+          variables,
+          constraints,
+          objective: Objective.minimize(z)
+        )
 
-      maximization_model = %{
-        variables: variables,
-        constraints: constraints,
-        objective: Objective.maximize(z)
-      }
+      maximization_model =
+        Model.new(
+          variables,
+          constraints,
+          objective: Objective.maximize(z)
+        )
 
       {:ok, min_res} = CPSolver.solve_sync(minimization_model)
       assert min_res.objective == 2

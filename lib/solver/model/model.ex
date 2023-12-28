@@ -1,11 +1,30 @@
 defmodule CPSolver.Model do
   alias CPSolver.Constraint
+  alias CPSolver.Variable
+  alias CPSolver.Objective
 
-  def new(model) do
-    Map.put(model, :variables, model_variables(model))
+  defstruct [:name, :variables, :constraints, :objective, :extra, :id]
+
+  @type t :: %__MODULE__{
+          id: reference(),
+          name: term(),
+          variables: [Variable.t()],
+          constraints: [Constraint.t()],
+          objective: Objective.t(),
+          extra: term()
+        }
+
+  def new(variables, constraints, opts \\ []) do
+    %__MODULE__{
+      variables: model_variables(variables, constraints),
+      constraints: constraints,
+      objective: opts[:objective],
+      id: Keyword.get(opts, :id, make_ref()),
+      name: opts[:name]
+    }
   end
 
-  def model_variables(%{variables: variables, constraints: constraints} = _model) do
+  def model_variables(variables, constraints) do
     variable_map = Map.new(variables, fn v -> {v.id, v} end)
 
     ## Additional variables may come from constraint definitions

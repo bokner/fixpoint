@@ -31,16 +31,14 @@ defmodule CPSolver do
       )
       |> Map.put(:sync_mode, opts[:sync_mode])
 
-    solver_model = Model.new(model)
-
     {:ok, solver_pid} =
-      GenServer.start(CPSolver, [solver_model, Keyword.put(opts, :shared, shared_data)])
+      GenServer.start(CPSolver, [model, Keyword.put(opts, :shared, shared_data)])
 
     {:ok,
      shared_data
-     |> Map.put(:objective, strip_objective(Map.get(solver_model, :objective)))
+     |> Map.put(:objective, strip_objective(Map.get(model, :objective)))
      |> Map.put(:solver_pid, solver_pid)
-     |> Map.put(:variable_names, Enum.map(solver_model.variables, & &1.name))}
+     |> Map.put(:variable_names, Enum.map(model.variables, & &1.name))}
   end
 
   defp strip_objective(nil) do

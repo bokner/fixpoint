@@ -2,7 +2,9 @@ defmodule CPSolver.Examples.Queens do
   alias CPSolver.Constraint.NotEqual
   alias CPSolver.Constraint.Less
   alias CPSolver.IntVariable
+  alias CPSolver.Model
   require Logger
+
   @queen_symbol "\u2655"
 
   def solve(n, solver_opts \\ []) when is_integer(n) do
@@ -34,10 +36,7 @@ defmodule CPSolver.Examples.Queens do
       end
       |> List.flatten()
 
-    %{
-      variables: q,
-      constraints: constraints ++ symmetry_breaking_constraints(q, symmetry_breaking_mode)
-    }
+    Model.new(q, constraints ++ symmetry_breaking_constraints(q, symmetry_breaking_mode))
   end
 
   def solve_and_print(nqueens, opts \\ [timeout: 1000]) do
