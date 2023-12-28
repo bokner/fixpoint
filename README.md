@@ -23,7 +23,8 @@ Proof of concept. Not suitable for use in production. Significant API changes an
 
 ### Features
 - views (linear combinations of variables in constraints)  
-- solving for satisfaction (CSP) and optimization (COP)  
+- solving for satisfaction (CSP) and optimization (COP)
+- distributed solving  
 
 ### Examples
 - Sudoku
