@@ -7,6 +7,14 @@ defmodule CpSolverTest do
   alias CPSolver.Examples.Queens
   alias CPSolver.Examples.Knapsack
 
+  @solution_handler_test_file "solution_handler_test.tmp"
+
+  setup do
+    File.touch(@solution_handler_test_file)
+    on_exit(fn -> File.rm(@solution_handler_test_file) end)
+    :ok
+  end
+
   test "Solves CSP with 2 variables and a single constraint" do
     x = IntVariable.new([1, 2])
     y = IntVariable.new([0, 1])
@@ -74,5 +82,44 @@ defmodule CpSolverTest do
     assert info[:objective]
     Process.sleep(100)
     assert {:optimal, [objective: 19]} == CPSolver.status(solver)
+  end
+
+  test "Solution handler" do
+    x = IntVariable.new([1, 2])
+    y = IntVariable.new([0, 1])
+
+    model =
+      Model.new(
+        [x, y],
+        [NotEqual.new(x, y)]
+      )
+
+    {:ok, res} =
+      CPSolver.solve_sync(model,
+        solution_handler: fn solution ->
+          File.write!(@solution_handler_test_file, :erlang.term_to_binary(solution) <> "\n", [
+            :append
+          ])
+        end
+      )
+
+    Process.sleep(100)
+
+    solutions_from_file =
+      @solution_handler_test_file
+      |> File.read!()
+      |> String.trim()
+      |> String.split("\n")
+      |> Enum.map(fn binary -> :erlang.binary_to_term(binary) end)
+
+    ## Make {ref, value} list off the solver solutions
+    ## to be able to compare with the output of solutuon handler
+    solver_solutions =
+      Enum.map(res.solutions, fn sol -> Enum.zip(res.variables, sol) end)
+      |> List.flatten()
+      |> Enum.sort()
+
+    handler_solutions = List.flatten(solutions_from_file) |> Enum.sort()
+    assert solver_solutions == handler_solutions
   end
 end
