@@ -128,18 +128,20 @@ iex(49)> {:ok, results} = CPSolver.solve_sync(model)
 # Creates a solver process which runs asynchronously
 # and could be controlled and queried for produced solutions and/or status as it runs.
 # The solver process is alive even after the solving is completed.
-# It's a responsibility of a caller to shut it down
+# It's the responsibility of a caller to dispose of it when no longer needed.
+# (by calling CPSolver.dispose/1)
   
 {:ok, solver} = CPSolver.solve(model, solver_opts)
 
 # Synchronous solving.
+# Takes CPSolver.Model instance and solver options as a Keyword. 
 # Starts the solver and gets the results (solutions and/or solver stats) once the solver finishes.
 {:ok, solver_results} = CPSolver.solve_sync(model, solver_opts)
 ```
 
 , where 
 - ```model``` - [specification of the model](#model-specification);
-- ```solver_opts (optional)``` - [solver options](#solver-options).
+- ```solver_opts (optional)``` - [solver options](#configuring-solver).
 
 ### Model specification
 
