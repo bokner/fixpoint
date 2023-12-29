@@ -172,6 +172,12 @@ The same as for CSP, but with additional `:objective` option. The objective is c
 
 Available options:
 
+- solution_handler: function()
+
+  A callback that is performed every time the solver finds a new solution. The single argument is a list of tuples
+
+  `{variable_name, variable_value}`
+
 - timeout: integer()
   
   Time to wait (in milliseconds) to wait for completing `CPSolver.solve_sync/2` call. Defaults to 30_000.
