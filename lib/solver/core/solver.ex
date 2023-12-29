@@ -20,7 +20,7 @@ defmodule CPSolver do
   @doc """
 
   """
-  @spec solve(Model.t(), Keyword.t()) :: any()
+  @spec solve(Model.t(), Keyword.t()) :: {:ok, map()}
   def solve(model, opts \\ []) do
     opts = Keyword.merge(Space.default_space_opts(), opts)
 
@@ -148,6 +148,11 @@ defmodule CPSolver do
 
   def set_complete(solver) do
     Shared.set_complete(solver)
+  end
+
+  def dispose(solver) do
+    cleanup(solver)
+    Process.exit(solver.solver_pid, :normal)
   end
 
   def elapsed_time(solver) do

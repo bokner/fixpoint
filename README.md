@@ -63,7 +63,7 @@ y = IntVariable.new([0, 1], name: "y")
 ## Create NotEqual constraint
 neq_constraint =  NotEqual.new(x, y)
 ```
-Now create an instance of `Model`:
+Now create an instance of `CPSolver.Model`:
 ```elixir
 model = Model.new([x, y], [neq_constraint])
 ```
@@ -122,10 +122,14 @@ iex(49)> {:ok, results} = CPSolver.solve_sync(model)
 #################
 # Solving       
 #################
-#
+# 
 # Asynchronous solving.
+# Takes CPSolver.Model instance and solver options as a Keyword. 
 # Creates a solver process which runs asynchronously
-# and could later be controlled and queried for produced solutions and/or status.
+# and could be controlled and queried for produced solutions and/or status as it runs.
+# The solver process is alive even after the solving is completed.
+# It's a responsibility of a caller to shut it down
+  
 {:ok, solver} = CPSolver.solve(model, solver_opts)
 
 # Synchronous solving.
@@ -146,7 +150,7 @@ iex(49)> {:ok, results} = CPSolver.solve_sync(model)
 *Fixpoint* allows to solve an instance of CSP/COP problem using multiple cluster nodes.
 
 Note: *Fixpoint* **will not configure the cluster nodes!** 
-It's assumed that each node has the cluster membership and the `fixpoint` dependency is installed.
+It's assumed that each node has the cluster membership and the `fixpoint` dependency is installed on it.
 The solving starts on a 'leader' node, and then the work is distributed across participating nodes.
 The 'leader' node coordinates the process of solving through shared solver state.
 
