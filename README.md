@@ -45,9 +45,9 @@ Let's solve the following *constraint satisfaction problem*:
 
 ***Given two sets of values***
 
- $x$ $\in$ {1,2}, $y$ $\in$ {0, 1}
+ x = {1,2}, y = {0, 1}
 
-***, find all solutions such that*** $x$ $\neq$ $y$
+***, find all solutions such that*** x != y
 
 First step is to create a model that describes the problem we want to solve.
 The model consists of *variables* and *constraints* over the variables.
@@ -186,18 +186,25 @@ solution_handler = fn solution -> IO.puts("#{inspect Enum.map(solution, fn {_nam
 
 ### Search
 
-### [More examples](lib/examples)
+## [Examples](lib/examples)
 
 #### [Reindeer Ordering](lib/examples/reindeers.ex)
 
+Shows how to put together a model that solves a simple riddle.
+
 #### [N-Queens](lib/examples/queens.ex)
+
+Classical N-Queens problem
 
 #### [Sudoku](lib/examples/sudoku.ex)
 
+No explanation needed :-)
+
 #### [SEND+MORE=MONEY](lib/examples/send_more_money.ex)
+
+Cryptoarithmetics problem - a riddle that involves arithmetics.
 
 #### [Knapsack](lib/examples/knapsack.ex)
 
-#### [Graph Coloring](lib/examples/graph_coloring.ex)
-
+Constraint Optimization Problem - packing items so they fit the knapsack ***and*** maximize the total value. Think Indiana Jones trying to fill his backpack with treasures in the best way possible :-)
 

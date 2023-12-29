@@ -3,13 +3,16 @@ defmodule CPSolverTest.Distributed do
   alias CPSolver.Examples.Sudoku
 
   setup do
-    {:ok, spawned} = ExUnited.spawn([:test_worker1, :test_worker2, :test_worker3])
+    # {:ok, spawned} = ExUnited.spawn([:test_worker1, :test_worker2, :test_worker3])
+    :ok = LocalCluster.start()
+
+    spawned = LocalCluster.start_nodes(:spawn, 2)
 
     on_exit(fn ->
-      ExUnited.teardown()
+      LocalCluster.stop()
     end)
 
-    spawned
+    :ok
   end
 
   test "distributed solving uses cluster nodes assigned to it" do

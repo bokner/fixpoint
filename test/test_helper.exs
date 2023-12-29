@@ -1,6 +1,5 @@
-ExUnit.start(capture_log: true)
 Logger.configure(level: :error)
-ExUnited.start()
+ExUnit.start(capture_log: true)
 
 defmodule CPSolver.Test.Helpers do
   def number_of_occurences(string, pattern) do
