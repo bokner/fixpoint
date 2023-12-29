@@ -49,7 +49,6 @@ defmodule CPSolver.MixProject do
     ]
   end
 
-
   defp package() do
     [
       # This option is only needed when you don't want to use the OTP application name

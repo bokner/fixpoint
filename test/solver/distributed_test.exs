@@ -6,7 +6,7 @@ defmodule CPSolverTest.Distributed do
     # {:ok, spawned} = ExUnited.spawn([:test_worker1, :test_worker2, :test_worker3])
     :ok = LocalCluster.start()
 
-    spawned = LocalCluster.start_nodes(:spawn, 2)
+    _spawned = LocalCluster.start_nodes(:spawn, 2)
 
     on_exit(fn ->
       LocalCluster.stop()
@@ -20,7 +20,7 @@ defmodule CPSolverTest.Distributed do
     difficult_sudoku = Sudoku.puzzles().s9x9_clue17_hard
     {:ok, solver} = CPSolver.solve(Sudoku.model(difficult_sudoku), distributed: Node.list())
     # Wait for a bit so all nodes get involved into solving.
-    Process.sleep(500)
+    Process.sleep(1000)
     # Collect active spaces and group them by the nodes.
     spaces = CPSolver.Shared.active_nodes(solver)
     spaces_by_node = Enum.group_by(spaces, fn s -> node(s) end)

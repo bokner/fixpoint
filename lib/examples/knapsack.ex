@@ -226,8 +226,8 @@ defmodule CPSolver.Examples.Knapsack do
 
   defp replace_variable_names(%{variables: variables} = model, item_names) do
     variables
-    |> Enum.zip(item_names)
-    |> Enum.map(fn {var, name} -> Map.put(var, :name, name) end)
+    |> Enum.zip(item_names ++ List.duplicate(nil, length(variables) - length(item_names)))
+    |> Enum.map(fn {var, name} -> (name && Map.put(var, :name, name)) || var end)
     |> then(fn named_vars -> Map.put(model, :variables, named_vars) end)
   end
 end

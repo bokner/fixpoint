@@ -145,7 +145,55 @@ iex(49)> {:ok, results} = CPSolver.solve_sync(model)
 
 ### Model specification
 
+#### For CSP (constraint satisfaction problem):
+
+```elixir
+model = CPSolver.Model.new(variables, constraints)
+```
+, where
+-  `variables` is a list of [variables](lib/solver/variables/variable.ex) up to a concrete implementation.
+  
+  Currently, the only implementation supported is for [variables over integer finite domain](lib/solver/variables/int_variable.ex).
+- `constraints` is a list of [constraints](lib/solver/core/constraint.ex). 
+  
+  [Available constraints](lib/solver/constraints/)
+
+#### For COP (constraint optimization problem):
+  
+```elixir
+model = CPSolver.Model.new(variables, constraints, objective: objective)
+```
+The same as for CSP, but with additional `:objective` option. The objective is constructed by using
+`CPSolver.Objective.minimize/1` and `CPSolver.Objective.maximize/1`. 
+
+[Example of COP model](lib/examples/knapsack.ex) 
+
 ### Configuring solver
+
+Available options:
+
+- timeout: integer()
+  
+  Time to wait (in milliseconds) to wait for completing `CPSolver.solve_sync/2` call. Defaults to 30_000.
+- stop_on: term() | condition_fun()
+  
+  Condition for stopping the solving. Currently, only `{:max_solutions, max_solutions}` condition is available.
+  Defaults to `nil`.
+
+- search: {variable_choice(), value_choice()}
+  
+  [Search strategy](#search). 
+
+- max_space_threads: integer()
+
+  Defines the number of processes for parallel search. Defaults to 8.
+
+- distributed: boolean() | [Node.t()]
+  
+  If `true`, all connected nodes will participate in distributed solving.
+  Alternatively, one can specify the sublist of connected nodes.
+  Defaults to `false`.
+    
 
 ### Distributed solving
 
@@ -185,6 +233,61 @@ solution_handler = fn solution -> IO.puts("#{inspect Enum.map(solution, fn {_nam
 
 
 ### Search
+
+*Fixpoint* allows to specify strategies for searching for feasible and/or optimal solutions.
+
+This is controlled by `:search` option, which is a tuple {`variable_choice`, `value_choice`}.
+
+Generally, `variable_choice` is either an implementation of [variable selector](lib/solver/search/variable_selector.ex), or an identificator of out-of-box implementation that fronts such an implementation. 
+
+Likewise, `value_choice` is either an implementation of [value partition](lib/solver/search/value_partition.ex), or an identificator of out-of-box implementation.
+
+Available standard search strategies:
+
+- For `variable_choice``: 
+  - `:first_fail` : choose the variable with smallest domain size
+
+- For `value_choice`
+  - `:indomain_min, :indomain_max, :indomain_random` : choose minimal, maximal and random value from the variable domain, respectively
+
+Default search strategy is `{:first_fail, :indomain_min}
+
+
+The choice of search strategy may significantly affect the performance of solving. 
+
+Let's use some out-of-box strategies for solving an instance of Knapsack problem,
+
+
+```elixir
+alias CPSolver.Examples.Knapsack
+## First, use the default strategy
+{:ok, results} = CPSolver.solve_sync(Knapsack.tourist_knapsack_model())
+results.statistics
+
+%{
+  elapsed_time: 689543,
+  solution_count: 114,
+  active_node_count: 0,
+  failure_count: 1614,
+  node_count: 3455
+}
+
+## Now, use the :indomain_max for the value choice. 
+## Decision variables for items have {0,1} domain, where 1 means that the item will be packed.
+## Hence, :indomain_max tells the solver to try to include the items first
+## before excluding them.
+{:ok, results} = CPSolver.solve_sync(Knapsack.tourist_knapsack_model(), search: {:first_fail, :indomain_max})
+
+iex(main@zephyr.local)21> results.statistics
+%{
+  elapsed_time: 301501,
+  solution_count: 14,
+  active_node_count: 0,
+  failure_count: 693,
+  node_count: 1413
+}
+```
+The solution time for :indomain_max is more than twice less compared to the default value choice strategy
 
 ## [Examples](lib/examples)
 

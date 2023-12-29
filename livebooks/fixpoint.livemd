@@ -141,7 +141,7 @@ end
 
 Constraint programming is [***declarative***](https://en.wikipedia.org/wiki/Declarative_programming#:~:text=Declarative%20programming%20is%20a%20non,by%20a%20declarative%20programming%20style.). That is, instead of coding the solution to the problem, we formulate it as a [**constraint satisfaction problem**](https://en.wikipedia.org/wiki/Constraint_satisfaction_problem), abbreviated as **CSP**. This is done by putting together a set of constraints (usually called a "model") that describes the problem and then feeding it to CP solver. The solver then either produces solutions that satisfy the model (called "feasible solutions"), if any; otherwise, the solver reports the problem unsolvable in terms of the model.
 
-In addition, CSP could be extended to ***constraint optimization problem (COP)***. For the ***COP***, on top of ***CSP*** formulation the model will also specify an optimization objective. The solver will then find the "best" feasible solution with respect to that objective.
+In addition, CSP could be extended to ***[constraint optimization problem (COP)](https://en.wikipedia.org/wiki/Combinatorial_optimization)***. For the ***COP***, on top of ***CSP*** formulation the model will also specify an optimization objective. The solver will then find the "best" feasible solution with respect to that objective.
 
 To make it more concrete, we will solve some combinatorial problems using ***Fixpoint***.
 
