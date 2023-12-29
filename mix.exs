@@ -4,11 +4,12 @@ defmodule CPSolver.MixProject do
   def project do
     [
       app: :fixpoint,
-      version: "0.7.3",
+      version: "0.7.4",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
+      docs: docs(),
       package: package(),
       name: "Fixpoint"
     ]
@@ -37,6 +38,17 @@ defmodule CPSolver.MixProject do
   defp description() do
     "Constraint Programming Solver"
   end
+
+  defp docs do
+    [
+      main: "readme",
+      formatter_opts: [gfm: true],
+      extras: [
+        "README.md"
+      ]
+    ]
+  end
+
 
   defp package() do
     [
