@@ -188,14 +188,21 @@ solution_handler = fn solution -> IO.puts("#{inspect Enum.map(solution, fn {_nam
 
 #### [Reindeer Ordering](lib/examples/reindeers.ex)
 
+Shows how to put together a model that solves a simple riddle.
+
 #### [N-Queens](lib/examples/queens.ex)
+
+Classical N-Queens problem
 
 #### [Sudoku](lib/examples/sudoku.ex)
 
+No explanation needed :-)
+
 #### [SEND+MORE=MONEY](lib/examples/send_more_money.ex)
+
+Cryptoarithmetics problem - a riddle that involves arithmetics.
 
 #### [Knapsack](lib/examples/knapsack.ex)
 
-#### [Graph Coloring](lib/examples/graph_coloring.ex)
-
+Constraint Optimization Problem - packing items so they fit the knapsack ***and*** maximize the total value. Think Indiana Jones trying to fill his backpack with treasures in the best way possible :-)
 
