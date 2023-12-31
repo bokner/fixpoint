@@ -44,21 +44,27 @@ defmodule CpSolverTest.Objective do
         %{propagator: min_propagator, bound_handle: min_handle} =
         Objective.minimize(objective_variable)
 
-      assert %{changes: nil, active?: true} == Propagator.filter(min_propagator, store: store)
+      assert %{changes: nil, active?: true, state: nil} ==
+               Propagator.filter(min_propagator, store: store)
+
       ## Tighten the bound (this will set the bound to objective_variable.max() - 1)
       Objective.tighten(min_objective)
 
       assert Objective.get_bound(min_handle) == 9
 
       ## Propagation will result in :max_change, :fixed, or :fail for the objective variable, if the global bound changes
-      assert %{changes: %{Interface.id(objective_variable) => :max_change}, active?: true} ==
+      assert %{
+               changes: %{Interface.id(objective_variable) => :max_change},
+               active?: true,
+               state: nil
+             } ==
                Propagator.filter(min_propagator)
 
       ## Propagation doesn't change a global bound
       assert Objective.get_bound(min_handle) == 9
       Objective.update_bound(min_handle, Interface.min(objective_variable))
 
-      assert %{changes: %{Interface.id(objective_variable) => :fixed}, active?: true} ==
+      assert %{changes: %{Interface.id(objective_variable) => :fixed}, active?: true, state: nil} ==
                Propagator.filter(min_propagator)
 
       ## Tightening bound when the objective variable is fixed

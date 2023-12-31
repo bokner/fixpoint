@@ -27,7 +27,10 @@ defmodule CPSolverTest.Propagator do
       refute Variable.fixed?(y_bound)
       assert Variable.fixed?(x_bound)
       propagator = NotEqual.new(bound_variables)
-      assert %{changes: %{y_bound.id => :fixed}, active?: true} == Propagator.filter(propagator)
+
+      assert %{changes: %{y_bound.id => :fixed}, active?: true, state: nil} ==
+               Propagator.filter(propagator)
+
       assert ConstraintStore.get(store, y_bound, :fixed?)
     end
 
@@ -44,7 +47,7 @@ defmodule CPSolverTest.Propagator do
       refute Enum.any?(variables, fn v -> Map.get(v, :store) end)
       propagator = NotEqual.new(variables)
       ## Supplying store will make filtering work on unbound variables
-      assert %{changes: %{y.id => :fixed}, active?: true} ==
+      assert %{changes: %{y.id => :fixed}, active?: true, state: nil} ==
                Propagator.filter(propagator, store: store)
 
       assert ConstraintStore.get(store, y_bound, :fixed?)

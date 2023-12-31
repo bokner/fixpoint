@@ -44,7 +44,6 @@ defmodule CPSolver.Propagator.Sum do
     unfixed_vars =
       Enum.filter(all_vars, fn v -> MapSet.member?(unfixed_vars, Interface.id(v)) end)
 
-    # unfixed_vars = Map.values(unfixed_vars)
     {sum_min, sum_max} = sum_min_max(sum_fixed, unfixed_vars)
     filter_impl(unfixed_vars, sum_min, sum_max)
   end
