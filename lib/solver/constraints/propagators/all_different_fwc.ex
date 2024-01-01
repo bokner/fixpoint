@@ -64,7 +64,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
 
         var ->
           case remove(var, value) do
-            {:fixed, _id} -> remove_variable(var, variables)
+            :fixed -> remove_variable(var, variables)
             _ -> :ok
           end
       end

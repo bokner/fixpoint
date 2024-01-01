@@ -8,7 +8,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
     alias CPSolver.Propagator
     alias CPSolver.Propagator.AllDifferent.FWC
 
-    test "maintains the list of unfixed variables and the list of fixed values" do
+    test "maintains the list of unfixed variables" do
       x =
         Enum.map([{"x1", 0..5}, {"x2", 1..4}, {"x3", 0..5}, {"x4", 4}, {"x5", 5}], fn {name, d} ->
           Variable.new(d, name: name)
@@ -47,36 +47,24 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
 
       assert Interface.min(x2_var) == 1 && Interface.max(x2_var) == 2
       assert Interface.min(x3_var) == 0 && Interface.max(x3_var) == 2
+    end
 
-      ## Removing 2 from x3 will force removal of 2 from x2;
-      ## This, in turn, will make x2 fixed to 1. This would trigger a removal of 1 from x3.
-      ## Both varibales should now be fixed.
-      Interface.remove(x3_var, 2)
+    test "cascading filtering" do
+      ## x1 is fixed, so the filtering removes 1 from all other variables.
+      ## This makes x2 fixed, which in turn triggers a removal of 2 from x3 to x5 etc.
+      ## Eventually all variables become fixed
+      ##
+      x =
+        Enum.map([{"x1", 1}, {"x2", 1..2}, {"x3", 1..3}, {"x4", 1..4}, {"x5", 1..5}], fn {name, d} ->
+          Variable.new(d, name: name)
+        end)
 
-      fwc_propagator_step3 = Map.put(fwc_propagator, :state, filtering_results2.state)
-      _filtering_results3 = Propagator.filter(fwc_propagator_step3)
+      {:ok, x_vars, _store} = ConstraintStore.create_store(x)
 
-      assert Interface.fixed?(x2_var) && Interface.fixed?(x3_var)
-      assert Interface.min(x3_var) == 0 && Interface.min(x3_var) == 1
+      fwc_propagator = FWC.new(x_vars)
+      _filtering_results = Propagator.filter(fwc_propagator)
 
-      # ## The filtering will now remove fixed value for x1 from remaining unfixed variables
-      # Propagator.filter(updated_fwc_propagator)
-
-      # refute Enum.any?([x2_var, x3_var], fn var ->
-      #          Interface.contains?(var, Interface.min(x1_var))
-      #        end)
-
-      # ## At this point, x2 has 2 values
-      # assert Interface.min(x2_var) == 2
-      # assert Interface.max(x2_var) == 3
-
-      # ## If the variable was fixed outside the propagator
-      # ## (as in this case, x3 was fixed to max(x2)),
-      # ## the filtering should detect and act on it without explicit call to update/2
-      # :fixed = Interface.fix(x3_var, Interface.max(x2_var))
-
-      # Propagator.filter(updated_fwc_propagator)
-      # assert Interface.fixed?(x2_var) && Interface.min(x2_var) == 2
+      assert Enum.all?(x_vars, &Interface.fixed?/1)
     end
   end
 end
