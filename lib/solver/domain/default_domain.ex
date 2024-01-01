@@ -1,87 +1,87 @@
 defmodule CPSolver.DefaultDomain do
   alias CPSolver.Common
 
-  @spec new(Enum.t()) :: :gb_sets.set(number())
+  @spec new(Enum.t()) :: :ordsets.set(number())
   def new([]) do
     throw(:empty_domain)
   end
 
   def new(domain) when is_integer(domain) do
-    :gb_sets.from_list([domain])
+    :ordsets.from_list([domain])
   end
 
   def new(domain) do
-    (:gb_sets.is_set(domain) && domain) ||
-      Enum.reduce(domain, :gb_sets.new(), fn v, acc -> :gb_sets.add_element(v, acc) end)
+    (:ordsets.is_set(domain) && domain) ||
+      Enum.reduce(domain, :ordsets.new(), fn v, acc -> :ordsets.add_element(v, acc) end)
   end
 
   def map(domain, mapper_fun) when is_function(mapper_fun) do
-    :gb_sets.fold(
-      fn v, acc -> :gb_sets.add_element(mapper_fun.(v), acc) end,
-      :gb_sets.new(),
+    :ordsets.fold(
+      fn v, acc -> :ordsets.add_element(mapper_fun.(v), acc) end,
+      :ordsets.new(),
       domain
     )
   end
 
   def to_list(domain) do
-    :gb_sets.to_list(domain)
+    :ordsets.to_list(domain)
   end
 
-  @spec size(:gb_sets.set(number())) :: non_neg_integer
+  @spec size(:ordsets.set(number())) :: non_neg_integer
   def size(domain) do
-    :gb_sets.size(domain)
+    :ordsets.size(domain)
   end
 
-  @spec fixed?(:gb_sets.set(number())) :: boolean
+  @spec fixed?(:ordsets.set(number())) :: boolean
   def fixed?(domain) do
     size(domain) == 1
   end
 
-  @spec min(:gb_sets.set(number())) :: number()
+  @spec min(:ordsets.set(number())) :: number()
   def min(domain) do
-    :gb_sets.smallest(domain)
+    hd(domain)
   end
 
-  @spec max(domain :: :gb_sets.set(number())) :: number()
+  @spec max(domain :: :ordsets.set(number())) :: number()
   def max(domain) do
-    :gb_sets.largest(domain)
+    List.last(domain)
   end
 
-  @spec contains?(:gb_sets.set(number()), number()) :: boolean
+  @spec contains?(:ordsets.set(number()), number()) :: boolean
   def contains?(domain, value) do
-    :gb_sets.is_member(value, domain)
+    :ordsets.is_element(value, domain)
   end
 
-  @spec remove(:gb_sets.set(number()), number()) ::
+  @spec remove(:ordsets.set(number()), number()) ::
           :fail
           | :no_change
-          | {Common.domain_change(), :gb_sets.set(number())}
+          | {Common.domain_change(), :ordsets.set(number())}
   def remove(domain, value) do
-    :gb_sets.delete_any(value, domain)
+    :ordsets.del_element(value, domain)
     |> post_remove(domain, :domain_change)
   end
 
-  @spec removeAbove(:gb_sets.set(number()), number()) ::
+  @spec removeAbove(:ordsets.set(number()), number()) ::
           :fail
           | :no_change
-          | {Common.domain_change(), :gb_sets.set(number())}
+          | {Common.domain_change(), :ordsets.set(number())}
 
   def removeAbove(domain, value) do
-    :gb_sets.filter(fn v -> v <= value end, domain)
+    :ordsets.filter(fn v -> v <= value end, domain)
     |> post_remove(domain, :max_change)
   end
 
-  @spec removeBelow(:gb_sets.set(number()), number()) ::
-          :fail | :no_change | {Common.domain_change(), :gb_sets.set(number())}
+  @spec removeBelow(:ordsets.set(number()), number()) ::
+          :fail | :no_change | {Common.domain_change(), :ordsets.set(number())}
   def removeBelow(domain, value) do
-    :gb_sets.filter(fn v -> v >= value end, domain)
+    :ordsets.filter(fn v -> v >= value end, domain)
     |> post_remove(domain, :min_change)
   end
 
-  @spec fix(:gb_sets.set(any), number()) :: :fail | {:fixed, :gb_sets.set(number())}
+  @spec fix(:ordsets.set(any), number()) :: :fail | {:fixed, :ordsets.set(number())}
   def fix(domain, value) do
     if contains?(domain, value) do
-      {:fixed, :gb_sets.from_list([value])}
+      {:fixed, :ordsets.from_list([value])}
     else
       :fail
     end
