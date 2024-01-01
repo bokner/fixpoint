@@ -65,8 +65,8 @@ defmodule CPSolver.Space.Propagation do
         %{changes: nil, active?: active?} ->
           {:cont, {unschedule(scheduled, p_id), maybe_remove_propagator(g, p_id, active?)}}
 
-        %{changes: changes, active?: active?} ->
-          case update_propagator(g, p_id, changes, active?) do
+        %{changes: changes} = filtering_results ->
+          case update_propagator(g, p_id, filtering_results) do
             :fail ->
               {:halt, :fail}
 
@@ -112,13 +112,14 @@ defmodule CPSolver.Space.Propagation do
 
   ## Update propagator
   ## Do not update if passive
-  defp update_propagator(graph, _propagator_id, _changes, false) do
+  defp update_propagator(graph, _propagator_id, %{active?: false} = _filtering_results) do
     graph
   end
 
-  defp update_propagator(graph, propagator_id, changes, true) do
+  defp update_propagator(graph, propagator_id, %{changes: changes, active?: true, state: state}) do
     graph
     |> ConstraintGraph.get_propagator(propagator_id)
+    |> Map.put(:state, state)
     |> Propagator.update(changes)
     |> then(fn updated_propagator ->
       ConstraintGraph.update_propagator(graph, propagator_id, updated_propagator)

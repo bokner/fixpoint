@@ -112,9 +112,7 @@ defmodule CPSolver.Propagator do
         :stable
 
       result ->
-        ## If propagator doesn't explicitly return 'stable',
-        ## we retrieve the map of variable operation results created by PropagatorVariable wrapper
-        get_filter_changes(result != :passive)
+        get_filter_changes(result)
     end
   end
 
@@ -143,13 +141,23 @@ defmodule CPSolver.Propagator do
     [:fixed]
   end
 
-  @spec get_filter_changes(boolean()) ::
-          %{:changes => map(), active?: boolean()}
-  defp get_filter_changes(propagator_active?) do
+  @spec get_filter_changes(term()) ::
+          %{:changes => map(), :state => map(), active?: boolean()}
+  defp get_filter_changes(propagator_active?) when is_boolean(propagator_active?) do
     %{
       changes: PropagatorVariable.get_variable_ops(),
-      active?: propagator_active?
+      active?: propagator_active?,
+      state: nil
     }
+  end
+
+  defp get_filter_changes({:state, state}) do
+    get_filter_changes(true)
+    |> Map.put(:state, state)
+  end
+
+  defp get_filter_changes(result) do
+    get_filter_changes(result != :passive)
   end
 
   def bind_to_variables(propagator, indexed_variables) do

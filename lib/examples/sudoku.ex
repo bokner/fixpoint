@@ -1,5 +1,5 @@
 defmodule CPSolver.Examples.Sudoku do
-  alias CPSolver.Constraint.AllDifferent
+  alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
   alias CPSolver.IntVariable
   alias CPSolver.Model
 
