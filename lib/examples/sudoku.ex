@@ -1,4 +1,5 @@
 defmodule CPSolver.Examples.Sudoku do
+  alias CPSolver.Constraint
   alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
   alias CPSolver.IntVariable
   alias CPSolver.Model
@@ -100,15 +101,16 @@ defmodule CPSolver.Examples.Sudoku do
 
     # Each row has different numbers
     row_constraints =
-      Enum.map(cells, fn row -> {AllDifferent, row} end)
+      Enum.map(cells, fn row -> Constraint.new(AllDifferent, row) end)
 
     # Each column has different numbers
     column_constraints =
       Enum.zip_with(cells, &Function.identity/1)
-      |> Enum.map(fn column -> {AllDifferent, column} end)
+      |> Enum.map(fn column -> Constraint.new(AllDifferent, column) end)
 
     subsquare_constraints =
-      group_by_subsquares(cells) |> Enum.map(fn square_vars -> {AllDifferent, square_vars} end)
+      group_by_subsquares(cells)
+      |> Enum.map(fn square_vars -> Constraint.new(AllDifferent, square_vars) end)
 
     Model.new(
       cells |> List.flatten(),
