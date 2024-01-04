@@ -8,6 +8,7 @@ defmodule CPSolver do
   alias CPSolver.Constraint
   alias CPSolver.Solution
   alias CPSolver.Propagator
+  alias CPSolver.Variable.Interface
 
   alias CPSolver.Shared
 
@@ -38,7 +39,10 @@ defmodule CPSolver do
      shared_data
      |> Map.put(:objective, strip_objective(Map.get(model, :objective)))
      |> Map.put(:solver_pid, solver_pid)
-     |> Map.put(:variable_names, Enum.map(model.variables, & &1.name))}
+     |> Map.put(
+       :variable_names,
+       Enum.map(model.variables, fn var -> Interface.variable(var).name end)
+     )}
   end
 
   defp strip_objective(nil) do
@@ -258,7 +262,7 @@ defmodule CPSolver do
     indexed_variables =
       variables
       |> Enum.with_index(1)
-      |> Map.new(fn {v, idx} -> {v.id, Map.put(v, :index, idx)} end)
+      |> Map.new(fn {v, idx} -> {Interface.id(v), Map.put(Interface.variable(v), :index, idx)} end)
 
     bound_propagators =
       Enum.reduce(constraints, [], fn constraint, acc ->

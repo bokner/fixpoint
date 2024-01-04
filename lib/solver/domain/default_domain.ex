@@ -67,14 +67,14 @@ defmodule CPSolver.DefaultDomain do
           | {Common.domain_change(), :ordsets.set(number())}
 
   def removeAbove(domain, value) do
-    :ordsets.filter(fn v -> v <= value end, domain)
+    Enum.take_while(domain, fn v -> v <= value end)
     |> post_remove(domain, :max_change)
   end
 
   @spec removeBelow(:ordsets.set(number()), number()) ::
           :fail | :no_change | {Common.domain_change(), :ordsets.set(number())}
   def removeBelow(domain, value) do
-    :ordsets.filter(fn v -> v >= value end, domain)
+    Enum.drop_while(domain, fn v -> v < value end)
     |> post_remove(domain, :min_change)
   end
 

@@ -1,6 +1,7 @@
 defmodule CPSolver.Model do
   alias CPSolver.Constraint
   alias CPSolver.Variable
+  alias CPSolver.Variable.Interface
   alias CPSolver.Objective
 
   defstruct [:name, :variables, :constraints, :objective, :extra, :id]
@@ -25,7 +26,7 @@ defmodule CPSolver.Model do
   end
 
   def model_variables(variables, constraints) do
-    variable_map = Map.new(variables, fn v -> {v.id, v} end)
+    variable_map = Map.new(variables, fn v -> {Interface.id(v), Interface.variable(v)} end)
 
     ## Additional variables may come from constraint definitions
     ## (example: LessOrEqual constraint, where the second argument is a constant value).
