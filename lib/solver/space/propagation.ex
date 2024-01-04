@@ -48,9 +48,13 @@ defmodule CPSolver.Space.Propagation do
   def propagate(propagators, graph, store) when is_map(propagators) do
     propagators
     |> reorder()
-    |> Task.async_stream(fn {p_id, p} ->
-      {p_id, Propagator.filter(p, store: store)}
-    end)
+    |> Task.async_stream(
+      fn {p_id, p} ->
+        {p_id, Propagator.filter(p, store: store)}
+      end,
+      ## TODO: make it an option
+      max_concurrency: 1
+    )
     |> Enum.reduce_while({MapSet.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = _acc ->
       case res do
         {:fail, _var} ->

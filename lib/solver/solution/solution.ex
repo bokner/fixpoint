@@ -1,4 +1,6 @@
 defmodule CPSolver.Solution do
+  alias CPSolver.Variable.Interface
+
   @callback handle(solution :: %{reference() => number() | boolean()}) :: any()
   def default_handler() do
     CPSolver.Solution.DefaultHandler
@@ -27,7 +29,7 @@ defmodule CPSolver.Solution do
       Enum.find_index(
         variables,
         fn var ->
-          var.name == var_name
+          Interface.variable(var).name == var_name
         end
       )
     end)

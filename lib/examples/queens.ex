@@ -1,8 +1,10 @@
 defmodule CPSolver.Examples.Queens do
-  alias CPSolver.Constraint.NotEqual
+  alias CPSolver.Constraint
+  alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
   alias CPSolver.Constraint.Less
   alias CPSolver.IntVariable
   alias CPSolver.Model
+  import CPSolver.Variable.View.Factory
   require Logger
 
   @queen_symbol "\u2655"
@@ -15,26 +17,23 @@ defmodule CPSolver.Examples.Queens do
   def model(n, symmetry_breaking_mode \\ nil) do
     range = 1..n
     ## Queen positions
-    q =
-      Enum.map(Enum.with_index(range, 1), fn {_, idx} ->
-        IntVariable.new(range, name: "row #{idx}")
-      end)
+    q = Enum.map(range, fn i -> IntVariable.new(range, name: "row #{i}") end)
+    indexed_q = Enum.with_index(q, 1)
+
+    diagonal_down = Enum.map(indexed_q, fn {var, idx} -> linear(var, 1, -idx) end)
+    diagonal_up = Enum.map(indexed_q, fn {var, idx} -> linear(var, 1, idx) end)
 
     constraints =
-      for i <- 0..(n - 2) do
-        for j <- (i + 1)..(n - 1) do
-          # queens q[i] and q[i] not on ...
-          [
-            ## ... the same row
-            NotEqual.new(Enum.at(q, i), Enum.at(q, j), 0),
-            ## ... the same left diagonal
-            NotEqual.new(Enum.at(q, i), Enum.at(q, j), i - j),
-            ## ... the same right diagonal
-            NotEqual.new(Enum.at(q, i), Enum.at(q, j), j - i)
-          ]
-        end
-      end
-      |> List.flatten()
+      [
+        Constraint.new(AllDifferent, diagonal_down),
+        Constraint.new(AllDifferent, diagonal_up),
+        Constraint.new(AllDifferent, q)
+      ]
+
+    # constraint alldifferent(q);
+    # constraint alldifferent(i in 1..n)(q[i] + i);
+    # constraint alldifferent(i in 1..n)(q[i] - i);
+    ## left diagonal
 
     Model.new(q, constraints ++ symmetry_breaking_constraints(q, symmetry_breaking_mode))
   end

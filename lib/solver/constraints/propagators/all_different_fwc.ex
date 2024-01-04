@@ -12,7 +12,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   defp initial_state(args) do
-    %{unfixed_vars: Map.new(args, fn v -> {v.id, v} end)}
+    %{unfixed_vars: Map.new(args, fn v -> {id(v), v} end)}
   end
 
   @impl true
@@ -58,15 +58,15 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
 
     Enum.each(
       variables,
-      fn
-        var when var.id == variable.id ->
+      fn var ->
+        if id(var) == id(variable) do
           :ok
-
-        var ->
+        else
           case remove(var, value) do
             :fixed -> remove_variable(var, variables)
             _ -> :ok
           end
+        end
       end
     )
   end
