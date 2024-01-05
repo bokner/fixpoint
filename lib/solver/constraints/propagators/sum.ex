@@ -39,6 +39,10 @@ defmodule CPSolver.Propagator.Sum do
     filter(args, initial_state(args))
   end
 
+  def filter(args, nil) do
+    filter(args, initial_state(args))
+  end
+
   @impl true
   def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_vars: unfixed_vars} = _state) do
     unfixed_vars =
