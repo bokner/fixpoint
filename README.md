@@ -18,12 +18,14 @@ Proof of concept. Not suitable for use in production. Significant API changes an
 
 - `not_equal`
 - `less_or_equal`
-- `all_different` (decomposition to `not_equal`)
+- `all_different`
 - `sum`
 
 ## Features
 - views (linear combinations of variables in constraints)  
 - solving for satisfaction (CSP) and optimization (COP)
+- parallel search
+- pluggable search strategies
 - distributed solving  
 
 ## Installation

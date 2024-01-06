@@ -9,7 +9,7 @@
 9. (Maybe) add timestamps and/or elapsed time for solutions
 10. (Maybe) add objective values to solutions or give an API to derive them from solution + shared objective
 11. 'equal'
-12. AllDifferent with forward checking
+12. ~~AllDifferent with forward checking~~
 13. AllDifferent with graphs
 14. 'element', 'circuit'
 15. Reification
