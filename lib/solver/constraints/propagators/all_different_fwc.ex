@@ -5,12 +5,6 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   The forward-checking propagator for AllDifferent constraint.
   """
 
-  @impl true
-  def new(args) do
-    Propagator.new(__MODULE__, args)
-    |> Map.put(:state, initial_state(args))
-  end
-
   defp initial_state(args) do
     %{unfixed_vars: Map.new(args, fn v -> {id(v), v} end)}
   end
