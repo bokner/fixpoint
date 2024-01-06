@@ -73,7 +73,7 @@ defmodule CpSolverTest do
     {:ok, solver} = CPSolver.solve(Queens.model(8))
     Process.sleep(10)
     {:running, _} = CPSolver.status(solver)
-    Process.sleep(500)
+    Process.sleep(100)
     assert :all_solutions = CPSolver.status(solver)
     ## Status for optimization problem
     {:ok, solver} = CPSolver.solve(Knapsack.model("data/knapsack/ks_4_0"))
