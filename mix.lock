@@ -14,4 +14,5 @@
   "nimble_parsec": {:hex, :nimble_parsec, "1.4.0", "51f9b613ea62cfa97b25ccc2c1b4216e81df970acd8e16e8d1bdc58fef21370d", [:mix], [], "hexpm", "9c565862810fb383e9838c1dd2d7d2c437b3d13b267414ba6af33e50d2d1cf28"},
   "redbug_clone": {:hex, :redbug_clone, "2.0.10", "786c766accaa660089760025faf06a6acb4e3517f2c6fc9a34d698fe38217c64", [:rebar3], [], "hexpm", "7ad11db975aa5547b81101a6628bb9defb46e7f274861fbd37fd8d85dc03f6ee"},
   "replbug": {:hex, :replbug, "1.0.2", "5dae87d9839d9821ad5452a7c29f39259c92f7d561f3e5f8dfff930528ece47f", [:mix], [{:erlang_term, "~> 2.0", [hex: :erlang_term, repo: "hexpm", optional: false]}, {:redbug_clone, "~> 2.0.10", [hex: :redbug_clone, repo: "hexpm", optional: false]}], "hexpm", "8e0d8066f2cd776f3efdd51918152ab54c4bbf1f975d6e8d25ff3db0de5ed2e6"},
+  "simple_bitmap": {:hex, :simple_bitmap, "1.4.0", "1b15c2a500540b2b811934bc0753bb30bc889f96dc21b1ace4fdd1cfba3179dc", [:mix], [], "hexpm", "6013110885037cfdb74a518dfcc5cad2cecef60015e95107ca4019ff5b719bfc"},
 }

@@ -103,7 +103,7 @@ defmodule CPSolverTest.Variable.View do
       refute View.contains?(view2, 1)
 
       assert :no_change == View.remove(view1, 100)
-      assert View.domain(view2) |> Domain.to_list() == Enum.map(1..10, fn val -> 10 * val end)
+      assert View.domain(view2) |> Enum.sort() == Enum.map(1..10, fn val -> 10 * val end)
       assert :max_change == View.remove(view2, 100)
       ## After removing from view2, other views will be affected
       assert 9 == View.max(view1)
