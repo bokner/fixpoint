@@ -2,7 +2,7 @@ defmodule CPSolverTest.Domain do
   use ExUnit.Case
 
   describe "Default domain" do
-    alias CPSolver.DefaultDomain, as: Domain
+    alias CPSolver.BitmapDomain, as: Domain
 
     test "creates domain from integer range and list" do
       assert catch_throw(Domain.new([])) == :empty_domain
@@ -69,13 +69,28 @@ defmodule CPSolverTest.Domain do
     test "fix" do
       values = [0, -2, 4, 5, 6]
       domain = Domain.new(values)
-      {:fixed, fixed} = Domain.fix(domain, 0)
-      assert Domain.fixed?(fixed)
-      assert Domain.min(fixed) == 0
-      assert Domain.max(fixed) == 0
+
+      assert Enum.all?(values, fn val ->
+               {:fixed, fixed} = Domain.fix(domain, val)
+
+               Domain.fixed?(fixed) &&
+                 Domain.min(fixed) == val &&
+                 Domain.max(fixed) == val
+             end)
 
       ## Fixing non-existing value leads to a failure
       assert :fail == Domain.fix(domain, 1)
+    end
+
+    test "to_list, map" do
+      values = [0, 2, 3, -1, 4, 10]
+      domain = Domain.new(values)
+      assert Enum.sort(Domain.to_list(domain)) == Enum.sort(values)
+
+      mapper_fun = fn x -> 2 * x end
+
+      assert Domain.map(domain, mapper_fun) |> Enum.sort() ==
+               Enum.map(values, mapper_fun) |> Enum.sort()
     end
   end
 end

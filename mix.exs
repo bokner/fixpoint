@@ -26,6 +26,7 @@ defmodule CPSolver.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:simple_bitmap, "~> 1.4.0"},
       {:libgraph, "~> 0.16.0"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 1.2", only: [:dev], runtime: false},

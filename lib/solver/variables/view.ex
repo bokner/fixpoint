@@ -33,7 +33,7 @@ defmodule CPSolver.Variable.View do
         {floor((value - b) / a), :removeAbove}
 
       {value, :above} when a < 0 ->
-        {ceil(value - b) / a, :removeBelow}
+        {ceil((value - b) / a), :removeBelow}
 
       {value, :below} when a > 0 ->
         {ceil((value - b) / a), :removeBelow}
