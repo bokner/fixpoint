@@ -55,7 +55,7 @@ defmodule CPSolver.MixProject do
       # This option is only needed when you don't want to use the OTP application name
       name: "fixpoint",
       # These are the default files included in the package
-      files: ~w(lib test data .formatter.exs mix.exs README* LICENSE*
+      files: ~w(lib src test data .formatter.exs mix.exs README* LICENSE*
                 ),
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/bokner/cpsolver"}

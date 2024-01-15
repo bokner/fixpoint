@@ -29,8 +29,11 @@ defmodule CPSolverTest.Search.FirstFail do
       min_val = Domain.min(var_domain)
 
       # indomain_min splits domain of selected variable into min and the rest of the domain
-      assert SearchStrategy.partition(selected_variable, :indomain_min) ==
-               {:ok, [min_val, Domain.new(List.delete(Enum.to_list(v2_values), 0))]}
+      {:ok, [min_value, no_min_partition]} =
+        SearchStrategy.partition(selected_variable, :indomain_min)
+
+      assert Domain.to_list(no_min_partition) |> Enum.sort() ==
+               List.delete(Enum.to_list(v2_values), min_value) |> Enum.sort()
     end
 
     test "first_fail fails if no unfixed variables" do

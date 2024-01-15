@@ -16,10 +16,32 @@ defmodule CPSolver.BitmapDomain do
     offset =
       case Enum.min(domain) do
         ## shift values so the minimum is 1
+        m when m <= 0 -> -m + 1
+        _m -> 0
+      end
+
+    ## Build the data and create a bitmap afterwards
+    value_set =
+      Enum.reduce(domain, MapSet.new(), fn val, acc -> MapSet.put(acc, val + offset) end)
+
+    {_, data} =
+      Enum.reduce(1..Enum.max(value_set), {1, 0}, fn idx, {prev, sum} ->
+        next = 2 * prev
+        {next, (idx in value_set && sum + next) || sum}
+      end)
+
+    {SimpleBitmap.new(data), offset}
+  end
+
+  def new1(domain) do
+    offset =
+      case Enum.min(domain) do
+        ## shift values so the minimum is 1
         m when m < 0 -> -m + 1
         _m -> 0
       end
 
+    ## Build the data and create a bitmap afterwards
     {Enum.reduce(domain, SimpleBitmap.new(), fn value, acc ->
        SimpleBitmap.set(acc, value + offset)
      end), offset}
