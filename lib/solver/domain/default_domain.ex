@@ -1,5 +1,5 @@
 defmodule CPSolver.DefaultDomain do
-  alias CPSolver.BitmapDomain, as: Domain
+  alias CPSolver.BitVectorDomain, as: Domain
 
   defdelegate new(values), to: Domain
   defdelegate map(domain, mapper), to: Domain
