@@ -32,6 +32,8 @@ defmodule CPSolverTest.Search.FirstFail do
       {:ok, [min_value, no_min_partition]} =
         SearchStrategy.partition(selected_variable, :indomain_min)
 
+      assert min_val == Domain.min(var_domain)
+
       assert Domain.to_list(no_min_partition) |> Enum.sort() ==
                List.delete(Enum.to_list(v2_values), min_value) |> Enum.sort()
     end

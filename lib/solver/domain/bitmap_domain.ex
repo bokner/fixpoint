@@ -33,20 +33,6 @@ defmodule CPSolver.BitmapDomain do
     {SimpleBitmap.new(data), offset}
   end
 
-  def new1(domain) do
-    offset =
-      case Enum.min(domain) do
-        ## shift values so the minimum is 1
-        m when m < 0 -> -m + 1
-        _m -> 0
-      end
-
-    ## Build the data and create a bitmap afterwards
-    {Enum.reduce(domain, SimpleBitmap.new(), fn value, acc ->
-       SimpleBitmap.set(acc, value + offset)
-     end), offset}
-  end
-
   def map(domain, mapper_fun) when is_function(mapper_fun) do
     to_list(domain, mapper_fun)
   end
