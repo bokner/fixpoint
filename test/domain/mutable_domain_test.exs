@@ -50,7 +50,6 @@ defmodule CPSolverTest.MutableDomain do
       {:fixed, domain} = Domain.remove(domain, 4)
 
       assert 0 == Domain.min(domain)
-
     end
 
     test "removeBelow, removeAbove" do
@@ -69,7 +68,6 @@ defmodule CPSolverTest.MutableDomain do
       assert :no_change == Domain.removeBelow(domain, Enum.min(values))
       {:fixed, fixed} = Domain.removeBelow(domain, Enum.max(values))
       assert Domain.fixed?(fixed)
-
     end
 
     test "removeAbove" do
@@ -87,7 +85,6 @@ defmodule CPSolverTest.MutableDomain do
       assert :no_change == Domain.removeAbove(domain, Enum.max(values))
       {:fixed, fixed} = Domain.removeAbove(domain, Enum.min(values))
       assert Domain.fixed?(fixed)
-
     end
 
     test "fix" do

@@ -20,4 +20,10 @@ defmodule CPSolver.DefaultDomain do
   def to_list(arg) do
     Domain.to_list(arg)
   end
+
+  def copy(domain) do
+    domain
+    |> Domain.to_list()
+    |> Domain.new()
+  end
 end

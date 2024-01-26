@@ -157,9 +157,28 @@ To make it more concrete, we will solve some combinatorial problems using ***Fix
 
 ```elixir
 alias CPSolver.Examples.Queens
-{:ok, res} = CPSolver.solve_sync(Queens.model(8), stop_on: {:max_solutions, 1})
+n = 6
+
+{:ok, res} =
+  CPSolver.solve_sync(Queens.model(n),
+    stop_on: {:max_solutions, 1}
+  )
+
 IO.inspect(res)
-RenderHTML.render_nqueens(hd(res.solutions))
+
+if res.status == :unsatisfiable do
+  IO.puts(IO.ANSI.red() <> "There is no solution for n = #{n}!" <> IO.ANSI.reset())
+else
+  solution = hd(res.solutions)
+
+  IO.puts(
+    Queens.check_solution(solution) &&
+      (IO.ANSI.green() <>
+         "Solution is correct!" || IO.ANSI.red() <> "Solution is wrong!") <> IO.ANSI.reset()
+  )
+
+  RenderHTML.render_nqueens(solution)
+end
 ```
 
 ## Sudoku
@@ -172,7 +191,7 @@ The instance below is taken from http://www.tellmehowto.net/sudoku/veryhardsudok
 
 ```elixir
 alias CPSolver.Examples.Sudoku
-hard_puzzle = Sudoku.puzzles().s9x9_clue17_rosetta_difficult
+hard_puzzle = Sudoku.puzzles().s9x9_clue17_hard
 RenderHTML.render_sudoku(hard_puzzle)
 ```
 

@@ -36,10 +36,8 @@ defmodule CPSolver.BitVectorDomain do
     end)
   end
 
-  def size({{:bit_vector, size, ref} = _bit_vector, _offset}) do
-    end_index = block_index(size)
-
-    Enum.reduce(1..end_index, 0, fn idx, acc ->
+  def size({{:bit_vector, _size, ref} = bit_vector, _offset}) do
+    Enum.reduce(1..last_index(bit_vector), 0, fn idx, acc ->
       n = :atomics.get(ref, idx)
 
       (n == 0 && acc) ||
@@ -55,12 +53,11 @@ defmodule CPSolver.BitVectorDomain do
     size(domain) == 0
   end
 
-  def min({{:bit_vector, zero_based_max, atomics_ref} = _bit_vector, offset}) do
+  def min({{:bit_vector, _zero_based_max, atomics_ref} = bit_vector, offset}) do
     ## Skip to a first non-zero element of atomics
-    end_index = block_index(zero_based_max)
 
     min_value =
-      Enum.reduce_while(1..end_index, nil, fn idx, _acc ->
+      Enum.reduce_while(1..last_index(bit_vector), nil, fn idx, _acc ->
         case :atomics.get(atomics_ref, idx) do
           0 -> {:cont, nil}
           non_zero_block -> {:halt, (idx - 1) * 64 + lsb(non_zero_block) - offset}
@@ -70,12 +67,10 @@ defmodule CPSolver.BitVectorDomain do
     (min_value && min_value) || :fail
   end
 
-  def max({{:bit_vector, zero_based_max, atomics_ref} = _bit_vector, offset}) do
+  def max({{:bit_vector, _zero_based_max, atomics_ref} = bit_vector, offset}) do
     ## Skip to a last non-zero element of atomics
-    end_index = block_index(zero_based_max)
-
     max_value =
-      Enum.reduce_while(1..end_index |> Enum.reverse(), nil, fn idx, _acc ->
+      Enum.reduce_while(1..last_index(bit_vector) |> Enum.reverse(), nil, fn idx, _acc ->
         case :atomics.get(atomics_ref, idx) do
           0 -> {:cont, nil}
           non_zero_block -> {:halt, (idx - 1) * 64 + msb(non_zero_block) - offset}
@@ -123,7 +118,7 @@ defmodule CPSolver.BitVectorDomain do
     end
   end
 
-  def removeAbove({{:bit_vector, zero_based_max, ref} = _bit_vector, offset} = domain, value) do
+  def removeAbove({{:bit_vector, _zero_based_max, ref} = bit_vector, offset} = domain, value) do
     cond do
       value >= max(domain) ->
         :no_change
@@ -134,10 +129,10 @@ defmodule CPSolver.BitVectorDomain do
       true ->
         vector_value = value + offset
         block_index = block_index(vector_value)
-        end_index = block_index(zero_based_max)
+        last_index = last_index(bit_vector)
         ## Clear up all blocks that follow the block the value is in
-        end_index > block_index &&
-          Enum.each((block_index + 1)..end_index, fn idx -> :atomics.put(ref, idx, 0) end)
+        last_index > block_index &&
+          Enum.each((block_index + 1)..last_index, fn idx -> :atomics.put(ref, idx, 0) end)
 
         block_value = :atomics.get(ref, block_index)
         ## Find position for the value within the block
@@ -203,10 +198,13 @@ defmodule CPSolver.BitVectorDomain do
     end
   end
 
-
   ## Find the index of atomics where the n-value resides
   def block_index(n) do
     div(n, 64) + 1
+  end
+
+  def last_index({:bit_vector, _zero_based_max, ref} = _bit_vector) do
+    :atomics.info(ref).size
   end
 
   ## Find least significant bit

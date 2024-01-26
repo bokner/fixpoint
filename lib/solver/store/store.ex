@@ -90,7 +90,13 @@ defmodule CPSolver.ConstraintStore do
   def create_store(variables, opts \\ [])
 
   def create_store(variables, opts) do
-    variables = Enum.map(variables, &Interface.variable/1)
+    variables =
+      Enum.map(variables, fn %{domain: d} = var ->
+        var
+        |> Interface.variable()
+        |> Map.put(:domain, Domain.copy(d))
+      end)
+
     opts = Keyword.merge(default_store_opts(), opts)
     space = Keyword.get(opts, :space)
     store_impl = Keyword.get(opts, :store_impl)
