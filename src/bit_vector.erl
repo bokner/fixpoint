@@ -39,10 +39,11 @@ update(Aref, Bix, Fun) ->
     Wix = (Bix div 64) + 1,
     update_loop(Aref, Wix, Fun, atomics:get(Aref, Wix)).
 
-update_loop(Aref, Wix, Fun, Expected) ->
-    case atomics:compare_exchange(Aref, Wix, Expected, Fun(Expected)) of
-        ok ->
-            ok;
-        Was ->
-            update_loop(Aref, Wix, Fun, Was)
-    end.
+update_loop(Aref, Wix, Fun, Current) ->
+    atomics:put(Aref, Wix, Fun(Current)).
+    %case atomics:compare_exchange(Aref, Wix, Expected, Fun(Expected)) of
+    %    ok ->
+    %        ok;
+    %    Was ->
+    %        update_loop(Aref, Wix, Fun, Was)
+    %end.
