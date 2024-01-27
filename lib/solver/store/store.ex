@@ -6,7 +6,6 @@ defmodule CPSolver.ConstraintStore do
   """
   #################
   alias CPSolver.{Common, Variable}
-  alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
 
   require Logger
@@ -90,7 +89,11 @@ defmodule CPSolver.ConstraintStore do
   def create_store(variables, opts \\ [])
 
   def create_store(variables, opts) do
-    variables = Enum.map(variables, &Interface.variable/1)
+    variables =
+      Enum.map(variables, fn %{domain: d} = var ->
+        Map.put(var, :domain, Domain.copy(d))
+      end)
+
     opts = Keyword.merge(default_store_opts(), opts)
     space = Keyword.get(opts, :space)
     store_impl = Keyword.get(opts, :store_impl)

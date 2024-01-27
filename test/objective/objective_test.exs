@@ -82,8 +82,8 @@ defmodule CpSolverTest.Objective do
       sum_bound = 1000
       x_bound = 100
       y_bound = 200
-      x = Variable.new(1..100, name: "x")
-      y = Variable.new(1..200, name: "y")
+      x = Variable.new(1..x_bound, name: "x")
+      y = Variable.new(1..y_bound, name: "y")
       z = Variable.new(1..sum_bound)
 
       variables = [x, y]

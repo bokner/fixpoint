@@ -157,9 +157,28 @@ To make it more concrete, we will solve some combinatorial problems using ***Fix
 
 ```elixir
 alias CPSolver.Examples.Queens
-{:ok, res} = CPSolver.solve_sync(Queens.model(8), stop_on: {:max_solutions, 1})
+n = 8
+
+{:ok, res} =
+  CPSolver.solve_sync(Queens.model(n),
+    stop_on: {:max_solutions, 1}
+  )
+
 IO.inspect(res)
-RenderHTML.render_nqueens(hd(res.solutions))
+
+if res.status == :unsatisfiable do
+  IO.puts(IO.ANSI.red() <> "There is no solution for n = #{n}!" <> IO.ANSI.reset())
+else
+  solution = hd(res.solutions)
+
+  IO.puts(
+    Queens.check_solution(solution) &&
+      (IO.ANSI.green() <>
+         "Solution is correct!" || IO.ANSI.red() <> "Solution is wrong!") <> IO.ANSI.reset()
+  )
+
+  RenderHTML.render_nqueens(solution)
+end
 ```
 
 ## Sudoku
@@ -172,7 +191,7 @@ The instance below is taken from http://www.tellmehowto.net/sudoku/veryhardsudok
 
 ```elixir
 alias CPSolver.Examples.Sudoku
-hard_puzzle = Sudoku.puzzles().s9x9_clue17_rosetta_difficult
+hard_puzzle = Sudoku.puzzles().s9x9_clue17_hard
 RenderHTML.render_sudoku(hard_puzzle)
 ```
 
@@ -182,7 +201,8 @@ RenderHTML.render_sudoku(hard_puzzle)
 {:ok, res} =
   CPSolver.solve_sync(Sudoku.model(hard_puzzle),
     max_space_threads: 16,
-    stop_on: {:max_solutions, 1}
+    stop_on: {:max_solutions, 1},
+    search: {:first_fail, :indomain_random}
   )
 
 IO.inspect(res.statistics)
@@ -334,7 +354,12 @@ model = Knapsack.model(values, weights, capacity)
 ## Note that we use a custom search strategy, forcing solver to make a decision to try to place items
 ## first before deciding not to.
 ##
-{:ok, res} = CPSolver.solve_sync(model, timeout: 1_000, search: {:first_fail, :indomain_max})
+{:ok, res} =
+  CPSolver.solve_sync(model,
+    max_space_threads: 4,
+    timeout: 1_000,
+    search: {:first_fail, :indomain_max}
+  )
 
 ## The best (in this case, optimal) solution is the last in the list of feasible solutions
 optimal_solution = List.last(res.solutions)

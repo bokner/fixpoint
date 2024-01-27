@@ -5,7 +5,8 @@ defmodule CPSolver.Space do
   of Computer Programming" by Peter Van Roy and Seif Haridi.
   """
 
-  alias CPSolver.Utils
+  alias CPSolver.Variable.Interface
+  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.ConstraintStore
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
@@ -85,7 +86,7 @@ defmodule CPSolver.Space do
 
     (worker_node == Node.self() &&
        run_space(data, checked_out?)) ||
-      :erpc.call(worker_node, __MODULE__, :run_space, [data, checked_out?])
+      :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data), checked_out?])
   end
 
   def run_space(data, checked_out?) do
@@ -111,8 +112,37 @@ defmodule CPSolver.Space do
     start_propagation(space_pid)
   end
 
+  ## Prepare local data to be used on remote node
+  ## Currently we add the raw domain values to the opts,
+  ## so the domains could be rebuilt on the remote nodes
+  defp prepare_remote(data) do
+    data
+    |> Map.put(
+      :domains,
+      Map.new(data.variables, fn var ->
+        {Interface.id(var), Interface.domain(var) |> Domain.to_list()}
+      end)
+    )
+  end
+
   @impl true
-  def init(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
+  def init(%{domains: domains, variables: variables} = data) do
+    updated_variables =
+      Enum.map(variables, fn var ->
+        domain = Map.get(domains, Interface.id(var))
+        Map.put(var, :domain, Domain.new(domain))
+      end)
+
+    data
+    |> Map.put(:variables, updated_variables)
+    |> init_impl()
+  end
+
+  def init(data) do
+    init_impl(data)
+  end
+
+  defp init_impl(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
     {:ok, space_variables, store} =
       ConstraintStore.create_store(variables,
         store_impl: space_opts[:store_impl],
