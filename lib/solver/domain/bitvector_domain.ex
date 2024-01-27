@@ -137,7 +137,8 @@ defmodule CPSolver.BitVectorDomain do
         block_value = :atomics.get(ref, block_index)
         ## Find position for the value within the block
         pos = rem(vector_value, 64)
-        mask = (:math.pow(2, pos + 1) - 1) |> floor()
+        # mask = (:math.pow(2, pos + 1) - 1) |> floor()
+        mask = (1 <<< (pos + 1)) - 1
         ## Remove all significant bits in the block above the value position
         # msb = msb(block_value)
         # shift = msb - pos
@@ -174,7 +175,7 @@ defmodule CPSolver.BitVectorDomain do
         ## Find position for the value within the block
         pos = rem(vector_value, 64)
         msb = msb(block_value)
-        mask = (:math.pow(2, msb - pos + 1) - 1) |> floor() <<< pos
+        mask = ((1 <<< msb) - 1) <<< pos
         ## Remove all significant bits in the block below the value position
         new_value = block_value &&& mask
         :atomics.put(ref, block_index, new_value)

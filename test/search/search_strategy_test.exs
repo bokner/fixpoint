@@ -17,15 +17,13 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
 
       {localized_vars, _} = CPSolver.Utils.localize_variables(bound_vars)
       # first_fail chooses unfixed variable
       selected_variable = SearchStrategy.select_variable(localized_vars, :first_fail)
       v2_var = Enum.at(bound_vars, 2)
       assert selected_variable.id == v2_var.id
-
-      var_domain = ConstraintStore.domain(store, selected_variable)
 
       # indomain_min splits domain of selected variable into min and the rest of the domain
       {:ok, [min_value, no_min_partition]} =
