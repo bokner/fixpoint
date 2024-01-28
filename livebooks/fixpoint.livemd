@@ -192,7 +192,7 @@ The instance below is taken from http://www.tellmehowto.net/sudoku/veryhardsudok
 
 ```elixir
 alias CPSolver.Examples.Sudoku
-hard_puzzle = Sudoku.puzzles().s9x9_clue17_rosetta_difficult
+hard_puzzle = Sudoku.puzzles().hard9x9
 RenderHTML.render_sudoku(hard_puzzle)
 ```
 
@@ -207,6 +207,14 @@ RenderHTML.render_sudoku(hard_puzzle)
   )
 
 IO.inspect(res.statistics)
+solution = hd(res.solutions)
+
+IO.puts(
+  Sudoku.check_solution(solution) &&
+    (IO.ANSI.green() <>
+       "Solution is correct!" || IO.ANSI.red() <> "Solution is wrong!") <> IO.ANSI.reset()
+)
+
 RenderHTML.render_sudoku(hd(res.solutions))
 ```
 

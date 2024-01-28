@@ -80,10 +80,12 @@ defmodule CPSolver.BitVectorDomain do
     (max_value && max_value) || :fail
   end
 
-  def contains?({{:bit_vector, zero_based_max, _ref} = bit_vector, offset}, value) do
+  def contains?({{:bit_vector, _zero_based_max, _ref} = bit_vector, offset}, value) do
     vector_value = value + offset
+    block_index = block_index(vector_value)
+    last_index = last_index(bit_vector)
 
-    vector_value >= 0 && vector_value < zero_based_max &&
+    block_index <= last_index &&
       :bit_vector.get(bit_vector, vector_value) == 1
   end
 
