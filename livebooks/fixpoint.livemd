@@ -93,6 +93,7 @@ defmodule RenderHTML do
     <body>
         <table class="chess-board">
             <tbody>
+            </body>
     """
   end
 
@@ -191,7 +192,7 @@ The instance below is taken from http://www.tellmehowto.net/sudoku/veryhardsudok
 
 ```elixir
 alias CPSolver.Examples.Sudoku
-hard_puzzle = Sudoku.puzzles().s9x9_clue17_hard
+hard_puzzle = Sudoku.puzzles().s9x9_clue17_rosetta_difficult
 RenderHTML.render_sudoku(hard_puzzle)
 ```
 
@@ -265,7 +266,7 @@ So the encoding of the rules does not require any programming except wiring rule
 
 <!-- livebook:{"break_markdown":true} -->
 
-#### Let's solve it now:
+### Let's solve it now:
 
 ```elixir
 alias CPSolver.Examples.Reindeers
@@ -276,7 +277,7 @@ Reindeers.solve()
 
 This is a classic "cryptarithmetic" problem. Each letter corresponds to a separate digit, we want to find this correspondence, so SEND + MORE = MONEY holds.
 
-#### Solve it!
+### Solve it!
 
 ```elixir
 alias CPSolver.Examples.SendMoreMoney
