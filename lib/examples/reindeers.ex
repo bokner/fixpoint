@@ -27,7 +27,7 @@ defmodule CPSolver.Examples.Reindeers do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.Less
-  alias CPSolver.Constraint.AllDifferent
+  alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
 
   def solve(opts \\ []) do
     {:ok, res} = CPSolver.solve_sync(model(), opts)

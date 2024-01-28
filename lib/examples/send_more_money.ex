@@ -10,7 +10,7 @@ defmodule CPSolver.Examples.SendMoreMoney do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.Sum
-  alias CPSolver.Constraint.AllDifferent
+  alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
   import CPSolver.Variable.View.Factory
 
   def model() do
