@@ -192,7 +192,7 @@ The instance below is taken from http://www.tellmehowto.net/sudoku/veryhardsudok
 
 ```elixir
 alias CPSolver.Examples.Sudoku
-hard_puzzle = Sudoku.puzzles().s9x9_clue17_rosetta_difficult
+hard_puzzle = Sudoku.puzzles().hard9x9
 RenderHTML.render_sudoku(hard_puzzle)
 ```
 
