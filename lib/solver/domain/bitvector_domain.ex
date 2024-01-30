@@ -49,11 +49,11 @@ defmodule CPSolver.BitVectorDomain do
     min(domain) == max(domain)
   end
 
-  def fail?(domain) do
+  def fail?({{:bit_vector, _zero_based_max, atomics_ref} = _bit_vector, _offset} = domain) do
     size(domain) == 0
   end
 
-  def min({{:bit_vector, _zero_based_max, atomics_ref} = bit_vector, offset}) do
+  def min({{:bit_vector, _zero_based_max, atomics_ref} = bit_vector, offset} = domain) do
     ## Skip to a first non-zero element of atomics
 
     min_value =
@@ -64,10 +64,10 @@ defmodule CPSolver.BitVectorDomain do
         end
       end)
 
-    (min_value && min_value) || :fail
+    (min_value && min_value) || set_fail(domain)
   end
 
-  def max({{:bit_vector, _zero_based_max, atomics_ref} = bit_vector, offset}) do
+  def max({{:bit_vector, _zero_based_max, atomics_ref} = bit_vector, offset} = domain) do
     ## Skip to a last non-zero element of atomics
     max_value =
       Enum.reduce_while(1..last_index(bit_vector) |> Enum.reverse(), nil, fn idx, _acc ->
@@ -77,7 +77,7 @@ defmodule CPSolver.BitVectorDomain do
         end
       end)
 
-    (max_value && max_value) || :fail
+    (max_value && max_value) || set_fail(domain)
   end
 
   def contains?({{:bit_vector, _zero_based_max, _ref} = bit_vector, offset}, value) do
@@ -101,7 +101,7 @@ defmodule CPSolver.BitVectorDomain do
         cond do
           ## Attempt to remove fixed value
           min? && max? ->
-            :fail
+            set_fail(domain)
 
           true ->
             vector_value = value + offset
@@ -126,7 +126,7 @@ defmodule CPSolver.BitVectorDomain do
         :no_change
 
       value < min(domain) ->
-        :fail
+        set_fail(domain)
 
       true ->
         vector_value = value + offset
@@ -149,7 +149,7 @@ defmodule CPSolver.BitVectorDomain do
 
         domain_change =
           cond do
-            fail?(domain) -> :fail
+            fail?(domain) -> set_fail(domain)
             fixed?(domain) -> :fixed
             true -> :max_change
           end
@@ -164,7 +164,7 @@ defmodule CPSolver.BitVectorDomain do
         :no_change
 
       value > max(domain) ->
-        :fail
+        set_fail(domain)
 
       true ->
         vector_value = value + offset
@@ -197,7 +197,7 @@ defmodule CPSolver.BitVectorDomain do
     if contains?(domain, value) do
       {:fixed, new(value)}
     else
-      :fail
+      set_fail(domain)
     end
   end
 
@@ -242,5 +242,10 @@ defmodule CPSolver.BitVectorDomain do
     else
       msb
     end
+  end
+
+  defp set_fail({{:bit_vector, _zero_based_max, atomics_ref} = bit_vector, _offset} = _domain) do
+    Enum.each(1..:atomics.info(atomics_ref).size, fn idx -> :atomics.put(atomics_ref, idx, 0) end)
+    :fail
   end
 end

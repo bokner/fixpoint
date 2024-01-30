@@ -6,7 +6,7 @@ defmodule CPSolver.Store.ETS do
   @impl true
   def create(variables, opts \\ []) do
     table_id =
-      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
 
     space = Keyword.get(opts, :space)
 
@@ -21,7 +21,7 @@ defmodule CPSolver.Store.ETS do
       fn var ->
         :ets.insert(
           table_id,
-          {var.id, %{id: var.id, store: store, domain: Domain.new(var.domain)}}
+          {var.id, %{id: var.id, store: store, domain: var.domain}}
         )
       end
     )
@@ -71,22 +71,17 @@ defmodule CPSolver.Store.ETS do
 
   defp update_variable_domain(
          table,
-         variable,
          _domain,
          :fail
        ) do
-    :ets.insert(table, {variable.id, Map.put(variable, :domain, :fail)})
     :fail
   end
 
   defp update_variable_domain(
          table,
-         %{id: var_id} = variable,
          domain,
          event
        ) do
-    :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
-
     case event do
       :fixed -> {:fixed, Domain.min(domain)}
       event -> event
@@ -95,9 +90,7 @@ defmodule CPSolver.Store.ETS do
 
   @impl true
   def domain(table, variable) do
-    table
-    |> lookup(variable)
-    |> Map.get(:domain)
+    Map.get(variable, :domain)
   end
 
   def lookup(table, %{id: var_id} = _variable) do
@@ -111,29 +104,30 @@ defmodule CPSolver.Store.ETS do
     |> elem(1)
   end
 
-  defp handle_request(kind, table, var_id, operation, args) do
-    variable = lookup(table, var_id)
-    handle_request_impl(kind, table, variable, operation, args)
+  defp handle_request(kind, table, variable, operation, args) do
+    variable = lookup(table, variable)
+    handle_request_impl(kind, table, variable.domain, operation, args)
   end
 
-  def handle_request_impl(_kind, _table, %{domain: :fail} = _variable, _operation, _args) do
-    :fail
+  def handle_request_impl(:get, _table, domain, operation, args) do
+    safe_apply(operation, domain, args)
   end
 
-  def handle_request_impl(:get, _table, %{domain: domain} = _variable, operation, args) do
-    apply(Domain, operation, [domain | args])
-  end
-
-  def handle_request_impl(:update, table, %{domain: domain} = variable, operation, args) do
-    case apply(Domain, operation, [domain | args]) do
+  def handle_request_impl(:update, table, domain, operation, args) do
+    case safe_apply(operation, domain, args) do
       :fail ->
-        update_variable_domain(table, variable, :fail, :fail)
+        update_variable_domain(table, :fail, :fail)
 
       :no_change ->
         :no_change
 
       {domain_change, new_domain} ->
-        update_variable_domain(table, variable, new_domain, domain_change)
+        update_variable_domain(table, new_domain, domain_change)
     end
+  end
+
+  defp safe_apply(operation, domain, args) do
+    (Domain.fail?(domain) && :fail) ||
+      apply(Domain, operation, [domain | args])
   end
 end
