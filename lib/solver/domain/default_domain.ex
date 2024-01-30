@@ -7,6 +7,7 @@ defmodule CPSolver.DefaultDomain do
   defdelegate min(values), to: Domain
   defdelegate max(values), to: Domain
   defdelegate fixed?(values), to: Domain
+  defdelegate fail?(values), to: Domain
   defdelegate contains?(values, val), to: Domain
   defdelegate remove(values, val), to: Domain
   defdelegate removeAbove(values, val), to: Domain

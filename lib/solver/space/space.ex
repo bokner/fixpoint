@@ -83,10 +83,11 @@ defmodule CPSolver.Space do
 
   def run_space(worker_node, solver, data, checked_out?) do
     Shared.increment_node_counts(solver)
+    data = update_domains(data)
 
     (worker_node == Node.self() &&
        run_space(data, checked_out?)) ||
-      :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data), checked_out?])
+      :erpc.call(worker_node, __MODULE__, :run_space, [data, checked_out?])
   end
 
   def run_space(data, checked_out?) do
@@ -112,10 +113,7 @@ defmodule CPSolver.Space do
     start_propagation(space_pid)
   end
 
-  ## Prepare local data to be used on remote node
-  ## Currently we add the raw domain values to the opts,
-  ## so the domains could be rebuilt on the remote nodes
-  defp prepare_remote(data) do
+  defp update_domains(data) do
     data
     |> Map.put(
       :domains,
