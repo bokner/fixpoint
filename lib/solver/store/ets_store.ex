@@ -21,7 +21,7 @@ defmodule CPSolver.Store.ETS do
       fn var ->
         :ets.insert(
           table_id,
-          {var.id, %{id: var.id, store: store, domain: var.domain}}
+          {var.id, %{id: var.id, store: store, domain: Domain.new(var.domain)}}
         )
       end
     )
@@ -71,6 +71,7 @@ defmodule CPSolver.Store.ETS do
 
   defp update_variable_domain(
          table,
+         variable,
          _domain,
          :fail
        ) do
