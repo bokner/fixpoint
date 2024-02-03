@@ -4,7 +4,7 @@ defmodule CPSolver.Store.ETS do
   use CPSolver.ConstraintStore
 
   @impl true
-  def create(variables, _opts \\ []) do
+  def create(variables, __opts \\ []) do
     table_id =
       :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
 
@@ -13,7 +13,7 @@ defmodule CPSolver.Store.ETS do
       fn var ->
         :ets.insert(
           table_id,
-          {var.id, %{id: var.id, domain: Domain.new(var.domain)}}
+          {var.id, %{id: var.id, domain: var.domain}}
         )
       end
     )
