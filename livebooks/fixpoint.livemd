@@ -375,35 +375,24 @@ optimal_solution = List.last(res.solutions)
 
 ## Build the output
 ## If item variable was resolved to 1, we'll pack it
-## In the meantime, we will compute the total value off the item values.
-## That's for sanity check only, as the solver provides an objective value,
-## which is a total value.
 
-{items_to_pack, total_value, total_weight} =
-  List.foldr(Enum.with_index(item_names), {[], 0, 0}, fn {item, idx},
-                                                         {item_list, total_value, total_weight} ->
+{items_to_pack, total_weight} =
+  List.foldr(Enum.with_index(item_names), {[], 0}, fn {item, idx}, {item_list, total_weight} ->
     in_the_list = Enum.at(optimal_solution, idx) == 1
 
     {
       (in_the_list && [item | item_list]) || item_list,
-      (in_the_list && total_value + Enum.at(values, idx)) || total_value,
       (in_the_list && total_weight + Enum.at(weights, idx)) || total_weight
     }
   end)
 
 formatted_knapsack =
   Enum.chunk_every(items_to_pack, 3)
-  |> Enum.map_join("\n", fn row -> Enum.join(row, "....") end)
+  |> Enum.map_join("\n", fn row -> Enum.map(row, fn item -> " \u2705 #{item}" end) end)
 
 IO.puts("Items to pack: \n\n#{IO.ANSI.blue()}#{formatted_knapsack}#{IO.ANSI.reset()}\n")
 
-IO.puts(
-  "Total value (calculated from optimal solution): #{IO.ANSI.red()}#{total_value}#{IO.ANSI.reset()}"
-)
-
-IO.puts(
-  "Total value (objective value derived by the solver): #{IO.ANSI.red()}#{res.objective}#{IO.ANSI.reset()}"
-)
+IO.puts("Total value: #{IO.ANSI.red()}#{res.objective}#{IO.ANSI.reset()}")
 
 IO.puts("Total weight: #{IO.ANSI.red()}#{total_weight}/#{capacity}#{IO.ANSI.reset()}")
 IO.puts("Elapsed time: #{res.statistics.elapsed_time}")
