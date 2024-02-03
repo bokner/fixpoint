@@ -4,24 +4,16 @@ defmodule CPSolver.Store.ETS do
   use CPSolver.ConstraintStore
 
   @impl true
-  def create(variables, opts \\ []) do
+  def create(variables, _opts \\ []) do
     table_id =
-      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
-
-    space = Keyword.get(opts, :space)
-
-    store = %{
-      space: space,
-      handle: table_id,
-      store_impl: __MODULE__
-    }
+      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
 
     Enum.each(
       variables,
       fn var ->
         :ets.insert(
           table_id,
-          {var.id, %{id: var.id, store: store, domain: Domain.new(var.domain)}}
+          {var.id, %{id: var.id, domain: Domain.new(var.domain)}}
         )
       end
     )
@@ -67,16 +59,6 @@ defmodule CPSolver.Store.ETS do
   @impl true
   def on_fail(_store, _variable) do
     :ok
-  end
-
-  defp update_variable_domain(
-         table,
-         variable,
-         _domain,
-         :fail
-       ) do
-    :ets.insert(table, {variable.id, Map.put(variable, :domain, :fail)})
-    :fail
   end
 
   defp update_variable_domain(

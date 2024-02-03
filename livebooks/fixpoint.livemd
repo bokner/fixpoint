@@ -201,12 +201,20 @@ RenderHTML.render_sudoku(hard_puzzle)
 ```elixir
 {:ok, res} =
   CPSolver.solve_sync(Sudoku.model(hard_puzzle),
-    max_space_threads: 16,
+    max_space_threads: 12,
     stop_on: {:max_solutions, 1},
     search: {:first_fail, :indomain_random}
   )
 
 IO.inspect(res.statistics)
+solution = hd(res.solutions)
+
+IO.puts(
+  Sudoku.check_solution(solution) &&
+    (IO.ANSI.green() <>
+       "Solution is correct!" || IO.ANSI.red() <> "Solution is wrong!") <> IO.ANSI.reset()
+)
+
 RenderHTML.render_sudoku(hd(res.solutions))
 ```
 
@@ -307,7 +315,7 @@ How about packing a knapsack?
 
 https://rosettacode.org/wiki/Knapsack_problem/0-1
 
-This is a ***constraint optimization problem (COP)***, as opposed to ***constraint satisfaction problems (CSPs)*** we've seen before. That is, we want to satisfy constraints (in this case, the items we choose have to fit into the knapsack), and we also want a total value of items in the knapsack to be maximized (it's our objective).
+This is a ***constrained optimization problem (COP)***, as opposed to ***constraint satisfaction problems (CSPs)*** we've seen before. That is, we want to satisfy constraints (in this case, the items we choose have to fit into the knapsack), and we also want a total value of items in the knapsack to be maximized (it's our objective).
 
 We will derive a model for this instance from `CPSolver.Examples.Knapsack.model/3`, and then solve it:
 
@@ -357,7 +365,7 @@ model = Knapsack.model(values, weights, capacity)
 ##
 {:ok, res} =
   CPSolver.solve_sync(model,
-    max_space_threads: 4,
+    max_space_threads: 8,
     timeout: 1_000,
     search: {:first_fail, :indomain_max}
   )
