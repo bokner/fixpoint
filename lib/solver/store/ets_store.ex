@@ -4,24 +4,16 @@ defmodule CPSolver.Store.ETS do
   use CPSolver.ConstraintStore
 
   @impl true
-  def create(variables, opts \\ []) do
+  def create(variables, _opts \\ []) do
     table_id =
       :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
-
-    space = Keyword.get(opts, :space)
-
-    store = %{
-      space: space,
-      handle: table_id,
-      store_impl: __MODULE__
-    }
 
     Enum.each(
       variables,
       fn var ->
         :ets.insert(
           table_id,
-          {var.id, %{id: var.id, store: store, domain: Domain.new(var.domain)}}
+          {var.id, %{id: var.id, domain: var.domain}}
         )
       end
     )
@@ -35,18 +27,18 @@ defmodule CPSolver.Store.ETS do
   end
 
   @impl true
-  def get_variables(store) do
-    :ets.tab2list(store) |> Enum.map(fn {_id, var} -> var.id end)
+  def get_variables(table) do
+    :ets.tab2list(table) |> Enum.map(fn {_id, var} -> var.id end)
   end
 
   @impl true
-  def get(store, variable, operation, args \\ []) do
-    handle_request(:get, store, variable, operation, args)
+  def get(table, variable, operation, args \\ []) do
+    handle_request(:get, table, variable, operation, args)
   end
 
   @impl true
-  def update_domain(store, variable, operation, args) do
-    handle_request(:update, store, variable, operation, args)
+  def update_domain(table, variable, operation, args) do
+    handle_request(:update, table, variable, operation, args)
   end
 
   @impl true
@@ -70,16 +62,7 @@ defmodule CPSolver.Store.ETS do
   end
 
   defp update_variable_domain(
-         table,
-         variable,
-         _domain,
-         :fail
-       ) do
-    :fail
-  end
-
-  defp update_variable_domain(
-         table,
+         _table,
          domain,
          event
        ) do
@@ -90,7 +73,7 @@ defmodule CPSolver.Store.ETS do
   end
 
   @impl true
-  def domain(table, variable) do
+  def domain(_table, variable) do
     Map.get(variable, :domain)
   end
 

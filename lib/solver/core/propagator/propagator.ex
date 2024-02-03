@@ -72,11 +72,11 @@ defmodule CPSolver.Propagator do
             ##
             ## Drop domain if variable is fixed, otherwise keep the fixed value
             fixed? = Domain.fixed?(domain)
-            #d = (fixed? && Domain.min(domain)) || domain
+            d = (fixed? && Domain.min(domain)) || nil
 
             arg
             |> Map.put(:fixed?, fixed?)
-            #|> Map.put(:domain, d)
+            |> Map.put(:domain, d)
 
           const ->
             const
