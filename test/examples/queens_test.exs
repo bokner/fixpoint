@@ -30,6 +30,10 @@ defmodule CPSolverTest.Examples.Queens do
     test_queens(8, 92, timeout: 500)
   end
 
+  test "50 Queens" do
+    test_queens(50, 1, timeout: 500, trials: 2, stop_on: {:max_solutions, 1})
+  end
+
   defp test_queens(n, expected_solutions, opts \\ []) do
     opts =
       Keyword.merge([timeout: 100, trials: 10], opts)
@@ -39,8 +43,12 @@ defmodule CPSolverTest.Examples.Queens do
       Enum.each(result.solutions, &assert_solution/1)
       solution_count = result.statistics.solution_count
 
-      assert solution_count == expected_solutions,
-             "Failed on trial #{i} with #{inspect(solution_count)} out of #{expected_solutions} solution(s)"
+      if opts[:stop_on] do
+        assert solution_count >= expected_solutions
+      else
+        assert solution_count == expected_solutions,
+               "Failed on trial #{i} with #{inspect(solution_count)} out of #{expected_solutions} solution(s)"
+      end
     end)
   end
 

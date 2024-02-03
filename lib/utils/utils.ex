@@ -15,7 +15,7 @@ defmodule CPSolver.Utils do
             {:halt, {new_vars, :fail}}
 
           d ->
-            copy = [Map.put(v, :domain, d) | new_vars]
+            copy = [Map.put(v, :domain, Domain.new(d)) | new_vars]
             {:cont, {copy, (Domain.fixed?(d) && fixed?) || false}}
         end
       end
