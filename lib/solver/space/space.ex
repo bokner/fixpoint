@@ -190,7 +190,6 @@ defmodule CPSolver.Space do
   defp propagate(
          %{
            propagators: propagators,
-           variables: variables,
            constraint_graph: constraint_graph,
            store: store
          } =
@@ -203,12 +202,10 @@ defmodule CPSolver.Space do
       :solved ->
         handle_solved(data)
 
-      {:stable, reduced_constraint_graph, reduced_propagators} ->
+      {:stable, reduced_constraint_graph} ->
         %{
           data
-          | constraint_graph: reduced_constraint_graph,
-            propagators: reduced_propagators,
-            variables: variables
+          | constraint_graph: reduced_constraint_graph
         }
         |> handle_stable()
     end

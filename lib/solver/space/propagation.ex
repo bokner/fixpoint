@@ -137,19 +137,16 @@ defmodule CPSolver.Space.Propagation do
   ## At this point, the space is either solved or stable.
   defp finalize(%Graph{} = residual_graph, propagators) do
     (Graph.edges(residual_graph) == [] && :solved) ||
-      (
-        {g, updated_propagators} = remove_entailed_propagators(residual_graph, propagators)
-        {:stable, g, updated_propagators}
-      )
+      {:stable, remove_entailed_propagators(residual_graph, propagators)}
   end
 
   defp remove_entailed_propagators(graph, propagators) do
-    Enum.reduce(propagators, {graph, []}, fn p, {g, p_list} = _acc ->
+    Enum.reduce(propagators, graph, fn p, g ->
       p_vertex = ConstraintGraph.propagator_vertex(p.id)
 
       case Graph.neighbors(g, p_vertex) do
-        [] -> {ConstraintGraph.remove_propagator(g, p.id), p_list}
-        _connected_vars -> {g, [p | p_list]}
+        [] -> ConstraintGraph.remove_propagator(g, p.id)
+        _connected_vars -> g
       end
     end)
   end

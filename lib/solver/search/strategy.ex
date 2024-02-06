@@ -77,8 +77,6 @@ defmodule CPSolver.Search.Strategy do
       Enum.map(variables, fn var ->
         (var.id == selected_variable.id && set_domain(var, domain)) || var
       end)
-
-      # Map.put(variables_map, clone.id, clone) |> Enum.map(fn {_var_id, v} -> v end) end)
     end)
   end
 end

@@ -16,10 +16,8 @@ defmodule CPSolverTest.SpacePropagation do
       store: store
     } = stable_setup()
 
-    {:stable, constraint_graph, stable_propagators} = Propagation.run(propagators, graph, store)
+    {:stable, constraint_graph} = Propagation.run(propagators, graph, store)
     assert Graph.num_vertices(constraint_graph) == 3
-
-    assert length(stable_propagators) == 2
 
     assert [y] ==
              Enum.filter(variables, fn var ->
