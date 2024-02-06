@@ -214,6 +214,10 @@ defmodule CPSolver.ConstraintStore do
     :atomics.new(length(variables), signed: true)
   end
 
+  def update_fixed(_var, :fail) do
+    :fail
+  end
+
   ## Note: if index is not supplied, this operation is not thread-safe
   def update_fixed(%{index: nil} = variable, fixed_value) do
     domain = domain(variable)

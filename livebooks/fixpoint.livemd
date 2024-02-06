@@ -165,7 +165,7 @@ n = 8
     stop_on: {:max_solutions, 1}
   )
 
-IO.inspect(res)
+IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
 
 if res.status == :unsatisfiable do
   IO.puts(IO.ANSI.red() <> "There is no solution for n = #{n}!" <> IO.ANSI.reset())
@@ -173,9 +173,9 @@ else
   solution = hd(res.solutions)
 
   IO.puts(
-    Queens.check_solution(solution) &&
-      (IO.ANSI.green() <>
-         "Solution is correct!" || IO.ANSI.red() <> "Solution is wrong!") <> IO.ANSI.reset()
+    (Queens.check_solution(solution) &&
+       IO.ANSI.green() <>
+         "Solution is correct!") || IO.ANSI.red() <> "Solution is wrong!" <> IO.ANSI.reset()
   )
 
   RenderHTML.render_nqueens(solution)
@@ -201,12 +201,12 @@ RenderHTML.render_sudoku(hard_puzzle)
 ```elixir
 {:ok, res} =
   CPSolver.solve_sync(Sudoku.model(hard_puzzle),
-    max_space_threads: 12,
+    max_space_threads: 16,
     stop_on: {:max_solutions, 1},
     search: {:first_fail, :indomain_random}
   )
 
-IO.inspect(res.statistics)
+IO.puts("Elapsed time: #{div(res.statistics.elapsed_time, 1000)} \u33b3")
 solution = hd(res.solutions)
 
 IO.puts(
@@ -278,7 +278,8 @@ So the encoding of the rules does not require any programming except wiring rule
 
 ```elixir
 alias CPSolver.Examples.Reindeers
-Reindeers.solve()
+{:ok, res} = Reindeers.solve()
+IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
 ```
 
 ## SEND + MORE = MONEY
@@ -395,5 +396,5 @@ IO.puts("Items to pack: \n\n#{IO.ANSI.blue()}#{formatted_knapsack}#{IO.ANSI.rese
 IO.puts("Total value: #{IO.ANSI.red()}#{res.objective}#{IO.ANSI.reset()}")
 
 IO.puts("Total weight: #{IO.ANSI.red()}#{total_weight}/#{capacity}#{IO.ANSI.reset()}")
-IO.puts("Elapsed time: #{res.statistics.elapsed_time}")
+IO.puts("Solved in: #{div(res.statistics.elapsed_time, 1000)} \u33b3")
 ```
