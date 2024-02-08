@@ -232,6 +232,10 @@ defmodule CPSolver.ConstraintStore do
         %{index: index, store: %{fixed_variables: fixed_vars}} = _variable,
         fixed_value
       ) do
+    update_fixed(fixed_vars, index, fixed_value)
+  end
+
+  def update_fixed(fixed_vars, index, fixed_value) do
     case :atomics.exchange(fixed_vars, index, fixed_value) do
       prev_value when prev_value == @unfixed -> :fixed
       prev_value when prev_value != fixed_value -> :fail
