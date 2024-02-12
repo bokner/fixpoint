@@ -247,8 +247,10 @@ defmodule CPSolver.Space do
   end
 
   defp handle_stable(%{variables: variables} = data) do
-    {localized_vars, _all_fixed?} = Utils.localize_variables(variables)
-    distribute(%{data | variables: localized_vars})
+    {localized_vars, all_fixed?} = Utils.localize_variables(variables)
+
+    (all_fixed? && handle_solved(data)) ||
+      distribute(%{data | variables: localized_vars})
   end
 
   def distribute(

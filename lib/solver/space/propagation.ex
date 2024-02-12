@@ -11,7 +11,7 @@ defmodule CPSolver.Space.Propagation do
   def run(propagators, constraint_graph, store) when is_list(propagators) do
     propagators
     |> run_impl(constraint_graph, store)
-    |> finalize(propagators)
+    |> finalize(propagators, store)
   end
 
   defp run_impl(propagators, constraint_graph, store) do
@@ -53,7 +53,7 @@ defmodule CPSolver.Space.Propagation do
         {p_id, Propagator.filter(p, store: store)}
       end,
       ## TODO: make it an option
-      max_concurrency: 1
+      max_concurrency: 2
     )
     |> Enum.reduce_while({MapSet.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = _acc ->
       case res do
@@ -130,14 +130,27 @@ defmodule CPSolver.Space.Propagation do
     end)
   end
 
-  defp finalize(:fail, _propagators) do
+  defp finalize(:fail, _propagators, _store) do
     :fail
   end
 
   ## At this point, the space is either solved or stable.
-  defp finalize(%Graph{} = residual_graph, propagators) do
-    (Graph.edges(residual_graph) == [] && :solved) ||
+  defp finalize(%Graph{} = residual_graph, propagators, store) do
+    if Enum.empty?(Graph.edges(residual_graph)) do
+      (checkpoint(propagators, store) && :solved) || :fail
+    else
       {:stable, remove_entailed_propagators(residual_graph, propagators)}
+    end
+  end
+
+  defp checkpoint(propagators, store) do
+    Enum.reduce_while(propagators, true, fn p, acc ->
+      case Propagator.filter(p, store: store) do
+        :fail -> {:halt, false}
+        {:fail, _} -> {:halt, false}
+        _ -> {:cont, acc}
+      end
+    end)
   end
 
   defp remove_entailed_propagators(graph, propagators) do

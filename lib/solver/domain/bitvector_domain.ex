@@ -46,7 +46,7 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   def fixed?(domain) do
-    min(domain) == max(domain)
+    size(domain) == 1
   end
 
   def fail?(domain) do

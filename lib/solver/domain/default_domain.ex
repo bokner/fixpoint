@@ -62,7 +62,7 @@ defmodule CPSolver.DefaultDomain do
   end
 
   def fix(domain, value) when is_integer(domain) do
-    domain != value && :fail || :no_change
+    (domain != value && :fail) || :no_change
   end
 
   def fix(domain, value) do
