@@ -64,7 +64,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
       fwc_propagator = FWC.new(x_vars)
       %{changes: changes} = Propagator.filter(fwc_propagator)
 
-      ## x1 was already fixed; the filtering fixed the rest
+      ## x1 was already fixed; the filtering fixes the rest
       assert map_size(changes) == length(x_vars) - 1
       assert Enum.all?(Map.values(changes), fn change -> change == :fixed end)
       assert Enum.all?(x_vars, &Interface.fixed?/1)
