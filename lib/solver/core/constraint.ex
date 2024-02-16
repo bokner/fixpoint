@@ -44,3 +44,17 @@ defmodule CPSolver.Constraint do
     end)
   end
 end
+
+defmodule CPSolver.Constraint.Factory do
+  import CPSolver.Utils
+
+  alias CPSolver.Constraint.Element2D
+
+  def element2d(array2d, x, y) do
+    domain = array2d |> List.flatten()
+    z = Variable.new(domain)
+    {z, Element2D.new([array2d, x, y, z])}
+  end
+
+end
+
