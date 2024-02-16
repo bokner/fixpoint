@@ -46,15 +46,23 @@ defmodule CPSolver.Constraint do
 end
 
 defmodule CPSolver.Constraint.Factory do
-  import CPSolver.Utils
+  alias CPSolver.Constraint.{Sum, Element2D}
+  alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Variable.Interface
 
-  alias CPSolver.Constraint.Element2D
-
-  def element2d(array2d, x, y) do
+  def element2d(array2d, x, y, opts \\ []) do
     domain = array2d |> List.flatten()
-    z = Variable.new(domain)
+    z = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
     {z, Element2D.new([array2d, x, y, z])}
   end
 
-end
+  def sum(vars, opts \\ []) do
+    {domain_min, domain_max} =
+      Enum.reduce(vars, {0, 0}, fn var, {min_acc, max_acc} ->
+        {min_acc + Enum.min(Interface.domain(var)), max_acc + Enum.max(Interface.domain(var))}
+      end)
 
+    sum_var = Variable.new(domain_min..domain_max, name: Keyword.get(opts, :name, make_ref()))
+    {sum_var, Sum.new(sum_var, vars)}
+  end
+end

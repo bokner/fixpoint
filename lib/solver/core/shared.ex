@@ -216,7 +216,7 @@ defmodule CPSolver.Shared do
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
     :persistent_term.erase(complete_flag)
-    objective && Objective.reset_bound(objective)
+    reset_objective(objective)
     :ok
   end
 
@@ -281,6 +281,10 @@ defmodule CPSolver.Shared do
     rescue
       _e -> []
     end
+  end
+
+  defp reset_objective(objective) do
+    objective && Objective.reset_bound(objective)
   end
 
   def statistics(solver) do

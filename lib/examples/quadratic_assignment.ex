@@ -10,7 +10,7 @@ defmodule CPSolver.Examples.QAP do
   Assign all facilities to different locations, such that 
   the sum of products d(i,j ) * w(i, j) 
     
-    , where d(i,j) is a distance between localtions i and j
+    , where d(i,j) is a distance between locations i and j
       and w(i, j) is a weight of edge (i, j) 
       
     is minimized.
@@ -21,45 +21,86 @@ defmodule CPSolver.Examples.QAP do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
-  alias CPSolver.Constraint.Sum
-  #alias CPSolver.Constraint.Element2D
+  alias CPSolver.Objective
   import CPSolver.Constraint.Factory
 
   import CPSolver.Variable.View.Factory
 
   ## Read and compile data from instance file
   def model(data) when is_binary(data) do
-    {n, distances, weights} = parse_instance(data)
-    model(n, distances, weights)
+    {_n, distances, weights} = parse_instance(data)
+    model(distances, weights)
   end
 
-  def model(n, distances, weights) do
+  def model(distances, weights) do
     ## TODO: for now we are forced to use 0..n-1 for domains of assignment vars,
     ## as they will represent 0-based indices (i.e., x and y args) in element2d constraint.
     ## Not a big deal, but maybe think of supplying the index base for element2d as an option
     ##
-    assignments = Enum.map(0..n-1, fn i -> Variable.new(0..n-1, name: "location_#{i}") end)
-    ## build "weighted distance" views and element2d constraints
-    {weighted_distances, element2d_constrains} = 
-    for i <- 0..n-1, j <- 0..n-1, reduce: {[], []} do
-      {weighted_distances_acc, constraints_acc} = _acc -> 
-      {z, element2d} = element2d(distances, assignments[i], assignments[j])
-      w_distance = mul(z, Enum.at(weights, i) |> Enum.at(j))
-      {[w_distance | weighted_distances_acc], [element2d | constraints_acc]}
-    end
+    ## Note: we assume the distance and weight matrices are symmetrical,
+    ## i.e., distances[i, j] = distances[j, i] and weights[i, j] == weights[j, i]
+    ##
+
+    n = length(distances)
+
+    assignments =
+      Enum.map(0..(n - 1), fn i -> Variable.new(0..(n - 1), name: "location_#{i}") end)
+
+    ## Build "weighted distance" views and element2d constraints
+    {weighted_distances, element2d_constraints} =
+      for i <- 0..(n - 2), j <- (i + 1)..(n - 1), reduce: {[], []} do
+        {weighted_distances_acc, constraints_acc} = acc ->
+          weight = Enum.at(weights, i) |> Enum.at(j)
+
+          if weight == 0 do
+            acc
+          else
+            {z, element2d_constraint} =
+              element2d(distances, Enum.at(assignments, i), Enum.at(assignments, j))
+
+            w_distance = mul(z, weight)
+            {[w_distance | weighted_distances_acc], [element2d_constraint | constraints_acc]}
+          end
+      end
+
+    {total_cost, sum_constraint} = sum(weighted_distances, name: "total_cost")
 
     Model.new(
-      assignments,
-      [AllDifferent.new(assignments)]
+      assignments ++ [total_cost],
+      [
+        AllDifferent.new(assignments),
+        sum_constraint
+      ] ++ element2d_constraints,
+      objective: Objective.minimize(total_cost)
     )
   end
 
-  defp parse_instance(filename) do
+  def check_solution(solution, distances, weights) do
+    n = length(distances)
+    assignments = Enum.take(solution, n)
+    ## In the solution, total cost follows assignments
+    total_cost = Enum.at(solution, n)
+
+    sum =
+      for i <- 0..(n - 2), j <- (i + 1)..(n - 1), reduce: 0 do
+        acc ->
+          assignment_i = Enum.at(assignments, i)
+          assignment_j = Enum.at(assignments, j)
+
+          d = distances |> Enum.at(assignment_i) |> Enum.at(assignment_j)
+          w = weights |> Enum.at(i) |> Enum.at(j)
+          acc + d * w
+      end
+
+    total_cost == sum
+  end
+
+  def parse_instance(filename) do
     filename
     |> File.read!()
     |> String.split("\n", trim: true)
     |> then(fn [n_str | lines] ->
-      n = String.to_integer(n_str)
+      n = String.to_integer(String.trim(n_str))
 
       weights =
         lines
@@ -70,15 +111,17 @@ defmodule CPSolver.Examples.QAP do
         lines
         |> Enum.take(-n)
         |> parse_matrix()
-      {n, distances, weights}  
+
+      {n, distances, weights}
     end)
   end
 
   defp parse_matrix(lines) do
     Enum.map(lines, fn line ->
       line
+      |> String.replace("\t", " ")
       |> String.split(" ", trim: true)
-      |> Enum.map(fn num_str -> String.to_integer(num_str) end)
+      |> Enum.map(fn num_str -> String.to_integer(String.trim(num_str)) end)
     end)
   end
 end
