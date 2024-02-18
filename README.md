@@ -254,12 +254,13 @@ Likewise, `value_choice` is either an implementation of [value partition](lib/so
 Available standard search strategies:
 
 - For `variable_choice``: 
-  - `:first_fail` : choose the variable with smallest domain size
+  - `:first_fail` : choose the unfixed variable with smallest domain size
+  - `:input_order` : choose the first unfixed variable in the order defined by the model 
 
 - For `value_choice`
   - `:indomain_min, :indomain_max, :indomain_random` : choose minimal, maximal and random value from the variable domain, respectively
 
-Default search strategy is `{:first_fail, :indomain_min}
+Default search strategy is `{:first_fail, :indomain_min}`
 
 
 The choice of search strategy may significantly affect the performance of solving. 
