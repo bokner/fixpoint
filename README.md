@@ -20,10 +20,11 @@ Proof of concept. Not suitable for use in production. Significant API changes an
 - `less_or_equal`
 - `all_different`
 - `sum`
+- `element`, `element2d`
 
 ## Features
 - views (linear combinations of variables in constraints)  
-- solving for satisfaction (CSP) and optimization (COP)
+- solving constraint satisfaction (CSP) and constrained optimization (COP) problems
 - parallel search
 - pluggable search strategies
 - distributed solving  
@@ -34,7 +35,7 @@ The package can be installed by adding `fixpoint` to your list of dependencies i
 ```elixir
 def deps do
   [
-    {:fixpoint, "~> 0.7.3"}
+    {:fixpoint, "~> 0.8.4"}
   ]
 end
 ```

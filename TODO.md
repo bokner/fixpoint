@@ -11,6 +11,6 @@
 11. 'equal'
 12. ~~AllDifferent with forward checking~~
 13. AllDifferent with graphs
-14. 'element', 'circuit'
+14. ~~'element'~~, 'circuit'
 15. Reification
 16. AFC (accumulated failure count) strategy   

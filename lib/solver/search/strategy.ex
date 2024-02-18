@@ -15,6 +15,10 @@ defmodule CPSolver.Search.Strategy do
     &FirstFail.select_variable/1
   end
 
+  def shortcut(:input_order) do
+    &List.first/1
+  end
+
   def shortcut(:indomain_min) do
     &DomainPartition.by_min/1
   end
@@ -53,11 +57,14 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def branch(variables, variable_choice, partition_strategy) do
-    selected_variable = select_variable(variables, variable_choice)
-    {:ok, domain_partitions} = partition(selected_variable, partition_strategy)
+    case select_variable(variables, variable_choice) do
+      nil ->
+        []
 
-    # variable_clones = Enum.map(domain_partitions, fn domain -> set_domain(selected_variable, domain) end)
-    variable_partitions(selected_variable, domain_partitions, variables)
+      selected_variable ->
+        {:ok, domain_partitions} = partition(selected_variable, partition_strategy)
+        variable_partitions(selected_variable, domain_partitions, variables)
+    end
   end
 
   def all_vars_fixed_exception() do
