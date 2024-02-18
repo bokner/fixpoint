@@ -16,7 +16,10 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def shortcut(:input_order) do
-    &List.first/1
+    fn variables ->
+      Enum.sort_by(variables, fn %{index: idx} -> idx end)
+      |> List.first()
+    end
   end
 
   def shortcut(:indomain_min) do

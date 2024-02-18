@@ -72,13 +72,14 @@ defmodule CPSolver.Examples.QAP do
         AllDifferent.new(assignments),
         sum_constraint
       ] ++ element2d_constraints,
-      objective: Objective.minimize(total_cost)
+      objective: Objective.minimize(total_cost),
+      extra: %{n: n, distances: distances, weights: weights}
     )
   end
 
-  def search(model, n) do
+  def search(model) do
     location_var_names =
-      Enum.take(model.variables, n)
+      Enum.take(model.variables, model.extra.n)
       |> Enum.reduce(
         MapSet.new(),
         fn v, acc -> MapSet.put(acc, v.name) end

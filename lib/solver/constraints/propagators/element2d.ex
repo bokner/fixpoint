@@ -28,12 +28,11 @@ defmodule CPSolver.Propagator.Element2D do
     num_cols = length(hd(array2d))
 
     initial_reduction(array2d, x, y, z, num_rows, num_cols)
-    state = build_state(array2d, x, y, z, num_rows, num_cols)
-    maybe_reduce_domains(x, y, z, state)
+    build_state(array2d, x, y, z, num_rows, num_cols)
   end
 
   def build_state(array2d, x, y, z, num_rows, num_cols) do
-    ## Build a graph.
+    ## Build a state graph.
     ## Three sets of vertices: ([{:z, value}], [{:x, value}], [{:y, value}])
     ## with edges from {:z, z_value} to {:x, x_value},
     ## where z_value is present in x_value row of array2d.
@@ -57,11 +56,6 @@ defmodule CPSolver.Propagator.Element2D do
     end
   end
 
-  ## Try to reduce some domains
-  # |> then(fn maps ->
-  # maybe_reduce_domains(x, y, z, maps)
-  # end)
-
   defp initial_reduction(array2d, x, y, z, num_rows, num_cols) do
     # x and y are indices in array2d,
     # so we trim D(x) and D(y) accordingly.
@@ -76,24 +70,27 @@ defmodule CPSolver.Propagator.Element2D do
   end
 
   defp maybe_reduce_domains(x, y, z, %Graph{} = graph) do
-    {updated_graph, changed?} =
-      Enum.reduce(Graph.vertices(graph), {graph, false}, fn
-        {:z, _} = v, acc ->
-          maybe_remove_vertex(v, z, acc)
+    (maybe_fix(x, y, z, graph) && :passive) ||
+      (
+        {updated_graph, changed?} =
+          Enum.reduce(Graph.vertices(graph), {graph, false}, fn
+            {:z, _} = v, acc ->
+              maybe_remove_vertex(v, z, acc)
 
-        {:x, _} = v, acc ->
-          maybe_remove_vertex(v, x, acc)
+            {:x, _} = v, acc ->
+              maybe_remove_vertex(v, x, acc)
 
-        {:y, _} = v, acc ->
-          maybe_remove_vertex(v, y, acc)
-      end)
+            {:y, _} = v, acc ->
+              maybe_remove_vertex(v, y, acc)
+          end)
 
-    ## Repeat if any reductions were made
-    if changed? do
-      maybe_reduce_domains(x, y, z, updated_graph)
-    else
-      updated_graph
-    end
+        ## Repeat if any reductions were made
+        if changed? do
+          maybe_reduce_domains(x, y, z, updated_graph)
+        else
+          updated_graph
+        end
+      )
   end
 
   defp maybe_remove_vertex(
@@ -148,16 +145,40 @@ defmodule CPSolver.Propagator.Element2D do
   @impl true
 
   def filter(args, state) do
-    updated_state = filter_impl(args, state)
+    case filter_impl(args, state) do
+      :passive ->
+        :passive
 
-    if Graph.vertices(updated_state) |> Enum.empty?() do
-      :fail
-    else
-      {:state, updated_state}
+      updated_state ->
+        if Graph.vertices(updated_state) |> Enum.empty?() do
+          :fail
+        else
+          {:state, updated_state}
+        end
     end
   end
 
   defp filter_impl([_array2d, x, y, z], state) do
     maybe_reduce_domains(x, y, z, state)
+  end
+
+  defp maybe_fix(x, y, z, graph) do
+    ## If any 2 are fixed, fix the 3rd
+    case Graph.vertices(graph) do
+      [_vertex1, _vertex2, _vertex3] = triple ->
+        Enum.each(
+          triple,
+          fn
+            {:x, x_value} -> fix(x, x_value)
+            {:y, y_value} -> fix(y, y_value)
+            {:z, z_value} -> fix(z, z_value)
+          end
+        )
+
+        true
+
+      _more_than_one_triple ->
+        false
+    end
   end
 end

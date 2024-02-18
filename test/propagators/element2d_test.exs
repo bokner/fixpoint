@@ -82,5 +82,31 @@ defmodule CPSolverTest.Propagator.Element2D do
       propagator = Element2D.new(t, x_var, y_var, z_var)
       assert :fail == Propagator.filter(propagator)
     end
+
+    test "2 of 3 fixed" do
+      x = 3..3
+      y = 3..3
+      z = 2..40
+
+      t = [
+        [9, 8, 7, 5, 6],
+        [9, 1, 5, 2, 8],
+        [8, 3, 1, 4, 9],
+        [9, 1, 2, 8, 6]
+      ]
+
+      variables = Enum.map([x, y, z], fn d -> Variable.new(d) end)
+
+      {:ok, [x_var, y_var, z_var] = _bound_vars, _store} = ConstraintStore.create_store(variables)
+
+      propagator = Element2D.new(t, x_var, y_var, z_var)
+
+      %{state: nil, active?: false} = Propagator.filter(propagator)
+
+      assert Interface.min(z_var) ==
+               Enum.at(t, Interface.min(x_var)) |> Enum.at(Interface.min(y_var))
+
+      assert Interface.fixed?(z_var)
+    end
   end
 end

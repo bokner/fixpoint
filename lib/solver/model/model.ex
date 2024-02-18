@@ -21,7 +21,8 @@ defmodule CPSolver.Model do
       constraints: constraints,
       objective: opts[:objective],
       id: Keyword.get(opts, :id, make_ref()),
-      name: opts[:name]
+      name: opts[:name],
+      extra: opts[:extra]
     }
   end
 
