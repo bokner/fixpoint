@@ -253,7 +253,7 @@ Likewise, `value_choice` is either an implementation of [value partition](lib/so
 
 Available standard search strategies:
 
-- For `variable_choice``: 
+- For `variable_choice`: 
   - `:first_fail` : choose the unfixed variable with smallest domain size
   - `:input_order` : choose the first unfixed variable in the order defined by the model 
 
@@ -263,9 +263,11 @@ Available standard search strategies:
 Default search strategy is `{:first_fail, :indomain_min}`
 
 
-The choice of search strategy may significantly affect the performance of solving. 
+The choice of search strategy may significantly affect the performance of solving,
 
-Let's use some out-of-box strategies for solving an instance of Knapsack problem,
+as the following example shows: 
+
+#### Let's use some out-of-box strategies for solving an instance of Knapsack problem,
 
 
 ```elixir
@@ -286,6 +288,7 @@ results.statistics
 ## Decision variables for items have {0,1} domain, where 1 means that the item will be packed.
 ## Hence, :indomain_max tells the solver to try to include the items first
 ## before excluding them.
+##
 {:ok, results} = CPSolver.solve_sync(Knapsack.tourist_knapsack_model(), search: {:first_fail, :indomain_max})
 
 iex(main@zephyr.local)21> results.statistics
