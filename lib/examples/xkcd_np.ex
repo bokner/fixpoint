@@ -20,14 +20,14 @@ defmodule CPSolver.Examples.XKCD.NP do
 
     total = 1505
 
-    appetizer_vars =
+    quantities =
       Enum.map(appetizers, fn {name, price} ->
         mul(Variable.new(0..div(total, price), name: name), price)
       end)
 
     total_var = Variable.new([total], name: :total)
 
-    Model.new(appetizer_vars ++ [total_var], [Sum.new(total_var, appetizer_vars)],
+    Model.new(quantities, [Sum.new(total_var, quantities)],
       extra: %{appetizers: appetizers, total: total}
     )
   end

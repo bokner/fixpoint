@@ -1,0 +1,85 @@
+# xkcd-np
+
+```elixir
+Mix.install([:fixpoint])
+```
+
+## How do you solve with Constraint Programming?
+
+#### [**xkcd**](https://xkcd.com/287/), as always, helps us to explain things :-)
+
+![image](https://imgs.xkcd.com/comics/np_complete.png)
+
+### ***We can help waiter with appetizers!***
+
+<!-- livebook:{"break_markdown":true} -->
+
+### First, create a model for the problem.
+
+Meaning we declare the decision variables and the constraints over them.
+
+* The decision variables are the quantities per appetizer
+* The single constraint is that the total price of the appetizers is exactly what the customers require.
+
+```elixir
+defmodule XKCD.NP.Appetizers do
+  alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Model
+  alias CPSolver.Constraint.Sum
+  import CPSolver.Variable.View.Factory
+
+  def model() do
+    appetizers = [
+      {:mixed_fruit, 215},
+      {:french_fries, 275},
+      {:side_salad, 335},
+      {:hot_wings, 355},
+      {:mozarella_sticks, 420},
+      {:sampler_plate, 580}
+    ]
+
+    total = 1505
+
+    ## We want to find the quantities for each appetizer...
+    quantities =
+      Enum.map(appetizers, fn {name, price} ->
+        mul(Variable.new(0..div(total, price), name: name), price)
+      end)
+
+    total_price = Variable.new([total], name: :total)
+
+    ### ...such that the total price will be exactly as the customers ask
+    ###
+    Model.new(
+      quantities,
+      [Sum.new(total_price, quantities)]
+    )
+  end
+
+  def print_solutions(solver_results) do
+    (Enum.map_join(solver_results.solutions, "\n OR \n", fn sol ->
+       sol
+       |> Enum.zip(solver_results.variables)
+       |> Enum.reject(fn {q, _name} -> q == 0 end)
+       |> Enum.map_join(", ", fn {q, name} ->
+         IO.ANSI.red() <> "#{name} : #{IO.ANSI.blue()}#{q}"
+       end)
+     end) <> IO.ANSI.reset())
+    |> IO.puts()
+  end
+end
+```
+
+#### Once we have a model, we feed it to a solver.
+
+```elixir
+alias XKCD.NP.Appetizers
+## Solve
+{:ok, res} = CPSolver.solve_sync(Appetizers.model())
+## Present results
+Appetizers.print_solutions(res)
+
+IO.puts("Solver status: #{res.status}")
+```
+
+### That's it!
