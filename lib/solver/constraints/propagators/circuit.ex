@@ -96,10 +96,10 @@ defmodule CPSolver.Propagator.Circuit do
   ## Update circuit at 'pos' position with 'value'
   defp update_circuit(circuit, pos, value) do
     List.update_at(circuit, pos, fn _ -> value end)
-    |> then(fn updated -> check_circuit(updated, pos, value) end)
+    |> then(fn updated -> check_circuit(updated, pos) end)
   end
 
-  defp check_circuit(circuit, pos, value) do
+  defp check_circuit(circuit, pos) do
     ## Follow the chain starting from 'pos'
     ## If the successor contains nil, stop
     ## Otherwise, 
@@ -108,7 +108,7 @@ defmodule CPSolver.Propagator.Circuit do
     ## - otherwise, the circuit is completed
     l = length(circuit)
 
-    Enum.reduce_while(1..l, {1, value}, fn _, {steps, succ_acc} ->
+    Enum.reduce_while(1..l, {1, Enum.at(circuit, pos)}, fn _, {steps, succ_acc} ->
       case Enum.at(circuit, succ_acc) do
         nil ->
           {:halt, {:incomplete, circuit}}
