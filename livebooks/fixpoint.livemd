@@ -354,6 +354,8 @@ capacity = 400
 
 #### Build data for the model
 
+### We are sorting items by their values.
+### The purpose will be explained in a moment.
 sorted_by_value = Enum.sort_by(items, fn {_name, _weight, value} -> value end, :desc)
 
 {item_names, weights, values} =
@@ -363,14 +365,44 @@ sorted_by_value = Enum.sort_by(items, fn {_name, _weight, value} -> value end, :
 
 model = Knapsack.model(values, weights, capacity)
 
-## Solve it.
-## Note that we use a custom search strategy, forcing solver to make a decision to try to place items
-## first before deciding not to.
-##
+:ok
+```
+
+***Once we have a model, we're ready to pack!***
+
+Note that we use a custom search strategy here.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+search_strategy = {:input_order, :indomain_max}
+```
+
+`:input_order` forces the solver to choose variables in order they were listed
+in the model.
+
+Recall that we have ordered decision variables for items by their values in descending order.
+
+Hence, the solver will choose the items with higher values first.
+
+`:indomain_max` will force the solver to choose the maximum value in the domain of the variable.
+
+Recall that the domain of decision variable for every item is ```{0, 1}```,
+where `0` means we leave the item out, and `1` means we pack it.
+So `:indomain_max` makes the solution process to try to place items
+first before deciding not to.
+
+Overall, our search strategy translates to "pack the items with higher values first".
+
+#### **Let's solve it now**
+
+```elixir
+search_strategy = {:input_order, :indomain_max}
+
 {:ok, res} =
   CPSolver.solve_sync(model,
     timeout: 1_000,
-    search: {:input_order, :indomain_max}
+    search: search_strategy
   )
 
 ## The best (in this case, optimal) solution is the last in the list of feasible solutions
