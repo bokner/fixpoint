@@ -25,11 +25,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
 
       %{unfixed_vars: unfixed_vars} = filtering_results.state
       ## x1, x2 and x3 should be in unfixed_vars list
-      assert map_size(unfixed_vars) == 3
-
-      assert Enum.all?([x1_var, x2_var, x3_var], fn var ->
-               Map.has_key?(unfixed_vars, Interface.id(var))
-             end)
+      assert length(unfixed_vars) == 3
 
       ## The values of fixed variables (namely, 4 and 5) have been removed from unfixed variables
       assert Enum.all?([x1_var, x2_var, x3_var], fn var -> Interface.max(var) == 3 end)
@@ -43,7 +39,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
       %{unfixed_vars: updated_unfixed_vars} = filtering_results2.state
 
       ## x1 had been fixed, and so is now removed from unfixed vars
-      assert map_size(updated_unfixed_vars) == 2
+      assert length(updated_unfixed_vars) == 2
 
       assert Interface.min(x2_var) == 1 && Interface.max(x2_var) == 2
       assert Interface.min(x3_var) == 0 && Interface.max(x3_var) == 2

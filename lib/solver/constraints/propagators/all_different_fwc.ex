@@ -6,7 +6,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   """
 
   defp initial_state(args) do
-    %{unfixed_vars: Map.new(args, fn v -> {id(v), v} end)}
+    %{unfixed_vars: Enum.to_list(0..(length(args) - 1))}
   end
 
   @impl true
@@ -30,17 +30,19 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   defp filter_impl(all_vars, unfixed_vars) do
-    filter_impl(all_vars, Map.to_list(unfixed_vars), unfixed_vars)
+    filter_impl(all_vars, unfixed_vars, MapSet.new(unfixed_vars))
   end
 
   defp filter_impl(_all_vars, [], unfixed_vars) do
-    unfixed_vars
+    MapSet.to_list(unfixed_vars)
   end
 
-  defp filter_impl(all_vars, [{var_id, var} | rest], acc) do
+  defp filter_impl(all_vars, [idx | rest], acc) do
+    var = Enum.at(all_vars, idx)
+
     if fixed?(var) do
       remove_variable(var, all_vars)
-      filter_impl(all_vars, rest, Map.delete(acc, var_id))
+      filter_impl(all_vars, rest, MapSet.delete(acc, idx))
     else
       filter_impl(all_vars, rest, acc)
     end
