@@ -370,7 +370,7 @@ model = Knapsack.model(values, weights, capacity)
 
 ***Once we have a model, we're ready to pack!***
 
-Note that we use a custom search strategy here.
+Note that for solving, we'll use ***a custom search strategy***.
 
 <!-- livebook:{"force_markdown":true} -->
 
@@ -393,8 +393,6 @@ So `:indomain_max` makes the solution process to try to place items
 first before deciding not to.
 
 Overall, our search strategy translates to "pack the items with higher values first".
-
-#### **Let's solve it now**
 
 ```elixir
 search_strategy = {:input_order, :indomain_max}
