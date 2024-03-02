@@ -10,7 +10,7 @@ Mix.install([:fixpoint])
 
 ![image](https://imgs.xkcd.com/comics/np_complete.png)
 
-#### ***We can help waiter with appetizers!***
+### ***We can help waiter with appetizers!***
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -78,6 +78,8 @@ alias XKCD.NP.Appetizers
 {:ok, res} = CPSolver.solve_sync(Appetizers.model())
 ## Present results
 Appetizers.print_solutions(res)
+
+IO.puts("Solver status: #{res.status}")
 ```
 
 ### That's it!

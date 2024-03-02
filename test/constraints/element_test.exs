@@ -1,7 +1,7 @@
 defmodule CPSolverTest.Constraint.Element do
   use ExUnit.Case, async: false
 
-  describe "AllDifferentFWC" do
+  describe "Element" do
     alias CPSolver.Constraint.Element
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Model

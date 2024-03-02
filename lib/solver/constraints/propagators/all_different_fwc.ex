@@ -6,7 +6,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   """
 
   defp initial_state(args) do
-    %{unfixed_vars: Map.new(args, fn v -> {id(v), v} end)}
+    %{unfixed_vars: Enum.to_list(0..(length(args) - 1))}
   end
 
   @impl true
@@ -30,38 +30,44 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   defp filter_impl(all_vars, unfixed_vars) do
-    filter_impl(all_vars, Map.to_list(unfixed_vars), unfixed_vars)
+    fwc(all_vars, unfixed_vars, MapSet.new(), [], false)
   end
 
-  defp filter_impl(_all_vars, [], unfixed_vars) do
-    unfixed_vars
+  ## The list of unfixed variables exhausted, and there were no fixed values.
+  ## We stop here
+  defp fwc(_all_vars, [], _fixed_values, unfixed_ids, false) do
+    unfixed_ids
   end
 
-  defp filter_impl(all_vars, [{var_id, var} | rest], acc) do
+  ## The list of unfixed variables exhausted, and some new fixed values showed up.
+  ## We go through unfixed ids we have collected during previous stage again
+
+  defp fwc(all_vars, [], fixed_values, unfixed_ids, true) do
+    fwc(all_vars, unfixed_ids, fixed_values, [], false)
+  end
+
+  ## There is still some (previously) unfixed values to check
+  defp fwc(all_vars, [idx | rest], fixed_values, ids_to_revisit, changed?) do
+    var = Enum.at(all_vars, idx)
+    remove_all(var, fixed_values)
+
     if fixed?(var) do
-      remove_variable(var, all_vars)
-      filter_impl(all_vars, rest, Map.delete(acc, var_id))
+      ## Variable is fixed or was fixed as a result of removing all fixed values
+      fwc(all_vars, rest, MapSet.put(fixed_values, min(var)), ids_to_revisit, true)
     else
-      filter_impl(all_vars, rest, acc)
+      ## Still not fixed, put it to 'revisit' list
+      fwc(all_vars, rest, fixed_values, [idx | ids_to_revisit], changed?)
     end
   end
 
-  ## Remove value of fixed variable from domains of variables
-  defp remove_variable(variable, variables) do
-    value = min(variable)
-
-    Enum.each(
-      variables,
-      fn var ->
-        if id(var) == id(variable) do
-          :ok
-        else
-          case remove(var, value) do
-            :fixed -> remove_variable(var, variables)
-            _ -> :ok
-          end
-        end
+  ## Remove values from the domain of variable
+  defp remove_all(variable, values) do
+    Enum.map(
+      values,
+      fn value ->
+        remove(variable, value)
       end
     )
+    |> Enum.any?(fn res -> res == :fixed end)
   end
 end
