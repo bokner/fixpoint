@@ -67,7 +67,19 @@ defmodule CPSolver.Propagator.Circuit do
 
   @impl true
   def filter(args) do
-    filter(args, nil)
+    filter(args, initial_state(args))
+  end
+
+  defp initial_state(args) do
+    l = length(args)
+    args
+    |> Enum.with_index()
+    Enum.reduce(args, Graph.new(), fn {var, idx}, graph_acc ->
+      initial_reduction(var, idx, l)
+      Enum.reduce(Interface.domain(var) |> Domain.to_list(), graph_acc, fn value, g ->
+      Graph.add_edge(g, idx, value)
+      end)
+    end)
   end
 
   @impl true
@@ -114,7 +126,7 @@ defmodule CPSolver.Propagator.Circuit do
           {:halt, {:incomplete, circuit}}
 
         succ when succ == pos ->
-          (steps < l - 1 && {:halt, :fail}) || {:halt, :complete}
+          (steps < l - 1) && {:halt, :fail} || {:halt, :complete}
 
         succ ->
           {:cont, {steps + 1, succ}}
@@ -132,7 +144,7 @@ defmodule CPSolver.Propagator.Circuit do
         v = Enum.at(vars, idx)
 
         if fixed?(v) do
-          unfixed_ids_acc = Map.delete(unfixed_ids_acc, idx)
+          unfixed_ids_acc = MapSet.delete(unfixed_ids_acc, idx)
           remove_value(vars, unfixed_ids_acc, min(v))
 
           {:halt, forward_checking(vars, unfixed_ids_acc)}
