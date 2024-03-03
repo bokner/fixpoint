@@ -33,6 +33,5 @@ defmodule CPSolverTest.Propagator.Circuit do
     propagator = Circuit.new(x_vars)
 
     Propagator.filter(propagator)
-    |> tap(fn res -> IO.inspect(res) end)
   end
 end
