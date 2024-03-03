@@ -110,8 +110,12 @@ defmodule CPSolver.Space.Propagation do
     {updated_graph, scheduled_propagators}
   end
 
-  defp maybe_remove_propagator(graph, propagator_id, active?) do
-    (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
+  defp maybe_remove_propagator(graph, _propagator_id, _active?) do
+    ## TODO: reintroduce removing passive propagators
+    ## There is a bigger problem as to what to do with unfixed variables
+    ## when no active propagators left.
+    # (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
+    graph
   end
 
   ## Update propagator

@@ -11,23 +11,27 @@ defmodule CPSolver.Propagator.LessOrEqual do
   end
 
   @impl true
-  def filter([x, y]) do
-    filter([x, y, 0])
+  def filter(args, state \\ %{active?: true})
+  
+  def filter([x, y], state) do
+    filter([x, y, 0], state)
   end
 
-  def filter([x, y, offset]) do
-    filter_impl(x, y, offset)
+  @impl true
+  def filter([x, y, offset], state) do
+    filter_impl(x, y, offset, state || %{active?: true})
   end
 
-  def filter_impl(x, y, offset \\ 0) do
-    if max(x) <= plus(min(y), offset) do
-      ## TODO: it doesn't make sense to filter at all after this happens.
-      ## as it will be stable forever.
-      ## Consider setting :active flag to exclude propagators from propagation process.
-      :passive
-    else
-      removeAbove(x, plus(max(y), offset))
-      removeBelow(y, plus(min(x), -offset))
-    end
+  def filter_impl(_x, _y, _offset, %{active?: false} = _state) do
+    :passive
+  end
+
+  def filter_impl(x, y, offset, %{active?: true} = _state) do
+    removeAbove(x, plus(max(y), offset))
+    removeBelow(y, plus(min(x), -offset))
+
+    ## It doesn't make sense to filter at all after this happens.
+    ## as it will be stable forever.
+    {:state, %{active?: max(x) > plus(min(y), offset)}}
   end
 end
