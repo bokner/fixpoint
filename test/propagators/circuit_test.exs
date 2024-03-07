@@ -23,7 +23,12 @@ defmodule CPSolverTest.Propagator.Circuit do
         ]
 
       Enum.all?(invalid_circuits, fn circuit ->
-        filter(circuit) == :fail
+        :fail ==
+          try do
+            filter(circuit)
+          catch
+            x -> x
+          end
       end)
     end
 

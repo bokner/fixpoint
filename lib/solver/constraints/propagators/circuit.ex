@@ -42,7 +42,7 @@ defmodule CPSolver.Propagator.Circuit do
       |> Enum.reduce(Graph.new(), fn {var, idx}, graph_acc ->
         initial_reduction(var, idx, l)
 
-        Enum.reduce(Interface.domain(var) |> Domain.to_list(), graph_acc, fn value, g ->
+        Enum.reduce(domain(var) |> Domain.to_list(), graph_acc, fn value, g ->
           Graph.add_edge(g, idx, value)
         end)
       end)
@@ -137,7 +137,7 @@ defmodule CPSolver.Propagator.Circuit do
   defp remove_out_edges(%Graph{} = graph, vertex_id, successor_id) do
     Enum.reduce(Graph.out_edges(graph, vertex_id), graph, fn
       %{v2: neighbour_id} = _out_edge, g_acc when neighbour_id == successor_id -> g_acc
-      %{v2: neighbour_id} = _out_edge, g_acc -> Graph.delete_edge(g_acc, vertex_id, neighbour_id)
+      %{v2: neighbour_id} = _out_edge, g_acc -> delete_edge(g_acc, vertex_id, neighbour_id)
     end)
   end
 
@@ -150,7 +150,7 @@ defmodule CPSolver.Propagator.Circuit do
       %{v1: neighbour_id} = _in_edge, {g_acc, unfixed_acc} ->
         var = Enum.at(vars, neighbour_id)
 
-        {Graph.delete_edge(g_acc, neighbour_id, successor_id),
+        {delete_edge(g_acc, neighbour_id, successor_id),
          (:fixed == remove(var, successor_id) && MapSet.delete(unfixed_acc, successor_id)) ||
            unfixed_acc}
     end)
@@ -158,6 +158,15 @@ defmodule CPSolver.Propagator.Circuit do
 
   defp check_graph(%Graph{} = graph, _fixed_vertices) do
     length(Graph.strong_components(graph)) == 1
+  end
+
+  defp delete_edge(%Graph{} = graph, vertex1, vertex2) do
+    Graph.delete_edge(graph, vertex1, vertex2)
+    |> tap(fn g ->
+      (Graph.in_neighbors(g, vertex2) == [] ||
+         Graph.out_neighbors(g, vertex1) == []) &&
+        throw(:fail)
+    end)
   end
 
   def check_circuit(circuit, pos) do

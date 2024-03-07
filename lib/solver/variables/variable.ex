@@ -111,7 +111,7 @@ defmodule CPSolver.Variable do
     ConstraintStore.get(store, variable, op)
   end
 
-  defp store_op(:domain, %{store: nil, domain: domain}) do
+  defp store_op(:domain, %{store: nil, domain: domain}) when not is_nil(domain) do
     domain
   end
 
