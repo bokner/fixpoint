@@ -21,6 +21,7 @@ Proof of concept. Not suitable for use in production. Significant API changes an
 - `all_different`
 - `sum`
 - `element`, `element2d`
+- `circuit`
 
 ## Features
 - views (linear combinations of variables in constraints)  
@@ -323,4 +324,12 @@ Cryptoarithmetics problem - a riddle that involves arithmetics.
 #### [Knapsack](lib/examples/knapsack.ex)
 
 Constraint Optimization Problem - packing items so they fit the knapsack ***and*** maximize the total value. Think Indiana Jones trying to fill his backpack with treasures in the best way possible :-)
+
+#### [Quadratic Assignment](lib/examples/qap.ex)
+
+Constraint Optimization Problem - assign facilities to locations so the cost of moving goods between facilities is minimized.
+
+#### [Travelling Salesman problem](lib/examples/tsp.ex)
+
+https://en.wikipedia.org/wiki/Travelling_salesman_problem
 

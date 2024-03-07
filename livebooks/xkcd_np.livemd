@@ -10,9 +10,7 @@ Mix.install([:fixpoint])
 
 ![image](https://imgs.xkcd.com/comics/np_complete.png)
 
-### ***We can help waiter with appetizers!***
-
-<!-- livebook:{"break_markdown":true} -->
+## Solving customer request for appetizers
 
 ### First, create a model for the problem.
 
@@ -82,4 +80,43 @@ Appetizers.print_solutions(res)
 IO.puts("Solver status: #{res.status}")
 ```
 
-### That's it!
+### That's it! Two solutions are available.
+
+## Serving tables as fast as possible
+
+We want to minimize the total distance the waiter walks to serve the tables.
+
+We will use model that solves Travelling Salesman Problem:
+
+https://github.com/bokner/fixpoint/blob/main/lib/examples/tsp.ex
+
+```elixir
+alias CPSolver.Examples.TSP
+
+tables = ["Table 1", "Table 2", "Table 3", "Table 4", "Table 5", "Table 6", "Table 7"]
+
+## distances[i, j] is a distance from table i to table j
+distances = [
+  [0, 2, 3, 4, 5, 2, 3],
+  [2, 0, 1, 5, 4, 3, 5],
+  [3, 1, 0, 5, 5, 3, 5],
+  [4, 5, 5, 0, 4, 6, 3],
+  [5, 4, 5, 4, 0, 6, 6],
+  [2, 3, 3, 6, 6, 0, 4],
+  [3, 5, 5, 3, 6, 4, 0]
+]
+
+model = TSP.model(distances)
+{:ok, result} = CPSolver.solve_sync(model)
+
+optimal_solution = result.solutions |> List.last()
+
+optimal_route = TSP.to_route(optimal_solution, model)
+
+IO.puts(
+  Enum.map_join(optimal_route, " \u2b95 ", fn idx -> "[" <> Enum.at(tables, idx) <> "]" end)
+)
+
+IO.puts("\n")
+IO.puts("Start from where you are, and follow the directions :-)")
+```
