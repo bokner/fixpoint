@@ -29,11 +29,6 @@ defmodule CPSolver.Examples.TSP do
     successors =
       Enum.map(0..(n - 1), fn i -> Variable.new(0..(n - 1), name: "succ_#{i}") end)
 
-    ## Distance between location i and the one that follows i (i.e., successor)   
-    #  dist_succ = Enum.map(0..n - 1, fn i -> Variable.new(Enum.at(distance, i), name: "dist_succ#{i}")
-
-    #  end)
-
     ## Element constrains
     ## For each i, distance between i and it's successor must be in i-row of distance matrix
     {dist_succ, element_constraints} =
@@ -55,7 +50,7 @@ defmodule CPSolver.Examples.TSP do
     )
   end
 
-  def check_solution(solution, distances) do
+  def check_solution(solution, %{extra: %{distances: distances}} = _model) do
     n = length(distances)
     successors = Enum.take(solution, n)
     ## In the solution, total cost follows assignments
@@ -69,6 +64,17 @@ defmodule CPSolver.Examples.TSP do
       end)
 
     total_distance == sum_distances && n == MapSet.new(successors) |> MapSet.size()
+  end
+
+  ## solution -> sequence of visits 
+  def to_route(solution, model) do
+    n = model.extra.n
+    circuit = Enum.take(solution, n)
+
+    Enum.reduce(0..(n - 1), [0], fn _idx, [next | _rest] = acc ->
+      [Enum.at(circuit, next) | acc]
+    end)
+    |> Enum.reverse()
   end
 
   def parse_instance(filename) do
