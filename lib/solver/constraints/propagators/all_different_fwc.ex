@@ -42,8 +42,8 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   ## The list of unfixed variables exhausted, and some new fixed values showed up.
   ## We go through unfixed ids we have collected during previous stage again
 
-  defp fwc(all_vars, [], fixed_values, unfixed_ids, true) do
-    fwc(all_vars, unfixed_ids, fixed_values, [], false)
+  defp fwc(all_vars, [], fixed_values, ids_to_revisit, true) do
+    fwc(all_vars, ids_to_revisit, fixed_values, [], false)
   end
 
   ## There is still some (previously) unfixed values to check

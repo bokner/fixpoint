@@ -12,7 +12,7 @@ defmodule CPSolver.Propagator.LessOrEqual do
 
   @impl true
   def filter(args, state \\ %{active?: true})
-  
+
   def filter([x, y], state) do
     filter([x, y, 0], state)
   end

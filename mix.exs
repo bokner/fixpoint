@@ -28,6 +28,7 @@ defmodule CPSolver.MixProject do
     [
       {:simple_bitmap, "~> 1.4.0"},
       {:libgraph, "~> 0.16.0"},
+      {:math, "~> 0.7.0", only: :test},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 1.2", only: [:dev], runtime: false},
       {:ex_united, "~> 0.1.5", only: :test},
