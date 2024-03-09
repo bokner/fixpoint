@@ -1,4 +1,4 @@
-defmodule CPSolverTest.Examples.Reindeers do
+defmodule CPSolverTest.Examples.TSP do
   use ExUnit.Case
 
   alias CPSolver.Examples.TSP

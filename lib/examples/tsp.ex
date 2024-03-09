@@ -27,10 +27,13 @@ defmodule CPSolver.Examples.TSP do
 
     ## successor[i] = j <=> location j follows location i  
     successors =
-      Enum.map(0..(n - 2), fn i -> 
-        Variable.new(0..(n - 1), name: "succ_#{i}") end) ++ [Variable.new([0, n-1], name: "succ_#{n - 1}")]
+      Enum.map(0..(n - 1), fn i ->
+        Variable.new(0..(n - 1), name: "succ_#{i}")
+      end)
 
-    ## Element constrains
+    # ++ [Variable.new(0, name: "succ_#{n - 1}")]
+
+    ## Element constraints
     ## For each i, distance between i and it's successor must be in i-row of distance matrix
     {dist_succ, element_constraints} =
       Enum.map(0..(n - 1), fn i ->
@@ -105,11 +108,14 @@ defmodule CPSolver.Examples.TSP do
 
   def to_dot(distances) do
     n = length(distances)
-    graph = for i <- 0..n-1, j <- 0..n-1, reduce: Graph.new() do
-      acc -> 
-        weight = Enum.at(distances, i) |> Enum.at(j)
-        Graph.add_edge(acc, i, j, weight: weight, label: weight)
-    end
+
+    graph =
+      for i <- 0..(n - 1), j <- 0..(n - 1), reduce: Graph.new() do
+        acc ->
+          weight = Enum.at(distances, i) |> Enum.at(j)
+          Graph.add_edge(acc, i, j, weight: weight, label: weight)
+      end
+
     Graph.to_dot(graph)
   end
 end

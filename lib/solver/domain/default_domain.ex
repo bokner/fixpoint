@@ -7,6 +7,10 @@ defmodule CPSolver.DefaultDomain do
   defdelegate removeAbove(values, val), to: Domain
   defdelegate removeBelow(values, val), to: Domain
 
+  def to_list(arg) when is_integer(arg) do
+    [arg]
+  end
+
   def to_list(arg) when is_list(arg) do
     arg
   end

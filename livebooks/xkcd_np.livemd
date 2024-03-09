@@ -72,7 +72,7 @@ defmodule ServingTablesHelpers do
 
       for j <- 0..(len - 1) do
         {x2, y2} = Enum.at(coordinates, j)
-        :math.sqrt(:math.pow(x1 - x2, 2) + :math.pow(y1 - y2, 2)) |> ceil()
+        :math.sqrt(:math.pow(x1 - x2, 2) + :math.pow(y1 - y2, 2)) |> round()
       end
     end
   end
