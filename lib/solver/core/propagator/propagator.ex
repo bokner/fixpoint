@@ -102,6 +102,7 @@ defmodule CPSolver.Propagator do
     try do
       mod.filter(args, state)
     catch
+      :fail -> :fail
       {:fail, var_id} ->
         {:fail, var_id}
     else

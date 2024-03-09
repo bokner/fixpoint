@@ -1,7 +1,82 @@
 # xkcd-np
 
 ```elixir
-Mix.install([:fixpoint])
+Mix.install([
+  {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
+  # :fixpoint,
+  {:kino, "~> 0.10.0"}
+])
+
+Logger.configure(level: :notice)
+
+defmodule ServingTablesHelpers do
+  def visualize_route(optimal_route, distances, tables, table_coordinates) do
+    IO.puts(
+      Enum.map_join(optimal_route, " \u2b95 ", fn idx -> "[" <> Enum.at(tables, idx) <> "]" end)
+    )
+
+    IO.puts("\n")
+    IO.puts("Start from where you are, and follow the directions :-)")
+
+    ## Create a route visualization
+    route_graph =
+      Enum.reduce(
+        0..6,
+        Graph.new(),
+        fn idx, acc ->
+          v1 = Enum.at(optimal_route, idx)
+          v2 = Enum.at(optimal_route, idx + 1)
+
+          weight = Enum.at(distances, v1) |> Enum.at(v2)
+          Graph.add_edge(acc, v1, v2, len: weight, label: " #{weight} ")
+        end
+      )
+
+    {:ok, route_graph_content} = Graph.to_dot(route_graph)
+
+    route_graph_content =
+      Enum.reduce(0..6, route_graph_content, fn idx, acc ->
+        {x, y} = Enum.at(table_coordinates, idx)
+        replace_params = "[label=#{Enum.at(tables, idx)}; pos=\"#{x},#{y}!\"]"
+        # || "[label=#{Enum.at(tables,idx)}]"
+        String.replace(acc, "[label=#{idx}]", replace_params)
+      end)
+
+    dir = System.tmp_dir!()
+    dot_file = Path.join(dir, "xkcd_route_graph.dot")
+    png_file = Path.join(dir, "xkcd_route.png")
+    File.write(dot_file, route_graph_content)
+
+    System.cmd("neato", [
+      "-Tpng:quartz",
+      dot_file,
+      "-o",
+      png_file,
+      "-Nfontsize=20",
+      "-Nfontcolor=red",
+      "-Nshape=diamond",
+      "-Efontcolor=blue",
+      "-Efontsize=20"
+    ])
+
+    ## Render with Kino
+    content = File.read!(png_file)
+    Kino.Image.new(content, "image/png")
+  end
+
+  def distances_from_coordinates(coordinates) do
+    len = length(coordinates)
+
+    for i <- 0..(len - 1) do
+      {x1, y1} = Enum.at(coordinates, i)
+
+      for j <- 0..(len - 1) do
+        {x2, y2} = Enum.at(coordinates, j)
+        :math.sqrt(:math.pow(x1 - x2, 2) + :math.pow(y1 - y2, 2)) |> ceil()
+      end
+    end
+  end
+end
 ```
 
 ## How do you solve with Constraint Programming?
@@ -92,19 +167,13 @@ https://github.com/bokner/fixpoint/blob/main/lib/examples/tsp.ex
 
 ```elixir
 alias CPSolver.Examples.TSP
+import ServingTablesHelpers
 
-tables = ["Table 1", "Table 2", "Table 3", "Table 4", "Table 5", "Table 6", "Table 7"]
+tables = ["Table1", "Table2", "Table3", "Table4", "Table5", "Table6", "Table7"]
 
-## distances[i, j] is a distance from table i to table j
-distances = [
-  [0, 2, 3, 4, 5, 2, 3],
-  [2, 0, 1, 5, 4, 3, 5],
-  [3, 1, 0, 5, 5, 3, 5],
-  [4, 5, 5, 0, 4, 6, 3],
-  [5, 4, 5, 4, 0, 6, 6],
-  [2, 3, 3, 6, 6, 0, 4],
-  [3, 5, 5, 3, 6, 4, 0]
-]
+table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {6, 4}, {12, 6}]
+
+distances = distances_from_coordinates(table_coordinates)
 
 model = TSP.model(distances)
 {:ok, result} = CPSolver.solve_sync(model)
@@ -113,10 +182,13 @@ optimal_solution = result.solutions |> List.last()
 
 optimal_route = TSP.to_route(optimal_solution, model)
 
-IO.puts(
-  Enum.map_join(optimal_route, " \u2b95 ", fn idx -> "[" <> Enum.at(tables, idx) <> "]" end)
-)
+visualize_route(optimal_route, distances, tables, table_coordinates)
+```
 
-IO.puts("\n")
-IO.puts("Start from where you are, and follow the directions :-)")
+```elixir
+result.solutions
+```
+
+```elixir
+optimal_route
 ```
