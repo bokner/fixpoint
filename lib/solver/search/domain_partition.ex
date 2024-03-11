@@ -3,7 +3,8 @@ defmodule CPSolver.Search.DomainPartition do
   alias CPSolver.Variable.Interface
 
   def partition(variable, strategy) when is_function(strategy) do
-    strategy.(variable)
+    domain = Interface.domain(variable)
+    split_domain_by(domain, strategy.(variable))
   end
 
   def partition(variable, choice) when choice in [:min, :max] do

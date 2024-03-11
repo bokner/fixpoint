@@ -52,7 +52,7 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def partition(variable, value_choice) when is_function(value_choice) do
-    value_choice.(variable)
+    DomainPartition.partition(variable, value_choice)
   end
 
   def branch(variables, {variable_choice, partition_strategy}) do
