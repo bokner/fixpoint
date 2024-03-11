@@ -13,7 +13,6 @@ defmodule CPSolver.ConstraintStore do
   @type get_operation :: Common.domain_get_operation() | nil
   @type update_operation :: Common.domain_update_operation()
 
-  @unfixed Common.unfixed()
   @store_key :space_store_key
 
   def default_store() do
@@ -99,13 +98,10 @@ defmodule CPSolver.ConstraintStore do
     store_impl = Keyword.get(opts, :store_impl)
     {:ok, store_handle} = store_impl.create(variables, opts)
 
-    fixed_variables_store = create_fixed_vars_store(variables)
-
     store = %{
       space: space,
       handle: store_handle,
-      store_impl: store_impl,
-      fixed_variables: fixed_variables_store
+      store_impl: store_impl
     }
 
     {:ok,
@@ -117,7 +113,6 @@ defmodule CPSolver.ConstraintStore do
        |> Map.put(:name, var.name)
        |> Map.put(:store, store)
        |> Map.put(:fixed?, Domain.fixed?(domain))
-       |> tap(fn v -> register_fixed(v) end)
      end), store}
     |> tap(fn _ -> set_store(store) end)
   end
@@ -161,9 +156,8 @@ defmodule CPSolver.ConstraintStore do
       ) do
     store_impl.update(handle, variable, operation, args)
     |> then(fn
-      {:fixed, value} ->
-        # :fail
-        update_fixed(variable, value)
+      {:fixed, _value} ->
+        :fixed
 
       result ->
         result
@@ -196,70 +190,9 @@ defmodule CPSolver.ConstraintStore do
     id
   end
 
-  ## There is a possible race condition for the updates that fix a variable.
-  ## It goes like this:
-  ## Propagators P1 and P2 run concurrently,
-  ## and the filtering for each of them results
-  ## in fixing the same variable.
-  ## Filter calls for both P1 and P2 read the domain of the variable,
-  ## but the updates are unaware that the domain may have already been fixed by
-  ## another propagator.
-  ##
-  ## The fix: use :atomics to enforce sequential operations when updating variables to
-  ## :fixed state.
-  ## In the scenario above, the code checks if the variable has already been fixed
-  ## by looking up variable index in :atomics list.
-
-  def create_fixed_vars_store(variables) do
-    :atomics.new(length(variables), signed: true)
-  end
-
-  def update_fixed(_var, :fail) do
-    :fail
-  end
-
-  ## Note: if index is not supplied, this operation is not thread-safe
-  def update_fixed(%{index: nil} = variable, fixed_value) do
-    domain = domain(variable)
-    (Domain.fixed?(domain) && Domain.min(domain) != fixed_value && :fail) || :fixed
-  end
-
-  def update_fixed(%{store: nil} = variable, fixed_value) do
-    update_fixed(Map.put(variable, :store, get_store_from_dict()), fixed_value)
-  end
-
-  def update_fixed(
-        %{index: index, store: %{fixed_variables: fixed_vars}} = _variable,
-        fixed_value
-      ) do
-    update_fixed(fixed_vars, index, fixed_value)
-  end
-
-  def update_fixed(fixed_vars, index, fixed_value) do
-    case :atomics.exchange(fixed_vars, index, fixed_value) do
-      prev_value when prev_value == @unfixed -> :fixed
-      prev_value when prev_value != fixed_value -> :fail
-      _same -> :fixed
-    end
-  end
-
-  def register_fixed(%{store: nil} = variable, fixed_value) do
-    register_fixed(Map.put(variable, :store, get_store_from_dict()), fixed_value)
-  end
-
-  def register_fixed(
-        %{index: index, domain: domain, store: %{fixed_variables: fixed_vars}} = _variable
-      ) do
-    value = (Domain.fixed?(domain) && Domain.min(domain)) || @unfixed
-    :atomics.put(fixed_vars, index, value)
-  end
-
+  
   def fixed?(%{store: nil} = variable) do
     fixed?(Map.put(variable, :store, get_store_from_dict()))
-  end
-
-  def fixed?(%{store: %{fixed_variables: fixed_vars}, index: index} = _var) do
-    :atomics.get(fixed_vars, index) != @unfixed
   end
 
   ## Store handle in dict
