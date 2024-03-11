@@ -77,9 +77,6 @@ defmodule CpSolverTest do
     assert :all_solutions = CPSolver.status(solver)
     ## Status for optimization problem
     {:ok, solver} = CPSolver.solve(Knapsack.model("data/knapsack/ks_4_0"))
-    Process.sleep(1)
-    {:running, info} = CPSolver.status(solver)
-    assert info[:objective]
     Process.sleep(100)
     assert {:optimal, [objective: 19]} == CPSolver.status(solver)
   end

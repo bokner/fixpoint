@@ -2,6 +2,10 @@ defmodule CPSolver.Search.DomainPartition do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Variable.Interface
 
+  def partition(variable, strategy) when is_function(strategy) do
+    strategy.(variable)
+  end
+
   def partition(variable, choice) when choice in [:min, :max] do
     domain = Interface.domain(variable)
     val = apply(Domain, choice, [domain])
@@ -22,7 +26,7 @@ defmodule CPSolver.Search.DomainPartition do
     split_domain_by(domain, random_val)
   end
 
-  defp split_domain_by(domain, value) do
+  def split_domain_by(domain, value) do
     case Domain.remove(domain, value) do
       :fail -> :fail
       {_domain_change, rest} -> {:ok, [value, rest]}

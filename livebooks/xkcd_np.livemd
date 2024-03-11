@@ -11,6 +11,8 @@ Logger.configure(level: :notice)
 
 defmodule ServingTablesHelpers do
   def visualize_route(optimal_route, distances, tables, table_coordinates) do
+    len = length(tables)
+
     IO.puts(
       Enum.map_join(optimal_route, " \u2b95 ", fn idx -> "[" <> Enum.at(tables, idx) <> "]" end)
     )
@@ -21,7 +23,7 @@ defmodule ServingTablesHelpers do
     ## Create a route visualization
     route_graph =
       Enum.reduce(
-        0..6,
+        0..(len - 1),
         Graph.new(),
         fn idx, acc ->
           v1 = Enum.at(optimal_route, idx)
@@ -35,7 +37,7 @@ defmodule ServingTablesHelpers do
     {:ok, route_graph_content} = Graph.to_dot(route_graph)
 
     route_graph_content =
-      Enum.reduce(0..6, route_graph_content, fn idx, acc ->
+      Enum.reduce(0..(len - 1), route_graph_content, fn idx, acc ->
         {x, y} = Enum.at(table_coordinates, idx)
         replace_params = "[label=#{Enum.at(tables, idx)}; pos=\"#{x},#{y}!\"]"
         # || "[label=#{Enum.at(tables,idx)}]"
@@ -176,7 +178,7 @@ table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {6, 4}, {12, 6}]
 distances = distances_from_coordinates(table_coordinates)
 
 model = TSP.model(distances)
-{:ok, result} = CPSolver.solve_sync(model)
+{:ok, result} = CPSolver.solve_sync(model, search: TSP.search(model))
 
 optimal_solution = result.solutions |> List.last()
 

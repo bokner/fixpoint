@@ -14,6 +14,9 @@ defmodule CPSolver.Examples.TSP do
   alias CPSolver.Model
   alias CPSolver.Constraint.Circuit
   alias CPSolver.Objective
+  alias CPSolver.Variable.Interface
+  alias CPSolver.DefaultDomain, as: Domain
+  alias CPSolver.Search.DomainPartition
   import CPSolver.Constraint.Factory
 
   ## Read and compile data from instance file
@@ -47,6 +50,7 @@ defmodule CPSolver.Examples.TSP do
       successors ++ [total_distance],
       [
         Circuit.new(successors),
+        # Less.new(Enum.at(successors, 0), Enum.at(successors, 1)),
         sum_constraint
       ] ++ element_constraints,
       objective: Objective.minimize(total_distance),
@@ -70,9 +74,48 @@ defmodule CPSolver.Examples.TSP do
     total_distance == sum_distances && n == MapSet.new(successors) |> MapSet.size()
   end
 
+  def search(%{extra: %{distances: distances, n: n}} = _model) do
+    choose_value_fun = fn %{index: idx} = var ->
+      domain = Interface.domain(var)
+      d_values = Domain.to_list(domain)
+
+      value =
+        (idx in 1..n &&
+           Enum.min_by(d_values, fn dom_idx -> Enum.at(distances, idx - 1) |> Enum.at(dom_idx) end)) ||
+          Enum.random(d_values)
+
+      DomainPartition.split_domain_by(domain, value)
+    end
+
+    choose_variable_fun = fn variables ->
+      {circuit_vars, rest_vars} = Enum.split_with(variables, fn v -> v.index <= n end)
+
+      (circuit_vars == [] && List.first(rest_vars)) ||
+        difference_between_smallest_distances(circuit_vars, distances)
+    end
+
+    {choose_variable_fun, choose_value_fun}
+    # {:input_order, choose_value_fun}
+  end
+
+  defp difference_between_smallest_distances(circuit_vars, distances) do
+    Enum.max_by(circuit_vars, fn %{index: idx} = var ->
+      dom = Interface.domain(var) |> Domain.to_list()
+
+      (length(dom) < 2 && 0) ||
+        dom
+        |> Enum.map(fn value ->
+          Enum.at(distances, idx - 1) |> Enum.at(value)
+        end)
+        |> Enum.sort(:desc)
+        |> then(fn dists -> abs(Enum.at(dists, 1) - hd(dists)) end)
+    end)
+  end
+
+  # end
+
   ## solution -> sequence of visits 
-  def to_route(solution, model) do
-    n = model.extra.n
+  def to_route(solution, %{extra: %{n: n}} = _model) do
     circuit = Enum.take(solution, n)
 
     Enum.reduce(0..(n - 1), [0], fn _idx, [next | _rest] = acc ->
