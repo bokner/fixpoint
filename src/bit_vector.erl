@@ -3,9 +3,10 @@
 -export([new/1, get/2, set/2, clear/2, flip/2, print/1]).
 
 
+% Allocate atomics to contain the data + 2 bytes for min and max
 new(Size) ->
     Words = (Size + 63) div 64,
-    {?MODULE, Size, atomics:new(Words, [{signed, false}])}.
+    {?MODULE, Size, atomics:new(Words + 2, [{signed, false}])}.
 
 get({?MODULE, _Size, Aref}, Bix) ->
     Wix = (Bix div 64) + 1,
