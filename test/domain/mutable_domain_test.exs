@@ -89,9 +89,9 @@ defmodule CPSolverTest.MutableDomain do
 
     test "fix" do
       values = [0, -2, 4, 5, 6]
-      domain = Domain.new(values)
 
       assert Enum.all?(values, fn val ->
+               domain = Domain.new(values)
                {:fixed, fixed} = Domain.fix(domain, val)
 
                Domain.fixed?(domain) &&
@@ -100,6 +100,7 @@ defmodule CPSolverTest.MutableDomain do
              end)
 
       ## Fixing non-existing value leads to a failure
+      domain = Domain.new(values)
       assert :fail == Domain.fix(domain, 1)
     end
 

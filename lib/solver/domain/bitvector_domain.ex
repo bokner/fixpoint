@@ -23,9 +23,6 @@ defmodule CPSolver.BitVectorDomain do
     bv = :bit_vector.new(domain_size)
     Enum.each(domain, fn idx -> :bit_vector.set(bv, idx + offset) end)
 
-    set_min(bv, 0)
-    set_max(bv, Enum.max(domain) + offset)
-
     {bv, offset}
   end
 
@@ -210,22 +207,6 @@ defmodule CPSolver.BitVectorDomain do
   ## Last 2 bytes of bit_vector are min and max
   def last_index({:bit_vector, _zero_based_max, ref} = _bit_vector) do
     :atomics.info(ref).size - 2
-  end
-
-  defp get_min({:bit_vector, _zero_based_max, ref} = bit_vector) do
-    :atomics.get(ref, last_index(bit_vector) + 1)
-  end
-
-  defp set_min({:bit_vector, _zero_based_max, ref} = bit_vector, min_value) do
-    :atomics.put(ref, last_index(bit_vector) + 1, min_value)
-  end
-
-  defp get_max({:bit_vector, _zero_based_max, ref} = bit_vector) do
-    :atomics.get(ref, last_index(bit_vector) + 2)
-  end
-
-  defp set_max({:bit_vector, _zero_based_max, ref} = bit_vector, max_value) do
-    :atomics.put(ref, last_index(bit_vector) + 2, max_value)
   end
 
   ## Find least significant bit
