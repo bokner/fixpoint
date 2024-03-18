@@ -33,11 +33,6 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       {:ok, bound_vars, _store} = ConstraintStore.create_store(variables, space: nil)
       ## The propagator will fail on one of the variables
       assert catch_throw(LessOrEqual.filter(bound_vars)) in [{:fail, x_var.id}, {:fail, y_var.id}]
-      ## One of variables (depending on filtering implementation) will fail
-      assert Enum.any?(
-               bound_vars,
-               fn var -> :fail == Variable.fixed?(var) end
-             )
     end
 
     test "offset" do

@@ -56,11 +56,6 @@ defmodule CPSolverTest.Propagator.NotEqual do
       {:ok, bound_vars, _store} = ConstraintStore.create_store(variables, space: nil)
       assert catch_throw(NotEqual.filter(bound_vars)) == {:fail, y_var.id}
       assert PropagatorVariable.get_variable_ops() == nil
-      ## One of variables (depending on filtering implementation) will fail
-      assert Enum.any?(
-               bound_vars,
-               fn var -> :fail == Variable.fixed?(var) end
-             )
     end
 
     test "offset" do

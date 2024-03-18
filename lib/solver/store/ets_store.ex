@@ -62,13 +62,11 @@ defmodule CPSolver.Store.ETS do
   end
 
   defp update_variable_domain(
-         table,
-         %{id: var_id} = variable,
+         _table,
+         _variable,
          domain,
          event
        ) do
-    :ets.insert(table, {var_id, Map.put(variable, :domain, domain)})
-
     case event do
       :fixed -> {:fixed, Domain.min(domain)}
       event -> event
