@@ -2,7 +2,7 @@ defmodule CPSolverTest.MutableDomain do
   use ExUnit.Case
 
   describe "Default domain" do
-    alias CPSolver.BitVectorDomain, as: Domain
+    alias CPSolver.BitVectorDomain.V2, as: Domain
 
     test "creates domain from integer range and list" do
       assert catch_throw(Domain.new([])) == :empty_domain
@@ -89,17 +89,18 @@ defmodule CPSolverTest.MutableDomain do
 
     test "fix" do
       values = [0, -2, 4, 5, 6]
-      domain = Domain.new(values)
 
       assert Enum.all?(values, fn val ->
+               domain = Domain.new(values)
                {:fixed, fixed} = Domain.fix(domain, val)
 
-               Domain.fixed?(fixed) &&
-                 Domain.min(fixed) == val &&
-                 Domain.max(fixed) == val
+               Domain.fixed?(domain) &&
+                 Domain.min(domain) == val &&
+                 Domain.max(domain) == val
              end)
 
       ## Fixing non-existing value leads to a failure
+      domain = Domain.new(values)
       assert :fail == Domain.fix(domain, 1)
     end
 

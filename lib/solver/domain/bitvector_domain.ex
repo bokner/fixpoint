@@ -204,8 +204,9 @@ defmodule CPSolver.BitVectorDomain do
     div(n, 64) + 1
   end
 
+  ## Last 2 bytes of bit_vector are min and max
   def last_index({:bit_vector, _zero_based_max, ref} = _bit_vector) do
-    :atomics.info(ref).size
+    :atomics.info(ref).size - 2
   end
 
   ## Find least significant bit
