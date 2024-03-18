@@ -6,7 +6,13 @@
 % Allocate atomics to contain the data + 2 bytes for min and max
 new(Size) ->
     Words = (Size + 63) div 64,
-    {?MODULE, Size, atomics:new(Words + 2, [{signed, false}])}.
+    Atomics = atomics:new(Words + 2, [{signed, false}]),
+    atomics:put(Atomics, Words + 1, 0), %% Set 'min' to lowest possible
+    atomics:put(Atomics, Words + 2, (1 bsl 64)-1), %% Set 'max' to highest possible
+
+    {?MODULE, Size, Atomics}.
+
+    
 
 get({?MODULE, _Size, Aref}, Bix) ->
     Wix = (Bix div 64) + 1,
