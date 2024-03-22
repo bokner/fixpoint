@@ -50,8 +50,6 @@ defmodule CPSolver.ConstraintStore do
             ) :: any()
   @callback on_fix(store :: any(), variable :: Variable.t(), value :: any()) :: any()
 
-  @callback get_variables(store :: any()) :: [any()]
-
   ### API
   defmacro __using__(_) do
     quote do
@@ -162,15 +160,6 @@ defmodule CPSolver.ConstraintStore do
       result ->
         result
     end)
-  end
-
-  def get_variables(nil) do
-    get_store_from_dict()
-    |> get_variables()
-  end
-
-  def get_variables(%{handle: handle, store_impl: store_impl} = _store) do
-    store_impl.get_variables(handle)
   end
 
   def dispose(nil, variables) do

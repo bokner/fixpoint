@@ -27,11 +27,6 @@ defmodule CPSolver.Store.ETS do
   end
 
   @impl true
-  def get_variables(store) do
-    :ets.tab2list(store) |> Enum.map(fn {_id, var} -> var.id end)
-  end
-
-  @impl true
   def get(store, variable, operation, args \\ []) do
     handle_request(:get, store, variable, operation, args)
   end
@@ -94,10 +89,6 @@ defmodule CPSolver.Store.ETS do
   defp handle_request(kind, table, var_id, operation, args) do
     variable = lookup(table, var_id)
     handle_request_impl(kind, table, variable, operation, args)
-  end
-
-  def handle_request_impl(_kind, _table, %{domain: :fail} = _variable, _operation, _args) do
-    :fail
   end
 
   def handle_request_impl(:get, _table, %{domain: domain} = _variable, operation, args) do
