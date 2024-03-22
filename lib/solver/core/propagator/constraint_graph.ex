@@ -16,19 +16,21 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def create(propagators) when is_map(propagators) do
-    Enum.reduce(propagators, Graph.new(), fn {propagator_id,
-                                              %{mod: propagator_mod, args: args} = p},
-                                             acc ->
-      args
-      |> propagator_mod.variables()
-      |> Enum.reduce(acc, fn var, acc2 ->
-        Graph.add_vertex(acc2, propagator_vertex(propagator_id))
-        |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex(propagator_id),
-          label: get_propagate_on(var)
-        )
-      end)
-      |> Graph.label_vertex(propagator_vertex(propagator_id), p)
-    end)
+    Enum.reduce(
+      propagators,
+      Graph.new(),
+      fn {propagator_id, %{mod: propagator_mod, args: args} = p}, acc ->
+        args
+        |> propagator_mod.variables()
+        |> Enum.reduce(acc, fn var, acc2 ->
+          Graph.add_vertex(acc2, propagator_vertex(propagator_id))
+          |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex(propagator_id),
+            label: get_propagate_on(var)
+          )
+        end)
+        |> Graph.label_vertex(propagator_vertex(propagator_id), p)
+      end
+    )
   end
 
   ## Get a list of propagator ids that "listen" to the domain change of given variable.

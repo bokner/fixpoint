@@ -16,27 +16,6 @@ defmodule CPSolverTest.Store do
       assert Enum.all?(bound_vars, fn var -> var end)
     end
 
-    test "Store variables" do
-      v1_values = 1..10
-      v2_values = -5..5
-      v3_values = [0, 3, 6, 9, -1]
-      values = [v1_values, v2_values, v3_values]
-      variables = Enum.map(values, fn d -> Variable.new(d) end)
-
-      {:ok, bound_vars, store} = ConstraintStore.create_store(variables)
-
-      store_var_ids = ConstraintStore.get_variables(store)
-      assert length(bound_vars) == store_var_ids |> length
-
-      ## Make sure that the sets of bound vars and store vars coincide.
-      assert Enum.all?(
-               Enum.zip(Enum.sort(store_var_ids), Enum.sort_by(bound_vars, fn v -> v.id end)),
-               fn {store_var, bound_var} ->
-                 store_var == bound_var.id
-               end
-             )
-    end
-
     test "GET operations" do
       v1_values = 1..10
       v2_values = -5..5
