@@ -75,7 +75,7 @@ defmodule CPSolverTest.Store do
       assert ConstraintStore.get(store, v3, :min) == 2
 
       # Remove on fixed var
-      assert :fail == ConstraintStore.update(store, v3, :remove, [2])
+      assert :fail == catch_throw(ConstraintStore.update(store, v3, :remove, [2]))
 
       # removeAbove
       :max_change = ConstraintStore.update(store, v1, :removeAbove, [5])
@@ -88,7 +88,7 @@ defmodule CPSolverTest.Store do
       assert ConstraintStore.get(store, v2, :min) == 0
 
       # fix variable with value outside the domain
-      assert ConstraintStore.update(store, v1, :fix, [0]) == :fail
+      assert catch_throw(ConstraintStore.update(store, v1, :fix, [0])) == :fail
 
       :fixed = ConstraintStore.update(store, v2, :fix, [0])
       assert ConstraintStore.get(store, v2, :max) == 0

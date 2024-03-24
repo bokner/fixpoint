@@ -58,9 +58,6 @@ defmodule CPSolver.Space.Propagation do
     )
     |> Enum.reduce_while({MapSet.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = _acc ->
       case res do
-        {:fail, _var} ->
-          {:halt, :fail}
-
         :fail ->
           {:halt, :fail}
 
@@ -152,7 +149,6 @@ defmodule CPSolver.Space.Propagation do
     Enum.reduce_while(propagators, true, fn p, acc ->
       case Propagator.filter(p, store: store) do
         :fail -> {:halt, false}
-        {:fail, _} -> {:halt, false}
         _ -> {:cont, acc}
       end
     end)

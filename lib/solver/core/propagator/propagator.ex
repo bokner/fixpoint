@@ -88,7 +88,7 @@ defmodule CPSolver.Propagator do
     try do
       mod.update(propagator, changes)
     catch
-      {:fail, _var_id} ->
+      :fail ->
         :fail
     end
   end
@@ -104,9 +104,6 @@ defmodule CPSolver.Propagator do
     catch
       :fail ->
         :fail
-
-      {:fail, var_id} ->
-        {:fail, var_id}
     else
       :fail ->
         :fail

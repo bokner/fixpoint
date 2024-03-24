@@ -5,7 +5,7 @@ defmodule CPSolverTest.MutableDomain do
     alias CPSolver.BitVectorDomain.V2, as: Domain
 
     test "creates domain from integer range and list" do
-      assert catch_throw(Domain.new([])) == :empty_domain
+      assert catch_throw(Domain.new([])) == :fail
 
       assert Domain.size(Domain.new(1..10)) == 10
 
@@ -63,11 +63,10 @@ defmodule CPSolverTest.MutableDomain do
 
       assert Domain.min(cutBelow) == 3
 
-      assert Domain.removeBelow(domain, Enum.max(values) + 1) == :fail
-
       assert :no_change == Domain.removeBelow(domain, Enum.min(values))
       {:fixed, fixed} = Domain.removeBelow(domain, Enum.max(values))
       assert Domain.fixed?(fixed)
+      assert catch_throw(Domain.removeBelow(domain, Enum.max(values) + 1)) == :fail
     end
 
     test "removeAbove" do
@@ -81,10 +80,10 @@ defmodule CPSolverTest.MutableDomain do
 
       assert Domain.max(cutAbove) == 0
 
-      assert Domain.removeAbove(domain, Enum.min(values) - 1) == :fail
       assert :no_change == Domain.removeAbove(domain, Enum.max(values))
       {:fixed, fixed} = Domain.removeAbove(domain, Enum.min(values))
       assert Domain.fixed?(fixed)
+      assert catch_throw(Domain.removeAbove(domain, Enum.min(values) - 1)) == :fail
     end
 
     test "fix" do
@@ -101,7 +100,7 @@ defmodule CPSolverTest.MutableDomain do
 
       ## Fixing non-existing value leads to a failure
       domain = Domain.new(values)
-      assert :fail == Domain.fix(domain, 1)
+      assert catch_throw(Domain.fix(domain, 1)) == :fail
     end
 
     test "to_list, map" do

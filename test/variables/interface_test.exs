@@ -71,12 +71,12 @@ defmodule CPSolverTest.Variable.Interface do
       assert Interface.domain(var1) |> Domain.to_list() |> Enum.sort() == [2, 3, 4, 5]
       assert :fixed == Interface.fix(var1, 2)
       assert Interface.fixed?(var1)
-      assert :fail == Interface.fix(var1, 1)
+      assert :fail == catch_throw(Interface.fix(var1, 1))
 
       assert Interface.domain(view2) == [-5, -4, -3, -2]
       assert :fixed == Interface.fix(view2, -2)
       assert Interface.fixed?(view2)
-      assert :fail == Interface.fix(view2, 1)
+      assert :fail == catch_throw(Interface.fix(view2, 1))
     end
   end
 end

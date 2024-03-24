@@ -70,7 +70,7 @@ defmodule CpSolverTest.Objective do
       ## Tightening bound when the objective variable is fixed
       Objective.tighten(min_objective)
 
-      assert {:fail, Interface.id(objective_variable)} == Propagator.filter(min_propagator)
+      assert :fail == Propagator.filter(min_propagator)
     end
   end
 

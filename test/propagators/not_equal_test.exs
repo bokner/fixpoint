@@ -51,10 +51,10 @@ defmodule CPSolverTest.Propagator.NotEqual do
     test "inconsistency" do
       x = 0..0
       y = 0..0
-      [_x_var, y_var] = variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, bound_vars, _store} = ConstraintStore.create_store(variables, space: nil)
-      assert catch_throw(NotEqual.filter(bound_vars)) == {:fail, y_var.id}
+      assert catch_throw(NotEqual.filter(bound_vars)) == :fail
       assert PropagatorVariable.get_variable_ops() == nil
     end
 

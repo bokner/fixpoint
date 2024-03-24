@@ -28,9 +28,7 @@ defmodule CPSolver.Search.DomainPartition do
   end
 
   def split_domain_by(domain, value) do
-    case Domain.remove(domain, value) do
-      :fail -> :fail
-      {_domain_change, rest} -> {:ok, [value, rest]}
-    end
+    Domain.remove(domain, value)
+    {:ok, [Domain.new(value), domain]}
   end
 end

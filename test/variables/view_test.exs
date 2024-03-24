@@ -78,7 +78,7 @@ defmodule CPSolverTest.Variable.View do
       assert :fixed == View.fix(view2, -1)
       assert View.fixed?(view2) && Variable.fixed?(var2)
       assert View.min(view2) == -1 && Variable.min(var2) == 1
-      assert :fail == View.fix(view3, 1)
+      assert :fail == catch_throw(View.fix(view3, 1))
     end
 
     test "'mul' view" do

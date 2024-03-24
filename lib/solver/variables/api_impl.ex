@@ -87,6 +87,6 @@ defmodule CPSolver.Variable.Interface.ThrowIfFails do
   def removeBelow(var, val), do: handle_fail(Interface.removeBelow(var, val), var)
   def fix(var, val), do: handle_fail(Interface.fix(var, val), var)
 
-  defp handle_fail(:fail, var), do: throw({:fail, Interface.id(var)})
+  defp handle_fail(:fail, _var), do: throw(:fail)
   defp handle_fail(result, _var), do: result
 end

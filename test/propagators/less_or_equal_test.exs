@@ -28,11 +28,11 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       x = 1..10
       y = -10..0
       ## Inconsistency: no solution to x <= y
-      [x_var, y_var] = variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, bound_vars, _store} = ConstraintStore.create_store(variables, space: nil)
       ## The propagator will fail on one of the variables
-      assert catch_throw(LessOrEqual.filter(bound_vars)) in [{:fail, x_var.id}, {:fail, y_var.id}]
+      assert catch_throw(LessOrEqual.filter(bound_vars)) == :fail
     end
 
     test "offset" do

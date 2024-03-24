@@ -2,10 +2,22 @@ defmodule CPSolver.DefaultDomain do
   alias CPSolver.BitVectorDomain.V2, as: Domain
 
   defdelegate new(values), to: Domain
-  defdelegate map(domain, mapper), to: Domain
-  defdelegate remove(values, val), to: Domain
-  defdelegate removeAbove(values, val), to: Domain
-  defdelegate removeBelow(values, val), to: Domain
+
+  def map(domain, mapper) do
+    (Domain.failed?(domain) && fail()) || Domain.map(domain, mapper)
+  end
+
+  def remove(domain, val) do
+    (Domain.failed?(domain) && fail()) || Domain.remove(domain, val)
+  end
+
+  def removeAbove(domain, val) do
+    (Domain.failed?(domain) && fail()) || Domain.removeAbove(domain, val)
+  end
+
+  def removeBelow(domain, val) do
+    (Domain.failed?(domain) && fail()) || Domain.removeBelow(domain, val)
+  end
 
   def to_list(arg) when is_integer(arg) do
     [arg]
@@ -15,8 +27,8 @@ defmodule CPSolver.DefaultDomain do
     arg
   end
 
-  def to_list(arg) do
-    Domain.to_list(arg)
+  def to_list(domain) do
+    (Domain.failed?(domain) && fail()) || Domain.to_list(domain)
   end
 
   def copy(domain) do
@@ -25,51 +37,31 @@ defmodule CPSolver.DefaultDomain do
     |> Domain.new()
   end
 
-  def size(domain) when is_integer(domain) do
-    1
-  end
-
   def size(domain) do
-    Domain.size(domain)
-  end
-
-  def fixed?(domain) when is_integer(domain) do
-    true
+    (Domain.failed?(domain) && fail()) || Domain.size(domain)
   end
 
   def fixed?(domain) do
-    Domain.fixed?(domain)
-  end
-
-  def contains?(domain, value) when is_integer(domain) do
-    domain == value
+    (Domain.failed?(domain) && fail()) || Domain.fixed?(domain)
   end
 
   def contains?(domain, value) do
-    Domain.contains?(domain, value)
-  end
-
-  def min(domain) when is_integer(domain) do
-    domain
+    (Domain.failed?(domain) && fail()) || Domain.contains?(domain, value)
   end
 
   def min(domain) do
-    Domain.min(domain)
-  end
-
-  def max(domain) when is_integer(domain) do
-    domain
+    (Domain.failed?(domain) && fail()) || Domain.min(domain)
   end
 
   def max(domain) do
-    Domain.max(domain)
-  end
-
-  def fix(domain, value) when is_integer(domain) do
-    (domain != value && :fail) || :no_change
+    (Domain.failed?(domain) && fail()) || Domain.max(domain)
   end
 
   def fix(domain, value) do
-    Domain.fix(domain, value)
+    (Domain.failed?(domain) && fail()) || Domain.fix(domain, value)
+  end
+
+  defp fail() do
+    throw(:fail)
   end
 end

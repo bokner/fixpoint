@@ -1,8 +1,10 @@
 defmodule CPSolver.BitVectorDomain.V2 do
   import Bitwise
 
+  @max_value (1 <<< 64) - 1
+
   def new([]) do
-    throw(:empty_domain)
+    fail()
   end
 
   def new(value) when is_integer(value) do
@@ -43,6 +45,14 @@ defmodule CPSolver.BitVectorDomain.V2 do
     min(domain) == max(domain)
   end
 
+  def failed?({bit_vector, _offset} = _domain) do
+    failed?(bit_vector)
+  end
+
+  def failed?(bit_vector) do
+    get_min(bit_vector) == @max_value
+  end
+
   def min({bit_vector, offset} = _domain) do
     get_min(bit_vector) - offset
   end
@@ -79,7 +89,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
       ## TODO: do we need it?
       {:fixed, domain}
     else
-      :fail
+      fail(bit_vector)
     end
   end
 
@@ -92,25 +102,19 @@ defmodule CPSolver.BitVectorDomain.V2 do
       ## The domain is fixed
       fixed?(domain) ->
         ## Fail on attempt to remove fixed value, otherwise do nothing 
-        (min(domain) == value && :fail) || :no_change
+        (min(domain) == value && fail(bit_vector)) || :no_change
 
       true ->
         ## Value is there, and it's safe to remove      
         domain_change =
           cond do
             min(domain) == value ->
-              if tighten_min(bit_vector) == :fail do
-                :fail
-              else
-                (fixed?(domain) && :fixed) || :min_change
-              end
+              tighten_min(bit_vector)
+              (fixed?(domain) && :fixed) || :min_change
 
             max(domain) == value ->
-              if tighten_max(bit_vector) == :fail do
-                :fail
-              else
-                (fixed?(domain) && :fixed) || :max_change
-              end
+              tighten_max(bit_vector)
+              (fixed?(domain) && :fixed) || :max_change
 
             true ->
               vector_value = value + offset
@@ -128,14 +132,14 @@ defmodule CPSolver.BitVectorDomain.V2 do
         :no_change
 
       value < min(domain) ->
-        :fail
+        fail(bit_vector)
 
       true ->
         ## The value is strictly less than max  
+        tighten_max(bit_vector, value + offset + 1)
 
         domain_change =
           cond do
-            tighten_max(bit_vector, value + offset + 1) == :fail -> :fail
             fixed?(domain) -> :fixed
             true -> :max_change
           end
@@ -150,16 +154,14 @@ defmodule CPSolver.BitVectorDomain.V2 do
         :no_change
 
       value > max(domain) ->
-        :fail
+        fail(bit_vector)
 
       true ->
         ## The value is strictly greater than min
+        tighten_min(bit_vector, value + offset - 1)
+
         domain_change =
-          cond do
-            tighten_min(bit_vector, value + offset - 1) == :fail -> :fail
-            fixed?(domain) -> :fixed
-            true -> :min_change
-          end
+          (fixed?(domain) && :fixed) || :min_change
 
         {domain_change, domain}
     end
@@ -190,7 +192,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
   defp update_min(bit_vector, new_min_value) do
     cond do
       new_min_value > get_max(bit_vector) ->
-        :fail
+        fail(bit_vector)
 
       get_min(bit_vector) >= new_min_value ->
         :no_change
@@ -223,7 +225,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
   defp update_max(bit_vector, new_max_value) do
     cond do
       new_max_value < get_min(bit_vector) ->
-        :fail
+        fail(bit_vector)
 
       get_max(bit_vector) <= new_max_value ->
         :no_change
@@ -237,7 +239,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
   end
 
   ## Update (cached) min, if necessary
-  def tighten_min({:bit_vector, _zero_based_max, atomics_ref} = bit_vector, starting_at \\ nil) do
+  defp tighten_min({:bit_vector, _zero_based_max, atomics_ref} = bit_vector, starting_at \\ nil) do
     starting_position = (starting_at && starting_at) || get_min(bit_vector)
 
     %{
@@ -288,33 +290,43 @@ defmodule CPSolver.BitVectorDomain.V2 do
     (max_value && update_max(bit_vector, max_value)) || :fail
   end
 
-  def get_bound_addrs(bit_vector) do
-    current_min = get_min(bit_vector)
-    current_max = get_max(bit_vector)
-    {current_min_block, current_min_offset} = vector_address(current_min)
-    {current_max_block, current_max_offset} = vector_address(current_max)
+  defp fail(bit_vector \\ nil) do
+    bit_vector &&
+      set_min(bit_vector, @max_value)
 
-    %{
-      min_addr: %{block: current_min_block, offset: current_min_offset},
-      max_addr: %{block: current_max_block, offset: current_max_offset}
-    }
+    throw(:fail)
+  end
+
+  defp get_bound_addrs(bit_vector) do
+    (failed?(bit_vector) && fail(bit_vector)) ||
+      (
+        current_min = get_min(bit_vector)
+        current_max = get_max(bit_vector)
+        {current_min_block, current_min_offset} = vector_address(current_min)
+        {current_max_block, current_max_offset} = vector_address(current_max)
+
+        %{
+          min_addr: %{block: current_min_block, offset: current_min_offset},
+          max_addr: %{block: current_max_block, offset: current_max_offset}
+        }
+      )
   end
 
   ## Find the index of atomics where the n-value resides
-  def block_index(n) do
+  defp block_index(n) do
     div(n, 64) + 1
   end
 
-  def vector_address(n) do
+  defp vector_address(n) do
     {block_index(n), rem(n, 64)}
   end
 
   ## Find least significant bit
-  def lsb(0) do
+  defp lsb(0) do
     0
   end
 
-  def lsb(n) do
+  defp lsb(n) do
     lsb(n, 0)
   end
 
@@ -327,11 +339,11 @@ defmodule CPSolver.BitVectorDomain.V2 do
       lsb(n >>> 1, idx + 1)
   end
 
-  def msb(0) do
+  defp msb(0) do
     0
   end
 
-  def msb(n) do
+  defp msb(n) do
     msb = floor(:math.log2(n))
     ## Check if there is no precision loss.
     ## We really want to throw away the fraction part even if it may

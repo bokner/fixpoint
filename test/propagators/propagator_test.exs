@@ -66,8 +66,7 @@ defmodule CPSolverTest.Propagator do
       ## Inconsistency: no solution to x <= -y
       ##
       ## The propagator will fail on one of the variables
-      assert {:fail, ref} = Propagator.filter(LessOrEqual.new(x_var, minus_y_view))
-      assert ref in [x_var.id, y_var.id]
+      assert :fail = Propagator.filter(LessOrEqual.new(x_var, minus_y_view))
     end
 
     defp setup_store(domains) do
