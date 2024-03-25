@@ -25,8 +25,9 @@ defmodule CPSolver.BitVectorDomain.V2 do
     bv = :bit_vector.new(domain_size)
     Enum.each(domain, fn idx -> :bit_vector.set(bv, idx + offset) end)
 
-    set_min(bv, 0)
-    set_max(bv, Enum.max(domain) + offset)
+    PackedMinMax.set_min(0, 0)
+    |> PackedMinMax.set_max(Enum.max(domain) + offset)
+    |> then(fn min_max -> init_min_max(bv, min_max) end)
 
     {bv, offset}
   end
@@ -50,7 +51,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
   end
 
   def failed?(bit_vector) do
-    get_min(bit_vector) == @max_value
+    get_min(bit_vector) > get_max(bit_vector)
   end
 
   def min({bit_vector, offset} = _domain) do
@@ -101,11 +102,11 @@ defmodule CPSolver.BitVectorDomain.V2 do
 
       ## The domain is fixed
       fixed?(domain) ->
-        ## Fail on attempt to remove fixed value, otherwise do nothing 
+        ## Fail on attempt to remove fixed value, otherwise do nothing
         (min(domain) == value && fail(bit_vector)) || :no_change
 
       true ->
-        ## Value is there, and it's safe to remove      
+        ## Value is there, and it's safe to remove
         domain_change =
           cond do
             min(domain) == value ->
@@ -135,7 +136,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
         fail(bit_vector)
 
       true ->
-        ## The value is strictly less than max  
+        ## The value is strictly less than max
         tighten_max(bit_vector, value + offset + 1)
 
         domain_change =
@@ -172,21 +173,89 @@ defmodule CPSolver.BitVectorDomain.V2 do
     :atomics.info(ref).size - 2
   end
 
-  defp get_min({:bit_vector, _zero_based_max, ref} = bit_vector) do
-    :atomics.get(ref, last_index(bit_vector) + 1)
+  defp init_min_max({:bit_vector, _, ref} = bit_vector, min_max) do
+    bit_vector
+    |> min_max_index()
+    |> then(fn idx -> :atomics.put(ref, idx, min_max) end)
   end
 
-  defp set_min({:bit_vector, _zero_based_max, ref} = bit_vector, value) do
-    min_idx = last_index(bit_vector) + 1
-    # :atomics.put(ref, min_idx, value)
-    case :atomics.exchange(ref, min_idx, value) do
-      prev_value when prev_value > value ->
-        ## Do not update if current min is greater than the proposed min value
-        set_min(bit_vector, prev_value)
+  def get_min(bit_vector) do
+    get_min_max(bit_vector) |> elem(2)
+  end
 
-      prev_value ->
-        (prev_value == value && :no_change) || :min_change
+  def get_max(bit_vector) do
+    get_min_max(bit_vector) |> elem(3)
+  end
+
+  defp min_max_index(bit_vector) do
+    last_index(bit_vector) + 1
+  end
+
+  def get_min_max({:bit_vector, _zero_based_max, ref} = bit_vector) do
+    min_max_index = min_max_index(bit_vector)
+
+    :atomics.get(ref, min_max_index)
+    |> then(fn min_max ->
+      {min_max, min_max_index, PackedMinMax.get_min(min_max), PackedMinMax.get_max(min_max)}
+    end)
+  end
+
+  def set_min({:bit_vector, _zero_based_max, ref} = bit_vector, value) do
+    {current_min_max, min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+
+    cond do
+      value > current_max ->
+        fail(bit_vector)
+
+      value == current_max ->
+        :fixed
+
+      value > current_min ->
+        :min_change
+
+      value == current_min ->
+        :no_change
     end
+    |> tap(fn _ ->
+      min_max_value = PackedMinMax.set_min(current_min_max, value)
+
+      case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
+        :ok ->
+          :ok
+
+        _concurrently_changed ->
+          set_min(bit_vector, value)
+      end
+    end)
+  end
+
+  def set_max({:bit_vector, _zero_based_max, ref} = bit_vector, value) do
+    {current_min_max, min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+
+    cond do
+      value < current_min ->
+        fail(bit_vector)
+
+      value == current_min ->
+        :fixed
+
+      value < current_max ->
+        :max_change
+
+      value == current_max ->
+        :no_change
+    end
+    |> tap(fn _ ->
+      min_max_value = PackedMinMax.set_max(current_min_max, value)
+
+      case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
+        :ok ->
+          :ok
+
+        _concurrently_changed ->
+          set_max(bit_vector, value)
+      end
+    end)
   end
 
   defp update_min(bit_vector, new_min_value) do
@@ -203,25 +272,6 @@ defmodule CPSolver.BitVectorDomain.V2 do
     end
   end
 
-  defp get_max({:bit_vector, _zero_based_max, ref} = bit_vector) do
-    :atomics.get(ref, last_index(bit_vector) + 2)
-  end
-
-  defp set_max({:bit_vector, _zero_based_max, ref} = bit_vector, value) do
-    max_idx = last_index(bit_vector) + 2
-    # :atomics.put(ref, last_index(bit_vector) + 2, value)
-    case :atomics.exchange(ref, max_idx, value) do
-      prev_value when prev_value < value ->
-        ## Do not update if current max is lesser than the proposed max value
-        set_max(bit_vector, prev_value)
-
-      prev_value ->
-        (prev_value == value && :no_change) || :max_change
-    end
-
-    # :atomics.put(ref, last_index(bit_vector) + 2, value)
-  end
-
   defp update_max(bit_vector, new_max_value) do
     cond do
       new_max_value < get_min(bit_vector) ->
@@ -234,8 +284,6 @@ defmodule CPSolver.BitVectorDomain.V2 do
         set_max(bit_vector, new_max_value)
         :max_change
     end
-
-    # :atomics.put(ref, last_index(bit_vector) + 2, new_max_value)
   end
 
   ## Update (cached) min, if necessary
@@ -290,10 +338,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
     (max_value && update_max(bit_vector, max_value)) || :fail
   end
 
-  defp fail(bit_vector \\ nil) do
-    bit_vector &&
-      set_min(bit_vector, @max_value)
-
+  defp fail(_bit_vector \\ nil) do
     throw(:fail)
   end
 
