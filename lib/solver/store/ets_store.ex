@@ -103,6 +103,9 @@ defmodule CPSolver.Store.ETS do
       :no_change ->
         :no_change
 
+      :fixed ->
+        update_variable_domain(table, variable, domain, :fixed)
+
       {domain_change, new_domain} ->
         update_variable_domain(table, variable, new_domain, domain_change)
     end

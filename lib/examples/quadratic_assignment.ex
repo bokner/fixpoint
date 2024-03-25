@@ -27,6 +27,8 @@ defmodule CPSolver.Examples.QAP do
 
   import CPSolver.Variable.View.Factory
 
+  require Logger
+
   ## Read and compile data from instance file
   def model(data) when is_binary(data) do
     {_n, distances, weights} = parse_instance(data)
@@ -88,6 +90,10 @@ defmodule CPSolver.Examples.QAP do
     {fn variables ->
        variable_choice(variables, location_var_names)
      end, :indomain_min}
+  end
+
+  def solution_handler(model) do
+    fn solution -> Enum.at(solution, model.extra.n) |> inspect() |> Logger.warning() end
   end
 
   defp variable_choice(variables, location_var_names) do

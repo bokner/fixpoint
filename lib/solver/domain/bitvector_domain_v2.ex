@@ -42,8 +42,9 @@ defmodule CPSolver.BitVectorDomain.V2 do
     end)
   end
 
-  def fixed?(domain) do
-    min(domain) == max(domain)
+  def fixed?({bit_vector, _offset} = _domain) do
+    {current_min_max, _min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+    current_max == current_min && current_min_max != @max_value
   end
 
   def failed?({bit_vector, _offset} = _domain) do
@@ -51,7 +52,8 @@ defmodule CPSolver.BitVectorDomain.V2 do
   end
 
   def failed?(bit_vector) do
-    get_min(bit_vector) > get_max(bit_vector)
+    {min_max, _, min_val, max_val} = get_min_max(bit_vector)
+    min_max == @max_value || min_val > max_val
   end
 
   def min({bit_vector, offset} = _domain) do
@@ -77,48 +79,47 @@ defmodule CPSolver.BitVectorDomain.V2 do
   end
 
   def contains?({{:bit_vector, _zero_based_max, _ref} = bit_vector, offset}, value) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
     vector_value = value + offset
+    contains?(bit_vector, vector_value, min_value, max_value)
+  end
 
-    vector_value >= get_min(bit_vector) && vector_value <= get_max(bit_vector) &&
-      :bit_vector.get(bit_vector, vector_value) == 1
+  def contains?(bit_vector, vector_value, min_value, max_value) do
+    vector_value >= min_value && vector_value <= max_value &&
+    :bit_vector.get(bit_vector, vector_value) == 1
   end
 
   def fix({bit_vector, offset} = domain, value) do
     if contains?(domain, value) do
-      update_min(bit_vector, value + offset)
-      update_max(bit_vector, value + offset)
-      ## TODO: do we need it?
-      {:fixed, domain}
+      set_fixed(bit_vector, value + offset)
     else
       fail(bit_vector)
     end
   end
 
   def remove({bit_vector, offset} = domain, value) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+    vector_value = value + offset
+
     cond do
       ## No value in the domain, do nothing
-      !contains?(domain, value) ->
+      !contains?(bit_vector, vector_value, min_value, max_value) ->
         :no_change
 
-      ## The domain is fixed
-      fixed?(domain) ->
-        ## Fail on attempt to remove fixed value, otherwise do nothing
-        (min(domain) == value && fail(bit_vector)) || :no_change
-
       true ->
-        ## Value is there, and it's safe to remove
         domain_change =
           cond do
-            min(domain) == value ->
-              tighten_min(bit_vector)
-              (fixed?(domain) && :fixed) || :min_change
+            min_value == max_value && vector_value == min_value ->
+              ## Fixed value: fail on removing attempt
+              fail(bit_vector)
 
-            max(domain) == value ->
+            min_value == vector_value ->
+              tighten_min(bit_vector)
+
+            max_value == vector_value ->
               tighten_max(bit_vector)
-              (fixed?(domain) && :fixed) || :max_change
 
             true ->
-              vector_value = value + offset
               :bit_vector.clear(bit_vector, vector_value)
               :domain_change
           end
@@ -128,41 +129,38 @@ defmodule CPSolver.BitVectorDomain.V2 do
   end
 
   def removeAbove({bit_vector, offset} = domain, value) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+    vector_value = value + offset
+
     cond do
-      value >= max(domain) ->
+      vector_value >= max_value ->
         :no_change
 
-      value < min(domain) ->
+      vector_value < min_value ->
         fail(bit_vector)
 
       true ->
         ## The value is strictly less than max
-        tighten_max(bit_vector, value + offset + 1)
-
-        domain_change =
-          cond do
-            fixed?(domain) -> :fixed
-            true -> :max_change
-          end
+        domain_change = tighten_max(bit_vector, vector_value + 1)
 
         {domain_change, domain}
     end
   end
 
   def removeBelow({bit_vector, offset} = domain, value) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+    vector_value = value + offset
+
     cond do
-      value <= min(domain) ->
+      vector_value <= min_value ->
         :no_change
 
-      value > max(domain) ->
+      vector_value > max_value ->
         fail(bit_vector)
 
       true ->
         ## The value is strictly greater than min
-        tighten_min(bit_vector, value + offset - 1)
-
-        domain_change =
-          (fixed?(domain) && :fixed) || :min_change
+        domain_change = tighten_min(bit_vector, vector_value - 1)
 
         {domain_change, domain}
     end
@@ -200,89 +198,82 @@ defmodule CPSolver.BitVectorDomain.V2 do
     end)
   end
 
-  def set_min({:bit_vector, _zero_based_max, ref} = bit_vector, value) do
+  def set_min({:bit_vector, _zero_based_max, ref} = bit_vector, new_min) do
     {current_min_max, min_max_idx, current_min, current_max} = get_min_max(bit_vector)
 
     cond do
-      value > current_max ->
+      new_min > current_max ->
+        ## Inconsistency
         fail(bit_vector)
 
-      value == current_max ->
-        :fixed
+      new_min != current_min && current_min == current_max ->
+        ## Attempt to re-fix
+        fail(bit_vector)
 
-      value > current_min ->
-        :min_change
+      true ->
+        ## Min change
+        min_max_value = PackedMinMax.set_min(current_min_max, new_min)
 
-      value == current_min ->
-        :no_change
+        case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
+          :ok ->
+            cond do
+              new_min == current_max -> :fixed
+              new_min <= current_min -> :no_change
+              true -> :min_change
+            end
+
+          _changed_by_other_thread ->
+            set_min(bit_vector, new_min)
+        end
     end
-    |> tap(fn _ ->
-      min_max_value = PackedMinMax.set_min(current_min_max, value)
-
-      case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
-        :ok ->
-          :ok
-
-        _concurrently_changed ->
-          set_min(bit_vector, value)
-      end
-    end)
   end
 
-  def set_max({:bit_vector, _zero_based_max, ref} = bit_vector, value) do
+  def set_max({:bit_vector, _zero_based_max, ref} = bit_vector, new_max) do
     {current_min_max, min_max_idx, current_min, current_max} = get_min_max(bit_vector)
 
     cond do
-      value < current_min ->
+      new_max < current_min ->
+        ## Inconsistency
         fail(bit_vector)
 
-      value == current_min ->
-        :fixed
+      new_max != current_max && current_min == current_max ->
+        ## Attempt to re-fix
+        fail(bit_vector)
 
-      value < current_max ->
-        :max_change
+      true ->
+        ## Max change
+        min_max_value = PackedMinMax.set_max(current_min_max, new_max)
 
-      value == current_max ->
-        :no_change
+        case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
+          :ok ->
+            cond do
+              new_max == current_min -> :fixed
+              new_max >= current_max -> :no_change
+              true -> :max_change
+            end
+
+          _changed_by_other_thread ->
+            set_max(bit_vector, new_max)
+        end
     end
-    |> tap(fn _ ->
-      min_max_value = PackedMinMax.set_max(current_min_max, value)
+  end
+
+  def set_fixed({:bit_vector, _zero_based_max, ref} = bit_vector, fixed_value) do
+    {current_min_max, min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+
+    if fixed_value != current_max && current_min == current_max do
+      ## Attempt to re-fix
+      fail(bit_vector)
+    else
+      min_max_value = PackedMinMax.set_min(0, fixed_value) |> PackedMinMax.set_max(fixed_value)
 
       case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
         :ok ->
-          :ok
+          :fixed
 
-        _concurrently_changed ->
-          set_max(bit_vector, value)
+        _changed_by_other_thread ->
+          set_fixed(bit_vector, fixed_value)
       end
-    end)
-  end
-
-  defp update_min(bit_vector, new_min_value) do
-    cond do
-      new_min_value > get_max(bit_vector) ->
-        fail(bit_vector)
-
-      get_min(bit_vector) >= new_min_value ->
-        :no_change
-
-      true ->
-        set_min(bit_vector, new_min_value)
-        :min_change
-    end
-  end
-
-  defp update_max(bit_vector, new_max_value) do
-    cond do
-      new_max_value < get_min(bit_vector) ->
-        fail(bit_vector)
-
-      get_max(bit_vector) <= new_max_value ->
-        :no_change
-
-      true ->
-        set_max(bit_vector, new_max_value)
-        :max_change
     end
   end
 
@@ -309,7 +300,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
         end
       end)
 
-    (min_value && update_min(bit_vector, min_value)) || :fail
+    (min_value && set_min(bit_vector, min_value)) || :fail
   end
 
   ## Update (cached) max
@@ -335,10 +326,11 @@ defmodule CPSolver.BitVectorDomain.V2 do
         end
       end)
 
-    (max_value && update_max(bit_vector, max_value)) || :fail
+    (max_value && set_max(bit_vector, max_value)) || :fail
   end
 
-  defp fail(_bit_vector \\ nil) do
+  defp fail(bit_vector \\ nil) do
+    bit_vector && init_min_max(bit_vector, @max_value)
     throw(:fail)
   end
 
