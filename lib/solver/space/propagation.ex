@@ -123,13 +123,17 @@ defmodule CPSolver.Space.Propagation do
   end
 
   defp update_propagator(graph, propagator_id, %{changes: changes, active?: true, state: state}) do
-    graph
-    |> ConstraintGraph.get_propagator(propagator_id)
-    |> Map.put(:state, state)
-    |> Propagator.update(changes)
-    |> then(fn updated_propagator ->
-      ConstraintGraph.update_propagator(graph, propagator_id, updated_propagator)
-    end)
+    case ConstraintGraph.get_propagator(graph, propagator_id) do
+      nil ->
+        graph
+
+      p ->
+        Map.put(p, :state, state)
+        |> Propagator.update(changes)
+        |> then(fn updated_propagator ->
+          ConstraintGraph.update_propagator(graph, propagator_id, updated_propagator)
+        end)
+    end
   end
 
   defp finalize(:fail, _propagators, _store) do

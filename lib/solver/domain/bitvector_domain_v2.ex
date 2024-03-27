@@ -68,15 +68,20 @@ defmodule CPSolver.BitVectorDomain.V2 do
 
   def size({{:bit_vector, _size, ref} = bit_vector, _offset}) do
     %{
-      min_addr: %{block: current_min_block},
-      max_addr: %{block: current_max_block}
+      min_addr: %{block: current_min_block, offset: min_offset},
+      max_addr: %{block: current_max_block, offset: max_offset}
     } = get_bound_addrs(bit_vector)
 
     Enum.reduce(current_min_block..current_max_block, 0, fn idx, acc ->
       n = :atomics.get(ref, idx)
 
-      (n == 0 && acc) ||
-        acc + (for(<<bit::1 <- :binary.encode_unsigned(n)>>, do: bit) |> Enum.sum())
+      if n == 0 do
+        acc
+      else
+        n1 = (idx == current_min_block && n >>> min_offset <<< min_offset) || n
+        n2 = (idx == current_max_block && ((1 <<< (max_offset + 1)) - 1 &&& n1)) || n1
+        acc + (for(<<bit::1 <- :binary.encode_unsigned(n2)>>, do: bit) |> Enum.sum())
+      end
     end)
   end
 

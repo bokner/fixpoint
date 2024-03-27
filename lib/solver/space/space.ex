@@ -248,7 +248,12 @@ defmodule CPSolver.Space do
   end
 
   defp handle_stable(data) do
-    distribute(data)
+    try do
+      distribute(data)
+    catch
+      :fail ->
+        handle_failure(data)
+    end
   end
 
   def distribute(

@@ -52,12 +52,14 @@ defmodule CPSolverTest.MutableDomain do
       assert 0 == Domain.min(domain)
     end
 
-    test "removeBelow, removeAbove" do
+    test "removeBelow" do
       values = [-1, 0, 2, 3, 4, 10]
       domain = Domain.new(values)
 
       {:min_change, cutBelow} = Domain.removeBelow(domain, 1)
-      assert Domain.min(cutBelow) >= 1
+      assert Domain.min(cutBelow) == 2
+
+      assert Domain.size(domain) == 4
 
       {:min_change, cutBelow} = Domain.removeBelow(domain, 3)
 
@@ -74,8 +76,9 @@ defmodule CPSolverTest.MutableDomain do
       domain = Domain.new(values)
 
       {:max_change, cutAbove} = Domain.removeAbove(domain, 3)
-      assert Domain.max(cutAbove) <= 3
+      assert Domain.max(cutAbove) == 3
 
+      assert Domain.size(domain) == 4
       {:max_change, cutAbove} = Domain.removeAbove(domain, 1)
 
       assert Domain.max(cutAbove) == 0
