@@ -47,7 +47,7 @@ defmodule CPSolverTest.MutableDomain do
       assert 4 == Domain.max(domain)
       {:domain_change, domain} = Domain.remove(domain, 2)
 
-      {:fixed, domain} = Domain.remove(domain, 4)
+      {:fixed, _fixed} = Domain.remove(domain, 4)
 
       assert 0 == Domain.min(domain)
     end
@@ -64,8 +64,8 @@ defmodule CPSolverTest.MutableDomain do
       assert Domain.min(cutBelow) == 3
 
       assert :no_change == Domain.removeBelow(domain, Enum.min(values))
-      {:fixed, fixed} = Domain.removeBelow(domain, Enum.max(values))
-      assert Domain.fixed?(fixed)
+      {:fixed, _fixed} = Domain.removeBelow(domain, Enum.max(values))
+      assert Domain.fixed?(domain)
       assert catch_throw(Domain.removeBelow(domain, Enum.max(values) + 1)) == :fail
     end
 
@@ -81,8 +81,8 @@ defmodule CPSolverTest.MutableDomain do
       assert Domain.max(cutAbove) == 0
 
       assert :no_change == Domain.removeAbove(domain, Enum.max(values))
-      {:fixed, fixed} = Domain.removeAbove(domain, Enum.min(values))
-      assert Domain.fixed?(fixed)
+      {:fixed, _fixed} = Domain.removeAbove(domain, Enum.min(values))
+      assert Domain.fixed?(domain)
       assert catch_throw(Domain.removeAbove(domain, Enum.min(values) - 1)) == :fail
     end
 
@@ -91,7 +91,7 @@ defmodule CPSolverTest.MutableDomain do
 
       assert Enum.all?(values, fn val ->
                domain = Domain.new(values)
-               {:fixed, fixed} = Domain.fix(domain, val)
+               :fixed = Domain.fix(domain, val)
 
                Domain.fixed?(domain) &&
                  Domain.min(domain) == val &&

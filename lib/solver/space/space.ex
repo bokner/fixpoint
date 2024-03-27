@@ -11,7 +11,6 @@ defmodule CPSolver.Space do
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
   alias CPSolver.Propagator.ConstraintGraph
-  alias CPSolver.Utils
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
 
@@ -101,15 +100,17 @@ defmodule CPSolver.Space do
   def run_space(data) do
     solver = shared(data)
 
-    {:ok, space_pid} =
-      create(
-        data
-        |> Map.put(:opts, Keyword.put(data.opts, :postpone, true))
-      )
+    case create(
+           data
+           |> Map.put(:opts, Keyword.put(data.opts, :postpone, true))
+         ) do
+      {:ok, space_pid} ->
+        Shared.add_active_spaces(solver, [space_pid])
+        start_propagation(space_pid)
 
-    Shared.add_active_spaces(solver, [space_pid])
-
-    start_propagation(space_pid)
+      {:error, _} ->
+        :ignore
+    end
   end
 
   ## Prepare local data to be used on remote node
@@ -246,22 +247,19 @@ defmodule CPSolver.Space do
     Objective.tighten(objective)
   end
 
-  defp handle_stable(%{variables: variables} = data) do
-    {localized_vars, all_fixed?} = Utils.localize_variables(variables)
-
-    (all_fixed? && handle_solved(data)) ||
-      distribute(%{data | variables: localized_vars})
+  defp handle_stable(data) do
+    distribute(data)
   end
 
   def distribute(
         %{
           opts: opts,
-          variables: localized_variables
+          variables: variables
         } = data
       ) do
     ## The search strategy branches off the existing variables.
     ## Each branch is a list of variables to use by a child space
-    branches = Search.branch(localized_variables, opts[:search])
+    branches = Search.branch(variables, opts[:search])
 
     Enum.take_while(branches, fn variable_copies ->
       !CPSolver.complete?(shared(data)) &&
