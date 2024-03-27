@@ -19,6 +19,8 @@ defmodule CPSolver.Examples.TSP do
   alias CPSolver.Search.VariableSelector.FirstFail
   import CPSolver.Constraint.Factory
 
+  require Logger
+
   ## Read and compile data from instance file
   def model(data) when is_binary(data) do
     {_n, distances} = parse_instance(data)
@@ -93,6 +95,10 @@ defmodule CPSolver.Examples.TSP do
 
     {choose_variable_fun, choose_value_fun}
     # {:input_order, choose_value_fun}
+  end
+
+  def solution_handler(model) do
+    fn solution -> Enum.at(solution, model.extra.n) |> inspect() |> Logger.warning() end
   end
 
   ## Choose the variable with the maximum difference between closest and second closest distance to its successors

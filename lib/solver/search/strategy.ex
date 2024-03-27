@@ -65,7 +65,9 @@ defmodule CPSolver.Search.Strategy do
         []
 
       selected_variable ->
-        {:ok, domain_partitions} = partition(selected_variable, partition_strategy)
+        {:ok, domain_partitions} =
+          partition(selected_variable, partition_strategy)
+
         variable_partitions(selected_variable, domain_partitions, variables)
     end
   end

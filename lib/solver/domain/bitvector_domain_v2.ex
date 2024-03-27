@@ -36,9 +36,11 @@ defmodule CPSolver.BitVectorDomain.V2 do
     to_list(domain, mapper_fun)
   end
 
-  def to_list(domain, mapper_fun \\ &Function.identity/1) do
-    Enum.reduce(min(domain)..max(domain), [], fn i, acc ->
-      (contains?(domain, i) && [mapper_fun.(i) | acc]) || acc
+  def to_list({bit_vector, offset} = _domain, mapper_fun \\ &Function.identity/1) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+
+    Enum.reduce(min_value..max_value, [], fn i, acc ->
+      (contains?(bit_vector, i, min_value, max_value) && [mapper_fun.(i - offset) | acc]) || acc
     end)
   end
 
@@ -86,7 +88,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
 
   def contains?(bit_vector, vector_value, min_value, max_value) do
     vector_value >= min_value && vector_value <= max_value &&
-    :bit_vector.get(bit_vector, vector_value) == 1
+      :bit_vector.get(bit_vector, vector_value) == 1
   end
 
   def fix({bit_vector, offset} = domain, value) do
@@ -107,6 +109,8 @@ defmodule CPSolver.BitVectorDomain.V2 do
         :no_change
 
       true ->
+        :bit_vector.clear(bit_vector, vector_value)
+
         domain_change =
           cond do
             min_value == max_value && vector_value == min_value ->
@@ -120,7 +124,6 @@ defmodule CPSolver.BitVectorDomain.V2 do
               tighten_max(bit_vector)
 
             true ->
-              :bit_vector.clear(bit_vector, vector_value)
               :domain_change
           end
 
@@ -168,7 +171,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
 
   ## Last 2 bytes of bit_vector are min and max
   def last_index({:bit_vector, _zero_based_max, ref} = _bit_vector) do
-    :atomics.info(ref).size - 2
+    :atomics.info(ref).size - 1
   end
 
   defp init_min_max({:bit_vector, _, ref} = bit_vector, min_max) do
@@ -334,11 +337,10 @@ defmodule CPSolver.BitVectorDomain.V2 do
     throw(:fail)
   end
 
-  defp get_bound_addrs(bit_vector) do
+  def get_bound_addrs(bit_vector) do
     (failed?(bit_vector) && fail(bit_vector)) ||
       (
-        current_min = get_min(bit_vector)
-        current_max = get_max(bit_vector)
+        {_, _, current_min, current_max} = get_min_max(bit_vector)
         {current_min_block, current_min_offset} = vector_address(current_min)
         {current_max_block, current_max_offset} = vector_address(current_max)
 

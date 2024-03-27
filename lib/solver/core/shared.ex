@@ -189,7 +189,7 @@ defmodule CPSolver.Shared do
     try do
       [active_node_count | _] =
         update_stats_counters(stats_table, [
-          {@active_node_count_pos, -1} | update_stats_ops(reason)
+          {@active_node_count_pos, -1, 0, 0} | update_stats_ops(reason)
         ])
 
       :ets.delete(active_nodes_table, space)

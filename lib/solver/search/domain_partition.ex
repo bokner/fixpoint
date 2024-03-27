@@ -2,9 +2,17 @@ defmodule CPSolver.Search.DomainPartition do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Variable.Interface
 
+  require Logger
+
   def partition(variable, strategy) when is_function(strategy) do
-    domain = Interface.domain(variable)
-    split_domain_by(domain, strategy.(variable))
+    try do
+      domain = Interface.domain(variable)
+      split_domain_by(domain, strategy.(variable))
+    catch
+      :fail ->
+        Logger.error("Failure on partition: #{inspect(variable)}")
+        {:ok, []}
+    end
   end
 
   def partition(variable, choice) when choice in [:min, :max] do
