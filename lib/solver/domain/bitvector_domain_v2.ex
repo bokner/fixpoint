@@ -201,8 +201,12 @@ defmodule CPSolver.BitVectorDomain.V2 do
     end)
   end
 
-  def set_min({:bit_vector, _zero_based_max, ref} = bit_vector, new_min) do
-    {current_min_max, min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+  def set_min(bit_vector, new_min) do
+    set_min(bit_vector, new_min, get_min_max(bit_vector))
+  end
+
+  def set_min({:bit_vector, _zero_based_max, ref} = bit_vector, new_min, min_max_info) do
+    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     cond do
       new_min > current_max ->
@@ -225,14 +229,20 @@ defmodule CPSolver.BitVectorDomain.V2 do
               true -> :min_change
             end
 
-          _changed_by_other_thread ->
-            set_min(bit_vector, new_min)
+          changed_by_other_thread ->
+            min2 = PackedMinMax.get_min(changed_by_other_thread)
+            max2 = PackedMinMax.get_max(changed_by_other_thread)
+            set_min(bit_vector, new_min, {changed_by_other_thread, min_max_idx, min2, max2})
         end
     end
   end
 
-  def set_max({:bit_vector, _zero_based_max, ref} = bit_vector, new_max) do
-    {current_min_max, min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+  def set_max(bit_vector, new_max) do
+    set_max(bit_vector, new_max, get_min_max(bit_vector))
+  end
+
+  def set_max({:bit_vector, _zero_based_max, ref} = bit_vector, new_max, min_max_info) do
+    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     cond do
       new_max < current_min ->
@@ -255,8 +265,10 @@ defmodule CPSolver.BitVectorDomain.V2 do
               true -> :max_change
             end
 
-          _changed_by_other_thread ->
-            set_max(bit_vector, new_max)
+          changed_by_other_thread ->
+            min2 = PackedMinMax.get_min(changed_by_other_thread)
+            max2 = PackedMinMax.get_max(changed_by_other_thread)
+            set_max(bit_vector, new_max, {changed_by_other_thread, min_max_idx, min2, max2})
         end
     end
   end
