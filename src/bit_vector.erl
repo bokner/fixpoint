@@ -6,9 +6,9 @@
 % Allocate atomics to contain the data + 2 bytes for min and max
 new(Size) ->
     Words = (Size + 63) div 64,
-    Atomics = atomics:new(Words + 2, [{signed, false}]),
-    atomics:put(Atomics, Words + 1, 0), %% Set 'min' to lowest possible
-    atomics:put(Atomics, Words + 2, (1 bsl 64)-1), %% Set 'max' to highest possible
+    Atomics = atomics:new(Words + 1, [{signed, false}]),
+    atomics:put(Atomics, Words + 1, 0), %% Set 'min_max' to lowest possible
+
 
     {?MODULE, Size, Atomics}.
 
@@ -48,9 +48,9 @@ update(Aref, Bix, Fun) ->
 
 update_loop(Aref, Wix, Fun, Current) ->
     atomics:put(Aref, Wix, Fun(Current)).
-    %case atomics:compare_exchange(Aref, Wix, Expected, Fun(Expected)) of
+    % case atomics:compare_exchange(Aref, Wix, Expected, Fun(Expected)) of
     %    ok ->
     %        ok;
     %    Was ->
     %        update_loop(Aref, Wix, Fun, Was)
-    %end.
+    % end.

@@ -96,9 +96,14 @@ defmodule CPSolver.BitVectorDomain.V2 do
       :bit_vector.get(bit_vector, vector_value) == 1
   end
 
-  def fix({bit_vector, offset} = domain, value) do
-    if contains?(domain, value) do
-      set_fixed(bit_vector, value + offset)
+  def fix({bit_vector, offset} = _domain, value) do
+    min_max_info =
+      {_current_min_max, _min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+
+    vector_value = value + offset
+
+    if contains?(bit_vector, vector_value, current_min, current_max) do
+      set_fixed(bit_vector, vector_value, min_max_info)
     else
       fail(bit_vector)
     end
@@ -114,8 +119,6 @@ defmodule CPSolver.BitVectorDomain.V2 do
         :no_change
 
       true ->
-        :bit_vector.clear(bit_vector, vector_value)
-
         domain_change =
           cond do
             min_value == max_value && vector_value == min_value ->
@@ -129,6 +132,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
               tighten_max(bit_vector)
 
             true ->
+              :bit_vector.clear(bit_vector, vector_value)
               :domain_change
           end
 
@@ -172,6 +176,13 @@ defmodule CPSolver.BitVectorDomain.V2 do
 
         {domain_change, domain}
     end
+  end
+
+  def raw({{:bit_vector, _, ref} = _bit_vector, offset} = _domain) do
+    %{
+      offset: offset,
+      content: Enum.map(1..:atomics.info(ref).size, fn i -> :atomics.get(ref, i) end)
+    }
   end
 
   ## Last 2 bytes of bit_vector are min and max
@@ -278,8 +289,8 @@ defmodule CPSolver.BitVectorDomain.V2 do
     end
   end
 
-  def set_fixed({:bit_vector, _zero_based_max, ref} = bit_vector, fixed_value) do
-    {current_min_max, min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+  def set_fixed({:bit_vector, _zero_based_max, ref} = bit_vector, fixed_value, min_max_info) do
+    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     if fixed_value != current_max && current_min == current_max do
       ## Attempt to re-fix
@@ -291,8 +302,10 @@ defmodule CPSolver.BitVectorDomain.V2 do
         :ok ->
           :fixed
 
-        _changed_by_other_thread ->
-          set_fixed(bit_vector, fixed_value)
+        changed_by_other_thread ->
+          min2 = PackedMinMax.get_min(changed_by_other_thread)
+          max2 = PackedMinMax.get_max(changed_by_other_thread)
+          set_fixed(bit_vector, fixed_value, {changed_by_other_thread, min2, max2})
       end
     end
   end
