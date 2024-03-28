@@ -96,9 +96,14 @@ defmodule CPSolver.BitVectorDomain.V2 do
       :bit_vector.get(bit_vector, vector_value) == 1
   end
 
-  def fix({bit_vector, offset} = domain, value) do
-    if contains?(domain, value) do
-      set_fixed(bit_vector, value + offset)
+  def fix({bit_vector, offset} = _domain, value) do
+    min_max_info =
+      {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+
+    vector_value = value + offset
+
+    if contains?(bit_vector, vector_value, min_value, max_value) do
+      set_fixed(bit_vector, value + offset, min_max_info)
     else
       fail(bit_vector)
     end
@@ -114,8 +119,6 @@ defmodule CPSolver.BitVectorDomain.V2 do
         :no_change
 
       true ->
-        :bit_vector.clear(bit_vector, vector_value)
-
         domain_change =
           cond do
             min_value == max_value && vector_value == min_value ->
@@ -123,16 +126,17 @@ defmodule CPSolver.BitVectorDomain.V2 do
               fail(bit_vector)
 
             min_value == vector_value ->
-              tighten_min(bit_vector)
+              tighten_min(bit_vector, min_value, max_value)
 
             max_value == vector_value ->
-              tighten_max(bit_vector)
+              tighten_max(bit_vector, max_value, min_value)
 
             true ->
               :domain_change
           end
 
         {domain_change, domain}
+        |> tap(fn _ -> :bit_vector.clear(bit_vector, vector_value) end)
     end
   end
 
@@ -149,7 +153,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
 
       true ->
         ## The value is strictly less than max
-        domain_change = tighten_max(bit_vector, vector_value + 1)
+        domain_change = tighten_max(bit_vector, vector_value + 1, min_value)
 
         {domain_change, domain}
     end
@@ -168,10 +172,17 @@ defmodule CPSolver.BitVectorDomain.V2 do
 
       true ->
         ## The value is strictly greater than min
-        domain_change = tighten_min(bit_vector, vector_value - 1)
+        domain_change = tighten_min(bit_vector, vector_value - 1, max_value)
 
         {domain_change, domain}
     end
+  end
+
+  def raw({{:bit_vector, _, ref} = _bit_vector, offset} = _domain) do
+    %{
+      offset: offset,
+      content: Enum.map(1..:atomics.info(ref).size, fn i -> :atomics.get(ref, i) end)
+    }
   end
 
   ## Last 2 bytes of bit_vector are min and max
@@ -278,8 +289,8 @@ defmodule CPSolver.BitVectorDomain.V2 do
     end
   end
 
-  def set_fixed({:bit_vector, _zero_based_max, ref} = bit_vector, fixed_value) do
-    {current_min_max, min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+  def set_fixed({:bit_vector, _zero_based_max, ref} = bit_vector, fixed_value, min_max_info) do
+    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     if fixed_value != current_max && current_min == current_max do
       ## Attempt to re-fix
@@ -291,21 +302,22 @@ defmodule CPSolver.BitVectorDomain.V2 do
         :ok ->
           :fixed
 
-        _changed_by_other_thread ->
-          set_fixed(bit_vector, fixed_value)
+        changed_by_other_thread ->
+          min2 = PackedMinMax.get_min(changed_by_other_thread)
+          max2 = PackedMinMax.get_max(changed_by_other_thread)
+          set_fixed(bit_vector, fixed_value, {changed_by_other_thread, min_max_idx, min2, max2})
       end
     end
   end
 
   ## Update (cached) min, if necessary
-  defp tighten_min({:bit_vector, _zero_based_max, atomics_ref} = bit_vector, starting_at \\ nil) do
-    starting_position = (starting_at && starting_at) || get_min(bit_vector)
-
-    %{
-      max_addr: %{block: current_max_block}
-    } = get_bound_addrs(bit_vector)
-
-    {rightmost_block, position_in_block} = vector_address(starting_position + 1)
+  defp tighten_min(
+         {:bit_vector, _zero_based_max, atomics_ref} = bit_vector,
+         starting_at,
+         max_value
+       ) do
+    {current_max_block, _} = vector_address(max_value)
+    {rightmost_block, position_in_block} = vector_address(starting_at + 1)
     ## Find a new min (on the right of the current one)
     min_value =
       Enum.reduce_while(rightmost_block..current_max_block, nil, fn idx, _acc ->
@@ -324,14 +336,13 @@ defmodule CPSolver.BitVectorDomain.V2 do
   end
 
   ## Update (cached) max
-  defp tighten_max({:bit_vector, _zero_based_max, atomics_ref} = bit_vector, starting_at \\ nil) do
-    starting_position = (starting_at && starting_at) || get_max(bit_vector)
-
-    %{
-      min_addr: %{block: current_min_block}
-    } = get_bound_addrs(bit_vector)
-
-    {leftmost_block, position_in_block} = vector_address(starting_position - 1)
+  defp tighten_max(
+         {:bit_vector, _zero_based_max, atomics_ref} = bit_vector,
+         starting_at,
+         min_value
+       ) do
+    {current_min_block, _} = vector_address(min_value)
+    {leftmost_block, position_in_block} = vector_address(starting_at - 1)
     ## Find a new max (on the left of the current one)
     max_value =
       Enum.reduce_while(current_min_block..leftmost_block |> Enum.reverse(), nil, fn idx, _acc ->

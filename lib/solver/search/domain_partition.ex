@@ -5,14 +5,8 @@ defmodule CPSolver.Search.DomainPartition do
   require Logger
 
   def partition(variable, strategy) when is_function(strategy) do
-    try do
-      domain = Interface.domain(variable)
-      split_domain_by(domain, strategy.(variable))
-    catch
-      :fail ->
-        Logger.error("Failure on partition: #{inspect(variable)}")
-        {:ok, []}
-    end
+    domain = Interface.domain(variable)
+    split_domain_by(domain, strategy.(variable))
   end
 
   def partition(variable, choice) when choice in [:min, :max] do
@@ -36,7 +30,16 @@ defmodule CPSolver.Search.DomainPartition do
   end
 
   def split_domain_by(domain, value) do
-    Domain.remove(domain, value)
-    {:ok, [Domain.new(value), domain]}
+    try do
+      Domain.remove(domain, value)
+      {:ok, [Domain.new(value), domain]}
+    catch
+      :fail ->
+        Logger.error(
+          "Failure on partitioning with value #{inspect(value)}, domain: #{inspect(CPSolver.BitVectorDomain.V2.raw(domain))}"
+        )
+
+        {:ok, []}
+    end
   end
 end
