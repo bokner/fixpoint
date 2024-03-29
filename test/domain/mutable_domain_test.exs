@@ -116,5 +116,47 @@ defmodule CPSolverTest.MutableDomain do
       assert Domain.map(domain, mapper_fun) |> Enum.sort() ==
                Enum.map(values, mapper_fun) |> Enum.sort()
     end
+
+    test "consistency" do
+      data = %{
+        max: 76,
+        min: 14,
+        raw: %{offset: -11, content: [4_503_599_644_147_720, 2, 279_172_874_243]},
+        size: 4,
+        remove: 76,
+        values: [76, 63, 35, 14],
+        failed?: false,
+        fixed?: false
+      }
+
+      domain = build_domain(data)
+      assert_domain(domain, data.values)
+
+      {:max_change, _} = Domain.remove(domain, Domain.max(domain))
+
+      values1 = List.delete(data.values, Enum.max(data.values))
+
+      assert_domain(domain, values1)
+    end
+
+    defp build_domain(data) do
+      ref = :atomics.new(length(data.raw.content), [{:signed, false}])
+
+      Enum.each(Enum.with_index(data.raw.content, 1), fn {val, idx} ->
+        :atomics.put(ref, idx, val)
+      end)
+
+      bit_vector = {:bit_vector, data.raw.offset, ref}
+      _domain = {bit_vector, data.raw.offset}
+    end
+
+    defp assert_domain(domain, values) do
+      assert Domain.to_list(domain) == values
+      assert Domain.size(domain) == length(values)
+      assert Domain.min(domain) == Enum.min(values)
+      assert Domain.max(domain) == Enum.max(values)
+      refute Domain.fixed?(domain)
+      refute Domain.failed?(domain)
+    end
   end
 end

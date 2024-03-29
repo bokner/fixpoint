@@ -320,15 +320,23 @@ defmodule CPSolver.BitVectorDomain.V2 do
     {rightmost_block, position_in_block} = vector_address(starting_at + 1)
     ## Find a new min (on the right of the current one)
     min_value =
-      Enum.reduce_while(rightmost_block..current_max_block, nil, fn idx, _acc ->
+      Enum.reduce_while(rightmost_block..current_max_block, false, fn idx, min_block_empty? ->
         case :atomics.get(atomics_ref, idx) do
           0 ->
-            {:cont, nil}
+            {:cont, min_block_empty?}
 
           non_zero_block ->
-            ## Because the position in the block is 0-based
-            shift = position_in_block
-            {:halt, (idx - 1) * 64 + lsb(non_zero_block >>> shift <<< shift)}
+            block_lsb =
+              if min_block_empty? do
+                lsb(non_zero_block)
+              else
+                ## Reset all bits above the position
+                shift = position_in_block
+                lsb(non_zero_block >>> shift <<< shift)
+              end
+
+            (block_lsb &&
+               {:halt, (idx - 1) * 64 + block_lsb}) || {:cont, true}
         end
       end)
 
@@ -341,19 +349,30 @@ defmodule CPSolver.BitVectorDomain.V2 do
          starting_at,
          min_value
        ) do
-    {current_min_block, _} = vector_address(min_value)
-    {leftmost_block, position_in_block} = vector_address(starting_at - 1)
+    {current_min_block_idx, _} = vector_address(min_value)
+    {leftmost_block_idx, position_in_block} = vector_address(starting_at - 1)
     ## Find a new max (on the left of the current one)
+    ## 
+
     max_value =
-      Enum.reduce_while(current_min_block..leftmost_block |> Enum.reverse(), nil, fn idx, _acc ->
+      Enum.reduce_while(leftmost_block_idx..current_min_block_idx, false, fn idx,
+                                                                             max_block_empty? ->
         case :atomics.get(atomics_ref, idx) do
           0 ->
-            {:cont, nil}
+            {:cont, max_block_empty?}
 
           non_zero_block ->
-            ## Reset all bits above the position
-            mask = (1 <<< (position_in_block + 1)) - 1
-            {:halt, (idx - 1) * 64 + msb(non_zero_block &&& mask)}
+            block_msb =
+              if max_block_empty? do
+                msb(non_zero_block)
+              else
+                ## Reset all bits above the position
+                mask = (1 <<< (position_in_block + 1)) - 1
+                msb(non_zero_block &&& mask)
+              end
+
+            (block_msb &&
+               {:halt, (idx - 1) * 64 + block_msb}) || {:cont, true}
         end
       end)
 
@@ -390,7 +409,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
 
   ## Find least significant bit
   defp lsb(0) do
-    0
+    nil
   end
 
   defp lsb(n) do
@@ -407,7 +426,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
   end
 
   defp msb(0) do
-    0
+    nil
   end
 
   defp msb(n) do
