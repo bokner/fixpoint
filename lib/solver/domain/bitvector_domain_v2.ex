@@ -27,7 +27,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
 
     PackedMinMax.set_min(0, 0)
     |> PackedMinMax.set_max(Enum.max(domain) + offset)
-    |> then(fn min_max -> init_min_max(bv, min_max) end)
+    |> then(fn min_max -> set_min_max(bv, min_max) end)
 
     {bv, offset}
   end
@@ -53,9 +53,13 @@ defmodule CPSolver.BitVectorDomain.V2 do
     failed?(bit_vector)
   end
 
-  def failed?(bit_vector) do
-    {min_max, _, min_val, max_val} = get_min_max(bit_vector)
-    min_max == @max_value || min_val > max_val
+  def failed?({:bit_vector, _size, _ref} = bit_vector) do
+    failed?(elem(get_min_max_impl(bit_vector), 1))
+  end
+
+  def failed?(min_max_value) when is_integer(min_max_value) do
+    min_max_value == @max_value ||
+      PackedMinMax.get_min(min_max_value) > PackedMinMax.get_max(min_max_value)
   end
 
   def min({bit_vector, offset} = _domain) do
@@ -190,10 +194,12 @@ defmodule CPSolver.BitVectorDomain.V2 do
     :atomics.info(ref).size - 1
   end
 
-  defp init_min_max({:bit_vector, _, ref} = bit_vector, min_max) do
+  defp set_min_max({:bit_vector, _, ref} = bit_vector, min_max) do
     bit_vector
     |> min_max_index()
-    |> then(fn idx -> :atomics.put(ref, idx, min_max) end)
+    |> tap(fn idx ->
+      :atomics.put(ref, idx, min_max)
+    end)
   end
 
   def get_min(bit_vector) do
@@ -208,13 +214,17 @@ defmodule CPSolver.BitVectorDomain.V2 do
     last_index(bit_vector) + 1
   end
 
-  def get_min_max({:bit_vector, _zero_based_max, ref} = bit_vector) do
-    min_max_index = min_max_index(bit_vector)
-
-    :atomics.get(ref, min_max_index)
-    |> then(fn min_max ->
+  def get_min_max(bit_vector) do
+    get_min_max_impl(bit_vector)
+    |> then(fn {min_max_index, min_max} ->
+      min_max == @max_value && fail(bit_vector)
       {min_max, min_max_index, PackedMinMax.get_min(min_max), PackedMinMax.get_max(min_max)}
     end)
+  end
+
+  defp get_min_max_impl({:bit_vector, _zero_based_max, ref} = bit_vector) do
+    min_max_index = min_max_index(bit_vector)
+    {min_max_index, :atomics.get(ref, min_max_index)}
   end
 
   def set_min(bit_vector, new_min) do
@@ -340,7 +350,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
         end
       end)
 
-    (min_value && set_min(bit_vector, min_value)) || :fail
+    (is_integer(min_value) && set_min(bit_vector, min_value)) || fail(bit_vector)
   end
 
   ## Update (cached) max
@@ -355,47 +365,47 @@ defmodule CPSolver.BitVectorDomain.V2 do
     ## 
 
     max_value =
-      Enum.reduce_while(leftmost_block_idx..current_min_block_idx, false, fn idx,
-                                                                             max_block_empty? ->
-        case :atomics.get(atomics_ref, idx) do
-          0 ->
-            {:cont, max_block_empty?}
+      Enum.reduce_while(
+        leftmost_block_idx..current_min_block_idx,
+        false,
+        fn idx, max_block_empty? ->
+          case :atomics.get(atomics_ref, idx) do
+            0 ->
+              {:cont, max_block_empty?}
 
-          non_zero_block ->
-            block_msb =
-              if max_block_empty? do
-                msb(non_zero_block)
-              else
-                ## Reset all bits above the position
-                mask = (1 <<< (position_in_block + 1)) - 1
-                msb(non_zero_block &&& mask)
-              end
+            non_zero_block ->
+              block_msb =
+                if max_block_empty? do
+                  msb(non_zero_block)
+                else
+                  ## Reset all bits above the position
+                  mask = (1 <<< (position_in_block + 1)) - 1
+                  msb(non_zero_block &&& mask)
+                end
 
-            (block_msb &&
-               {:halt, (idx - 1) * 64 + block_msb}) || {:cont, true}
+              (block_msb &&
+                 {:halt, (idx - 1) * 64 + block_msb}) || {:cont, true}
+          end
         end
-      end)
+      )
 
-    (max_value && set_max(bit_vector, max_value)) || :fail
+    (is_integer(max_value) && set_max(bit_vector, max_value)) || fail(bit_vector)
   end
 
   defp fail(bit_vector \\ nil) do
-    bit_vector && init_min_max(bit_vector, @max_value)
+    bit_vector && set_min_max(bit_vector, @max_value)
     throw(:fail)
   end
 
   def get_bound_addrs(bit_vector) do
-    (failed?(bit_vector) && fail(bit_vector)) ||
-      (
-        {_, _, current_min, current_max} = get_min_max(bit_vector)
-        {current_min_block, current_min_offset} = vector_address(current_min)
-        {current_max_block, current_max_offset} = vector_address(current_max)
+    {_, _, current_min, current_max} = get_min_max(bit_vector)
+    {current_min_block, current_min_offset} = vector_address(current_min)
+    {current_max_block, current_max_offset} = vector_address(current_max)
 
-        %{
-          min_addr: %{block: current_min_block, offset: current_min_offset},
-          max_addr: %{block: current_max_block, offset: current_max_offset}
-        }
-      )
+    %{
+      min_addr: %{block: current_min_block, offset: current_min_offset},
+      max_addr: %{block: current_max_block, offset: current_max_offset}
+    }
   end
 
   ## Find the index of atomics where the n-value resides

@@ -33,13 +33,13 @@ defmodule CPSolver.Search.DomainPartition do
     try do
       Domain.remove(domain, value)
       {:ok, [Domain.new(value), domain]}
-    catch
+    rescue
       :fail ->
         Logger.error(
           "Failure on partitioning with value #{inspect(value)}, domain: #{inspect(CPSolver.BitVectorDomain.V2.raw(domain))}"
         )
 
-        {:ok, []}
+        throw(:fail)
     end
   end
 end
