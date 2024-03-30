@@ -93,7 +93,19 @@ defmodule CPSolver.Examples.QAP do
   end
 
   def solution_handler(model) do
-    fn solution -> Enum.at(solution, model.extra.n) |> inspect() |> Logger.warning() end
+    fn solution ->
+      Enum.at(solution, model.extra.n)
+      |> inspect()
+      |> Logger.warning()
+      |> tap(fn _ ->
+        (check_solution(
+           Enum.map(solution, fn {_, val} -> val end),
+           model.extra.distances,
+           model.extra.weights
+         ) &&
+           Logger.warning("Correct")) || Logger.error("Wrong")
+      end)
+    end
   end
 
   defp variable_choice(variables, location_var_names) do
