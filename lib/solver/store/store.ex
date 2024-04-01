@@ -105,12 +105,11 @@ defmodule CPSolver.ConstraintStore do
     {:ok,
      variables
      |> Enum.with_index(1)
-     |> Enum.map(fn {%{domain: domain} = var, index} = _indexed_var ->
+     |> Enum.map(fn {var, index} = _indexed_var ->
        var
        |> Map.put(:index, index)
        |> Map.put(:name, var.name)
        |> Map.put(:store, store)
-       |> Map.put(:fixed?, Domain.fixed?(domain))
      end), store}
     |> tap(fn _ -> set_store(store) end)
   end

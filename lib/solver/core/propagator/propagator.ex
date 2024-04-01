@@ -64,23 +64,7 @@ defmodule CPSolver.Propagator do
       id: id,
       name: name,
       mod: mod,
-      args:
-        Enum.map(args, fn
-          %Variable{domain: domain} = arg ->
-            ## We don't want propagator vars to keep domains, as propagator operates on store variables.
-            ## Except when variables are fixed at the time propagator is created.
-            ##
-            ## Drop domain if variable is fixed, otherwise keep the fixed value
-            fixed? = Domain.fixed?(domain)
-            d = (fixed? && Domain.min(domain)) || nil
-
-            arg
-            |> Map.put(:fixed?, fixed?)
-            |> Map.put(:domain, d)
-
-          const ->
-            const
-        end)
+      args: args
     }
   end
 
