@@ -17,7 +17,7 @@ defmodule CPSolver.Propagator.Variable do
   defdelegate id(var), to: Interface
 
   def fixed?(var) do
-     Interface.fixed?(var)
+    Interface.fixed?(var)
   end
 
   def remove(var, val) do

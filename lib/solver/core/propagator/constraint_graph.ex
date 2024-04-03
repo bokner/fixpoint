@@ -6,6 +6,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   """
   alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
+  alias CPSolver.DefaultDomain, as: Domain
 
   @spec create([Propagator.t()] | %{reference() => Propagator.t()}) :: Graph.t()
   def create(propagators) when is_list(propagators) do
@@ -31,22 +32,27 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
-  ## Get a list of propagator ids that "listen" to the domain change of given variable.
-  def get_propagators(
-        constraint_graph,
-        variable_id,
-        domain_change
-      ) do
+  def get_propagator_ids(constraint_graph, variable_id, filter_fun)
+      when is_function(filter_fun) do
     constraint_graph
     |> Graph.edges({:variable, variable_id})
     |> Enum.flat_map(fn edge ->
-      if domain_change in edge.label do
+      if filter_fun.(edge) do
         {:propagator, p_id} = edge.v2
         [p_id]
       else
         []
       end
     end)
+  end
+
+  ## Get a list of propagator ids that "listen" to the domain change of given variable.
+  def get_propagator_ids(
+        constraint_graph,
+        variable_id,
+        domain_change
+      ) do
+    get_propagator_ids(constraint_graph, variable_id, fn edge -> domain_change in edge.label end)
   end
 
   def has_variable?(graph, variable_id) do
@@ -68,8 +74,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     vertex = propagator_vertex(propagator_id)
 
     graph
-    # |> Graph.remove_vertex_labels(vertex)
-    # |> Graph.label_vertex(vertex, [propagator])
     |> Map.put(:vertex_labels, Map.put(labels, identifier.(vertex), [propagator]))
   end
 
@@ -86,13 +90,25 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     remove_vertex(graph, {:variable, variable_id})
   end
 
-  def remove_fixed(graph, vars) do
-    Enum.reduce(vars, graph, fn v, acc ->
-      if Interface.fixed?(v) do
-        remove_variable(acc, v.id)
-      else
-        acc
-      end
+  ### Remove fixed variables and update propagators with variable domains
+  def update(graph, vars) do
+    ## Remove fixed variables
+    {g1, propagators, variable_map} =
+      Enum.reduce(vars, {graph, [], Map.new()}, fn %{domain: domain} = v,
+                                                   {graph_acc, propagators_acc, variables_acc} ->
+        {if Domain.fixed?(domain) do
+           remove_variable(graph_acc, v.id)
+         else
+           graph_acc
+         end, propagators_acc ++ get_propagator_ids(graph_acc, v.id, fn _ -> true end),
+         Map.put(variables_acc, v.id, v)}
+      end)
+
+    ## Update domains
+    Enum.reduce(propagators, g1, fn p_id, graph_acc ->
+      get_propagator(graph_acc, p_id)
+      |> Propagator.bind_to_variables(variable_map, :domain)
+      |> then(fn bound_p -> update_propagator(graph_acc, p_id, bound_p) end)
     end)
   end
 

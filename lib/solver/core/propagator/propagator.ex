@@ -144,25 +144,25 @@ defmodule CPSolver.Propagator do
     get_filter_changes(result != :passive)
   end
 
-  def bind_to_variables(propagator, indexed_variables) do
+  def bind_to_variables(propagator, indexed_variables, var_field) do
     bound_args =
       propagator.args
-      |> Enum.map(fn arg -> bind_to_variable(arg, indexed_variables) end)
+      |> Enum.map(fn arg -> bind_to_variable(arg, indexed_variables, var_field) end)
 
     Map.put(propagator, :args, bound_args)
   end
 
-  defp bind_to_variable(%Variable{id: id} = var, indexed_variables) do
-    var_idx = Map.get(indexed_variables, id).index
-    Map.put(var, :index, var_idx)
+  defp bind_to_variable(%Variable{id: id} = var, indexed_variables, var_field) do
+    field_value = Map.get(indexed_variables, id) |> Map.get(var_field)
+    Map.put(var, var_field, field_value)
   end
 
-  defp bind_to_variable(%View{variable: variable} = view, indexed_variables) do
-    bound_var = bind_to_variable(variable, indexed_variables)
+  defp bind_to_variable(%View{variable: variable} = view, indexed_variables, var_field) do
+    bound_var = bind_to_variable(variable, indexed_variables, var_field)
     Map.put(view, :variable, bound_var)
   end
 
-  defp bind_to_variable(const, _indexed_variables) do
+  defp bind_to_variable(const, _indexed_variables, _var_field) do
     const
   end
 end

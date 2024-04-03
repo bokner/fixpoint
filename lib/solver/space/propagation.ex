@@ -101,7 +101,7 @@ defmodule CPSolver.Space.Propagation do
         {maybe_remove_variable(g, var_id, domain_change),
          MapSet.union(
            propagators,
-           MapSet.new(ConstraintGraph.get_propagators(g, var_id, domain_change))
+           MapSet.new(ConstraintGraph.get_propagator_ids(g, var_id, domain_change))
          )}
       end)
 

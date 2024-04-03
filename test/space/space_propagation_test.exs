@@ -127,7 +127,7 @@ defmodule CPSolverTest.SpacePropagation do
     %{
       propagators: propagators,
       variables: bound_vars,
-      constraint_graph: ConstraintGraph.remove_fixed(graph, bound_vars),
+      constraint_graph: ConstraintGraph.update(graph, bound_vars),
       store: store
     }
   end
