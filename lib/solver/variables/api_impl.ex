@@ -6,7 +6,6 @@ alias CPSolver.Variable.View
 defimpl Interface, for: Variable do
   def id(var), do: var.id
   def variable(var), do: var
-  def bind(var, store), do: Map.put(var, :store, store)
   def map(_var, value), do: value
   def domain(var), do: Variable.domain(var)
   def size(var), do: Variable.size(var)
@@ -25,12 +24,6 @@ defimpl Interface, for: View do
 
   def variable(view), do: view.variable
 
-  def bind(%{variable: variable} = view, store) do
-    variable
-    |> Map.put(:store, store)
-    |> then(fn bound_var -> Map.put(view, :variable, bound_var) end)
-  end
-
   def map(view, value), do: view.mapper.(value)
 
   def domain(view), do: View.domain(view)
@@ -48,7 +41,6 @@ end
 defimpl Interface, for: Any do
   def variable(_any), do: nil
   def id(var), do: not_supported(:id, var)
-  def bind(var, _store), do: var
   def map(var, _value), do: var
   def domain(var), do: not_supported(:domain, var)
   def size(var), do: not_supported(:size, var)
@@ -73,7 +65,6 @@ defmodule CPSolver.Variable.Interface.ThrowIfFails do
   defdelegate id(var), to: Interface
 
   defdelegate variable(var), to: Interface
-  defdelegate bind(var, store), to: Interface
   defdelegate map(var, value), to: Interface
 
   def domain(var), do: handle_fail(Interface.domain(var), var)

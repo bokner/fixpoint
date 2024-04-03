@@ -82,10 +82,6 @@ defmodule CPSolver.Objective do
     :atomics.put(ref, 1, :atomics.info(ref).max)
   end
 
-  def bind_to_store(%{variable: variable} = objective, store) do
-    Map.put(objective, :variable, Interface.bind(variable, store))
-  end
-
   def get_objective_value(%{target: target, bound_handle: handle} = _objective) do
     (get_bound(handle) + 1) * ((target == :minimize && 1) || -1)
   end

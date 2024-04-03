@@ -10,9 +10,6 @@ defprotocol CPSolver.Variable.Interface do
   @fallback_to_any true
   def variable(arg)
 
-  @spec bind(Variable.t() | View.t(), any()) :: Variable.t() | View.t()
-  def bind(variable, store)
-
   @spec map(Variable.t() | View.t(), integer()) :: integer()
   def map(variable, value)
 

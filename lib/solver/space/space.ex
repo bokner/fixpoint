@@ -152,7 +152,6 @@ defmodule CPSolver.Space do
 
     space_data =
       data
-      |> maybe_bind_objective_variable(store)
       |> Map.put(:id, make_ref())
       |> Map.put(:variables, space_variables)
       |> Map.put(:store, store)
@@ -160,16 +159,6 @@ defmodule CPSolver.Space do
 
     (space_opts[:postpone] &&
        {:ok, space_data}) || {:ok, space_data, {:continue, :propagate}}
-  end
-
-  defp maybe_bind_objective_variable(data, store) do
-    case data.opts[:objective] do
-      nil ->
-        data
-
-      objective ->
-        put_in(data, [:opts, :objective], Objective.bind_to_store(objective, store))
-    end
   end
 
   @impl true
