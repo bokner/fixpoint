@@ -294,16 +294,21 @@ defmodule CPSolver.Shared do
   end
 
   def statistics_impl(solver) do
-    [{:stats, active_node_count, failure_count, solution_count, node_count}] =
-      :ets.lookup(solver.statistics, :stats)
+    try do
+      [{:stats, active_node_count, failure_count, solution_count, node_count}] =
+        :ets.lookup(solver.statistics, :stats)
 
-    %{
-      active_node_count: active_node_count,
-      failure_count: failure_count,
-      solution_count: solution_count,
-      node_count: node_count,
-      elapsed_time: elapsed_time(solver)
-    }
+      %{
+        active_node_count: active_node_count,
+        failure_count: failure_count,
+        solution_count: solution_count,
+        node_count: node_count,
+        elapsed_time: elapsed_time(solver)
+      }
+    catch
+      _e ->
+        %{}
+    end
   end
 
   def solutions(%{solutions: solution_table} = _solver) do

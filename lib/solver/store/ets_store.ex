@@ -13,7 +13,7 @@ defmodule CPSolver.Store.ETS do
       fn var ->
         :ets.insert(
           table_id,
-          {var.id, %{id: var.id, domain: Domain.new(var.domain)}}
+          {var.id, %{id: var.id, domain: var.domain}}
         )
       end
     )
@@ -59,13 +59,10 @@ defmodule CPSolver.Store.ETS do
   defp update_variable_domain(
          _table,
          _variable,
-         domain,
+         _domain,
          event
        ) do
-    case event do
-      :fixed -> {:fixed, Domain.min(domain)}
-      event -> event
-    end
+    event    
   end
 
   @impl true
