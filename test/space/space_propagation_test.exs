@@ -124,10 +124,12 @@ defmodule CPSolverTest.SpacePropagation do
 
     graph = ConstraintGraph.create(propagators)
 
+    {updated_graph, _bound_propagators} = ConstraintGraph.update(graph, bound_vars)
+
     %{
       propagators: propagators,
       variables: bound_vars,
-      constraint_graph: ConstraintGraph.update(graph, bound_vars),
+      constraint_graph: updated_graph,
       store: store
     }
   end

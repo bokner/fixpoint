@@ -42,4 +42,7 @@ defprotocol CPSolver.Variable.Interface do
 
   @spec fix(Variable.t() | View.t(), integer()) :: :fixed | :fail
   def fix(variable, value)
+
+  @spec update(Variable.t() | View.t(), atom(), any()) :: Variable.t() | View.t()
+  def update(variable, field, value)
 end

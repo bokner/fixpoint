@@ -90,7 +90,8 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     remove_vertex(graph, {:variable, variable_id})
   end
 
-  ### Remove fixed variables and update propagators with variable domains
+  ### Remove fixed variables and update propagators with variable domains.
+  ### Returns updated graph and a list of propagators bound to variable domains
   def update(graph, vars) do
     ## Remove fixed variables
     {g1, propagators, variable_map} =
@@ -105,10 +106,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       end)
 
     ## Update domains
-    Enum.reduce(propagators, g1, fn p_id, graph_acc ->
+    Enum.reduce(propagators, {g1, []}, fn p_id, {graph_acc, p_acc} ->
       get_propagator(graph_acc, p_id)
       |> Propagator.bind_to_variables(variable_map, :domain)
-      |> then(fn bound_p -> update_propagator(graph_acc, p_id, bound_p) end)
+      |> then(fn bound_p -> {update_propagator(graph_acc, p_id, bound_p), [bound_p | p_acc]} end)
     end)
   end
 

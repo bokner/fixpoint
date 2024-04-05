@@ -13,12 +13,14 @@ defmodule CPSolver.Propagator.Sum do
 
   defp initial_state(args) do
     {sum_fixed, unfixed_vars} =
-      Enum.reduce(args, {0, []}, fn var, {sum_acc, unfixed_acc} ->
+      args
+      |> Enum.with_index()
+      |> Enum.reduce({0, MapSet.new()}, fn {var, idx}, {sum_acc, unfixed_acc} ->
         (fixed?(var) && {sum_acc + min(var), unfixed_acc}) ||
-          {sum_acc, [var | unfixed_acc]}
+          {sum_acc, MapSet.put(unfixed_acc, idx)}
       end)
 
-    %{sum_fixed: sum_fixed, unfixed_vars: unfixed_vars}
+    %{sum_fixed: sum_fixed, unfixed_ids: unfixed_vars}
   end
 
   @impl true
@@ -39,40 +41,41 @@ defmodule CPSolver.Propagator.Sum do
   end
 
   @impl true
-  def filter(_all_vars, %{sum_fixed: sum_fixed, unfixed_vars: unfixed_vars} = _state) do
-    {updated_unfixed_vars, new_sum} = update_unfixed(unfixed_vars)
+  def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_ids: unfixed_ids} = _state) do
+    {unfixed_vars, updated_unfixed_ids, new_sum} = update_unfixed(all_vars, unfixed_ids)
     updated_sum = sum_fixed + new_sum
-    {sum_min, sum_max} = sum_min_max(updated_sum, updated_unfixed_vars)
+    {sum_min, sum_max} = sum_min_max(updated_sum, unfixed_vars)
 
-    case filter_impl(updated_unfixed_vars, sum_min, sum_max) do
-      :fail -> :fail
-      :ok -> {:state, %{sum_fixed: updated_sum, unfixed_vars: updated_unfixed_vars}}
+    case filter_impl(unfixed_vars, sum_min, sum_max) do
+      :fail -> fail()
+      :ok -> {:state, %{sum_fixed: updated_sum, unfixed_ids: updated_unfixed_ids}}
     end
   end
 
-  defp update_unfixed(unfixed_vars) do
-    Enum.reduce(unfixed_vars, {[], 0}, fn var, {unfixed_acc, sum_acc} ->
-      (fixed?(var) && {unfixed_acc, sum_acc + min(var)}) ||
-        {[var | unfixed_acc], sum_acc}
+  defp update_unfixed(all_vars, unfixed_ids) do
+    Enum.reduce(unfixed_ids, {[], unfixed_ids, 0}, fn pos, {unfixed_acc, ids_acc, sum_acc} ->
+      var = Enum.at(all_vars, pos)
+
+      (fixed?(var) && {unfixed_acc, MapSet.delete(ids_acc, pos), sum_acc + min(var)}) ||
+        {[var | unfixed_acc], ids_acc, sum_acc}
     end)
   end
 
   defp filter_impl(variables, sum_min, sum_max) do
-    (unsatisfiable(sum_min, sum_max) && :fail) ||
-      case update_partial_sums(variables, sum_min, sum_max) do
-        {new_sum_min, new_sum_max} ->
-          ## Enforce idempotence: we'll run filtering until there's no changes
-          ((new_sum_min != sum_min ||
-              new_sum_max != sum_max) && filter_impl(variables, new_sum_min, new_sum_max)) ||
-            :ok
+    if unsatisfiable(sum_min, sum_max) do
+      fail()
+    else
+      {new_sum_min, new_sum_max} = update_partial_sums(variables, sum_min, sum_max)
 
-        :fail ->
-          :fail
-      end
+      ## Enforce idempotence: we'll run filtering until there's no changes
+      ((new_sum_min != sum_min ||
+          new_sum_max != sum_max) && filter_impl(variables, new_sum_min, new_sum_max)) ||
+        :ok
+    end
   end
 
   defp update_partial_sums(variables, sum_min, sum_max) do
-    Enum.reduce_while(variables, {sum_min, sum_max}, fn v, {s_min, s_max} ->
+    Enum.reduce(variables, {sum_min, sum_max}, fn v, {s_min, s_max} ->
       min_v = min(v)
       max_v = max(v)
 
@@ -81,8 +84,8 @@ defmodule CPSolver.Propagator.Sum do
       new_sum_min = s_min + new_min - min_v
       new_sum_max = s_max + max_v - new_max
 
-      (unsatisfiable(new_sum_min, new_sum_max) && {:halt, :fail}) ||
-        {:cont, {new_sum_min, new_sum_max}}
+      (unsatisfiable(new_sum_min, new_sum_max) && fail()) ||
+        {new_sum_min, new_sum_max}
     end)
   end
 
@@ -112,5 +115,9 @@ defmodule CPSolver.Propagator.Sum do
 
   defp unsatisfiable(sum_min, sum_max) do
     sum_min > 0 || sum_max < 0
+  end
+
+  defp fail() do
+    throw(:fail)
   end
 end

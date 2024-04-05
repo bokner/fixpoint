@@ -150,12 +150,15 @@ defmodule CPSolver.Space do
         space: self()
       )
 
+    {constraint_graph, bound_propagators} = ConstraintGraph.update(graph, space_variables)
+
     space_data =
       data
       |> Map.put(:id, make_ref())
       |> Map.put(:variables, space_variables)
       |> Map.put(:store, store)
-      |> Map.put(:constraint_graph, ConstraintGraph.update(graph, space_variables))
+      |> Map.put(:constraint_graph, constraint_graph)
+      |> Map.put(:propagators, bound_propagators)
 
     (space_opts[:postpone] &&
        {:ok, space_data}) || {:ok, space_data, {:continue, :propagate}}

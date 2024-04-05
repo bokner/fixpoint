@@ -73,7 +73,8 @@ defmodule CPSolver.Examples.TSP do
         acc + (Enum.at(distances, idx) |> Enum.at(succ))
       end)
 
-    total_distance == sum_distances && n == MapSet.new(successors) |> MapSet.size()
+    hamiltonian?(successors) &&  
+    (total_distance == sum_distances) && n == MapSet.new(successors) |> MapSet.size()
   end
 
   def search(%{extra: %{distances: distances, n: n}} = _model) do
@@ -135,6 +136,20 @@ defmodule CPSolver.Examples.TSP do
       [Enum.at(circuit, next) | acc]
     end)
     |> Enum.reverse()
+  end
+
+  def hamiltonian?(sequence) do
+    {cycle_length, _current} = 
+    Enum.reduce_while(sequence, {1, 0}, fn _succ, {length_acc, succ_acc} = acc -> 
+      next = Enum.at(sequence, succ_acc)
+      if next == 0 do
+        {:halt, acc}
+      else 
+        {:cont, {length_acc + 1, next}}
+      end  
+    end)
+
+    cycle_length == length(sequence)
   end
 
   def parse_instance(filename) do

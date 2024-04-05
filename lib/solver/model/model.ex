@@ -37,14 +37,14 @@ defmodule CPSolver.Model do
       |> extract_variables_from_constraints()
       |> Enum.reject(fn c_var -> Map.has_key?(variable_map, c_var.id) end)
 
-    variables ++ additional_variables
+    (variables ++ additional_variables)
+    |> Enum.with_index(1)
+    |> Enum.map(fn {var, idx} -> Interface.update(var, :index, idx) end)
   end
 
   defp extract_variables_from_constraints(constraints) do
     constraints
     |> Enum.map(&Constraint.extract_variables/1)
     |> List.flatten()
-    |> Map.new(fn var -> {var.id, var} end)
-    |> Map.values()
   end
 end

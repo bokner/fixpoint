@@ -34,25 +34,6 @@ defmodule CPSolverTest.Propagator do
       assert ConstraintStore.get(store, y_bound, :fixed?)
     end
 
-    test "filtering with variables not bound to a store" do
-      %{variables: variables, bound_variables: bound_variables, store: store} =
-        setup_store([1..1, 1..2])
-
-      [x_bound, y_bound] = bound_variables
-      [_x, y] = variables
-
-      refute Variable.fixed?(y_bound)
-      assert Variable.fixed?(x_bound)
-      ## Variables are not bound to a store
-      refute Enum.any?(variables, fn v -> Map.get(v, :store) end)
-      propagator = NotEqual.new(variables)
-      ## Supplying store will make filtering work on unbound variables
-      assert %{changes: %{y.id => :fixed}, active?: true, state: nil} ==
-               Propagator.filter(propagator, store: store)
-
-      assert ConstraintStore.get(store, y_bound, :fixed?)
-    end
-
     test "Using views" do
       x = 1..10
       y = 0..10
