@@ -16,7 +16,7 @@ defmodule CPSolver.Objective do
 
     %{
       propagator: propagator,
-      variable: variable |> Map.delete(:domain),
+      variable: variable,
       bound_handle: bound_handle,
       target: :minimize
     }

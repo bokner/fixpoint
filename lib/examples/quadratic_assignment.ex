@@ -29,6 +29,23 @@ defmodule CPSolver.Examples.QAP do
 
   require Logger
 
+  def run(instance, opts \\ []) do
+    model = model(instance)
+
+    opts =
+      Keyword.merge(
+        [
+          search: search(model),
+          solution_handler: solution_handler(model),
+          max_search_threads: 12,
+          timeout: :timer.minutes(5)
+        ],
+        opts
+      )
+
+    {:ok, _res} = CPSolver.solve_sync(model, opts)
+  end
+
   ## Read and compile data from instance file
   def model(data) when is_binary(data) do
     {_n, distances, weights} = parse_instance(data)

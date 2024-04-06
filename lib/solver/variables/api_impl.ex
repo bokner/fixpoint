@@ -17,6 +17,7 @@ defimpl Interface, for: Variable do
   def removeAbove(var, val), do: Variable.removeAbove(var, val)
   def removeBelow(var, val), do: Variable.removeBelow(var, val)
   def fix(var, val), do: Variable.fix(var, val)
+  def update(var, field, value), do: Map.put(var, field, value)
 end
 
 defimpl Interface, for: View do
@@ -36,6 +37,11 @@ defimpl Interface, for: View do
   def removeAbove(view, val), do: View.removeAbove(view, val)
   def removeBelow(view, val), do: View.removeBelow(view, val)
   def fix(view, val), do: View.fix(view, val)
+
+  def update(view, field, value) do
+    updated_variable = Map.put(variable(view), field, value)
+    Map.put(view, :variable, updated_variable)
+  end
 end
 
 defimpl Interface, for: Any do
@@ -52,6 +58,7 @@ defimpl Interface, for: Any do
   def removeAbove(var, _val), do: not_supported(:removeAbove, var)
   def removeBelow(var, _val), do: not_supported(:removeBelow, var)
   def fix(var, _val), do: not_supported(:fix, var)
+  def update(var, _field, _value), do: not_supported(:update, var)
 
   defp not_supported(var, op) do
     throw({:operation_not_supported, op, for: var})
@@ -77,6 +84,7 @@ defmodule CPSolver.Variable.Interface.ThrowIfFails do
   def removeAbove(var, val), do: handle_fail(Interface.removeAbove(var, val), var)
   def removeBelow(var, val), do: handle_fail(Interface.removeBelow(var, val), var)
   def fix(var, val), do: handle_fail(Interface.fix(var, val), var)
+  def update(var, field, value), do: handle_fail(Interface.update(var, field, value), var)
 
   defp handle_fail(:fail, _var), do: throw(:fail)
   defp handle_fail(result, _var), do: result

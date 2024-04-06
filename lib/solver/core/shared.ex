@@ -305,7 +305,7 @@ defmodule CPSolver.Shared do
         node_count: node_count,
         elapsed_time: elapsed_time(solver)
       }
-    catch
+    rescue
       _e ->
         %{}
     end

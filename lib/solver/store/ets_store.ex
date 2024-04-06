@@ -62,7 +62,7 @@ defmodule CPSolver.Store.ETS do
          _domain,
          event
        ) do
-    event    
+    event
   end
 
   @impl true
