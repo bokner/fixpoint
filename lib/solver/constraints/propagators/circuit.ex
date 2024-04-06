@@ -22,9 +22,6 @@ defmodule CPSolver.Propagator.Circuit do
 
   def filter(all_vars, state) do
     case update_domain_graph(all_vars, state) do
-      :fail ->
-        :fail
-
       :complete ->
         :passive
 
@@ -66,7 +63,7 @@ defmodule CPSolver.Propagator.Circuit do
        ) do
     case reduce_graph(graph, vars, unfixed_vertices) do
       :fail ->
-        :fail
+        fail()
 
       {updated_graph, updated_unfixed_vertices} ->
         (MapSet.size(updated_unfixed_vertices) == 0 && :complete) ||
@@ -94,7 +91,7 @@ defmodule CPSolver.Propagator.Circuit do
   ## All unfixed vertices have been processed
   defp reduce_graph(%Graph{} = graph, _vars, [], remaining_unfixed_vertices) do
     (check_graph(graph, remaining_unfixed_vertices) &&
-       {graph, remaining_unfixed_vertices}) || :fail
+       {graph, remaining_unfixed_vertices}) || fail()
   end
 
   defp reduce_graph(
@@ -165,8 +162,11 @@ defmodule CPSolver.Propagator.Circuit do
     |> tap(fn g ->
       (Graph.in_neighbors(g, vertex2) == [] ||
          Graph.out_neighbors(g, vertex1) == []) &&
-        throw(:fail)
+        fail()
     end)
   end
 
+  defp fail() do
+    throw(:fail)
   end
+end
