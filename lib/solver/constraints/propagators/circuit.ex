@@ -82,7 +82,7 @@ defmodule CPSolver.Propagator.Circuit do
     reduce_graph(graph, vars, unfixed_vertices, MapSet.new())
   end
 
-  ##  
+  ##
   @spec reduce_graph(
           graph :: Graph.t(),
           vars :: [Variable.t()],
@@ -91,7 +91,7 @@ defmodule CPSolver.Propagator.Circuit do
         ) ::
           {Graph.t(), [integer]}
 
-  ## All unfixed vertices have been processed       
+  ## All unfixed vertices have been processed
   defp reduce_graph(%Graph{} = graph, _vars, [], remaining_unfixed_vertices) do
     (check_graph(graph, remaining_unfixed_vertices) &&
        {graph, remaining_unfixed_vertices}) || :fail
@@ -169,26 +169,4 @@ defmodule CPSolver.Propagator.Circuit do
     end)
   end
 
-  def check_circuit(circuit, pos) do
-    ## Follow the chain starting from 'pos'
-    ## If the successor contains nil, stop
-    ## Otherwise, 
-    ## - stop if the successor value is a position we start with (loop detected)
-    ## - if the length of the loop is less than the length of circuit, fail
-    ## - otherwise, the circuit is completed
-    l = length(circuit)
-
-    Enum.reduce_while(1..l, {1, Enum.at(circuit, pos)}, fn _, {steps, succ_acc} ->
-      case Enum.at(circuit, succ_acc) do
-        nil ->
-          {:halt, {:incomplete, circuit}}
-
-        succ when succ == pos ->
-          (steps < l - 1 && {:halt, :fail}) || {:halt, :complete}
-
-        succ ->
-          {:cont, {steps + 1, succ}}
-      end
-    end)
   end
-end
