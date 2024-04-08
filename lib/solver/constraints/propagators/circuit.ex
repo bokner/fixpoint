@@ -44,7 +44,11 @@ defmodule CPSolver.Propagator.Circuit do
         end)
       end)
 
-    %{domain_graph: domain_graph, unfixed_vertices: Graph.vertices(domain_graph)}
+    %{
+      domain_graph: domain_graph,
+      circuit: circuit(args),
+      unfixed_vertices: Graph.vertices(domain_graph)
+    }
   end
 
   defp initial_reduction(var, succ_value, circuit_length) do
@@ -66,7 +70,9 @@ defmodule CPSolver.Propagator.Circuit do
         fail()
 
       {updated_graph, updated_unfixed_vertices} ->
-        (MapSet.size(updated_unfixed_vertices) == 0 && :complete) ||
+        (MapSet.size(updated_unfixed_vertices) == 0
+        #&& hamiltonian?(vars)
+        && :complete) ||
           %{domain_graph: updated_graph, unfixed_vertices: updated_unfixed_vertices}
     end
   end
@@ -164,6 +170,46 @@ defmodule CPSolver.Propagator.Circuit do
          Graph.out_neighbors(g, vertex1) == []) &&
         fail()
     end)
+  end
+
+  ## Builds (partial) circuits from fixed values of variables
+  defp circuit(vars) do
+    Enum.map(vars, fn var ->
+      (fixed?(var) && min(var)) || nil
+    end)
+  end
+
+  # defp check_for_cycles(partial_circuit) do
+  #   ## {current_position, path_length, path_start}
+  #   initial_state = {0, 0, nil}
+  #   partial_circuit
+  #   |> Enum.reduce(partial_circuit, {0, 0, nil},
+  #     fn _succ, {current_position, path_length, path_start} ->
+  #       case Enum.at(current_position) do
+  #         nil ->
+  #       end
+  #     end)
+  # end
+
+  defp hamiltonian?(vars) do
+    {cycle_length, _current} =
+      Enum.reduce_while(vars, {1, 0}, fn _succ, {length_acc, succ_acc} = acc ->
+        var = Enum.at(vars, succ_acc)
+
+        if fixed?(var) do
+          next = min(var)
+
+          if next == 0 do
+            {:halt, acc}
+          else
+            {:cont, {length_acc + 1, next}}
+          end
+        else
+          {:halt, {0, :not_fixed}}
+        end
+      end)
+
+    cycle_length == length(vars)
   end
 
   defp fail() do

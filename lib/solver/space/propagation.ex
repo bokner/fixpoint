@@ -2,12 +2,6 @@ defmodule CPSolver.Space.Propagation do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Propagator
 
-  def run(propagators, store \\ nil)
-
-  def run(propagators, store) do
-    run(propagators, ConstraintGraph.create(propagators), store)
-  end
-
   def run(propagators, constraint_graph, store) when is_list(propagators) do
     propagators
     |> run_impl(constraint_graph, store)

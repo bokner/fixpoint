@@ -26,9 +26,13 @@ defmodule CPSolverTest.Examples.GraphColoring do
   test "Petersen" do
     test_graph("petersen", 120, timeout: 500, trials: 5)
   end
-
+  
   test "gc_15_30_1" do
     test_graph("gc_15_30_1", 36)
+  end
+
+  test "gc_15_30_2" do
+    test_graph("gc_15_30_2", 21408, timeout: 2000, trials: 1)
   end
 
   test "gc_15_30_3" do
