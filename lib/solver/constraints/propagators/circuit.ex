@@ -179,18 +179,6 @@ defmodule CPSolver.Propagator.Circuit do
     end)
   end
 
-  # defp check_for_cycles(partial_circuit) do
-  #   ## {current_position, path_length, path_start}
-  #   initial_state = {0, 0, nil}
-  #   partial_circuit
-  #   |> Enum.reduce(partial_circuit, {0, 0, nil},
-  #     fn _succ, {current_position, path_length, path_start} ->
-  #       case Enum.at(current_position) do
-  #         nil ->
-  #       end
-  #     end)
-  # end
-
   defp fail() do
     throw(:fail)
   end
