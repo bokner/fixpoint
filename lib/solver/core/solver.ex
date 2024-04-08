@@ -259,11 +259,10 @@ defmodule CPSolver do
   end
 
   defp prepare(constraints, variables) do
-    #    variables
-    #    |> Enum.with_index(1)
-    #    |> 
     indexed_variables =
-      Map.new(variables, fn v -> {Interface.id(v), v} end)
+      variables
+      |> Enum.with_index(1)
+      |> Map.new(fn {v, idx} -> {Interface.id(v), Map.put(Interface.variable(v), :index, idx)} end)
 
     bound_propagators =
       Enum.reduce(constraints, [], fn constraint, acc ->
@@ -273,9 +272,7 @@ defmodule CPSolver do
           end)
       end)
 
-    {
-      variables,
-      bound_propagators
-    }
+    {Map.values(indexed_variables) |> Enum.sort_by(fn v -> Interface.variable(v).index end),
+     bound_propagators}
   end
 end
