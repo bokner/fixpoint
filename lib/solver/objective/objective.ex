@@ -45,13 +45,19 @@ defmodule CPSolver.Objective do
   end
 
   def update_bound_impl(bound_handle, value) do
-    case :atomics.exchange(bound_handle, 1, value) do
-      prev_value when prev_value >= value ->
-        value
+    case :atomics.get(bound_handle, 1) do
+      prev_value when prev_value > value ->
+        case :atomics.compare_exchange(bound_handle, 1, prev_value, value) do
+          :ok ->
+            value
+
+          _changed_in_between ->
+            update_bound_impl(bound_handle, value)
+        end
 
       prev_value ->
-        # previous value lesser that the new one - set it back
-        update_bound(bound_handle, prev_value)
+        # previous value lesser than the proposed one - keep
+        prev_value
     end
   end
 
