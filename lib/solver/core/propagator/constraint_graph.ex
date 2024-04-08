@@ -110,7 +110,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       get_propagator(graph_acc, p_id)
       |> Propagator.bind_to_variables(variable_map, :domain)
       |> then(fn bound_p ->
-        {update_propagator(graph_acc, p_id, bound_p), [bound_p |> Map.delete(:state) | p_acc]}
+        {update_propagator(graph_acc, p_id, bound_p), [bound_p | p_acc]}
       end)
     end)
   end

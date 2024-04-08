@@ -158,6 +158,7 @@ defmodule CPSolver.Space do
       |> Map.put(:variables, space_variables)
       |> Map.put(:store, store)
       |> Map.put(:constraint_graph, constraint_graph)
+      |> Map.put(:objective, update_objective(space_opts[:objective], space_variables))
       |> Map.put(:propagators, bound_propagators)
 
     (space_opts[:postpone] &&
@@ -216,7 +217,7 @@ defmodule CPSolver.Space do
         shutdown(data, :fail)
 
       solution ->
-        maybe_tighten_objective_bound(data.opts[:objective])
+        maybe_tighten_objective_bound(data[:objective])
         Solution.run_handler(solution, data.opts[:solution_handler])
         shutdown(data, :solved)
     end)
@@ -237,6 +238,20 @@ defmodule CPSolver.Space do
 
   defp maybe_tighten_objective_bound(objective) do
     Objective.tighten(objective)
+  end
+
+  defp update_objective(nil, _vars) do
+    nil
+  end
+
+  defp update_objective(%{variable: variable} = objective, variables) do
+    var_domain =
+      Enum.at(variables, Interface.variable(variable).index - 1)
+      |> Interface.domain()
+
+    updated_var = Interface.update(variable, :domain, var_domain)
+    Map.put(objective, :variable, updated_var)
+    # objective
   end
 
   defp handle_stable(data) do

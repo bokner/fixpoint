@@ -100,8 +100,6 @@ defmodule CpSolverTest do
         end
       )
 
-    Process.sleep(100)
-
     solutions_from_file =
       @solution_handler_test_file
       |> File.read!()

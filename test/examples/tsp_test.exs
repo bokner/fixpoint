@@ -24,14 +24,14 @@ defmodule CPSolverTest.Examples.TSP do
     model = TSP.model("data/tsp/tsp_7.txt")
     {:ok, result} = CPSolver.solve_sync(model)
 
-    optimal_solution = List.last(result.solutions)
-    assert TSP.check_solution(optimal_solution, model)
+    assert Enum.all?(result.solutions, fn sol -> TSP.check_solution(sol, model) end)
 
     assert result.status == {:optimal, [objective: 56]}
   end
 
   test "15 cities, first few solutions" do
     model = TSP.model("data/tsp/tsp_15.txt")
+
     {:ok, result} =
       CPSolver.solve_sync(model,
         stop_on: {:max_solutions, 3},

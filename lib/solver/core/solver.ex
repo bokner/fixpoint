@@ -273,7 +273,9 @@ defmodule CPSolver do
           end)
       end)
 
-    {Map.values(indexed_variables) |> Enum.sort_by(fn v -> Interface.variable(v).index end),
-     bound_propagators}
+    {
+      variables,
+      bound_propagators
+    }
   end
 end

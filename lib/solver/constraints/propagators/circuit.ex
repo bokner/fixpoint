@@ -70,9 +70,9 @@ defmodule CPSolver.Propagator.Circuit do
         fail()
 
       {updated_graph, updated_unfixed_vertices} ->
-        (MapSet.size(updated_unfixed_vertices) == 0
-        #&& hamiltonian?(vars)
-        && :complete) ||
+        # && hamiltonian?(vars)
+        (MapSet.size(updated_unfixed_vertices) == 0 &&
+           :complete) ||
           %{domain_graph: updated_graph, unfixed_vertices: updated_unfixed_vertices}
     end
   end
@@ -190,27 +190,6 @@ defmodule CPSolver.Propagator.Circuit do
   #       end
   #     end)
   # end
-
-  defp hamiltonian?(vars) do
-    {cycle_length, _current} =
-      Enum.reduce_while(vars, {1, 0}, fn _succ, {length_acc, succ_acc} = acc ->
-        var = Enum.at(vars, succ_acc)
-
-        if fixed?(var) do
-          next = min(var)
-
-          if next == 0 do
-            {:halt, acc}
-          else
-            {:cont, {length_acc + 1, next}}
-          end
-        else
-          {:halt, {0, :not_fixed}}
-        end
-      end)
-
-    cycle_length == length(vars)
-  end
 
   defp fail() do
     throw(:fail)
