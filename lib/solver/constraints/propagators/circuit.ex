@@ -22,9 +22,6 @@ defmodule CPSolver.Propagator.Circuit do
 
   def filter(all_vars, state) do
     case update_domain_graph(all_vars, state) do
-      :fail ->
-        :fail
-
       :complete ->
         :passive
 
@@ -47,7 +44,11 @@ defmodule CPSolver.Propagator.Circuit do
         end)
       end)
 
-    %{domain_graph: domain_graph, unfixed_vertices: Graph.vertices(domain_graph)}
+    %{
+      domain_graph: domain_graph,
+      circuit: circuit(args),
+      unfixed_vertices: Graph.vertices(domain_graph)
+    }
   end
 
   defp initial_reduction(var, succ_value, circuit_length) do
@@ -66,10 +67,12 @@ defmodule CPSolver.Propagator.Circuit do
        ) do
     case reduce_graph(graph, vars, unfixed_vertices) do
       :fail ->
-        :fail
+        fail()
 
       {updated_graph, updated_unfixed_vertices} ->
-        (MapSet.size(updated_unfixed_vertices) == 0 && :complete) ||
+        (MapSet.size(updated_unfixed_vertices) == 0
+        #&& hamiltonian?(vars)
+        && :complete) ||
           %{domain_graph: updated_graph, unfixed_vertices: updated_unfixed_vertices}
     end
   end
@@ -82,7 +85,7 @@ defmodule CPSolver.Propagator.Circuit do
     reduce_graph(graph, vars, unfixed_vertices, MapSet.new())
   end
 
-  ##  
+  ##
   @spec reduce_graph(
           graph :: Graph.t(),
           vars :: [Variable.t()],
@@ -91,10 +94,10 @@ defmodule CPSolver.Propagator.Circuit do
         ) ::
           {Graph.t(), [integer]}
 
-  ## All unfixed vertices have been processed       
+  ## All unfixed vertices have been processed
   defp reduce_graph(%Graph{} = graph, _vars, [], remaining_unfixed_vertices) do
     (check_graph(graph, remaining_unfixed_vertices) &&
-       {graph, remaining_unfixed_vertices}) || :fail
+       {graph, remaining_unfixed_vertices}) || fail()
   end
 
   defp reduce_graph(
@@ -165,30 +168,51 @@ defmodule CPSolver.Propagator.Circuit do
     |> tap(fn g ->
       (Graph.in_neighbors(g, vertex2) == [] ||
          Graph.out_neighbors(g, vertex1) == []) &&
-        throw(:fail)
+        fail()
     end)
   end
 
-  def check_circuit(circuit, pos) do
-    ## Follow the chain starting from 'pos'
-    ## If the successor contains nil, stop
-    ## Otherwise, 
-    ## - stop if the successor value is a position we start with (loop detected)
-    ## - if the length of the loop is less than the length of circuit, fail
-    ## - otherwise, the circuit is completed
-    l = length(circuit)
-
-    Enum.reduce_while(1..l, {1, Enum.at(circuit, pos)}, fn _, {steps, succ_acc} ->
-      case Enum.at(circuit, succ_acc) do
-        nil ->
-          {:halt, {:incomplete, circuit}}
-
-        succ when succ == pos ->
-          (steps < l - 1 && {:halt, :fail}) || {:halt, :complete}
-
-        succ ->
-          {:cont, {steps + 1, succ}}
-      end
+  ## Builds (partial) circuits from fixed values of variables
+  defp circuit(vars) do
+    Enum.map(vars, fn var ->
+      (fixed?(var) && min(var)) || nil
     end)
+  end
+
+  # defp check_for_cycles(partial_circuit) do
+  #   ## {current_position, path_length, path_start}
+  #   initial_state = {0, 0, nil}
+  #   partial_circuit
+  #   |> Enum.reduce(partial_circuit, {0, 0, nil},
+  #     fn _succ, {current_position, path_length, path_start} ->
+  #       case Enum.at(current_position) do
+  #         nil ->
+  #       end
+  #     end)
+  # end
+
+  defp hamiltonian?(vars) do
+    {cycle_length, _current} =
+      Enum.reduce_while(vars, {1, 0}, fn _succ, {length_acc, succ_acc} = acc ->
+        var = Enum.at(vars, succ_acc)
+
+        if fixed?(var) do
+          next = min(var)
+
+          if next == 0 do
+            {:halt, acc}
+          else
+            {:cont, {length_acc + 1, next}}
+          end
+        else
+          {:halt, {0, :not_fixed}}
+        end
+      end)
+
+    cycle_length == length(vars)
+  end
+
+  defp fail() do
+    throw(:fail)
   end
 end
