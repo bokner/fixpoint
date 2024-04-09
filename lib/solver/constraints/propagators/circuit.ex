@@ -33,21 +33,32 @@ defmodule CPSolver.Propagator.Circuit do
   defp initial_state(args) do
     l = length(args)
 
-    domain_graph =
+    {circuit, unfixed_vertices, domain_graph} =
       args
       |> Enum.with_index()
-      |> Enum.reduce(Graph.new(), fn {var, idx}, graph_acc ->
-        initial_reduction(var, idx, l)
+      |> Enum.reduce(
+        {List.duplicate(nil, l), [], Graph.new()},
+        fn {var, idx}, {circuit_acc, unfixed_acc, graph_acc} ->
+          initial_reduction(var, idx, l)
+          fixed? = fixed?(var)
 
-        Enum.reduce(domain(var) |> Domain.to_list(), graph_acc, fn value, g ->
-          Graph.add_edge(g, idx, value)
-        end)
-      end)
+          circuit_acc =
+            (fixed? && update_circuit(circuit_acc, idx, min(var))) ||
+              circuit_acc
+
+          unfixed_acc = (fixed? && unfixed_acc) || [idx | unfixed_acc]
+
+          {circuit_acc, unfixed_acc,
+           Enum.reduce(domain(var) |> Domain.to_list(), graph_acc, fn value, g ->
+             Graph.add_edge(g, idx, value)
+           end)}
+        end
+      )
 
     %{
       domain_graph: domain_graph,
-      circuit: circuit(args),
-      unfixed_vertices: Graph.vertices(domain_graph)
+      circuit: Enum.reverse(circuit),
+      unfixed_vertices: unfixed_vertices
     }
   end
 
@@ -63,77 +74,59 @@ defmodule CPSolver.Propagator.Circuit do
   ## 'vars' are successor variables in the circuit
   defp update_domain_graph(
          vars,
-         %{domain_graph: %Graph{} = graph, unfixed_vertices: unfixed_vertices} = _current_state
+         %{domain_graph: graph, circuit: circuit, unfixed_vertices: unfixed_vertices} = _state
        ) do
-    case reduce_graph(graph, vars, unfixed_vertices) do
+    case reduce_graph(vars, graph, circuit, unfixed_vertices) do
       :fail ->
         fail()
 
-      {updated_graph, updated_unfixed_vertices} ->
-        # && hamiltonian?(vars)
-        (MapSet.size(updated_unfixed_vertices) == 0 &&
+      state ->
+        (Enum.empty?(state.unfixed_vertices) &&
            :complete) ||
-          %{domain_graph: updated_graph, unfixed_vertices: updated_unfixed_vertices}
+          state
     end
   end
 
-  defp reduce_graph(graph, vars, unfixed_vertices) when is_map(unfixed_vertices) do
-    reduce_graph(graph, vars, MapSet.to_list(unfixed_vertices))
+  defp reduce_graph(vars, graph, circuit, unfixed_vertices) do
+    reduce_graph(vars, graph, circuit, unfixed_vertices, [])
   end
 
-  defp reduce_graph(graph, vars, unfixed_vertices) when is_list(unfixed_vertices) do
-    reduce_graph(graph, vars, unfixed_vertices, MapSet.new())
-  end
+  defp reduce_graph(vars, graph, circuit, [vertex | rest], remaining_unfixed) do
+    var = Enum.at(vars, vertex)
 
-  ##
-  @spec reduce_graph(
-          graph :: Graph.t(),
-          vars :: [Variable.t()],
-          unfixed_vertices :: [integer()],
-          remaining_unfixed_vertices :: MapSet.t()
-        ) ::
-          {Graph.t(), [integer]}
+    if fixed?(var) do
+      succ = min(var)
+      {updated_graph, in_neighbours} = fix_vertex(graph, vertex, succ)
 
-  ## All unfixed vertices have been processed
-  defp reduce_graph(%Graph{} = graph, _vars, [], remaining_unfixed_vertices) do
-    (check_graph(graph, remaining_unfixed_vertices) &&
-       {graph, remaining_unfixed_vertices}) || fail()
-  end
+      ## As the successor is assigned to vertex, no other neighbours of successor can have it in their domains
+      Enum.each(in_neighbours, fn in_n_vertex -> remove(Enum.at(vars, in_n_vertex), succ) end)
 
-  defp reduce_graph(
-         %Graph{} = graph,
-         vars,
-         [idx | rest] = _unfixed_vertices,
-         ids_to_revisit
-       ) do
-    ## Check if the (unfixed) vertex has already been scheduled for the next stage
-    if MapSet.member?(ids_to_revisit, idx) do
-      reduce_graph(graph, vars, rest, ids_to_revisit)
+      reduce_graph(
+        vars,
+        updated_graph,
+        update_circuit(circuit, vertex, succ),
+        rest,
+        remaining_unfixed
+      )
     else
-      var = Enum.at(vars, idx)
-
-      if fixed?(var) do
-        successor_vertex = min(var)
-
-        {reduced_graph, reduced_unfixed_vertices} =
-          reduce_with_fixed(graph, vars, idx, successor_vertex, ids_to_revisit)
-
-        reduce_graph(
-          reduced_graph,
-          vars,
-          rest,
-          MapSet.difference(ids_to_revisit, reduced_unfixed_vertices)
-        )
-      else
-        reduce_graph(graph, vars, rest, MapSet.put(ids_to_revisit, idx))
-      end
+      reduce_graph(vars, graph, circuit, rest, [vertex | remaining_unfixed])
     end
   end
 
-  defp reduce_with_fixed(graph, vars, idx, successor, unfixed_vertices) do
+  defp reduce_graph(_vars, graph, circuit, [], unfixed_vertices_map) do
+    (check_graph(graph, circuit) &&
+       %{
+         domain_graph: graph,
+         circuit: circuit,
+         unfixed_vertices: unfixed_vertices_map
+       }) ||
+      fail()
+  end
+
+  defp fix_vertex(graph, vertex, value) do
     graph
-    |> remove_out_edges(idx, successor)
-    |> remove_in_edges(successor, idx, vars, unfixed_vertices)
+    |> remove_out_edges(vertex, value)
+    |> remove_in_edges(value, vertex)
   end
 
   ## Remove all out-edges for vertex_id except (vertex_id, successor_id) one
@@ -145,37 +138,51 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   ## Remove all in-edges for successor_id except (vertex_id, successor_id)
-  def remove_in_edges(%Graph{} = graph, successor_id, vertex_id, vars, unfixed_vertices) do
-    Enum.reduce(Graph.in_edges(graph, successor_id), {graph, unfixed_vertices}, fn
+  def remove_in_edges(%Graph{} = graph, successor_id, vertex_id) do
+    Enum.reduce(Graph.in_edges(graph, successor_id), {graph, []}, fn
       %{v1: neighbour_id} = _in_edge, acc when neighbour_id == vertex_id ->
         acc
 
-      %{v1: neighbour_id} = _in_edge, {g_acc, unfixed_acc} ->
-        var = Enum.at(vars, neighbour_id)
-
-        {delete_edge(g_acc, neighbour_id, successor_id),
-         (:fixed == remove(var, successor_id) && MapSet.delete(unfixed_acc, successor_id)) ||
-           unfixed_acc}
+      %{v1: neighbour_id} = _in_edge, {g_acc, in_neighbours_acc} ->
+        {delete_edge(g_acc, neighbour_id, successor_id), [neighbour_id | in_neighbours_acc]}
     end)
+  end
+
+  def check_circuit(_partial_circuit, nil) do
+    true
+  end
+
+  def check_circuit(partial_circuit, start_at) do
+    check_circuit(partial_circuit, start_at, Enum.at(partial_circuit, start_at), 1)
+  end
+
+  defp check_circuit(_partial_circuit, _started_at, nil, _step) do
+    true
+  end
+
+  defp check_circuit(partial_circuit, started_at, currently_at, step)
+       when started_at == currently_at do
+    step == length(partial_circuit)
+  end
+
+  defp check_circuit(partial_circuit, started_at, currently_at, step) do
+    check_circuit(partial_circuit, started_at, Enum.at(partial_circuit, currently_at), step + 1)
   end
 
   defp check_graph(%Graph{} = graph, _fixed_vertices) do
     length(Graph.strong_components(graph)) == 1
   end
 
+  defp update_circuit(circuit, idx, value) do
+    List.replace_at(circuit, idx, value)
+    |> tap(fn partial_circuit -> check_circuit(partial_circuit, idx) || fail() end)
+  end
+
   defp delete_edge(%Graph{} = graph, vertex1, vertex2) do
     Graph.delete_edge(graph, vertex1, vertex2)
     |> tap(fn g ->
-      (Graph.in_neighbors(g, vertex2) == [] ||
-         Graph.out_neighbors(g, vertex1) == []) &&
+      Graph.out_neighbors(g, vertex1) == [] &&
         fail()
-    end)
-  end
-
-  ## Builds (partial) circuits from fixed values of variables
-  defp circuit(vars) do
-    Enum.map(vars, fn var ->
-      (fixed?(var) && min(var)) || nil
     end)
   end
 
