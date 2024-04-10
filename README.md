@@ -51,7 +51,7 @@ Let's solve the following *constraint satisfaction problem*:
 
  x = {1,2}, y = {0, 1}
 
-***, find all solutions such that*** x != y
+***, find all solutions such that*** $x$ $\neq$ $y$
 
 First step is to create a model that describes the problem we want to solve.
 The model consists of *variables* and *constraints* over the variables.
@@ -129,7 +129,7 @@ iex(49)> {:ok, results} = CPSolver.solve_sync(model)
 # 
 # Asynchronous solving.
 # Takes CPSolver.Model instance and solver options as a Keyword. 
-# Creates a solver process which runs asynchronously
+# Creates a solver process that runs asynchronously
 # and could be controlled and queried for produced solutions and/or status as it runs.
 # The solver process is alive even after the solving is completed.
 # It's the responsibility of a caller to dispose of it when no longer needed.
@@ -178,13 +178,13 @@ Available options:
 
 - solution_handler: function()
 
-  A callback that is performed every time the solver finds a new solution. The single argument is a list of tuples
+  A callback that gets called performed every time the solver finds a new solution. The single argument is a list of tuples
 
   `{variable_name, variable_value}`
 
 - timeout: integer()
   
-  Time to wait (in milliseconds) to wait for completing `CPSolver.solve_sync/2` call. Defaults to 30_000.
+  Time to wait (in milliseconds) for terminating `CPSolver.solve_sync/2` call. Defaults to 30_000.
 - stop_on: term() | condition_fun()
   
   Condition for stopping the solving. Currently, only `{:max_solutions, max_solutions}` condition is available.
