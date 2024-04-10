@@ -16,17 +16,19 @@ defmodule CPSolver.Model do
         }
 
   def new(variables, constraints, opts \\ []) do
+    {all_variables, objective} = init_model(variables, constraints, opts[:objective])
+
     %__MODULE__{
-      variables: model_variables(variables, constraints),
+      variables: all_variables,
       constraints: constraints,
-      objective: opts[:objective],
+      objective: objective,
       id: Keyword.get(opts, :id, make_ref()),
       name: opts[:name],
       extra: opts[:extra]
     }
   end
 
-  def model_variables(variables, constraints) do
+  def init_model(variables, constraints, objective) do
     variable_map = Map.new(variables, fn v -> {Interface.id(v), Interface.variable(v)} end)
 
     ## Additional variables may come from constraint definitions
@@ -39,7 +41,17 @@ defmodule CPSolver.Model do
 
     (variables ++ additional_variables)
     |> Enum.with_index(1)
-    |> Enum.map(fn {var, idx} -> Interface.update(var, :index, idx) end)
+    |> Enum.map_reduce(objective, fn {var, idx}, obj_acc ->
+      {
+        Interface.update(var, :index, idx),
+        if obj_acc && Interface.id(var) == Interface.id(obj_acc.variable) do
+          obj_var = Interface.update(obj_acc.variable, :index, idx)
+          Map.put(objective, :variable, obj_var)
+        else
+          obj_acc
+        end
+      }
+    end)
   end
 
   defp extract_variables_from_constraints(constraints) do

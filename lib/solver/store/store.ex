@@ -16,7 +16,7 @@ defmodule CPSolver.ConstraintStore do
   @store_key :space_store_key
 
   def default_store() do
-    CPSolver.Store.ETS
+    CPSolver.Store.Direct
   end
 
   ### Callbacks
