@@ -64,13 +64,22 @@ defmodule CPSolver.Constraint.Factory do
   end
 
   def sum(vars, opts \\ []) do
-    {domain_min, domain_max} =
-      Enum.reduce(vars, {0, 0}, fn var, {min_acc, max_acc} ->
-        domain = Interface.domain(var) |> Domain.to_list()
-        {min_acc + Enum.min(domain), max_acc + Enum.max(domain)}
-      end)
+    domain =
+      case opts[:domain] do
+        nil ->
+          {domain_min, domain_max} =
+            Enum.reduce(vars, {0, 0}, fn var, {min_acc, max_acc} ->
+              domain = Interface.domain(var) |> Domain.to_list()
+              {min_acc + Enum.min(domain), max_acc + Enum.max(domain)}
+            end)
 
-    sum_var = Variable.new(domain_min..domain_max, name: Keyword.get(opts, :name, make_ref()))
+          domain_min..domain_max
+
+        d ->
+          d
+      end
+
+    sum_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
     {sum_var, Sum.new(sum_var, vars)}
   end
 end

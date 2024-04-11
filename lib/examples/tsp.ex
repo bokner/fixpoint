@@ -1,7 +1,7 @@
 defmodule CPSolver.Examples.TSP do
   @doc """
   The Traveling Salesman problem.
-  Given: 
+  Given:
   - a set of n locations;
   - for each pair of locations, a distance between them.
 
@@ -12,7 +12,7 @@ defmodule CPSolver.Examples.TSP do
   """
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
-  alias CPSolver.Constraint.{Circuit, Less}
+  alias CPSolver.Constraint.Circuit
   alias CPSolver.Objective
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
@@ -47,7 +47,7 @@ defmodule CPSolver.Examples.TSP do
   def model(distances) do
     n = length(distances)
 
-    ## successor[i] = j <=> location j follows location i  
+    ## successor[i] = j <=> location j follows location i
     successors =
       Enum.map(0..(n - 1), fn i ->
         Variable.new(0..(n - 1), name: "succ_#{i}")
@@ -66,10 +66,9 @@ defmodule CPSolver.Examples.TSP do
     {total_distance, sum_constraint} = sum(dist_succ, name: "total_distance")
 
     Model.new(
-      successors ++ [total_distance],
+      successors,
       [
         Circuit.new(successors),
-        Less.new(Enum.at(successors, 0), Enum.at(successors, 1)),
         sum_constraint
       ] ++ element_constraints,
       objective: Objective.minimize(total_distance),
@@ -128,7 +127,7 @@ defmodule CPSolver.Examples.TSP do
   end
 
   ## Choose the variable with the maximum difference between closest and second closest distance to its successors
-  ## 
+  ##
   defp difference_between_closest_distances(circuit_vars, distances) do
     Enum.max_by(circuit_vars, fn %{index: idx} = var ->
       dom = Interface.domain(var) |> Domain.to_list()
@@ -145,7 +144,7 @@ defmodule CPSolver.Examples.TSP do
 
   # end
 
-  ## solution -> sequence of visits 
+  ## solution -> sequence of visits
   def to_route(solution, %{extra: %{n: n}} = _model) do
     circuit = Enum.take(solution, n)
 

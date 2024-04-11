@@ -4,9 +4,9 @@ defmodule CPSolver.Examples.XKCD.NP do
   """
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
-  alias CPSolver.Constraint.Sum
 
   import CPSolver.Variable.View.Factory
+  import CPSolver.Constraint.Factory
 
   def model() do
     appetizers = [
@@ -25,11 +25,9 @@ defmodule CPSolver.Examples.XKCD.NP do
         mul(Variable.new(0..div(total, price), name: name), price)
       end)
 
-    total_var = Variable.new([total], name: :total)
+    {_total_price_var, sum_constraint} = sum(quantities, domain: total, name: :total)
 
-    Model.new(quantities, [Sum.new(total_var, quantities)],
-      extra: %{appetizers: appetizers, total: total}
-    )
+    Model.new(quantities, [sum_constraint], extra: %{appetizers: appetizers, total: total})
   end
 
   def check_solution(solution, %{extra: %{appetizers: appetizers, total: total}} = _model) do

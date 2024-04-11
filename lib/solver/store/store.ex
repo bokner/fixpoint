@@ -152,13 +152,6 @@ defmodule CPSolver.ConstraintStore do
         args
       ) do
     store_impl.update(handle, variable, operation, args)
-    |> then(fn
-      {:fixed, _value} ->
-        :fixed
-
-      result ->
-        result
-    end)
   end
 
   def dispose(nil, variables) do
@@ -168,14 +161,6 @@ defmodule CPSolver.ConstraintStore do
 
   def dispose(%{handle: handle, store_impl: store_impl} = _store, variables) do
     store_impl.dispose(handle, variables)
-  end
-
-  def variable_id(%Variable{id: id}) do
-    id
-  end
-
-  def variable_id(id) do
-    id
   end
 
   def fixed?(%{store: nil} = variable) do
