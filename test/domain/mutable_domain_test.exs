@@ -159,4 +159,34 @@ defmodule CPSolverTest.MutableDomain do
       refute Domain.failed?(domain)
     end
   end
+
+  describe "Single-value domain" do
+    alias CPSolver.DefaultDomain, as: Domain
+
+    test "single-value domain" do
+      assert Domain.fixed?(1)
+      assert Domain.size(5) == 1
+      assert Domain.contains?(1, 1)
+      refute Domain.contains?(1, 2)
+
+      assert Domain.min(1) == 1
+      assert Domain.max(1) == 1
+
+      assert Domain.to_list(1) == [1]
+      assert Domain.map(3, fn x -> 2 * x end) == [6]
+      assert Domain.copy(1) == 1
+
+      assert Domain.remove(2, 1) == :no_change
+      assert catch_throw(Domain.remove(2, 2)) == :fail
+
+      assert Domain.removeAbove(2, 2) == :no_change
+      assert catch_throw(Domain.removeAbove(3, 2)) == :fail
+
+      assert Domain.removeBelow(2, 2) == :no_change
+      assert catch_throw(Domain.removeBelow(2, 3)) == :fail
+
+      assert Domain.fix(1, 1) == :no_change
+      assert catch_throw(Domain.fix(1, 2)) == :fail
+    end
+  end
 end

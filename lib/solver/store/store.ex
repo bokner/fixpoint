@@ -88,7 +88,7 @@ defmodule CPSolver.ConstraintStore do
   def create_store(variables, opts) do
     variables =
       Enum.map(variables, fn %{domain: d} = var ->
-        Map.put(var, :domain, Domain.copy(d))
+        Map.put(var, :domain, (Domain.fixed?(d) && Domain.min(d)) || Domain.copy(d))
       end)
 
     opts = Keyword.merge(default_store_opts(), opts)

@@ -3,20 +3,36 @@ defmodule CPSolver.DefaultDomain do
 
   defdelegate new(values), to: Domain
 
+  def map(fixed, mapper) when is_integer(fixed) do
+    [mapper.(fixed)]
+  end
+
   def map(domain, mapper) do
-    (Domain.failed?(domain) && fail()) || Domain.map(domain, mapper)
+    Domain.map(domain, mapper)
+  end
+
+  def remove(fixed, val) when is_integer(fixed) do
+    (fixed == val && fail()) || :no_change
   end
 
   def remove(domain, val) do
-    (Domain.failed?(domain) && fail()) || Domain.remove(domain, val)
+    Domain.remove(domain, val)
+  end
+
+  def removeAbove(fixed, val) when is_integer(fixed) do
+    (val < fixed && fail()) || :no_change
   end
 
   def removeAbove(domain, val) do
-    (Domain.failed?(domain) && fail()) || Domain.removeAbove(domain, val)
+    Domain.removeAbove(domain, val)
+  end
+
+  def removeBelow(fixed, val) when is_integer(fixed) do
+    (val > fixed && fail()) || :no_change
   end
 
   def removeBelow(domain, val) do
-    (Domain.failed?(domain) && fail()) || Domain.removeBelow(domain, val)
+    Domain.removeBelow(domain, val)
   end
 
   def to_list(arg) when is_integer(arg) do
@@ -28,7 +44,11 @@ defmodule CPSolver.DefaultDomain do
   end
 
   def to_list(domain) do
-    (Domain.failed?(domain) && fail()) || Domain.to_list(domain)
+    Domain.to_list(domain)
+  end
+
+  def copy(fixed) when is_integer(fixed) do
+    fixed
   end
 
   def copy(domain) do
@@ -37,28 +57,52 @@ defmodule CPSolver.DefaultDomain do
     |> Domain.new()
   end
 
+  def size(fixed) when is_integer(fixed) do
+    1
+  end
+
   def size(domain) do
-    (Domain.failed?(domain) && fail()) || Domain.size(domain)
+    Domain.size(domain)
+  end
+
+  def fixed?(fixed) when is_integer(fixed) do
+    true
   end
 
   def fixed?(domain) do
-    (Domain.failed?(domain) && fail()) || Domain.fixed?(domain)
+    Domain.fixed?(domain)
+  end
+
+  def contains?(fixed, value) when is_integer(fixed) do
+    fixed == value
   end
 
   def contains?(domain, value) do
-    (Domain.failed?(domain) && fail()) || Domain.contains?(domain, value)
+    Domain.contains?(domain, value)
+  end
+
+  def min(fixed) when is_integer(fixed) do
+    fixed
   end
 
   def min(domain) do
-    (Domain.failed?(domain) && fail()) || Domain.min(domain)
+    Domain.min(domain)
+  end
+
+  def max(fixed) when is_integer(fixed) do
+    fixed
   end
 
   def max(domain) do
-    (Domain.failed?(domain) && fail()) || Domain.max(domain)
+    Domain.max(domain)
+  end
+
+  def fix(fixed, value) when is_integer(fixed) do
+    (fixed == value && :no_change) || fail()
   end
 
   def fix(domain, value) do
-    (Domain.failed?(domain) && fail()) || Domain.fix(domain, value)
+    Domain.fix(domain, value)
   end
 
   defp fail() do
