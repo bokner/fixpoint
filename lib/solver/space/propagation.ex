@@ -47,7 +47,7 @@ defmodule CPSolver.Space.Propagation do
         {p_id, Propagator.filter(p, store: store)}
       end,
       ## TODO: make it an option
-      ## 
+      ##
       max_concurrency: 1
     )
     |> Enum.reduce_while({MapSet.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = _acc ->
