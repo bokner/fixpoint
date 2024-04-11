@@ -44,10 +44,6 @@ defmodule CPSolver.Variable.View do
       ## Used by min and max to decide if the operation has to be flipped
       :flip? ->
         a < 0
-
-      ## Guard from exceptions when performing chained operations
-      :fail ->
-        :fail
     end
 
     %View{variable: variable, mapper: mapper_fun}

@@ -1,7 +1,6 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Search.DomainPartition
   alias CPSolver.Variable.Interface
-  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Search.VariableSelector.FirstFail
 
   def default_strategy() do
@@ -81,7 +80,7 @@ defmodule CPSolver.Search.Strategy do
   end
 
   defp set_domain(variable, domain) do
-    Map.put(variable, :domain, Domain.new(domain))
+    Map.put(variable, :domain, domain)
   end
 
   defp variable_partitions(selected_variable, domain_partitions, variables) do

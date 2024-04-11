@@ -1,18 +1,18 @@
 defmodule CPSolver.Examples.QAP do
   @doc """
   The Quadratic Assignment problem.
-  Given: 
+  Given:
   - a set of n facilities;
   - a set of n locations;
   - for each pair of locations, a distance between them;
-  - for each pair of facilities, a weight of the edge (e.g., the amount of supplies transported) between them. 
+  - for each pair of facilities, a weight of the edge (e.g., the amount of supplies transported) between them.
 
-  Assign all facilities to different locations, such that 
-  the sum of products d(i,j ) * w(i, j) 
-    
+  Assign all facilities to different locations, such that
+  the sum of products d(i,j ) * w(i, j)
+
     , where d(i,j) is a distance between locations i and j
-      and w(i, j) is a weight of edge (i, j) 
-      
+      and w(i, j) is a weight of edge (i, j)
+
     is minimized.
 
   <a href="https://en.wikipedia.org/wiki/Quadratic_assignment_problem">Wikipedia</a>.
@@ -28,6 +28,23 @@ defmodule CPSolver.Examples.QAP do
   import CPSolver.Variable.View.Factory
 
   require Logger
+
+  def run(instance, opts \\ []) do
+    model = model(instance)
+
+    opts =
+      Keyword.merge(
+        [
+          search: search(model),
+          solution_handler: solution_handler(model),
+          max_search_threads: 12,
+          timeout: :timer.minutes(5)
+        ],
+        opts
+      )
+
+    {:ok, _res} = CPSolver.solve_sync(model, opts)
+  end
 
   ## Read and compile data from instance file
   def model(data) when is_binary(data) do

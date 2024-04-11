@@ -100,8 +100,8 @@ Meaning we declare the decision variables and the constraints over them.
 defmodule XKCD.NP.Appetizers do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
-  alias CPSolver.Constraint.Sum
   import CPSolver.Variable.View.Factory
+  import CPSolver.Constraint.Factory
 
   def model() do
     appetizers = [
@@ -121,13 +121,13 @@ defmodule XKCD.NP.Appetizers do
         mul(Variable.new(0..div(total, price), name: name), price)
       end)
 
-    total_price = Variable.new([total], name: :total)
-
     ### ...such that the total price will be exactly as the customers ask
     ###
+    {_sum_var, sum_constraint} = sum(quantities, domain: total, name: "total_price")
+
     Model.new(
       quantities,
-      [Sum.new(total_price, quantities)]
+      [sum_constraint]
     )
   end
 
@@ -173,8 +173,8 @@ import ServingTablesHelpers
 
 tables = ["Table1", "Table2", "Table3", "Table4", "Table5", "Table6", "Table7"]
 
-table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {6, 4}, {12, 6}]
-
+table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {8, 6}, {11, 2}]
+# [{2, 2}, {2, 10}, {4, 6}, {6, 12}, {8, 4}, {8, 8}, {12, 4}, {12, 8}]
 distances = distances_from_coordinates(table_coordinates)
 
 model = TSP.model(distances)
@@ -188,9 +188,6 @@ visualize_route(optimal_route, distances, tables, table_coordinates)
 ```
 
 ```elixir
-result.solutions
-```
-
-```elixir
-optimal_route
+{result.objective, result.statistics.elapsed_time, result.solutions, optimal_solution}
+# TSP.check_solution(optimal_solution, model)
 ```

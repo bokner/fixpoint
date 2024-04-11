@@ -19,9 +19,8 @@ defmodule CPSolverTest.Search.FirstFail do
 
       {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
 
-      {localized_vars, _} = CPSolver.Utils.localize_variables(bound_vars)
       # first_fail chooses unfixed variable
-      selected_variable = SearchStrategy.select_variable(localized_vars, :first_fail)
+      selected_variable = SearchStrategy.select_variable(bound_vars, :first_fail)
       v2_var = Enum.at(bound_vars, 2)
       assert selected_variable.id == v2_var.id
 
