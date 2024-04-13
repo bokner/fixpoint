@@ -163,7 +163,7 @@ IO.puts("Solver status: #{res.status}")
 
 We want to minimize the total distance the waiter walks to serve the tables.
 
-We will use model that solves Travelling Salesman Problem:
+We will use a model that solves Travelling Salesman Problem:
 
 https://github.com/bokner/fixpoint/blob/main/lib/examples/tsp.ex
 

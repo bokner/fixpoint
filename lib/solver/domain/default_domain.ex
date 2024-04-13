@@ -54,7 +54,10 @@ defmodule CPSolver.DefaultDomain do
   def copy(domain) do
     domain
     |> Domain.to_list()
-    |> Domain.new()
+    |> then(fn
+      [val] -> val
+      multiple_values -> Domain.new(multiple_values)
+    end)
   end
 
   def size(fixed) when is_integer(fixed) do

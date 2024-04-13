@@ -99,7 +99,9 @@ defmodule RenderHTML do
 
   defp nqueens_board(solution) do
     by_rows =
-      Enum.with_index(solution)
+      solution
+      |> CPSolver.Examples.Queens.inside_out_to_normal()
+      |> Enum.with_index()
       |> Enum.sort_by(fn {_q, idx} -> idx end)
       |> Enum.map(fn {q, _idx} -> q end)
 
@@ -162,7 +164,9 @@ n = 8
 
 {:ok, res} =
   CPSolver.solve_sync(Queens.model(n),
-    stop_on: {:max_solutions, 1}
+    search: {:first_fail, :indomain_random},
+    stop_on: {:max_solutions, 1},
+    timeout: 60_000
   )
 
 IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
@@ -420,7 +424,7 @@ optimal_solution = List.last(res.solutions)
   end)
 
 formatted_knapsack =
-  Enum.chunk_every(items_to_pack, 3)
+  Enum.chunk_every(items_to_pack, 4)
   |> Enum.map_join("\n", fn row -> Enum.map(row, fn item -> " \u2705 #{item}" end) end)
 
 IO.puts("Items to pack: \n\n#{IO.ANSI.blue()}#{formatted_knapsack}#{IO.ANSI.reset()}\n")

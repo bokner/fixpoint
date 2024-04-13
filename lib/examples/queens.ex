@@ -88,7 +88,7 @@ defmodule CPSolver.Examples.Queens do
   def check_solution(queens) do
     n = length(queens)
 
-    queens = Enum.map(Enum.zip(inside_out_order(n), queens) |> Enum.sort(), fn {_, p} -> p end)
+    queens = inside_out_to_normal(queens)
 
     Enum.all?(0..(n - 2), fn i ->
       Enum.all?((i + 1)..(n - 1), fn j ->
@@ -127,5 +127,9 @@ defmodule CPSolver.Examples.Queens do
       tl(order)
     end
     |> Enum.reverse()
+  end
+
+  def inside_out_to_normal(queens) do
+    Enum.map(Enum.zip(inside_out_order(length(queens)), queens) |> Enum.sort(), fn {_, p} -> p end)
   end
 end
