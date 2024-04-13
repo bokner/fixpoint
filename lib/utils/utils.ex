@@ -1,5 +1,4 @@
 defmodule CPSolver.Utils do
-
   def on_primary_node?(arg) when is_reference(arg) or is_pid(arg) or is_port(arg) do
     Node.self() == node(arg)
   end
