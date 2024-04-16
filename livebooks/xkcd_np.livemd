@@ -100,8 +100,8 @@ Meaning we declare the decision variables and the constraints over them.
 defmodule XKCD.NP.Appetizers do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
-  alias CPSolver.Constraint.Sum
   import CPSolver.Variable.View.Factory
+  alias CPSolver.Constraint.Sum
 
   def model() do
     appetizers = [
@@ -118,16 +118,20 @@ defmodule XKCD.NP.Appetizers do
     ## We want to find the quantities for each appetizer...
     quantities =
       Enum.map(appetizers, fn {name, price} ->
-        mul(Variable.new(0..div(total, price), name: name), price)
+        Variable.new(0..div(total, price), name: name)
       end)
-
-    total_price = Variable.new([total], name: :total)
 
     ### ...such that the total price will be exactly as the customers ask
     ###
+    priced_quantities =
+      Enum.zip(quantities, appetizers)
+      |> Enum.map(fn {q_var, {_name, price}} -> mul(q_var, price) end)
+
+    total_price = Variable.new(total, name: "total_price")
+
     Model.new(
       quantities,
-      [Sum.new(total_price, quantities)]
+      [Sum.new(total_price, priced_quantities)]
     )
   end
 

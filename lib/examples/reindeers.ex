@@ -101,7 +101,7 @@ defmodule CPSolver.Examples.Reindeers do
     solution
     |> order
     |> Enum.map_join(" ", fn name -> inspect(name) end)
-    |> then(fn str -> IO.ANSI.green() <> " -> #{str} ->" <> IO.ANSI.reset() end)
+    |> then(fn str -> IO.ANSI.magenta() <> " -> #{str} ->" <> IO.ANSI.reset() end)
     |> IO.puts()
   end
 end

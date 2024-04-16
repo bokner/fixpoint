@@ -264,6 +264,36 @@ The rules above are encoded as constraints [here](https://github.com/bokner/fixp
 <!-- livebook:{"force_markdown":true} -->
 
 ```elixir
+  domain = 1..length(reindeers)
+
+    positions =
+      [blitzen, comet, cupid, dancer, dasher, donder, prancer, rudolph, vixen] =
+      Enum.map(reindeers, fn name -> Variable.new(domain, name: name) end)
+
+    rules =
+      behind(comet, [rudolph, prancer, cupid]) ++
+        behind(blitzen, [cupid]) ++
+        in_front_of(blitzen, [donder, vixen, dancer]) ++
+        in_front_of(cupid, [comet, blitzen, vixen]) ++
+        behind(donder, [vixen, dasher, prancer]) ++
+        behind(rudolph, [prancer]) ++
+        in_front_of(rudolph, [donder, dancer, dasher]) ++
+        in_front_of(vixen, [dancer, comet]) ++
+        behind(dancer, [donder, rudolph, blitzen]) ++
+        in_front_of(prancer, [cupid, donder, blitzen]) ++
+        behind(dasher, [prancer]) ++
+        in_front_of(dasher, [vixen, dancer, blitzen]) ++
+        behind(donder, [comet, cupid]) ++
+        in_front_of(cupid, [rudolph, dancer]) ++
+        behind(vixen, [rudolph, prancer, dasher])
+
+    Model.new(
+      positions,
+      ## AllDifferent constraint is optional
+      [AllDifferent.new(positions) | rules]
+    )
+  end
+
   defp behind(reindeer, list) do
     Enum.map(list, fn r -> Less.new(reindeer, r) end)
   end
@@ -271,7 +301,6 @@ The rules above are encoded as constraints [here](https://github.com/bokner/fixp
   defp in_front_of(reindeer, list) do
     Enum.map(list, fn r -> Less.new(r, reindeer) end)
   end
-
 ```
 
 So the encoding of the rules does not require any programming except wiring rules to the constraint implementations.
@@ -282,7 +311,7 @@ So the encoding of the rules does not require any programming except wiring rule
 
 ```elixir
 alias CPSolver.Examples.Reindeers
-{:ok, res} = Reindeers.solve()
+{:ok, res} = CPSolver.solve_sync(Reindeers.model())
 IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
 ```
 
