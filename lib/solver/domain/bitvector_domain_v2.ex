@@ -38,7 +38,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
       max_addr: %{block: current_max_block}
     } = get_bound_addrs(bit_vector)
 
-    new_atomics_size = :atomics.info(ref).size
+    new_atomics_size = current_max_block + 1
     new_atomics_ref = :atomics.new(new_atomics_size, [{:signed, false}])
 
     Enum.each(
