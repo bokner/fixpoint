@@ -249,7 +249,7 @@ defmodule CPSolver do
 
   defp condition_fun({:max_solutions, max_solutions}) do
     fn _handler_result, _solution, solver_state ->
-      solution_count = Shared.statistics(solver_state.shared).solution_count
+      solution_count = Shared.statistics(solver_state.shared) |> Map.get(:solution_count, 0)
       max_solutions <= solution_count
     end
   end
