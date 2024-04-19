@@ -5,7 +5,7 @@ defmodule CPSolverTest.Utils.MaximumMatching do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Utils.MaximumMatching
 
-    test "network graph" do
+    test "maxflow graph" do
       v1_values = 1..10
       v2_values = 1..10
       v3_values = 1..10
