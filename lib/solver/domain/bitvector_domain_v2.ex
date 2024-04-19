@@ -106,7 +106,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
       else
         n1 = (idx == current_min_block && n >>> min_offset ) || n
         n2 = (idx == current_max_block && ((1 <<< (max_offset + 1)) - 1 &&& n1)) || n1
-        acc + (for(<<bit::1 <- :binary.encode_unsigned(n2)>>, do: bit) |> Enum.sum())
+        acc + bit_count(n2)
       end
     end)
   end
@@ -470,6 +470,12 @@ defmodule CPSolver.BitVectorDomain.V2 do
       msb - 1
     else
       msb
+    end
+  end
+
+  defp bit_count(n) do
+    for <<bit::1 <- :binary.encode_unsigned(n)>>, reduce: 0 do
+      acc -> acc + bit
     end
   end
 end
