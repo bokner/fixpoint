@@ -18,6 +18,7 @@ defmodule CPSolver.Examples.Queens do
     range = 1..n
     ## Queen positions
     q = Enum.map(range, fn i -> IntVariable.new(range, name: "row #{i}") end)
+
     indexed_q = Enum.with_index(q, 1)
 
     diagonal_down = Enum.map(indexed_q, fn {var, idx} -> linear(var, 1, -idx) end)
@@ -35,7 +36,10 @@ defmodule CPSolver.Examples.Queens do
     # constraint alldifferent(i in 1..n)(q[i] - i);
     ## left diagonal
 
-    Model.new(q, constraints ++ symmetry_breaking_constraints(q, symmetry_breaking_mode))
+    Model.new(
+      Enum.map(inside_out_order(n), fn pos -> Enum.at(q, pos - 1) end),
+      constraints ++ symmetry_breaking_constraints(q, symmetry_breaking_mode)
+    )
   end
 
   def solve_and_print(nqueens, opts \\ [timeout: 1000]) do
@@ -84,6 +88,8 @@ defmodule CPSolver.Examples.Queens do
   def check_solution(queens) do
     n = length(queens)
 
+    queens = inside_out_to_normal(queens)
+
     Enum.all?(0..(n - 2), fn i ->
       Enum.all?((i + 1)..(n - 1), fn j ->
         # queens q[i] and q[i] not on ...
@@ -107,5 +113,23 @@ defmodule CPSolver.Examples.Queens do
 
   defp symmetry_breaking_constraints(_vars, _not_implemented) do
     []
+  end
+
+  def inside_out_order(n) do
+    {_sign, order} =
+      Enum.reduce(1..n, {1, [div(n, 2)]}, fn n, {direction_acc, acc} ->
+        {-direction_acc, [hd(acc) + direction_acc * n | acc]}
+      end)
+
+    if rem(n, 2) == 1 do
+      [n | tl(tl(order))]
+    else
+      tl(order)
+    end
+    |> Enum.reverse()
+  end
+
+  def inside_out_to_normal(queens) do
+    Enum.map(Enum.zip(inside_out_order(length(queens)), queens) |> Enum.sort(), fn {_, p} -> p end)
   end
 end

@@ -52,9 +52,7 @@ defmodule CPSolver.DefaultDomain do
   end
 
   def copy(domain) do
-    domain
-    |> Domain.to_list()
-    |> Domain.new()
+    Domain.copy(domain)
   end
 
   def size(fixed) when is_integer(fixed) do

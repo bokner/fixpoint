@@ -32,6 +32,28 @@ defmodule CPSolver.BitVectorDomain.V2 do
     {bv, offset}
   end
 
+  def copy({{:bit_vector, _size, ref} = bit_vector, offset} = domain) do
+    %{
+      min_addr: %{block: current_min_block},
+      max_addr: %{block: current_max_block}
+    } = get_bound_addrs(bit_vector)
+
+    new_atomics_size = current_max_block + 1
+    new_atomics_ref = :atomics.new(new_atomics_size, [{:signed, false}])
+
+    Enum.each(
+      current_min_block..current_max_block,
+      fn block_idx ->
+        block_val = :atomics.get(ref, block_idx)
+        :atomics.put(new_atomics_ref, block_idx, block_val)
+      end
+    )
+
+    new_bit_vector = {:bit_vector, size(domain), new_atomics_ref}
+    set_min_max(new_bit_vector, get_min_max_impl(bit_vector) |> elem(1))
+    {new_bit_vector, offset}
+  end
+
   def map(domain, mapper_fun) when is_function(mapper_fun) do
     to_list(domain, mapper_fun)
   end
@@ -82,9 +104,9 @@ defmodule CPSolver.BitVectorDomain.V2 do
       if n == 0 do
         acc
       else
-        n1 = (idx == current_min_block && n >>> min_offset <<< min_offset) || n
+        n1 = (idx == current_min_block && n >>> min_offset) || n
         n2 = (idx == current_max_block && ((1 <<< (max_offset + 1)) - 1 &&& n1)) || n1
-        acc + (for(<<bit::1 <- :binary.encode_unsigned(n2)>>, do: bit) |> Enum.sum())
+        acc + bit_count(n2)
       end
     end)
   end
@@ -362,7 +384,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
     {current_min_block_idx, _} = vector_address(min_value)
     {leftmost_block_idx, position_in_block} = vector_address(starting_at - 1)
     ## Find a new max (on the left of the current one)
-    ## 
+    ##
 
     max_value =
       Enum.reduce_while(
@@ -448,6 +470,12 @@ defmodule CPSolver.BitVectorDomain.V2 do
       msb - 1
     else
       msb
+    end
+  end
+
+  defp bit_count(n) do
+    for <<bit::1 <- :binary.encode_unsigned(n)>>, reduce: 0 do
+      acc -> acc + bit
     end
   end
 end

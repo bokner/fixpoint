@@ -101,7 +101,7 @@ defmodule XKCD.NP.Appetizers do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   import CPSolver.Variable.View.Factory
-  import CPSolver.Constraint.Factory
+  alias CPSolver.Constraint.Sum
 
   def model() do
     appetizers = [
@@ -118,16 +118,20 @@ defmodule XKCD.NP.Appetizers do
     ## We want to find the quantities for each appetizer...
     quantities =
       Enum.map(appetizers, fn {name, price} ->
-        mul(Variable.new(0..div(total, price), name: name), price)
+        Variable.new(0..div(total, price), name: name)
       end)
 
     ### ...such that the total price will be exactly as the customers ask
     ###
-    {_sum_var, sum_constraint} = sum(quantities, domain: total, name: "total_price")
+    priced_quantities =
+      Enum.zip(quantities, appetizers)
+      |> Enum.map(fn {q_var, {_name, price}} -> mul(q_var, price) end)
+
+    total_price = Variable.new(total, name: "total_price")
 
     Model.new(
       quantities,
-      [sum_constraint]
+      [Sum.new(total_price, priced_quantities)]
     )
   end
 
@@ -163,7 +167,7 @@ IO.puts("Solver status: #{res.status}")
 
 We want to minimize the total distance the waiter walks to serve the tables.
 
-We will use model that solves Travelling Salesman Problem:
+We will use a model that solves Travelling Salesman Problem:
 
 https://github.com/bokner/fixpoint/blob/main/lib/examples/tsp.ex
 
