@@ -115,12 +115,13 @@ defmodule CPSolver.Examples.QAP do
       |> Enum.at(model.extra.n)
       |> tap(fn total_cost_tuple ->
         ans_str = inspect(total_cost_tuple)
-        check_solution(
+
+        (check_solution(
            Enum.map(solution, fn {_, val} -> val end),
            model.extra.distances,
            model.extra.weights
          ) &&
-           Logger.warning(ans_str) || Logger.error( ans_str <> ": wrong -((")
+           Logger.warning(ans_str)) || Logger.error(ans_str <> ": wrong -((")
       end)
     end
   end

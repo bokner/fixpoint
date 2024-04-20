@@ -104,7 +104,7 @@ defmodule CPSolver.BitVectorDomain.V2 do
       if n == 0 do
         acc
       else
-        n1 = (idx == current_min_block && n >>> min_offset ) || n
+        n1 = (idx == current_min_block && n >>> min_offset) || n
         n2 = (idx == current_max_block && ((1 <<< (max_offset + 1)) - 1 &&& n1)) || n1
         acc + bit_count(n2)
       end
