@@ -29,9 +29,9 @@ defmodule CPSolverTest.Utils.MaximumMatching do
                  length(Graph.out_edges(network, {:variable, idx})) == 10 &&
                    length(Graph.in_edges(network, {:variable, idx})) == 1 &&
                    Enum.all?(domain, fn d ->
-                    length(Graph.in_edges(network, {:value, d})) == 3 &&
-                    length(Graph.out_edges(network, {:value, d})) == 1
-                  end)
+                     length(Graph.in_edges(network, {:value, d})) == 3 &&
+                       length(Graph.out_edges(network, {:value, d})) == 1
+                   end)
                end
              )
     end
