@@ -5,21 +5,29 @@ defmodule CPSolver.Algorithms.Kuhn do
   """
 
   @doc """
-  Given the bipartite graph, a list of it's left-part vertices,
+  Given the bipartite graph, a list of vertices int the left partition,
   and (optional) initial matching %{right_side_vertex => left_side_vertex},
   find maximum matching
   """
   @spec run(Graph.t(), [any()], map()) :: map()
-  def run(%Graph{} = graph, left_part_vertices, partial_matching \\ %{}) do
-    Enum.reduce(left_part_vertices, {partial_matching, MapSet.new()}, fn v,
-                                                                         {matching_acc,
-                                                                          visited_acc} ->
-      case augment(graph, v, matching_acc, visited_acc) do
-        ## No augmented path found
-        {false, _matching, updated_visited} -> {matching_acc, updated_visited}
-        {true, increased_matching} -> {increased_matching, MapSet.new()}
+  def run(%Graph{} = graph, left_partition, partial_matching \\ %{}) do
+    used = MapSet.new(Map.values(partial_matching))
+
+    Enum.reduce(
+      left_partition,
+      {partial_matching, MapSet.new()},
+      fn v, {matching_acc, visited_acc} = acc ->
+        if MapSet.member?(used, v) do
+          acc
+        else
+          case augment(graph, v, matching_acc, visited_acc) do
+            ## No augmented path found
+            {false, _matching, updated_visited} -> {matching_acc, updated_visited}
+            {true, increased_matching} -> {increased_matching, MapSet.new()}
+          end
+        end
       end
-    end)
+    )
     |> elem(0)
   end
 
@@ -54,5 +62,18 @@ defmodule CPSolver.Algorithms.Kuhn do
         end
       )
     end
+  end
+
+  def initial_matching(graph, left_partition) do
+    Enum.reduce(left_partition, Map.new(), fn ls_vertex, partial_matching ->
+      Enum.reduce_while(
+        Graph.neighbors(graph, ls_vertex),
+        partial_matching,
+        fn rs_vertex, matching_acc ->
+          (Map.get(matching_acc, rs_vertex) && {:cont, matching_acc}) ||
+            {:halt, Map.put(matching_acc, rs_vertex, ls_vertex)}
+        end
+      )
+    end)
   end
 end

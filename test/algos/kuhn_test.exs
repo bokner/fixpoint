@@ -2,9 +2,19 @@ defmodule CPSolverTest.Algorithms.Kuhn do
   alias CPSolver.Algorithms.Kuhn
   use ExUnit.Case, async: false
 
+  @three_vertices_instance [[1, 2], [1, 2], [1, 2, 3, 4]]
+  @six_vertices_instance [
+    [1, 4, 5],
+    [9, 10],
+    [1, 4, 5, 8, 9],
+    [1, 4, 5],
+    [1, 4, 5, 8, 9],
+    [1, 4, 5]
+  ]
+
   describe "Kuhn maximal matching" do
     test "3 vertices in left-side partition" do
-      right_side_neighbors = [[1, 2], [1, 2], [1, 2, 3, 4]]
+      right_side_neighbors = @three_vertices_instance
 
       {bp_graph, left_partition} = build_bp_graph(right_side_neighbors)
 
@@ -27,14 +37,7 @@ defmodule CPSolverTest.Algorithms.Kuhn do
     end
 
     test "6 vertices in left-side partition" do
-      right_side_neighbors = [
-        [1, 4, 5],
-        [9, 10],
-        [1, 4, 5, 8, 9],
-        [1, 4, 5],
-        [1, 4, 5, 8, 9],
-        [1, 4, 5]
-      ]
+      right_side_neighbors = @six_vertices_instance
 
       {bp_graph, left_partition} = build_bp_graph(right_side_neighbors)
 
@@ -48,9 +51,6 @@ defmodule CPSolverTest.Algorithms.Kuhn do
 
       assert_matching(matching2, 6)
 
-      # x[0].remove(5);
-      # x[3].remove(5);
-
       bp_graph3 =
         bp_graph2
         |> Graph.delete_edge({:L, 1}, {:R, 5})
@@ -59,6 +59,24 @@ defmodule CPSolverTest.Algorithms.Kuhn do
       matching3 = Kuhn.run(bp_graph3, left_partition)
 
       assert_matching(matching3, 5)
+    end
+
+    test "initial_matching (3 vertices)" do
+      right_side_neighbors = @three_vertices_instance
+
+      {bp_graph, left_partition} = build_bp_graph(right_side_neighbors)
+      initial_matching = Kuhn.initial_matching(bp_graph, left_partition)
+
+      assert_matching(Kuhn.run(bp_graph, left_partition, initial_matching), 3)
+    end
+
+    test "initial_matching (6 vertices)" do
+      right_side_neighbors = @six_vertices_instance
+
+      {bp_graph, left_partition} = build_bp_graph(right_side_neighbors)
+      initial_matching = Kuhn.initial_matching(bp_graph, left_partition)
+
+      assert_matching(Kuhn.run(bp_graph, left_partition, initial_matching), 6)
     end
   end
 
