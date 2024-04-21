@@ -116,15 +116,19 @@ defmodule CPSolver.Examples.TSP do
 
   def solution_handler(model) do
     fn solution ->
-      Enum.at(solution, model.extra.n)
-      |> inspect()
-      |> Logger.warning()
-      |> tap(fn _ ->
-        (check_solution(Enum.map(solution, fn {_, val} -> val end), model) &&
-           Logger.warning("Correct")) || Logger.error("Wrong")
+      solution
+      |> Enum.at(model.extra.n)
+      |> tap(fn total_cost_tuple ->
+        ans_str = inspect(total_cost_tuple)
+        check_solution(
+           Enum.map(solution, fn {_, val} -> val end),
+           model
+         ) &&
+           Logger.warning(ans_str) || Logger.error( ans_str <> ": wrong -((")
       end)
     end
   end
+
 
   ## Choose the variable with the maximum difference between closest and second closest distance to its successors
   ##
