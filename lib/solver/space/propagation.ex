@@ -47,7 +47,7 @@ defmodule CPSolver.Space.Propagation do
         {p_id, Propagator.filter(p, store: store)}
       end,
       ## TODO: make it an option
-      ## 
+      ##
       max_concurrency: 1
     )
     |> Enum.reduce_while({MapSet.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = _acc ->
@@ -61,17 +61,11 @@ defmodule CPSolver.Space.Propagation do
         %{changes: nil, active?: active?} ->
           {:cont, {unschedule(scheduled, p_id), maybe_remove_propagator(g, p_id, active?)}}
 
-        %{changes: changes} = filtering_results ->
-          case update_propagator(g, p_id, filtering_results) do
-            :fail ->
-              {:halt, :fail}
+        %{changes: changes} ->
+          {updated_graph, scheduled_by_propagator} =
+            schedule_by_propagator(changes, g)
 
-            updated_graph ->
-              {updated_graph, scheduled_by_propagator} =
-                schedule_by_propagator(changes, updated_graph)
-
-              {:cont, {reschedule(scheduled, p_id, scheduled_by_propagator), updated_graph}}
-          end
+          {:cont, {reschedule(scheduled, p_id, scheduled_by_propagator), updated_graph}}
       end
     end)
   end
@@ -102,32 +96,8 @@ defmodule CPSolver.Space.Propagation do
     {updated_graph, scheduled_propagators}
   end
 
-  defp maybe_remove_propagator(graph, _propagator_id, _active?) do
-    ## TODO: reintroduce removing passive propagators
-    ## There is a bigger problem as to what to do with unfixed variables
-    ## when no active propagators left.
-    # (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
-    graph
-  end
-
-  ## Update propagator
-  ## Do not update if passive
-  defp update_propagator(graph, _propagator_id, %{active?: false} = _filtering_results) do
-    graph
-  end
-
-  defp update_propagator(graph, propagator_id, %{changes: changes, active?: true, state: state}) do
-    case ConstraintGraph.get_propagator(graph, propagator_id) do
-      nil ->
-        graph
-
-      p ->
-        Map.put(p, :state, state)
-        |> Propagator.update(changes)
-        |> then(fn updated_propagator ->
-          ConstraintGraph.update_propagator(graph, propagator_id, updated_propagator)
-        end)
-    end
+  defp maybe_remove_propagator(graph, propagator_id, active?) do
+    (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
   end
 
   defp finalize(:fail, _propagators, _store) do

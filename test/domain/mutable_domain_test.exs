@@ -164,7 +164,7 @@ defmodule CPSolverTest.MutableDomain do
         :atomics.put(ref, idx, val)
       end)
 
-      bit_vector = {:bit_vector, data.raw.offset, ref}
+      bit_vector = {:bit_vector, ref}
       _domain = {bit_vector, data.raw.offset}
     end
 
