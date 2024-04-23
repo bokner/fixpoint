@@ -44,13 +44,13 @@ defmodule CPSolver.Space.Propagation do
     |> reorder()
     |> Task.async_stream(
       fn {p_id, p} ->
-        {p_id, Propagator.filter(p, store: store)}
+        {p_id, p, Propagator.filter(p, store: store)}
       end,
       ## TODO: make it an option
       ##
       max_concurrency: 1
     )
-    |> Enum.reduce_while({MapSet.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = _acc ->
+    |> Enum.reduce_while({MapSet.new(), graph}, fn {:ok, {p_id, p, res}}, {scheduled, g} = _acc ->
       case res do
         :fail ->
           {:halt, :fail}
@@ -61,11 +61,13 @@ defmodule CPSolver.Space.Propagation do
         %{changes: nil, active?: active?} ->
           {:cont, {unschedule(scheduled, p_id), maybe_remove_propagator(g, p_id, active?)}}
 
-        %{changes: changes} ->
+        %{changes: changes, state: state} ->
           {updated_graph, scheduled_by_propagator} =
             schedule_by_propagator(changes, g)
 
-          {:cont, {reschedule(scheduled, p_id, scheduled_by_propagator), updated_graph}}
+          {:cont,
+           {reschedule(scheduled, p_id, scheduled_by_propagator),
+            ConstraintGraph.update_propagator(updated_graph, p_id, Map.put(p, :state, state))}}
       end
     end)
   end
@@ -96,8 +98,10 @@ defmodule CPSolver.Space.Propagation do
     {updated_graph, scheduled_propagators}
   end
 
-  defp maybe_remove_propagator(graph, propagator_id, active?) do
-    (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
+  ## TODO: revisit - remove passive propagators
+  defp maybe_remove_propagator(graph, _propagator_id, _active?) do
+    # (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
+    graph
   end
 
   defp finalize(:fail, _propagators, _store) do
