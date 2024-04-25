@@ -59,7 +59,8 @@ defmodule CPSolver.Space.Propagation do
           {:cont, {unschedule(scheduled, p_id), g}}
 
         %{changes: nil, active?: active?, state: new_state} ->
-          {:cont, {unschedule(scheduled, p_id), maybe_remove_propagator(g, p_id, p, active?, new_state)}}
+          {:cont,
+           {unschedule(scheduled, p_id), maybe_remove_propagator(g, p_id, p, active?, new_state)}}
 
         %{changes: changes, state: state} ->
           {updated_graph, scheduled_by_propagator} =
@@ -100,9 +101,9 @@ defmodule CPSolver.Space.Propagation do
 
   ## TODO: revisit - remove passive propagators
   defp maybe_remove_propagator(graph, _propagator_id, _propagator, _active?, _new_state) do
-       #new_state && ConstraintGraph.update_propagator(graph, propagator_id, Map.put(propagator, :state, new_state))
-       #|| graph
-       graph
+    # new_state && ConstraintGraph.update_propagator(graph, propagator_id, Map.put(propagator, :state, new_state))
+    # || graph
+    graph
   end
 
   defp finalize(:fail, _propagators, _store) do
