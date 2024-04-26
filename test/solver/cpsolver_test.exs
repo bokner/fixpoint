@@ -100,8 +100,6 @@ defmodule CpSolverTest do
         end
       )
 
-    File.close(@solution_handler_test_file)
-
     solutions_from_file =
       @solution_handler_test_file
       |> File.read!()

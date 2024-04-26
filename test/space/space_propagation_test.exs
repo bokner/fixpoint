@@ -127,7 +127,7 @@ defmodule CPSolverTest.SpacePropagation do
     {updated_graph, _bound_propagators} = ConstraintGraph.update(graph, bound_vars)
 
     %{
-      propagators: Enum.reduce(propagators, MapSet.new(), fn p, acc -> MapSet.put(acc, p.id) end),
+      propagators: propagators,
       variables: bound_vars,
       constraint_graph: updated_graph,
       store: store
