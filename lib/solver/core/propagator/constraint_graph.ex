@@ -107,12 +107,14 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
     ## Update domains
     Enum.reduce(propagators, {g1, []}, fn p_id, {graph_acc, p_acc} ->
-      get_propagator(graph_acc, p_id)
+      p = get_propagator(graph_acc, p_id)
+
+      p
       |> Propagator.bind_to_variables(variable_map, :domain)
       |> then(fn bound_p ->
         {
           update_propagator(graph_acc, p_id, bound_p),
-          [bound_p | p_acc]
+          [p | p_acc]
         }
       end)
     end)

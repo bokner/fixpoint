@@ -189,7 +189,7 @@ defmodule CPSolver.Space do
          } =
            data
        ) do
-    case Propagation.run(propagators, constraint_graph, store) do
+    case Propagation.run(propagator_ids(propagators), constraint_graph, store) do
       :fail ->
         handle_failure(data)
 
@@ -261,6 +261,10 @@ defmodule CPSolver.Space do
       :fail ->
         handle_failure(data)
     end
+  end
+
+  defp propagator_ids(propagators) do
+    Enum.reduce(propagators, MapSet.new(), fn p, acc -> MapSet.put(acc, p.id) end)
   end
 
   def distribute(
