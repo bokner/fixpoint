@@ -66,7 +66,18 @@ defmodule CPSolverTest.SpacePropagation do
     y = 1..2
     z = 1..3
     %{propagators: propagators, constraint_graph: graph, store: store} = space_setup(x, y, z)
-    {scheduled_propagators, reduced_graph} = Propagation.propagate(propagators, graph, store)
+
+    {scheduled_propagators, reduced_graph, domain_changes} =
+      Propagation.propagate(propagators, graph, store)
+
+    assert Enum.all?(scheduled_propagators, fn p_id -> p_id in Map.keys(domain_changes) end)
+    refute Enum.any?(Map.values(domain_changes), fn change -> MapSet.size(change) == 0 end)
+
+    assert Enum.all?(propagators, fn p ->
+             propagator_domain_changes = Map.get(domain_changes, p.id)
+             var_id_set = MapSet.new(Enum.map(p.args, fn v -> v.id end))
+             MapSet.subset?(propagator_domain_changes, var_id_set)
+           end)
 
     ## Propagators are not being rescheduled
     ## as a result of their own filtering (idempotency).
