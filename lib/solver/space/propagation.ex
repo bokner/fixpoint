@@ -98,7 +98,7 @@ defmodule CPSolver.Space.Propagation do
       new_domain_changes
       |> Enum.reduce(
         {graph, current_schedule, current_changes},
-        fn {var_id, domain_change}, {g_acc, propagators_acc, changes_acc} ->
+        fn {var_id, domain_change} = change, {g_acc, propagators_acc, changes_acc} ->
           propagator_ids = ConstraintGraph.get_propagator_ids(g_acc, var_id, domain_change)
 
           {maybe_remove_variable(g_acc, var_id, domain_change),
@@ -110,7 +110,7 @@ defmodule CPSolver.Space.Propagation do
              propagator_ids,
              changes_acc,
              fn p_id, acc ->
-               Map.update(acc, p_id, MapSet.new([var_id]), fn set -> MapSet.put(set, var_id) end)
+               Map.update(acc, p_id, MapSet.new([change]), fn set -> MapSet.put(set, change) end)
              end
            )}
         end

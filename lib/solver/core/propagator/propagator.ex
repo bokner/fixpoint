@@ -121,9 +121,10 @@ defmodule CPSolver.Propagator do
     [:max_change, :fixed]
   end
 
-  def to_domain_events(:fixed) do
+  def to_domain_events(_fixed) do
     [:fixed]
   end
+
 
   @spec get_filter_changes(term()) ::
           %{:changes => map(), :state => map(), active?: boolean()}

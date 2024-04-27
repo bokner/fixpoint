@@ -76,7 +76,8 @@ defmodule CPSolverTest.SpacePropagation do
     assert Enum.all?(propagators, fn p ->
              propagator_domain_changes = Map.get(domain_changes, p.id)
              var_id_set = MapSet.new(Enum.map(p.args, fn v -> v.id end))
-             MapSet.subset?(propagator_domain_changes, var_id_set)
+             MapSet.subset?(Enum.map(propagator_domain_changes, fn {var_id, _change} -> var_id end) |> MapSet.new(),
+             var_id_set)
            end)
 
     ## Propagators are not being rescheduled
