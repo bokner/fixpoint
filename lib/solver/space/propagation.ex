@@ -2,6 +2,8 @@ defmodule CPSolver.Space.Propagation do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Propagator
 
+  require Logger
+
   def run(propagators, constraint_graph, store) when is_list(propagators) do
     propagators
     |> run_impl(constraint_graph, store)
@@ -105,14 +107,7 @@ defmodule CPSolver.Space.Propagation do
            MapSet.union(
              propagators_acc,
              MapSet.new(propagator_ids)
-           ),
-           Enum.reduce(
-             propagator_ids,
-             changes_acc,
-             fn p_id, acc ->
-               Map.update(acc, p_id, MapSet.new([change]), fn set -> MapSet.put(set, change) end)
-             end
-           )}
+           ), propagator_changes(propagator_ids, change, changes_acc)}
         end
       )
 
@@ -185,5 +180,45 @@ defmodule CPSolver.Space.Propagation do
   ##
   defp reorder(propagators) do
     propagators
+  end
+
+  defp propagator_changes(propagator_ids, {var_id, domain_change} = change, changes_acc) do
+    Enum.reduce(
+      propagator_ids,
+      changes_acc,
+      fn p_id, acc ->
+        Map.update(acc, p_id, Map.new([change]), fn var_map ->
+          current_var_change = Map.get(var_map, var_id)
+          Map.put(var_map, var_id, maybe_update_domain_change(current_var_change, domain_change))
+        end)
+      end
+    )
+  end
+
+  ## This is to "fold" all incoming changes for the propagator+variable into a single value.
+  ## Reflects hierarchy of domain changes
+  ##
+  defp maybe_update_domain_change(nil, new_change) do
+    new_change
+  end
+
+  defp maybe_update_domain_change(:fixed, _new_change) do
+    :fixed
+  end
+
+  defp maybe_update_domain_change(_current_change, :fixed) do
+    :fixed
+  end
+
+  defp maybe_update_domain_change(:domain_change, _new_change) do
+    :domain_change
+  end
+
+  defp maybe_update_domain_change(:min_change, :max_change) do
+    :bound_change
+  end
+
+  defp maybe_update_domain_change(current_change, new_change) when current_change == new_change do
+    current_change
   end
 end

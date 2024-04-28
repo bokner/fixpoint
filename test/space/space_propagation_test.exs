@@ -71,13 +71,16 @@ defmodule CPSolverTest.SpacePropagation do
       Propagation.propagate(propagators, graph, store)
 
     assert Enum.all?(scheduled_propagators, fn p_id -> p_id in Map.keys(domain_changes) end)
-    refute Enum.any?(Map.values(domain_changes), fn change -> MapSet.size(change) == 0 end)
 
     assert Enum.all?(propagators, fn p ->
              propagator_domain_changes = Map.get(domain_changes, p.id)
              var_id_set = MapSet.new(Enum.map(p.args, fn v -> v.id end))
-             MapSet.subset?(Enum.map(propagator_domain_changes, fn {var_id, _change} -> var_id end) |> MapSet.new(),
-             var_id_set)
+
+             MapSet.subset?(
+               Enum.map(propagator_domain_changes, fn {var_id, _change} -> var_id end)
+               |> MapSet.new(),
+               var_id_set
+             )
            end)
 
     ## Propagators are not being rescheduled

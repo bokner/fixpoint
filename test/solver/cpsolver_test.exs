@@ -109,7 +109,6 @@ defmodule CpSolverTest do
       |> String.split("\n")
       |> Enum.map(fn binary -> :erlang.binary_to_term(binary) end)
 
-
     ## Make {ref, value} list off the solver solutions
     ## to be able to compare with the output of solutuon handler
     solver_solutions =

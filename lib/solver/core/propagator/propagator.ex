@@ -2,10 +2,11 @@ defmodule CPSolver.Propagator do
   @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change | :fixed
 
   @callback new(args :: list()) :: Propagator.t()
-  @callback update(Propagator.t(), changes: any()) :: Propagator.t()
-  @callback filter(args :: list()) :: map() | :stable | :fail | propagator_event()
+  @callback filter(args :: list()) :: {:state, map()} | :stable | :fail | propagator_event()
   @callback filter(args :: list(), state :: map() | nil) ::
-              map() | :stable | :fail | propagator_event()
+              {:state, map()} | :stable | :fail | propagator_event()
+  @callback filter(args :: list(), state :: map() | nil, changes :: map()) ::
+              {:state, map()} | :stable | :fail | propagator_event()
   @callback variables(args :: list()) :: list()
 
   alias CPSolver.Variable
@@ -28,19 +29,19 @@ defmodule CPSolver.Propagator do
         Propagator.new(__MODULE__, args)
       end
 
-      def update(propagator, _changes) do
-        propagator
-      end
-
       def filter(args, _propagator_state) do
         filter(args)
+      end
+
+      def filter(args, propagator_state, _incoming_changes) do
+        filter(args, propagator_state)
       end
 
       def variables(args) do
         Propagator.default_variables_impl(args)
       end
 
-      defoverridable variables: 1, update: 2, new: 1, filter: 2
+      defoverridable variables: 1, new: 1, filter: 2, filter: 3
     end
   end
 
@@ -68,15 +69,6 @@ defmodule CPSolver.Propagator do
     }
   end
 
-  def update(%{mod: mod} = propagator, changes) do
-    try do
-      mod.update(propagator, changes)
-    catch
-      :fail ->
-        :fail
-    end
-  end
-
   def filter(%{mod: mod, args: args} = propagator, opts \\ []) do
     PropagatorVariable.reset_variable_ops()
     store = Keyword.get(opts, :store)
@@ -84,7 +76,7 @@ defmodule CPSolver.Propagator do
     ConstraintStore.set_store(store)
 
     try do
-      mod.filter(args, state)
+      mod.filter(args, state, Keyword.get(opts, :changes))
     catch
       :fail ->
         :fail
@@ -124,7 +116,6 @@ defmodule CPSolver.Propagator do
   def to_domain_events(_fixed) do
     [:fixed]
   end
-
 
   @spec get_filter_changes(term()) ::
           %{:changes => map(), :state => map(), active?: boolean()}
