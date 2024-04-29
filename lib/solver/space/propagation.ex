@@ -214,7 +214,15 @@ defmodule CPSolver.Space.Propagation do
     :domain_change
   end
 
+  defp maybe_update_domain_change(_current_change, :domain_change) do
+    :domain_change
+  end
+
   defp maybe_update_domain_change(:min_change, :max_change) do
+    :bound_change
+  end
+
+  defp maybe_update_domain_change(:max_change, :min_change) do
     :bound_change
   end
 

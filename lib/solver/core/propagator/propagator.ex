@@ -2,6 +2,7 @@ defmodule CPSolver.Propagator do
   @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change | :fixed
 
   @callback new(args :: list()) :: Propagator.t()
+  @callback reset(args :: list(), state :: map()) :: map() | nil
   @callback filter(args :: list()) :: {:state, map()} | :stable | :fail | propagator_event()
   @callback filter(args :: list(), state :: map() | nil) ::
               {:state, map()} | :stable | :fail | propagator_event()
@@ -29,6 +30,10 @@ defmodule CPSolver.Propagator do
         Propagator.new(__MODULE__, args)
       end
 
+      def reset(_args, state) do
+        state
+      end
+
       def filter(args, _propagator_state) do
         filter(args)
       end
@@ -41,7 +46,7 @@ defmodule CPSolver.Propagator do
         Propagator.default_variables_impl(args)
       end
 
-      defoverridable variables: 1, new: 1, filter: 2, filter: 3
+      defoverridable variables: 1, new: 1, reset: 2, filter: 2, filter: 3
     end
   end
 
@@ -69,14 +74,29 @@ defmodule CPSolver.Propagator do
     }
   end
 
+  def reset(%{mod: mod, args: args} = propagator) do
+    Map.put(propagator, :state, mod.reset(args, Map.get(propagator, :state)))
+  end
+
   def filter(%{mod: mod, args: args} = propagator, opts \\ []) do
     PropagatorVariable.reset_variable_ops()
     store = Keyword.get(opts, :store)
     state = propagator[:state]
     ConstraintStore.set_store(store)
 
+    ## Propagation changes
+    ## The propagation may reshedule the filtering and pass the changes that woke
+    ## the propagator.
+    incoming_changes = Keyword.get(opts, :changes) || %{}
+    ## If the filtering is called with no incoming changes
+    ## is when the propagator is called in the first round of propagation.
+    ## We reset the state of propagator in this case.
+    propagator_state = mod.reset(args, state)
+
+
+
     try do
-      mod.filter(args, state, Keyword.get(opts, :changes))
+      mod.filter(args, propagator_state, incoming_changes)
     catch
       :fail ->
         :fail
