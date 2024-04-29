@@ -5,8 +5,22 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   The forward-checking propagator for AllDifferent constraint.
   """
 
+  @impl true
+  def reset(_args, _state) do
+    nil
+  end
+
   defp initial_state(args) do
-    %{unfixed_vars: Enum.to_list(0..(length(args) - 1))}
+    {variable_map, fixed_ids} =
+      Enum.reduce(args, {Map.new(), []}, fn arg, {map_acc, fixed_ids_acc} ->
+        {Map.put(map_acc, id(arg), arg),
+         (fixed?(arg) && [id(arg) | fixed_ids_acc]) ||
+           fixed_ids_acc}
+      end)
+
+    %{variable_map: #variable_map
+    filter_impl(variable_map, fixed_ids)
+  }
   end
 
   @impl true
@@ -16,58 +30,43 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
 
   @impl true
   def filter(args) do
-    filter(args, initial_state(args))
+    filter(args, nil, %{})
   end
 
-  def filter(args, nil) do
-    filter(args, initial_state(args))
+  def filter(args, nil, %{}) do
+    filter(args, initial_state(args), %{})
   end
 
   @impl true
-  def filter(all_vars, %{unfixed_vars: unfixed_vars} = _state) do
-    updated_unfixed_vars = filter_impl(all_vars, unfixed_vars)
-    {:state, %{unfixed_vars: updated_unfixed_vars}}
+  def filter(_all_vars, %{variable_map: variable_map} = _state, changes) do
+    fixed_var_ids = Map.keys(changes)
+    {:state, %{variable_map: filter_impl(variable_map, fixed_var_ids)}}
   end
 
-  defp filter_impl(all_vars, unfixed_vars) do
-    fwc(all_vars, unfixed_vars, MapSet.new(), [], false)
+  defp filter_impl(variable_map, []) do
+    variable_map
   end
 
-  ## The list of unfixed variables exhausted, and there were no fixed values.
-  ## We stop here
-  defp fwc(_all_vars, [], _fixed_values, unfixed_ids, false) do
-    unfixed_ids
-  end
+  defp filter_impl(variable_map, [var_id | rest] = _fixed_var_ids) do
+    {f_var, variable_map1} = Map.pop(variable_map, var_id)
 
-  ## The list of unfixed variables exhausted, and some new fixed values showed up.
-  ## We go through unfixed ids we have collected during previous stage again
-
-  defp fwc(all_vars, [], fixed_values, ids_to_revisit, true) do
-    fwc(all_vars, ids_to_revisit, fixed_values, [], false)
-  end
-
-  ## There is still some (previously) unfixed values to check
-  defp fwc(all_vars, [idx | rest], fixed_values, ids_to_revisit, changed?) do
-    var = Enum.at(all_vars, idx)
-    remove_all(var, fixed_values)
-
-    if fixed?(var) do
-      ## Variable is fixed or was fixed as a result of removing all fixed values
-      fwc(all_vars, rest, MapSet.put(fixed_values, min(var)), ids_to_revisit, true)
+    if f_var do
+      fixed_ids1 = remove_value(variable_map1, rest, min(f_var))
+      filter_impl(variable_map, fixed_ids1)
     else
-      ## Still not fixed, put it to 'revisit' list
-      fwc(all_vars, rest, fixed_values, [idx | ids_to_revisit], changed?)
+      filter_impl(variable_map, rest)
     end
   end
 
-  ## Remove values from the domain of variable
-  defp remove_all(variable, values) do
-    Enum.map(
-      values,
-      fn value ->
-        remove(variable, value)
+  ## Remove a value from the domains of variables
+  defp remove_value(unfixed_variables, fixed_ids, value) do
+    Enum.reduce(
+      unfixed_variables,
+      fixed_ids,
+      fn {_id, var}, fixed_ids_acc ->
+        (:fixed == remove(var, value) && [id(var) | fixed_ids_acc]) ||
+          fixed_ids_acc
       end
     )
-    |> Enum.any?(fn res -> res == :fixed end)
   end
 end
