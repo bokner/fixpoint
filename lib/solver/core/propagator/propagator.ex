@@ -91,11 +91,9 @@ defmodule CPSolver.Propagator do
     ## If the filtering is called with no incoming changes
     ## is when the propagator is called in the first round of propagation.
     ## We reset the state of propagator in this case.
-    propagator_state = mod.reset(args, state)
-
-
 
     try do
+      propagator_state = mod.reset(args, state)
       mod.filter(args, propagator_state, incoming_changes)
     catch
       :fail ->

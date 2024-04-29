@@ -98,11 +98,11 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       Enum.reduce(vars, {graph, [], Map.new()}, fn %{domain: domain} = v,
                                                    {graph_acc, propagators_acc, variables_acc} ->
         {if Domain.fixed?(domain) do
-           remove_variable(graph_acc, v.id)
+           remove_variable(graph_acc, Interface.id(v))
          else
            graph_acc
-         end, propagators_acc ++ get_propagator_ids(graph_acc, v.id, fn _ -> true end),
-         Map.put(variables_acc, v.id, v)}
+         end, propagators_acc ++ get_propagator_ids(graph_acc, Interface.id(v), fn _ -> true end),
+         Map.put(variables_acc, Interface.id(v), v)}
       end)
 
     ## Update domains
