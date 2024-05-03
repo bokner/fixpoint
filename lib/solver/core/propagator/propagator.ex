@@ -93,8 +93,8 @@ defmodule CPSolver.Propagator do
     ## We reset the state of propagator in this case.
 
     try do
-      propagator_state = mod.reset(args, state)
-      mod.filter(args, propagator_state, incoming_changes)
+      state = mod.reset(args, state)
+      mod.filter(args, state, incoming_changes)
     catch
       :fail ->
         :fail
