@@ -37,7 +37,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.FWC do
       assert result.status == :unsatisfiable
     end
 
-    test "unsatisfiable(pigeon hole)" do
+    test "unsatisfiable(pigeonhole)" do
       variables = Enum.map(1..4, fn _ -> IntVariable.new(1..3) end)
       model = Model.new(variables, [Constraint.new(AllDifferentFWC, variables)])
 

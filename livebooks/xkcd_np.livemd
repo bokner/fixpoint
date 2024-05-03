@@ -177,7 +177,7 @@ import ServingTablesHelpers
 
 tables = ["Table1", "Table2", "Table3", "Table4", "Table5", "Table6", "Table7"]
 
-table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {6, 4}, {12, 6}]
+table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {8, 4}, {11, 5}]
 
 distances = distances_from_coordinates(table_coordinates)
 
@@ -196,5 +196,9 @@ result.solutions
 ```
 
 ```elixir
-optimal_route
+{result.statistics.elapsed_time, optimal_route}
+```
+
+```elixir
+
 ```
