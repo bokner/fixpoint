@@ -88,12 +88,12 @@ defmodule CPSolver.Propagator do
     ## The propagation may reshedule the filtering and pass the changes that woke
     ## the propagator.
     incoming_changes = Keyword.get(opts, :changes) || %{}
-    ## If the filtering is called with no incoming changes
-    ## is when the propagator is called in the first round of propagation.
-    ## We reset the state of propagator in this case.
+    ## We will reset the state if required.
+    ## Reset will be forced when the space starts propagation.
+    reset? = Keyword.get(opts, :reset?, false)
 
     try do
-      state = mod.reset(args, state)
+      state = reset? && mod.reset(args, state) || state
       mod.filter(args, state, incoming_changes)
     catch
       :fail ->

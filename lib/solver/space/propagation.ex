@@ -6,30 +6,35 @@ defmodule CPSolver.Space.Propagation do
 
   def run(propagators, constraint_graph, store) when is_list(propagators) do
     propagators
-    |> run_impl(constraint_graph, store)
+    |> run_impl(constraint_graph, store, reset?: true)
     |> finalize(propagators, store)
   end
 
-  defp run_impl(propagators, constraint_graph, store) do
-    run_impl(propagators, constraint_graph, store, Map.new())
+
+  defp run_impl(propagators, constraint_graph, store, opts) do
+    run_impl(propagators, constraint_graph, store, Map.new(), opts)
   end
 
-  defp run_impl(propagators, constraint_graph, store, domain_changes) do
-    case propagate(propagators, constraint_graph, store, domain_changes) do
+  defp run_impl(propagators, constraint_graph, store, domain_changes, opts) do
+    case propagate(propagators, constraint_graph, store, domain_changes, opts) do
       :fail ->
         :fail
 
       {scheduled_propagators, reduced_graph, new_domain_changes} ->
         (MapSet.size(scheduled_propagators) == 0 && reduced_graph) ||
-          run_impl(scheduled_propagators, reduced_graph, store, new_domain_changes)
+          run_impl(scheduled_propagators, reduced_graph, store, new_domain_changes, reset?: false)
     end
   end
 
   def propagate(propagators, graph, store) do
-    propagate(propagators, graph, store, Map.new())
+    propagate(propagators, graph, store, [])
   end
 
-  @spec propagate(map(), Graph.t(), map(), map()) ::
+  def propagate(propagators, graph, store, opts) do
+    propagate(propagators, graph, store, Map.new(), opts)
+  end
+
+  @spec propagate(map(), Graph.t(), map(), map(), Keyword.t()) ::
           :fail | {map(), Graph.t(), map()}
   @doc """
   A single pass of propagation.
@@ -37,24 +42,24 @@ defmodule CPSolver.Space.Propagation do
   Side effect: modifies the constraint graph.
   The graph will be modified on every individual Propagator.filter/1, if the latter results in any domain changes.
   """
-
-  def propagate(propagators, graph, store, domain_changes) when is_list(propagators) do
+  def propagate(propagators, graph, store, domain_changes, opts) when is_list(propagators) do
     propagators
     |> Map.new(fn p -> {p.id, p} end)
-    |> propagate(graph, store, domain_changes)
+    |> propagate(graph, store, domain_changes, opts)
   end
 
-  def propagate(%MapSet{} = propagator_ids, graph, store, domain_changes) do
+  def propagate(%MapSet{} = propagator_ids, graph, store, domain_changes, opts) do
     Map.new(propagator_ids, fn p_id -> {p_id, ConstraintGraph.get_propagator(graph, p_id)} end)
-    |> propagate(graph, store, domain_changes)
+    |> propagate(graph, store, domain_changes, opts)
   end
 
-  def propagate(propagators, graph, store, domain_changes) when is_map(propagators) do
+  def propagate(propagators, graph, store, domain_changes, opts) when is_map(propagators) do
     propagators
     |> reorder()
     |> Task.async_stream(
       fn {p_id, p} ->
-        {p_id, p, Propagator.filter(p, store: store, changes: Map.get(domain_changes, p_id))}
+        {p_id, p,
+        Propagator.filter(p, store: store, reset?: opts[:reset?], changes: Map.get(domain_changes, p_id))}
       end,
       ## TODO: make it an option
       ##
@@ -142,7 +147,7 @@ defmodule CPSolver.Space.Propagation do
 
   defp checkpoint(propagators, store) do
     Enum.reduce_while(propagators, true, fn p, acc ->
-      case Propagator.filter(p, store: store) do
+      case Propagator.filter(p, store: store, reset?: true) do
         :fail -> {:halt, false}
         _ -> {:cont, acc}
       end
@@ -174,9 +179,10 @@ defmodule CPSolver.Space.Propagation do
 
   ## TODO: possible reordering strategy
   ## for the next pass.
-  ## Ideas: put to-be-entailed propagators first,
+  ## Ideas:
+  ## - Put to-be-entailed propagators first,
   ## so if they fail, it'd be early.
-  ## In general, arrange by the number of fixed variables?
+  ## - (extension of ^^) Order by the number of fixed variables
   ##
   defp reorder(propagators) do
     propagators
