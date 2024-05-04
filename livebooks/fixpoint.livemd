@@ -2,7 +2,8 @@
 
 ```elixir
 Mix.install([
-  :fixpoint,
+  {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
+  # :fixpoint,
   {:kino, "~> 0.10.0"}
 ])
 
@@ -164,7 +165,7 @@ n = 8
 
 {:ok, res} =
   CPSolver.solve_sync(Queens.model(n),
-    search: {:first_fail, :indomain_random},
+    search: {:input_order, :indomain_random},
     stop_on: {:max_solutions, 1},
     timeout: 60_000
   )
@@ -196,7 +197,8 @@ The instance below is taken from http://www.tellmehowto.net/sudoku/veryhardsudok
 
 ```elixir
 alias CPSolver.Examples.Sudoku
-hard_puzzle = Sudoku.puzzles().hard9x9
+puzzles = Sudoku.puzzles()
+hard_puzzle = puzzles.hard9x9
 RenderHTML.render_sudoku(hard_puzzle)
 ```
 
@@ -311,8 +313,7 @@ So the encoding of the rules does not require any programming except wiring rule
 
 ```elixir
 alias CPSolver.Examples.Reindeers
-{:ok, res} = CPSolver.solve_sync(Reindeers.model())
-IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
+{:ok, res} = Reindeers.solve()
 ```
 
 ## SEND + MORE = MONEY
@@ -432,6 +433,7 @@ search_strategy = {:input_order, :indomain_max}
 
 {:ok, res} =
   CPSolver.solve_sync(model,
+    max_space_threads: 12,
     timeout: 1_000,
     search: search_strategy
   )
@@ -462,4 +464,30 @@ IO.puts("Total value: #{IO.ANSI.red()}#{res.objective}#{IO.ANSI.reset()}")
 
 IO.puts("Total weight: #{IO.ANSI.red()}#{total_weight}/#{capacity}#{IO.ANSI.reset()}")
 IO.puts("Solved in: #{div(res.statistics.elapsed_time, 1000)} \u33b3")
+```
+
+## Benchmarking (local)
+
+```elixir
+IEx.Helpers.c("scripts/sudoku_benchmark.exs")
+```
+
+```elixir
+require Logger
+alias CPSolver.Examples.Sudoku
+
+res =
+  SudokuBenchmark.run("data/sudoku/hardest", 100, 12, 30_000)
+  |> Enum.map(fn s ->
+    !(s.solutions |> List.first() |> then(fn sol -> sol && Sudoku.check_solution(sol) end)) &&
+      Logger.error("Wrong solution!")
+
+    s.statistics.elapsed_time
+  end)
+  |> Enum.sort()
+```
+
+```elixir
+{Enum.max(res), Enum.sum(res) / length(res)}
+# CPSolver.ConstraintStore.default_store()
 ```
