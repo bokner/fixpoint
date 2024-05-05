@@ -56,12 +56,10 @@ defmodule CPSolver.Propagator do
 
   def default_variables_impl(args) do
     args
-    |> Enum.filter(fn
-      %Variable{} -> true
-      %View{} -> true
-      _ -> false
+    |> Enum.reject(fn arg -> is_constant(arg)
     end)
   end
+
 
   def new(mod, args, opts \\ []) do
     id = Keyword.get_lazy(opts, :id, fn -> make_ref() end)
@@ -73,6 +71,16 @@ defmodule CPSolver.Propagator do
       mod: mod,
       args: args
     }
+  end
+
+  def variables(%{mod: mod, args: args} = _propagator) do
+    args
+    |> Enum.with_index()
+    |> Enum.map(fn {arg, idx} ->
+      is_constant(arg) && arg ||
+      Map.put(arg, :arg_position, idx)
+    end)
+    |> mod.variables()
   end
 
   def reset(%{mod: mod, args: args} = propagator) do
@@ -176,4 +184,21 @@ defmodule CPSolver.Propagator do
   defp bind_to_variable(const, _indexed_variables, _var_field) do
     const
   end
+
+  defp is_constant(%Variable{} = _arg) do
+    false
+  end
+
+  defp is_constant(%View{} = _arg) do
+    false
+  end
+
+  defp is_constant(_other) do
+    true
+  end
+
+
+
+
+
 end

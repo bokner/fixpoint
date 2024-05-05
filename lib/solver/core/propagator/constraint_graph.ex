@@ -2,7 +2,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   @moduledoc """
   The constraint graph connects propagators and their variables.
   The edge between a propagator and a variable represents a notification
-  the propagator receives upon varable's domain change.
+  the propagator receives upon variable's domain change.
   """
   alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
@@ -17,11 +17,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def create(propagators) when is_map(propagators) do
-    Enum.reduce(propagators, Graph.new(), fn {propagator_id,
-                                              %{mod: propagator_mod, args: args} = p},
-                                             acc ->
-      args
-      |> propagator_mod.variables()
+    Enum.reduce(propagators, Graph.new(), fn {propagator_id, p}, acc ->
+      p
+      |> Propagator.variables()
       |> Enum.reduce(acc, fn var, acc2 ->
         Graph.add_vertex(acc2, propagator_vertex(propagator_id))
         |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex(propagator_id),
