@@ -162,28 +162,33 @@ To make it more concrete, we will solve some combinatorial problems using ***Fix
 ```elixir
 alias CPSolver.Examples.Queens
 n = 8
+timeout = 30_000
 
 {:ok, res} =
-  CPSolver.solve_sync(Queens.model(n),
+  CPSolver.solve_sync(Queens.model(n, symmetry: :half_symmetry),
     search: {:input_order, :indomain_random},
     stop_on: {:max_solutions, 1},
-    timeout: 60_000
+    timeout: timeout,
+    max_space_threads: 2
   )
-
-IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
 
 if res.status == :unsatisfiable do
   IO.puts(IO.ANSI.red() <> "There is no solution for n = #{n}!" <> IO.ANSI.reset())
 else
-  solution = hd(res.solutions)
+  solution = List.first(res.solutions)
 
-  IO.puts(
-    (Queens.check_solution(solution) &&
-       IO.ANSI.green() <>
-         "Solution is correct!") || IO.ANSI.red() <> "Solution is wrong!" <> IO.ANSI.reset()
-  )
+  if solution do
+    IO.puts(
+      ((Queens.check_solution(solution) &&
+          IO.ANSI.green() <>
+            "Solution is correct!") || IO.ANSI.red() <> "Solution is wrong!") <> IO.ANSI.reset()
+    )
 
-  RenderHTML.render_nqueens(solution)
+    RenderHTML.render_nqueens(solution)
+    IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
+  else
+    IO.puts("No solution was found within #{timeout} \u33b3")
+  end
 end
 ```
 
