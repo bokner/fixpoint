@@ -58,6 +58,7 @@ defmodule CPSolver.Propagator do
     args
     |> Enum.filter(fn
       %Variable{} -> true
+      %View{} -> true
       _ -> false
     end)
   end
