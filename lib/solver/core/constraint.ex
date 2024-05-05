@@ -4,7 +4,6 @@ defmodule CPSolver.Constraint do
 
   @callback new(args :: list()) :: Constraint.t()
   @callback propagators(args :: list()) :: [atom()]
-  @callback variables(args :: list()) :: [Variable.t()]
 
   defmacro __using__(_) do
     quote do
@@ -16,11 +15,6 @@ defmodule CPSolver.Constraint do
         Constraint.new(__MODULE__, args)
       end
 
-      def variables(args) do
-        args
-      end
-
-      defoverridable variables: 1
     end
   end
 
