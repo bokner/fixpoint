@@ -6,29 +6,24 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   """
 
   @impl true
-  def reset(_args, state) do
-    nil
+  def reset(args, nil) do
+    {initial_unfixed_vars, initial_fixed_values} = initial_reduction(args)
+    %{unfixed_vars: initial_unfixed_vars, fixed_values: initial_fixed_values}
   end
 
-  def reset(args, %{unfixed_vars: unfixed, fixed_values: fixed} = _state) do
-    ## Refresh the state:
-    ## find and apply new fixed values
-    Enum.reduce(unfixed, {unfixed, MapSet.new(), fixed}, fn {_ref, idx}, {unfixed_acc, fixed_acc, total_fixed_acc} ->
-      var = get_variable(args, idx)
-      if fixed?(var) do
-        new_value = min(var)
-        {Map.delete(unfixed_acc, idx),
-          add_fixed_value(fixed_acc, new_value),
-          add_fixed_value(total_fixed_acc, new_value),
-        }
-      else
-        {unfixed_acc, fixed_acc, total_fixed_acc}
-      end
+  def reset(args, %{fixed_values: fixed_values, unfixed_vars: unfixed_vars} = _state) do
+
+    {unfixed_vars, delta,  total_fixed} = Enum.reduce(unfixed_vars, {unfixed_vars, MapSet.new(), fixed_values}, fn {ref, idx}, {unfixed_acc, delta_acc, total_fixed_acc} = acc ->
+      case get_value(args, idx) do
+        nil -> acc
+        value ->
+      {Map.delete(unfixed_acc, ref), add_fixed_value(delta_acc, value), add_fixed_value(total_fixed_acc, value)}
+        end
     end)
-    |> then(fn {new_unfixed, new_fixed, total_fixed} ->
-      #{final_unfixed, final_fixed} = fwc(args, new_unfixed, new_fixed, total_fixed)
-      %{unfixed_vars: new_unfixed, fixed_values: MapSet.union(fixed, new_fixed)}
-    end)
+
+    {final_unfixed_vars, final_fixed_values} = fwc(args, unfixed_vars, delta, total_fixed)
+    %{unfixed_vars: final_unfixed_vars, fixed_values: final_fixed_values}
+
   end
 
   defp initial_reduction(args) do
@@ -157,11 +152,21 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
       MapSet.put(fixed_values, value)
   end
 
+  defp get_value(_variables, nil) do
+    nil
+  end
+
   defp get_value(variables, idx) do
-    (idx && get_variable(variables, idx) |> min()) || nil
+    case get_variable(variables, idx) do
+      nil ->
+        nil
+      var -> fixed?(var) && min(var) || nil
+    end
   end
 
   defp get_variable(variables, idx) do
     (idx && Enum.at(variables, idx)) || nil
   end
+
+
 end
