@@ -25,7 +25,8 @@ defmodule CPSolver.Utils.TupleArray do
   end
 
   def map(tuple_array, mapper) when is_function(mapper) do
-    Enum.reduce(0..tuple_size(tuple_array) - 1, {}, fn idx, acc -> Tuple.append(acc, mapper.(elem(tuple_array, idx))) end)
+    Enum.reduce(0..(tuple_size(tuple_array) - 1), {}, fn idx, acc ->
+      Tuple.append(acc, mapper.(elem(tuple_array, idx)))
+    end)
   end
-
 end

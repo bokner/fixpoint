@@ -30,7 +30,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
       fwc_propagator = FWC.new(x_vars)
       filtering_results = Propagator.filter(fwc_propagator)
 
-      #IO.inspect(filtering_results)
+      # IO.inspect(filtering_results)
       ## The values of fixed variables (namely, 4 and 5) have been removed from unfixed variables
       assert Enum.all?([x1_var, x2_var, x3_var], fn var -> Interface.max(var) == 3 end)
 
@@ -38,11 +38,11 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
       :fixed = Interface.fix(x1_var, 3)
 
       ## Emulate changes that would come from the propagation process
-      changes = %{x1_var.id => :fixed}
+      changes = %{0 => :fixed}
 
       fwc_propagator_step2 = Map.put(fwc_propagator, :state, filtering_results.state)
-      _filtering_results2 = Propagator.filter(fwc_propagator_step2, changes: changes)
-      #IO.inspect(filtering_results2)
+      filtering_results2 = Propagator.filter(fwc_propagator_step2, changes: changes)
+      IO.inspect(filtering_results2)
 
       assert Interface.min(x2_var) == 1 && Interface.max(x2_var) == 2
       assert Interface.min(x3_var) == 0 && Interface.max(x3_var) == 2

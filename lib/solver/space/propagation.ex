@@ -10,7 +10,6 @@ defmodule CPSolver.Space.Propagation do
     |> finalize(propagators, store)
   end
 
-
   defp run_impl(propagators, constraint_graph, store, opts) do
     run_impl(propagators, constraint_graph, store, Map.new(), opts)
   end
@@ -59,7 +58,11 @@ defmodule CPSolver.Space.Propagation do
     |> Task.async_stream(
       fn {p_id, p} ->
         {p_id, p,
-        Propagator.filter(p, store: store, reset?: opts[:reset?], changes: Map.get(domain_changes, p_id))}
+         Propagator.filter(p,
+           store: store,
+           reset?: opts[:reset?],
+           changes: Map.get(domain_changes, p_id)
+         )}
       end,
       ## TODO: make it an option
       ##
@@ -106,12 +109,14 @@ defmodule CPSolver.Space.Propagation do
       |> Enum.reduce(
         {graph, current_schedule, current_changes},
         fn {var_id, domain_change} = change, {g_acc, propagators_acc, changes_acc} ->
-          propagator_ids = ConstraintGraph.get_propagator_ids(g_acc, var_id, domain_change)
+          propagator_ids =
+            ConstraintGraph.get_propagator_ids(g_acc, var_id, domain_change)
+            |> Map.new()
 
           {maybe_remove_variable(g_acc, var_id, domain_change),
            MapSet.union(
              propagators_acc,
-             MapSet.new(propagator_ids)
+             MapSet.new(Map.keys(propagator_ids))
            ), propagator_changes(propagator_ids, change, changes_acc)}
         end
       )
@@ -188,14 +193,21 @@ defmodule CPSolver.Space.Propagation do
     propagators
   end
 
-  defp propagator_changes(propagator_ids, {var_id, domain_change} = change, changes_acc) do
+  defp propagator_changes(propagator_ids, {_var_id, domain_change} = _change, changes_acc) do
     Enum.reduce(
       propagator_ids,
       changes_acc,
-      fn p_id, acc ->
-        Map.update(acc, p_id, Map.new([change]), fn var_map ->
-          current_var_change = Map.get(var_map, var_id)
-          Map.put(var_map, var_id, maybe_update_domain_change(current_var_change, domain_change))
+      fn {p_id, p_data}, acc ->
+        arg_position = p_data.arg_position
+
+        Map.update(acc, p_id, %{arg_position => domain_change}, fn var_map ->
+          current_var_change = Map.get(var_map, arg_position)
+
+          Map.put(
+            var_map,
+            arg_position,
+            maybe_update_domain_change(current_var_change, domain_change)
+          )
         end)
       end
     )
