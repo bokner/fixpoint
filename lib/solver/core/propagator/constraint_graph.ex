@@ -121,6 +121,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   defp get_propagate_on(variable) do
-    Map.get(variable, :propagate_on, Propagator.to_domain_events(:fixed))
+    Map.get(variable, :propagate_on) || Propagator.to_domain_events(:fixed)
   end
 end

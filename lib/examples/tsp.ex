@@ -102,7 +102,7 @@ defmodule CPSolver.Examples.TSP do
       d_values = Domain.to_list(domain)
 
       (idx in 1..n &&
-         Enum.min_by(d_values, fn dom_idx -> TupleArray.get(tuple_matrix, [idx - 1, dom_idx]) end)) ||
+         Enum.min_by(d_values, fn dom_idx -> TupleArray.at(tuple_matrix, [idx - 1, dom_idx]) end)) ||
         Enum.random(d_values)
     end
 
@@ -142,7 +142,7 @@ defmodule CPSolver.Examples.TSP do
       (length(dom) < 2 && 0) ||
         dom
         |> Enum.map(fn value ->
-          TupleArray.get(distances, [idx - 1, value])
+          TupleArray.at(distances, [idx - 1, value])
         end)
         |> Enum.sort(:desc)
         |> then(fn dists -> abs(Enum.at(dists, 1) - hd(dists)) end)
