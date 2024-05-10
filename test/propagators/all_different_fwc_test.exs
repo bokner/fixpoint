@@ -37,8 +37,9 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
       ## Fixing one of the variables will remove the value it's fixed to from other variables
       :fixed = Interface.fix(x1_var, 3)
 
-      ## Emulate changes that would come from the propagation process
-      changes = %{x1_var.id => :fixed}
+      ## Emulate changes that would come from the propagation process.
+      ## x1 is at position 0 in the propagator arguments
+      changes = %{0 => :fixed}
 
       fwc_propagator_step2 = Map.put(fwc_propagator, :state, filtering_results.state)
       _filtering_results2 = Propagator.filter(fwc_propagator_step2, changes: changes)

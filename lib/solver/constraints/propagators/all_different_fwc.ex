@@ -13,20 +13,22 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
 
   def reset(args, %{fixed_values: fixed_values, unfixed_vars: unfixed_vars} = _state) do
     {unfixed_vars, delta, total_fixed} =
-      Enum.reduce(unfixed_vars, {unfixed_vars, MapSet.new(), fixed_values}, fn {ref, idx},
-                                                                               {unfixed_acc,
-                                                                                delta_acc,
-                                                                                total_fixed_acc} =
-                                                                                 acc ->
-        case get_value(args, idx) do
-          nil ->
-            acc
+      Enum.reduce(
+        unfixed_vars,
+        {unfixed_vars, MapSet.new(), fixed_values},
+        fn idx,
+           {unfixed_acc, delta_acc, total_fixed_acc} =
+             acc ->
+          case get_value(args, idx) do
+            nil ->
+              acc
 
-          value ->
-            {Map.delete(unfixed_acc, ref), add_fixed_value(delta_acc, value),
-             add_fixed_value(total_fixed_acc, value)}
+            value ->
+              {MapSet.delete(unfixed_acc, idx), add_fixed_value(delta_acc, value),
+               add_fixed_value(total_fixed_acc, value)}
+          end
         end
-      end)
+      )
 
     {final_unfixed_vars, final_fixed_values} = fwc(args, unfixed_vars, delta, total_fixed)
     %{unfixed_vars: final_unfixed_vars, fixed_values: final_fixed_values}
@@ -35,11 +37,11 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   defp initial_reduction(args) do
     Enum.reduce(
       args,
-      {0, {Map.new(), MapSet.new()}},
+      {0, {MapSet.new(), MapSet.new()}},
       fn var, {idx_acc, {unfixed_map_acc, fixed_set_acc}} ->
         {idx_acc + 1,
          (fixed?(var) && {unfixed_map_acc, add_fixed_value(fixed_set_acc, min(var))}) ||
-           {Map.put(unfixed_map_acc, id(var), idx_acc), fixed_set_acc}}
+           {MapSet.put(unfixed_map_acc, idx_acc), fixed_set_acc}}
       end
     )
     |> elem(1)
@@ -84,12 +86,16 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
     Enum.reduce(
       changes,
       {unfixed_vars, MapSet.new(), previously_fixed_values},
-      fn {var_id, :fixed}, {unfixed_vars_acc, fixed_values_acc, all_fixed_values_acc} ->
-        {idx, updated_vars} = Map.pop(unfixed_vars_acc, var_id)
-        fixed_value = get_value(all_vars, idx)
+      fn {idx, :fixed}, {unfixed_vars_acc, fixed_values_acc, all_fixed_values_acc} = acc ->
+        if MapSet.member?(unfixed_vars_acc, idx) do
+          updated_vars = MapSet.delete(unfixed_vars_acc, idx)
+          fixed_value = get_value(all_vars, idx)
 
-        {updated_vars, add_fixed_value(fixed_values_acc, fixed_value),
-         add_fixed_value(all_fixed_values_acc, fixed_value)}
+          {updated_vars, add_fixed_value(fixed_values_acc, fixed_value),
+          add_fixed_value(all_fixed_values_acc, fixed_value)}
+        else
+          acc
+        end
       end
     )
   end
@@ -99,14 +105,14 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
       Enum.reduce(
         unfixed_vars,
         {unfixed_vars, current_delta, MapSet.new()},
-        fn {ref, idx}, {unfixed_vars_acc, fixed_values_acc, new_delta_acc} ->
+        fn idx, {unfixed_vars_acc, fixed_values_acc, new_delta_acc} ->
           case remove_all(get_variable(all_vars, idx), fixed_values_acc) do
             ## No new fixed variables
             false ->
               {unfixed_vars_acc, fixed_values_acc, new_delta_acc}
 
             new_fixed_value ->
-              {Map.delete(unfixed_vars_acc, ref), MapSet.put(fixed_values_acc, new_fixed_value),
+              {MapSet.delete(unfixed_vars_acc, idx), MapSet.put(fixed_values_acc, new_fixed_value),
                MapSet.put(new_delta_acc, new_fixed_value)}
           end
         end
