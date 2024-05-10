@@ -12,18 +12,24 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   def reset(args, %{fixed_values: fixed_values, unfixed_vars: unfixed_vars} = _state) do
+    {unfixed_vars, delta, total_fixed} =
+      Enum.reduce(unfixed_vars, {unfixed_vars, MapSet.new(), fixed_values}, fn {ref, idx},
+                                                                               {unfixed_acc,
+                                                                                delta_acc,
+                                                                                total_fixed_acc} =
+                                                                                 acc ->
+        case get_value(args, idx) do
+          nil ->
+            acc
 
-    {unfixed_vars, delta,  total_fixed} = Enum.reduce(unfixed_vars, {unfixed_vars, MapSet.new(), fixed_values}, fn {ref, idx}, {unfixed_acc, delta_acc, total_fixed_acc} = acc ->
-      case get_value(args, idx) do
-        nil -> acc
-        value ->
-      {Map.delete(unfixed_acc, ref), add_fixed_value(delta_acc, value), add_fixed_value(total_fixed_acc, value)}
+          value ->
+            {Map.delete(unfixed_acc, ref), add_fixed_value(delta_acc, value),
+             add_fixed_value(total_fixed_acc, value)}
         end
-    end)
+      end)
 
     {final_unfixed_vars, final_fixed_values} = fwc(args, unfixed_vars, delta, total_fixed)
     %{unfixed_vars: final_unfixed_vars, fixed_values: final_fixed_values}
-
   end
 
   defp initial_reduction(args) do
@@ -160,13 +166,13 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
     case get_variable(variables, idx) do
       nil ->
         nil
-      var -> fixed?(var) && min(var) || nil
+
+      var ->
+        (fixed?(var) && min(var)) || nil
     end
   end
 
   defp get_variable(variables, idx) do
     (idx && Enum.at(variables, idx)) || nil
   end
-
-
 end

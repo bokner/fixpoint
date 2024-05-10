@@ -34,12 +34,12 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       when is_function(filter_fun) do
     constraint_graph
     |> Graph.edges({:variable, variable_id})
-    |> Enum.flat_map(fn edge ->
+    |> Enum.reduce(Map.new(), fn edge, acc ->
       if filter_fun.(edge) do
         {:propagator, p_id} = edge.v2
-        [p_id]
+        Map.put(acc, p_id, edge.label)
       else
-        []
+        acc
       end
     end)
   end
@@ -50,7 +50,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         variable_id,
         domain_change
       ) do
-    get_propagator_ids(constraint_graph, variable_id, fn edge -> domain_change in edge.label.propagate_on end)
+    get_propagator_ids(constraint_graph, variable_id, fn edge ->
+      domain_change in edge.label.propagate_on
+    end)
   end
 
   def has_variable?(graph, variable_id) do
@@ -99,7 +101,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
            remove_variable(graph_acc, Interface.id(v))
          else
            graph_acc
-         end, propagators_acc ++ get_propagator_ids(graph_acc, Interface.id(v), fn _ -> true end),
+         end,
+         propagators_acc ++
+           Map.keys(get_propagator_ids(graph_acc, Interface.id(v), fn _ -> true end)),
          Map.put(variables_acc, Interface.id(v), v)}
       end)
 

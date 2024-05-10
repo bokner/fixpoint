@@ -10,7 +10,6 @@ defmodule CPSolver.Space.Propagation do
     |> finalize(propagators, store)
   end
 
-
   defp run_impl(propagators, constraint_graph, store, opts) do
     run_impl(propagators, constraint_graph, store, Map.new(), opts)
   end
@@ -59,7 +58,11 @@ defmodule CPSolver.Space.Propagation do
     |> Task.async_stream(
       fn {p_id, p} ->
         {p_id, p,
-        Propagator.filter(p, store: store, reset?: opts[:reset?], changes: Map.get(domain_changes, p_id))}
+         Propagator.filter(p,
+           store: store,
+           reset?: opts[:reset?],
+           changes: Map.get(domain_changes, p_id)
+         )}
       end,
       ## TODO: make it an option
       ##
@@ -106,7 +109,9 @@ defmodule CPSolver.Space.Propagation do
       |> Enum.reduce(
         {graph, current_schedule, current_changes},
         fn {var_id, domain_change} = change, {g_acc, propagators_acc, changes_acc} ->
-          propagator_ids = ConstraintGraph.get_propagator_ids(g_acc, var_id, domain_change)
+          propagator_ids =
+            ConstraintGraph.get_propagator_ids(g_acc, var_id, domain_change)
+            |> Map.keys()
 
           {maybe_remove_variable(g_acc, var_id, domain_change),
            MapSet.union(
