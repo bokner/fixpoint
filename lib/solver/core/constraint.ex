@@ -14,7 +14,6 @@ defmodule CPSolver.Constraint do
       def new(args) do
         Constraint.new(__MODULE__, args)
       end
-
     end
   end
 
