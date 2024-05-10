@@ -15,7 +15,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
       ## Edges: 2 per each propagator
       assert length(Graph.edges(graph)) == 6
       ## All edges are labeled with :fixed
-      Enum.all?(Graph.edges(graph), fn edge -> assert edge.label.domain_change == [:fixed] end)
+      Enum.all?(Graph.edges(graph), fn edge -> assert edge.label.propagate_on == [:fixed] end)
     end
 
     test "Get propagators for the given variable and domain event" do
@@ -30,7 +30,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
 
       ## For each variable, there are 2 propagators listening to ':fixed' domain change
       Enum.all?(variables, fn var_id ->
-        assert length(ConstraintGraph.get_propagator_ids(graph, var_id, :fixed)) == 2
+        assert map_size(ConstraintGraph.get_propagator_ids(graph, var_id, :fixed)) == 2
       end)
     end
 

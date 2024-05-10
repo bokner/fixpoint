@@ -71,6 +71,16 @@ defmodule CPSolver.Propagator do
     }
   end
 
+  def variables(%{mod: mod, args: args} = _propagator) do
+    args
+    |> Enum.with_index()
+    |> Enum.map(fn {arg, idx} ->
+      (is_constant_arg(arg) && arg) ||
+        Map.put(arg, :arg_position, idx)
+    end)
+    |> mod.variables()
+  end
+
   def reset(%{mod: mod, args: args} = propagator) do
     Map.put(propagator, :state, mod.reset(args, Map.get(propagator, :state)))
   end

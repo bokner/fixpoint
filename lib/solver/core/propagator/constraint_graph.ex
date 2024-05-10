@@ -3,8 +3,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   The constraint graph connects propagators and their variables.
   The edge between a propagator and a variable represents a notification
   the propagator receives upon variable's domain change.
-  The edge is labeled by the above notification type and 'arg_position' value that maps
-  a variable to the position in propagator arguments.
   """
   alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
@@ -19,51 +17,29 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def create(propagators) when is_map(propagators) do
-    Enum.reduce(propagators, Graph.new(), fn {propagator_id, p}, graph_acc ->
-      add_propagator(graph_acc, propagator_id, p)
+    Enum.reduce(propagators, Graph.new(), fn {propagator_id, p}, acc ->
+      p
+      |> Propagator.variables()
+      |> Enum.reduce(acc, fn var, acc2 ->
+        Graph.add_vertex(acc2, propagator_vertex(propagator_id))
+        |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex(propagator_id),
+          label: %{propagate_on: get_propagate_on(var), arg_position: var.arg_position}
+        )
+      end)
+      |> Graph.label_vertex(propagator_vertex(propagator_id), p)
     end)
-  end
-
-  defp add_propagator(graph, propagator_id, propagator) do
-    propagator
-    |> Map.get(:args)
-    |> Enum.with_index()
-    |> Enum.reduce({graph, Map.new()}, fn {arg, pos}, {graph_acc, position_map_acc} ->
-      if Propagator.is_constant_arg(arg) do
-        {graph_acc, position_map_acc}
-      else
-        var_id = Interface.id(arg)
-
-        {pos, position_map_acc} =
-          case Map.get(position_map_acc, var_id) do
-            nil ->
-              {pos, Map.put(position_map_acc, var_id, pos)}
-
-            existing ->
-              {existing, position_map_acc}
-          end
-
-        ##
-        {Graph.add_vertex(graph_acc, propagator_vertex(propagator_id))
-         |> Graph.add_edge({:variable, var_id}, propagator_vertex(propagator_id),
-           label: %{domain_change: get_propagate_on(arg), arg_position: pos}
-         ), position_map_acc}
-      end
-    end)
-    |> elem(0)
-    |> Graph.label_vertex(propagator_vertex(propagator_id), propagator)
   end
 
   def get_propagator_ids(constraint_graph, variable_id, filter_fun)
       when is_function(filter_fun) do
     constraint_graph
     |> Graph.edges({:variable, variable_id})
-    |> Enum.flat_map(fn edge ->
-      if edge && filter_fun.(edge) do
+    |> Enum.reduce(Map.new(), fn edge, acc ->
+      if filter_fun.(edge) do
         {:propagator, p_id} = edge.v2
-        [{p_id, edge.label}]
+        Map.put(acc, p_id, edge.label)
       else
-        []
+        acc
       end
     end)
   end
@@ -75,7 +51,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         domain_change
       ) do
     get_propagator_ids(constraint_graph, variable_id, fn edge ->
-      domain_change in edge.label.domain_change
+      domain_change in edge.label.propagate_on
     end)
   end
 
@@ -119,21 +95,17 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   def update(graph, vars) do
     ## Remove fixed variables
     {g1, propagators, variable_map} =
-      Enum.reduce(
-        vars,
-        {graph, [], Map.new()},
-        fn %{domain: domain} = v, {graph_acc, propagators_acc, variables_acc} ->
-          {if Domain.fixed?(domain) do
-             remove_variable(graph_acc, Interface.id(v))
-           else
-             graph_acc
-           end,
-           propagators_acc ++
-             (get_propagator_ids(graph_acc, Interface.id(v), fn _ -> true end)
-              |> Enum.map(fn {p_id, _data} -> p_id end)),
-           Map.put(variables_acc, Interface.id(v), v)}
-        end
-      )
+      Enum.reduce(vars, {graph, [], Map.new()}, fn %{domain: domain} = v,
+                                                   {graph_acc, propagators_acc, variables_acc} ->
+        {if Domain.fixed?(domain) do
+           remove_variable(graph_acc, Interface.id(v))
+         else
+           graph_acc
+         end,
+         propagators_acc ++
+           Map.keys(get_propagator_ids(graph_acc, Interface.id(v), fn _ -> true end)),
+         Map.put(variables_acc, Interface.id(v), v)}
+      end)
 
     ## Update domains
     Enum.reduce(propagators, {g1, []}, fn p_id, {graph_acc, p_acc} ->
