@@ -23,7 +23,7 @@ defmodule CPSolver.Variable.View do
 
       ## Given value from view domain, returns mapped value from variable domain,
       ## or nil, if no mapping exists.
-      {value, :reverse} when is_integer(value) ->
+      {value, :inverse} when is_integer(value) ->
         (rem(value - b, a) == 0 && div(value - b, a)) || nil
 
       ## (Used by removeAbove and removeBelow operations)
@@ -73,17 +73,17 @@ defmodule CPSolver.Variable.View do
   end
 
   def contains?(%{mapper: mapper_fun, variable: variable} = _view, value) do
-    source_value = mapper_fun.({value, :reverse})
+    source_value = mapper_fun.({value, :inverse})
     source_value && Variable.contains?(variable, source_value)
   end
 
   def remove(%{mapper: mapper_fun, variable: variable} = _view, value) do
-    source_value = mapper_fun.({value, :reverse})
+    source_value = mapper_fun.({value, :inverse})
     (source_value && Variable.remove(variable, source_value)) || :no_change
   end
 
   def fix(%{mapper: mapper_fun, variable: variable} = _view, value) do
-    source_value = mapper_fun.({value, :reverse})
+    source_value = mapper_fun.({value, :inverse})
     (source_value && Variable.fix(variable, source_value)) || :fail
   end
 

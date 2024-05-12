@@ -36,7 +36,7 @@ defmodule CPSolver.Search.DomainPartition do
     rescue
       :fail ->
         Logger.error(
-          "Failure on partitioning with value #{inspect(value)}, domain: #{inspect(CPSolver.BitVectorDomain.V2.raw(domain))}"
+          "Failure on partitioning with value #{inspect(value)}, domain: #{inspect(CPSolver.BitVectorDomain.raw(domain))}"
         )
 
         throw(:fail)

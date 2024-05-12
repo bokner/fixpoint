@@ -1,7 +1,6 @@
 defmodule CPSolver.Propagator do
   @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change | :fixed
 
-  @callback new(args :: list()) :: Propagator.t()
   @callback reset(args :: list(), state :: map()) :: map() | nil
   @callback filter(args :: list()) :: {:state, map()} | :stable | :fail | propagator_event()
   @callback filter(args :: list(), state :: map() | nil) ::
@@ -14,7 +13,6 @@ defmodule CPSolver.Propagator do
   alias CPSolver.Variable.View
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.DefaultDomain, as: Domain
-  alias CPSolver.Variable.Interface
   alias CPSolver.ConstraintStore
 
   defmacro __using__(_) do
@@ -46,7 +44,7 @@ defmodule CPSolver.Propagator do
         Propagator.default_variables_impl(args)
       end
 
-      defoverridable variables: 1, new: 1, reset: 2, filter: 2, filter: 3
+      defoverridable variables: 1, reset: 2, filter: 2, filter: 3
     end
   end
 
@@ -115,10 +113,6 @@ defmodule CPSolver.Propagator do
       result ->
         get_filter_changes(result)
     end
-  end
-
-  def find_variable(args, var_id) do
-    Enum.find(args, fn arg -> Interface.id(arg) == var_id end)
   end
 
   ## How propagator events map to domain events

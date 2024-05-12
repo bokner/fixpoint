@@ -1,8 +1,10 @@
 defmodule CPSolver.BitVectorDomain do
   import Bitwise
 
+  @max_value (1 <<< 64) - 1
+
   def new([]) do
-    throw(:empty_domain)
+    fail()
   end
 
   def new(value) when is_integer(value) do
@@ -13,7 +15,7 @@ defmodule CPSolver.BitVectorDomain do
     new([domain])
   end
 
-  def new({{:bit_vector, _size, _ref} = _bitmap, _offset} = domain) do
+  def new({{:bit_vector, _ref} = _bitmap, _offset} = domain) do
     domain
   end
 
@@ -23,198 +25,426 @@ defmodule CPSolver.BitVectorDomain do
     bv = :bit_vector.new(domain_size)
     Enum.each(domain, fn idx -> :bit_vector.set(bv, idx + offset) end)
 
+    PackedMinMax.set_min(0, 0)
+    |> PackedMinMax.set_max(Enum.max(domain) + offset)
+    |> then(fn min_max -> set_min_max(bv, min_max) end)
+
     {bv, offset}
+  end
+
+  def copy({{:bit_vector, ref} = bit_vector, offset} = _domain) do
+    %{
+      min_addr: %{block: current_min_block},
+      max_addr: %{block: current_max_block}
+    } = get_bound_addrs(bit_vector)
+
+    new_atomics_size = current_max_block + 1
+    new_atomics_ref = :atomics.new(new_atomics_size, [{:signed, false}])
+
+    Enum.each(
+      current_min_block..current_max_block,
+      fn block_idx ->
+        block_val = :atomics.get(ref, block_idx)
+        :atomics.put(new_atomics_ref, block_idx, block_val)
+      end
+    )
+
+    new_bit_vector = {:bit_vector, new_atomics_ref}
+    set_min_max(new_bit_vector, get_min_max_impl(bit_vector) |> elem(1))
+    {new_bit_vector, offset}
   end
 
   def map(domain, mapper_fun) when is_function(mapper_fun) do
     to_list(domain, mapper_fun)
   end
 
-  def to_list(domain, mapper_fun \\ &Function.identity/1) do
-    Enum.reduce(min(domain)..max(domain), [], fn i, acc ->
-      (contains?(domain, i) && [mapper_fun.(i) | acc]) || acc
+  def to_list({bit_vector, offset} = _domain, mapper_fun \\ &Function.identity/1) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+
+    Enum.reduce(min_value..max_value, [], fn i, acc ->
+      (contains?(bit_vector, i, min_value, max_value) && [mapper_fun.(i - offset) | acc]) || acc
     end)
   end
 
-  def size({{:bit_vector, _size, ref} = bit_vector, _offset}) do
-    Enum.reduce(1..last_index(bit_vector), 0, fn idx, acc ->
+  def fixed?({bit_vector, _offset} = _domain) do
+    {current_min_max, _min_max_idx, current_min, current_max} = get_min_max(bit_vector)
+    current_max == current_min && current_min_max != @max_value
+  end
+
+  def failed?({:bit_vector, _ref} = bit_vector) do
+    failed?(elem(get_min_max_impl(bit_vector), 1))
+  end
+
+  def failed?({bit_vector, _offset} = _domain) do
+    failed?(bit_vector)
+  end
+
+  def failed?(min_max_value) when is_integer(min_max_value) do
+    min_max_value == @max_value ||
+      PackedMinMax.get_min(min_max_value) > PackedMinMax.get_max(min_max_value)
+  end
+
+  def min({bit_vector, offset} = _domain) do
+    get_min(bit_vector) - offset
+  end
+
+  def max({bit_vector, offset} = _domain) do
+    get_max(bit_vector) - offset
+  end
+
+  def size({{:bit_vector, ref} = bit_vector, _offset}) do
+    %{
+      min_addr: %{block: current_min_block, offset: min_offset},
+      max_addr: %{block: current_max_block, offset: max_offset}
+    } = get_bound_addrs(bit_vector)
+
+    Enum.reduce(current_min_block..current_max_block, 0, fn idx, acc ->
       n = :atomics.get(ref, idx)
 
-      (n == 0 && acc) ||
-        acc + (for(<<bit::1 <- :binary.encode_unsigned(n)>>, do: bit) |> Enum.sum())
+      if n == 0 do
+        acc
+      else
+        n1 = (idx == current_min_block && n >>> min_offset) || n
+        n2 = (idx == current_max_block && ((1 <<< (max_offset + 1)) - 1 &&& n1)) || n1
+        acc + bit_count(n2)
+      end
     end)
   end
 
-  def fixed?(domain) do
-    size(domain) == 1
-  end
-
-  def fail?(domain) do
-    size(domain) == 0
-  end
-
-  def min({{:bit_vector, _zero_based_max, atomics_ref} = bit_vector, offset}) do
-    ## Skip to a first non-zero element of atomics
-
-    min_value =
-      Enum.reduce_while(1..last_index(bit_vector), nil, fn idx, _acc ->
-        case :atomics.get(atomics_ref, idx) do
-          0 -> {:cont, nil}
-          non_zero_block -> {:halt, (idx - 1) * 64 + lsb(non_zero_block) - offset}
-        end
-      end)
-
-    (min_value && min_value) || :fail
-  end
-
-  def max({{:bit_vector, _zero_based_max, atomics_ref} = bit_vector, offset}) do
-    ## Skip to a last non-zero element of atomics
-    max_value =
-      Enum.reduce_while(1..last_index(bit_vector) |> Enum.reverse(), nil, fn idx, _acc ->
-        case :atomics.get(atomics_ref, idx) do
-          0 -> {:cont, nil}
-          non_zero_block -> {:halt, (idx - 1) * 64 + msb(non_zero_block) - offset}
-        end
-      end)
-
-    (max_value && max_value) || :fail
-  end
-
-  def contains?({{:bit_vector, zero_based_max, _ref} = bit_vector, offset}, value) do
+  def contains?({{:bit_vector, _ref} = bit_vector, offset}, value) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
     vector_value = value + offset
+    contains?(bit_vector, vector_value, min_value, max_value)
+  end
 
-    vector_value >= 0 && vector_value < zero_based_max &&
+  def contains?(bit_vector, vector_value, min_value, max_value) do
+    vector_value >= min_value && vector_value <= max_value &&
       :bit_vector.get(bit_vector, vector_value) == 1
   end
 
-  def remove({bitmap, offset} = domain, value) do
+  def fix({bit_vector, offset} = _domain, value) do
+    min_max_info =
+      {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+
+    vector_value = value + offset
+
+    if contains?(bit_vector, vector_value, min_value, max_value) do
+      set_fixed(bit_vector, value + offset, min_max_info)
+    else
+      fail(bit_vector)
+    end
+  end
+
+  def remove({bit_vector, offset} = domain, value) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+    vector_value = value + offset
+
     cond do
-      !contains?(domain, value) ->
+      ## No value in the domain, do nothing
+      !contains?(bit_vector, vector_value, min_value, max_value) ->
         :no_change
 
       true ->
-        min? = min(domain) == value
-        max? = max(domain) == value
+        domain_change =
+          cond do
+            min_value == max_value && vector_value == min_value ->
+              ## Fixed value: fail on removing attempt
+              fail(bit_vector)
 
-        cond do
-          ## Attempt to remove fixed value
-          min? && max? ->
-            :fail
+            min_value == vector_value ->
+              tighten_min(bit_vector, min_value, max_value)
 
-          true ->
-            vector_value = value + offset
-            {:bit_vector.clear(bitmap, vector_value), offset}
-            ## What kind of domain change happened?
-            domain_change =
-              cond do
-                fixed?(domain) -> :fixed
-                min? -> :min_change
-                max? -> :max_change
-                true -> :domain_change
-              end
+            max_value == vector_value ->
+              tighten_max(bit_vector, max_value, min_value)
 
-            {domain_change, domain}
+            true ->
+              :domain_change
+          end
+
+        {domain_change, domain}
+        |> tap(fn _ -> :bit_vector.clear(bit_vector, vector_value) end)
+    end
+  end
+
+  def removeAbove({bit_vector, offset} = domain, value) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+    vector_value = value + offset
+
+    cond do
+      vector_value >= max_value ->
+        :no_change
+
+      vector_value < min_value ->
+        fail(bit_vector)
+
+      true ->
+        ## The value is strictly less than max
+        domain_change = tighten_max(bit_vector, vector_value + 1, min_value)
+
+        {domain_change, domain}
+    end
+  end
+
+  def removeBelow({bit_vector, offset} = domain, value) do
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+    vector_value = value + offset
+
+    cond do
+      vector_value <= min_value ->
+        :no_change
+
+      vector_value > max_value ->
+        fail(bit_vector)
+
+      true ->
+        ## The value is strictly greater than min
+        domain_change = tighten_min(bit_vector, vector_value - 1, max_value)
+
+        {domain_change, domain}
+    end
+  end
+
+  def raw({{:bit_vector, ref} = _bit_vector, offset} = _domain) do
+    %{
+      offset: offset,
+      content: Enum.map(1..:atomics.info(ref).size, fn i -> :atomics.get(ref, i) end)
+    }
+  end
+
+  ## Last 2 bytes of bit_vector are min and max
+  def last_index({:bit_vector, ref} = _bit_vector) do
+    :atomics.info(ref).size - 1
+  end
+
+  defp set_min_max({:bit_vector, ref} = bit_vector, min_max) do
+    bit_vector
+    |> min_max_index()
+    |> tap(fn idx ->
+      :atomics.put(ref, idx, min_max)
+    end)
+  end
+
+  def get_min(bit_vector) do
+    get_min_max(bit_vector) |> elem(2)
+  end
+
+  def get_max(bit_vector) do
+    get_min_max(bit_vector) |> elem(3)
+  end
+
+  defp min_max_index(bit_vector) do
+    last_index(bit_vector) + 1
+  end
+
+  def get_min_max(bit_vector) do
+    get_min_max_impl(bit_vector)
+    |> then(fn {min_max_index, min_max} ->
+      min_max == @max_value && fail(bit_vector)
+      {min_max, min_max_index, PackedMinMax.get_min(min_max), PackedMinMax.get_max(min_max)}
+    end)
+  end
+
+  defp get_min_max_impl({:bit_vector, ref} = bit_vector) do
+    min_max_index = min_max_index(bit_vector)
+    {min_max_index, :atomics.get(ref, min_max_index)}
+  end
+
+  def set_min(bit_vector, new_min) do
+    set_min(bit_vector, new_min, get_min_max(bit_vector))
+  end
+
+  def set_min({:bit_vector, ref} = bit_vector, new_min, min_max_info) do
+    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
+
+    cond do
+      new_min > current_max ->
+        ## Inconsistency
+        fail(bit_vector)
+
+      new_min != current_min && current_min == current_max ->
+        ## Attempt to re-fix
+        fail(bit_vector)
+
+      true ->
+        ## Min change
+        min_max_value = PackedMinMax.set_min(current_min_max, new_min)
+
+        case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
+          :ok ->
+            cond do
+              new_min == current_max -> :fixed
+              new_min <= current_min -> :no_change
+              true -> :min_change
+            end
+
+          changed_by_other_thread ->
+            min2 = PackedMinMax.get_min(changed_by_other_thread)
+            max2 = PackedMinMax.get_max(changed_by_other_thread)
+            set_min(bit_vector, new_min, {changed_by_other_thread, min_max_idx, min2, max2})
         end
     end
   end
 
-  def removeAbove({{:bit_vector, _zero_based_max, ref} = bit_vector, offset} = domain, value) do
-    cond do
-      value >= max(domain) ->
-        :no_change
+  def set_max(bit_vector, new_max) do
+    set_max(bit_vector, new_max, get_min_max(bit_vector))
+  end
 
-      value < min(domain) ->
-        :fail
+  def set_max({:bit_vector, ref} = bit_vector, new_max, min_max_info) do
+    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
+
+    cond do
+      new_max < current_min ->
+        ## Inconsistency
+        fail(bit_vector)
+
+      new_max != current_max && current_min == current_max ->
+        ## Attempt to re-fix
+        fail(bit_vector)
 
       true ->
-        vector_value = value + offset
-        block_index = block_index(vector_value)
-        last_index = last_index(bit_vector)
-        ## Clear up all blocks that follow the block the value is in
-        last_index > block_index &&
-          Enum.each((block_index + 1)..last_index, fn idx -> :atomics.put(ref, idx, 0) end)
+        ## Max change
+        min_max_value = PackedMinMax.set_max(current_min_max, new_max)
 
-        block_value = :atomics.get(ref, block_index)
-        ## Find position for the value within the block
-        pos = rem(vector_value, 64)
-        # mask = (:math.pow(2, pos + 1) - 1) |> floor()
-        mask = (1 <<< (pos + 1)) - 1
-        ## Remove all significant bits in the block above the value position
-        # msb = msb(block_value)
-        # shift = msb - pos
-        new_value = block_value &&& mask
-        :atomics.put(ref, block_index, new_value)
+        case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
+          :ok ->
+            cond do
+              new_max == current_min -> :fixed
+              new_max >= current_max -> :no_change
+              true -> :max_change
+            end
 
-        domain_change =
-          cond do
-            fail?(domain) -> :fail
-            fixed?(domain) -> :fixed
-            true -> :max_change
-          end
-
-        {domain_change, domain}
+          changed_by_other_thread ->
+            min2 = PackedMinMax.get_min(changed_by_other_thread)
+            max2 = PackedMinMax.get_max(changed_by_other_thread)
+            set_max(bit_vector, new_max, {changed_by_other_thread, min_max_idx, min2, max2})
+        end
     end
   end
 
-  def removeBelow({{:bit_vector, _zero_based_max, ref} = _bit_vector, offset} = domain, value) do
-    cond do
-      value <= min(domain) ->
-        :no_change
+  def set_fixed({:bit_vector, ref} = bit_vector, fixed_value, min_max_info) do
+    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
-      value > max(domain) ->
-        :fail
-
-      true ->
-        vector_value = value + offset
-        block_index = block_index(vector_value)
-        ## Clear up all blocks on the left of the block the value is in
-        block_index > 1 &&
-          Enum.each(1..(block_index - 1), fn idx -> :atomics.put(ref, idx, 0) end)
-
-        block_value = :atomics.get(ref, block_index)
-        ## Find position for the value within the block
-        pos = rem(vector_value, 64)
-        msb = msb(block_value)
-        mask = ((1 <<< msb) - 1) <<< pos
-        ## Remove all significant bits in the block below the value position
-        new_value = block_value &&& mask
-        :atomics.put(ref, block_index, new_value)
-
-        domain_change =
-          cond do
-            fail?(domain) -> :fail
-            fixed?(domain) -> :fixed
-            true -> :min_change
-          end
-
-        {domain_change, domain}
-    end
-  end
-
-  def fix(domain, value) do
-    if contains?(domain, value) do
-      {:fixed, new(value)}
+    if fixed_value != current_max && current_min == current_max do
+      ## Attempt to re-fix
+      fail(bit_vector)
     else
-      :fail
+      min_max_value = PackedMinMax.set_min(0, fixed_value) |> PackedMinMax.set_max(fixed_value)
+
+      case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
+        :ok ->
+          :fixed
+
+        changed_by_other_thread ->
+          min2 = PackedMinMax.get_min(changed_by_other_thread)
+          max2 = PackedMinMax.get_max(changed_by_other_thread)
+          set_fixed(bit_vector, fixed_value, {changed_by_other_thread, min_max_idx, min2, max2})
+      end
     end
+  end
+
+  ## Update (cached) min, if necessary
+  defp tighten_min(
+         {:bit_vector, atomics_ref} = bit_vector,
+         starting_at,
+         max_value
+       ) do
+    {current_max_block, _} = vector_address(max_value)
+    {rightmost_block, position_in_block} = vector_address(starting_at + 1)
+    ## Find a new min (on the right of the current one)
+    min_value =
+      Enum.reduce_while(rightmost_block..current_max_block, false, fn idx, min_block_empty? ->
+        case :atomics.get(atomics_ref, idx) do
+          0 ->
+            {:cont, min_block_empty?}
+
+          non_zero_block ->
+            block_lsb =
+              if min_block_empty? do
+                lsb(non_zero_block)
+              else
+                ## Reset all bits in the block to the left of the position
+                shift = position_in_block
+                lsb(non_zero_block >>> shift <<< shift)
+              end
+
+            (block_lsb &&
+               {:halt, (idx - 1) * 64 + block_lsb}) || {:cont, true}
+        end
+      end)
+
+    (is_integer(min_value) && set_min(bit_vector, min_value)) || fail(bit_vector)
+  end
+
+  ## Update (cached) max
+  defp tighten_max(
+         {:bit_vector, atomics_ref} = bit_vector,
+         starting_at,
+         min_value
+       ) do
+    {current_min_block_idx, _} = vector_address(min_value)
+    {leftmost_block_idx, position_in_block} = vector_address(starting_at - 1)
+    ## Find a new max (on the left of the current one)
+    ##
+
+    max_value =
+      Enum.reduce_while(
+        leftmost_block_idx..current_min_block_idx,
+        false,
+        fn idx, max_block_empty? ->
+          case :atomics.get(atomics_ref, idx) do
+            0 ->
+              {:cont, max_block_empty?}
+
+            non_zero_block ->
+              block_msb =
+                if max_block_empty? do
+                  msb(non_zero_block)
+                else
+                  ## Reset all bits in the block to the right of the position
+                  mask = (1 <<< (position_in_block + 1)) - 1
+                  msb(non_zero_block &&& mask)
+                end
+
+              (block_msb &&
+                 {:halt, (idx - 1) * 64 + block_msb}) || {:cont, true}
+          end
+        end
+      )
+
+    (is_integer(max_value) && set_max(bit_vector, max_value)) || fail(bit_vector)
+  end
+
+  defp fail(bit_vector \\ nil) do
+    bit_vector && set_min_max(bit_vector, @max_value)
+    throw(:fail)
+  end
+
+  def get_bound_addrs(bit_vector) do
+    {_, _, current_min, current_max} = get_min_max(bit_vector)
+    {current_min_block, current_min_offset} = vector_address(current_min)
+    {current_max_block, current_max_offset} = vector_address(current_max)
+
+    %{
+      min_addr: %{block: current_min_block, offset: current_min_offset},
+      max_addr: %{block: current_max_block, offset: current_max_offset}
+    }
   end
 
   ## Find the index of atomics where the n-value resides
-  def block_index(n) do
+  defp block_index(n) do
     div(n, 64) + 1
   end
 
-  ## Last 2 bytes of bit_vector are min and max
-  def last_index({:bit_vector, _zero_based_max, ref} = _bit_vector) do
-    :atomics.info(ref).size - 2
+  defp vector_address(n) do
+    {block_index(n), rem(n, 64)}
   end
 
   ## Find least significant bit
-  def lsb(0) do
+  defp lsb(0) do
     nil
   end
 
-  def lsb(n) do
+  defp lsb(n) do
     lsb(n, 0)
   end
 
@@ -227,11 +457,11 @@ defmodule CPSolver.BitVectorDomain do
       lsb(n >>> 1, idx + 1)
   end
 
-  def msb(0) do
+  defp msb(0) do
     nil
   end
 
-  def msb(n) do
+  defp msb(n) do
     msb = floor(:math.log2(n))
     ## Check if there is no precision loss.
     ## We really want to throw away the fraction part even if it may
@@ -240,6 +470,12 @@ defmodule CPSolver.BitVectorDomain do
       msb - 1
     else
       msb
+    end
+  end
+
+  defp bit_count(n) do
+    for <<bit::1 <- :binary.encode_unsigned(n)>>, reduce: 0 do
+      acc -> acc + bit
     end
   end
 end

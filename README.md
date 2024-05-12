@@ -194,7 +194,7 @@ Available options:
   
   [Search strategy](#search). 
 
-- max_space_threads: integer()
+- space_threads: integer()
 
   Defines the number of processes for parallel search. Defaults to 8.
 

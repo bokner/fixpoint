@@ -2,7 +2,7 @@ defmodule CPSolverTest.MutableDomain do
   use ExUnit.Case
 
   describe "Default domain" do
-    alias CPSolver.BitVectorDomain.V2, as: Domain
+    alias CPSolver.BitVectorDomain, as: Domain
 
     test "creates domain from integer range and list" do
       assert catch_throw(Domain.new([])) == :fail

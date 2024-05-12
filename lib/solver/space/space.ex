@@ -26,7 +26,7 @@ defmodule CPSolver.Space do
       store_impl: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
       search: Search.default_strategy(),
-      max_space_threads: :erlang.system_info(:logical_processors),
+      space_threads: :erlang.system_info(:logical_processors),
       postpone: false,
       distributed: false
     ]

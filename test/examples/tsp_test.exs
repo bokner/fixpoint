@@ -36,7 +36,7 @@ defmodule CPSolverTest.Examples.TSP do
       CPSolver.solve_sync(model,
         stop_on: {:max_solutions, 3},
         timeout: 5_000,
-        max_space_threads: 12
+        space_threads: 12
       )
 
     assert Enum.all?(result.solutions, fn sol -> TSP.check_solution(sol, model) end)

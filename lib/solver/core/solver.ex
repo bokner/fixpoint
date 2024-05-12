@@ -27,7 +27,7 @@ defmodule CPSolver do
 
     shared_data =
       Shared.init_shared_data(
-        max_space_threads: opts[:max_space_threads],
+        space_threads: opts[:space_threads],
         distributed: opts[:distributed]
       )
       |> Map.put(:sync_mode, opts[:sync_mode])
