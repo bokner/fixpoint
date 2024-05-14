@@ -10,7 +10,6 @@ defmodule CPSolver.Propagator do
   @callback variables(args :: list()) :: list()
   @callback arguments(args :: list()) :: Arrays.t()
 
-
   alias CPSolver.Variable
   alias CPSolver.Variable.View
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
@@ -165,7 +164,6 @@ defmodule CPSolver.Propagator do
   def bind_to_variables(propagator, indexed_variables, var_field) do
     bound_args =
       propagator.args
-
       |> arg_map(fn arg -> bind_to_variable(arg, indexed_variables, var_field) end)
 
     Map.put(propagator, :args, bound_args)
@@ -197,7 +195,6 @@ defmodule CPSolver.Propagator do
     true
   end
 
-
   def arg_at(args, pos) when is_tuple(args) do
     TupleArray.at(args, pos)
   end
@@ -205,7 +202,6 @@ defmodule CPSolver.Propagator do
   def arg_at(args, pos) do
     Enum.at(args, pos)
   end
-
 
   def arg_map(args, mapper) when is_function(mapper) and is_list(args) do
     Enum.map(args, mapper)
@@ -218,7 +214,4 @@ defmodule CPSolver.Propagator do
   def arg_map(args, mapper) when is_function(mapper) do
     FunLand.map(args, mapper)
   end
-
-
-
 end

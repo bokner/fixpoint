@@ -79,7 +79,9 @@ defmodule CPSolverTest.SpacePropagation do
              var_id_set = MapSet.new(Enum.map(p.args, fn v -> v.id end))
 
              MapSet.subset?(
-               Enum.map(propagator_domain_changes, fn {var_pos, _change} -> Enum.at(p.args, var_pos).id end)
+               Enum.map(propagator_domain_changes, fn {var_pos, _change} ->
+                 Enum.at(p.args, var_pos).id
+               end)
                |> MapSet.new(),
                var_id_set
              )

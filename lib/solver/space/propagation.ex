@@ -201,7 +201,12 @@ defmodule CPSolver.Space.Propagation do
 
         Map.update(acc, p_id, Map.new(%{arg_position => domain_change}), fn var_map ->
           current_var_change = Map.get(var_map, arg_position)
-          Map.put(var_map, arg_position, maybe_update_domain_change(current_var_change, domain_change))
+
+          Map.put(
+            var_map,
+            arg_position,
+            maybe_update_domain_change(current_var_change, domain_change)
+          )
         end)
       end
     )

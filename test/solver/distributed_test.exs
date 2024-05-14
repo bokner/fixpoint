@@ -2,6 +2,8 @@ defmodule CPSolverTest.Distributed do
   use ExUnit.Case
   alias CPSolver.Examples.Sudoku
 
+  @moduletag :slow
+
   setup do
     # {:ok, spawned} = ExUnited.spawn([:test_worker1, :test_worker2, :test_worker3])
     :ok = LocalCluster.start()

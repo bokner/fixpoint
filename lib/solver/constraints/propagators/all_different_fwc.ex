@@ -97,7 +97,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
           fixed_value = get_value(all_vars, idx)
 
           {updated_vars, add_fixed_value(fixed_values_acc, fixed_value),
-          add_fixed_value(all_fixed_values_acc, fixed_value)}
+           add_fixed_value(all_fixed_values_acc, fixed_value)}
         else
           acc
         end
@@ -117,7 +117,8 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
               {unfixed_vars_acc, fixed_values_acc, new_delta_acc}
 
             new_fixed_value ->
-              {MapSet.delete(unfixed_vars_acc, idx), MapSet.put(fixed_values_acc, new_fixed_value),
+              {MapSet.delete(unfixed_vars_acc, idx),
+               MapSet.put(fixed_values_acc, new_fixed_value),
                MapSet.put(new_delta_acc, new_fixed_value)}
           end
         end

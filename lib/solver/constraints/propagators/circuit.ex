@@ -42,7 +42,7 @@ defmodule CPSolver.Propagator.Circuit do
       args
       |> Enum.with_index()
       |> Enum.reduce(
-        {List.duplicate(nil, l), [], Graph.new()},
+        {Arrays.new(List.duplicate(nil, l)), [], Graph.new()},
         fn {var, idx}, {circuit_acc, unfixed_acc, graph_acc} ->
           initial_reduction(var, idx, l)
           fixed? = fixed?(var)
@@ -62,7 +62,7 @@ defmodule CPSolver.Propagator.Circuit do
 
     %{
       domain_graph: domain_graph,
-      circuit: Enum.reverse(circuit),
+      circuit: Enum.reverse(circuit) |> Arrays.new(),
       unfixed_vertices: unfixed_vertices
     }
   end
@@ -167,7 +167,7 @@ defmodule CPSolver.Propagator.Circuit do
 
   defp check_circuit(partial_circuit, started_at, currently_at, step)
        when started_at == currently_at do
-    step == length(partial_circuit)
+    step == Arrays.size(partial_circuit)
   end
 
   defp check_circuit(partial_circuit, started_at, currently_at, step) do
@@ -179,7 +179,7 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp update_circuit(circuit, idx, value) do
-    List.replace_at(circuit, idx, value)
+    Arrays.replace(circuit, idx, value)
     |> tap(fn partial_circuit -> check_circuit(partial_circuit, idx) || fail() end)
   end
 
