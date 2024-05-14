@@ -11,6 +11,11 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   @impl true
+  def arguments(args) do
+    Arrays.new(args)
+  end
+
+  @impl true
   def filter(args) do
     filter(args, initial_state(args))
   end
@@ -31,7 +36,7 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp initial_state(args) do
-    l = length(args)
+    l = Arrays.size(args)
 
     {circuit, unfixed_vertices, domain_graph} =
       args

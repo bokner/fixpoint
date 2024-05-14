@@ -27,6 +27,8 @@ defmodule CPSolver.MixProject do
   defp deps do
     [
       {:libgraph, "~> 0.16.0"},
+      {:arrays, "~> 2.1"},
+      {:fun_land, "~> 0.10.0"},
       {:math, "~> 0.7.0", only: :test},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 1.2", only: [:dev], runtime: false},

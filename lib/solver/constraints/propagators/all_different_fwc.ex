@@ -35,7 +35,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   defp initial_reduction(args) do
-    Enum.reduce(
+    Arrays.reduce(
       args,
       {0, {MapSet.new(), MapSet.new()}},
       fn var, {idx_acc, {unfixed_map_acc, fixed_set_acc}} ->
@@ -48,6 +48,11 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
     |> then(fn {unfixed_vars, fixed_values} ->
       fwc(args, unfixed_vars, fixed_values, fixed_values)
     end)
+  end
+
+  @impl true
+  def arguments(args) do
+    Arrays.new(args)
   end
 
   @impl true
@@ -179,6 +184,6 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   defp get_variable(variables, idx) do
-    (idx && Enum.at(variables, idx)) || nil
+    (idx && Propagator.arg_at(variables, idx)) || nil
   end
 end

@@ -8,12 +8,15 @@ defmodule CPSolver.Propagator do
   @callback filter(args :: list(), state :: map() | nil, changes :: map()) ::
               {:state, map()} | :stable | :fail | propagator_event()
   @callback variables(args :: list()) :: list()
+  @callback arguments(args :: list()) :: Arrays.t()
+
 
   alias CPSolver.Variable
   alias CPSolver.Variable.View
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.ConstraintStore
+  alias CPSolver.Utils.TupleArray
 
   defmacro __using__(_) do
     quote do
@@ -25,7 +28,11 @@ defmodule CPSolver.Propagator do
       @behaviour Propagator
 
       def new(args) do
-        Propagator.new(__MODULE__, args)
+        Propagator.new(__MODULE__, arguments(args))
+      end
+
+      def arguments(args) do
+        args
       end
 
       def reset(_args, state) do
@@ -44,7 +51,7 @@ defmodule CPSolver.Propagator do
         Propagator.default_variables_impl(args)
       end
 
-      defoverridable variables: 1, reset: 2, filter: 2, filter: 3
+      defoverridable arguments: 1, variables: 1, reset: 2, filter: 2, filter: 3
     end
   end
 
@@ -158,7 +165,8 @@ defmodule CPSolver.Propagator do
   def bind_to_variables(propagator, indexed_variables, var_field) do
     bound_args =
       propagator.args
-      |> Enum.map(fn arg -> bind_to_variable(arg, indexed_variables, var_field) end)
+
+      |> arg_map(fn arg -> bind_to_variable(arg, indexed_variables, var_field) end)
 
     Map.put(propagator, :args, bound_args)
   end
@@ -188,4 +196,29 @@ defmodule CPSolver.Propagator do
   def is_constant_arg(_other) do
     true
   end
+
+
+  def arg_at(args, pos) when is_tuple(args) do
+    TupleArray.at(args, pos)
+  end
+
+  def arg_at(args, pos) do
+    Enum.at(args, pos)
+  end
+
+
+  def arg_map(args, mapper) when is_function(mapper) and is_list(args) do
+    Enum.map(args, mapper)
+  end
+
+  def arg_map(args, mapper) when is_function(mapper) and is_tuple(args) do
+    TupleArray.map(args, mapper)
+  end
+
+  def arg_map(args, mapper) when is_function(mapper) do
+    FunLand.map(args, mapper)
+  end
+
+
+
 end

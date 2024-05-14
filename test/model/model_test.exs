@@ -26,7 +26,7 @@ defmodule CpSolverTest.Model do
           objective: Objective.minimize(z)
         )
 
-      ## Additional variable z is pulled from the Sum constraints  
+      ## Additional variable z is pulled from the Sum constraints
       assert length(model.variables) == 3
       ## All variables are indexed starting from 1
       assert Enum.all?(Enum.with_index(model.variables, 1), fn {var, idx} -> var.index == idx end)
