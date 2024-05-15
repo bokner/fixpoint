@@ -12,7 +12,7 @@ defmodule CPSolver.Propagator.Circuit do
 
   @impl true
   def arguments(args) do
-    Arrays.new(args)
+    Arrays.new(args, implementation: Aja.Vector)
   end
 
   @impl true
@@ -42,7 +42,7 @@ defmodule CPSolver.Propagator.Circuit do
       args
       |> Enum.with_index()
       |> Enum.reduce(
-        {Arrays.new(List.duplicate(nil, l)), [], Graph.new()},
+        {Arrays.new(List.duplicate(nil, l), implementation: Aja.Vector), [], Graph.new()},
         fn {var, idx}, {circuit_acc, unfixed_acc, graph_acc} ->
           initial_reduction(var, idx, l)
           fixed? = fixed?(var)
@@ -62,7 +62,7 @@ defmodule CPSolver.Propagator.Circuit do
 
     %{
       domain_graph: domain_graph,
-      circuit: Enum.reverse(circuit) |> Arrays.new(),
+      circuit: Enum.reverse(circuit) |> Arrays.new(implementation: Aja.Vector),
       unfixed_vertices: unfixed_vertices
     }
   end

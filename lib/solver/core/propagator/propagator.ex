@@ -212,6 +212,6 @@ defmodule CPSolver.Propagator do
   end
 
   def arg_map(args, mapper) when is_function(mapper) do
-    FunLand.map(args, mapper)
+    Arrays.map(args, mapper)
   end
 end

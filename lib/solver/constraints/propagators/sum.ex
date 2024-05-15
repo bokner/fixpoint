@@ -11,6 +11,11 @@ defmodule CPSolver.Propagator.Sum do
     new([minus(y) | x])
   end
 
+  @impl true
+  def arguments(args) do
+    Arrays.new(args, implementation: Aja.Vector)
+  end
+
   defp initial_state(args) do
     {sum_fixed, unfixed_vars} =
       args

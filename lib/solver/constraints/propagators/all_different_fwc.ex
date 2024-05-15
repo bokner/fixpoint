@@ -52,7 +52,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
 
   @impl true
   def arguments(args) do
-    Arrays.new(args)
+    Arrays.new(args, implementation: Aja.Vector)
   end
 
   @impl true
