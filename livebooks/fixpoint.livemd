@@ -2,8 +2,7 @@
 
 ```elixir
 Mix.install([
-  {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
-  # :fixpoint,
+  :fixpoint,
   {:kino, "~> 0.10.0"}
 ])
 
@@ -161,7 +160,7 @@ To make it more concrete, we will solve some combinatorial problems using ***Fix
 
 ```elixir
 alias CPSolver.Examples.Queens
-n = 400
+n = 8
 timeout = 120_000
 
 {:ok, res} =
@@ -485,10 +484,14 @@ require Logger
 alias CPSolver.Examples.Sudoku
 
 res =
-  SudokuBenchmark.run("data/sudoku/hardest", 100, 12, 30_000)
+  SudokuBenchmark.run("data/sudoku/top95", 100, 8, 30_000)
   |> Enum.map(fn s ->
-    !(s.solutions |> List.first() |> then(fn sol -> sol && Sudoku.check_solution(sol) end)) &&
-      Logger.error("Wrong solution!")
+    s.solutions
+    |> List.first()
+    |> tap(fn sol ->
+      (sol && Sudoku.check_solution(sol) && Logger.notice("OK")) ||
+        Logger.error("Wrong solution!")
+    end)
 
     s.statistics.elapsed_time
   end)

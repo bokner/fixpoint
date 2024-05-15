@@ -2,8 +2,7 @@
 
 ```elixir
 Mix.install([
-  {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
-  # :fixpoint,
+  :fixpoint,
   {:kino, "~> 0.10.0"}
 ])
 
@@ -182,7 +181,7 @@ table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {8, 4}, {11, 5}]
 distances = distances_from_coordinates(table_coordinates)
 
 model = TSP.model(distances)
-{:ok, result} = CPSolver.solve_sync(model, search: TSP.search(model))
+{:ok, result} = CPSolver.solve_sync(model, search: TSP.search(model), space_threads: 8)
 
 optimal_solution = result.solutions |> List.last()
 
@@ -197,8 +196,4 @@ result.solutions
 
 ```elixir
 {result.statistics.elapsed_time, optimal_route}
-```
-
-```elixir
-
 ```
