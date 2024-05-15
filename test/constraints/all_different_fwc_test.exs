@@ -50,7 +50,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.FWC do
       variables = Enum.map(1..4, fn _ -> IntVariable.new(1..3) end)
       model = Model.new(variables, [Constraint.new(AllDifferentFWC, variables)])
 
-      {:ok, result} = CPSolver.solve_sync(model, timeout: 100)
+      {:ok, result} = CPSolver.solve_sync(model)
 
       assert result.status == :unsatisfiable
     end
