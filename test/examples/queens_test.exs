@@ -31,7 +31,7 @@ defmodule CPSolverTest.Examples.Queens do
   end
 
   test "50 Queens" do
-    test_queens(50, 1, timeout: 500, trials: 2, stop_on: {:max_solutions, 1})
+    test_queens(50, 1, timeout: 500, trials: 2, space_threads: 4, stop_on: {:max_solutions, 1})
   end
 
   defp test_queens(n, expected_solutions, opts \\ []) do
@@ -39,7 +39,7 @@ defmodule CPSolverTest.Examples.Queens do
       Keyword.merge([timeout: 100, trials: 10], opts)
 
     Enum.each(1..opts[:trials], fn i ->
-      {:ok, result} = CPSolver.solve_sync(Queens.model(n), timeout: opts[:timeout])
+      {:ok, result} = CPSolver.solve_sync(Queens.model(n), opts)
       Enum.each(result.solutions, &assert_solution/1)
       solution_count = result.statistics.solution_count
 
