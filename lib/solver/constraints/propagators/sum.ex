@@ -31,8 +31,8 @@ defmodule CPSolver.Propagator.Sum do
   @impl true
   def variables([y | x]) do
     [
-      set_propagate_on(y, :domain_change)
-      | Enum.map(x, fn x_el -> set_propagate_on(x_el, :bound_change) end)
+      set_propagate_on(y, :fixed)
+      | Enum.map(x, fn x_el -> set_propagate_on(x_el, :fixed) end)
     ]
   end
 
