@@ -214,4 +214,13 @@ defmodule CPSolver.Propagator do
   def arg_map(args, mapper) when is_function(mapper) do
     Arrays.map(args, mapper)
   end
+
+  def args_to_list(args) when is_tuple(args) do
+    Tuple.to_list(args)
+  end
+
+  def args_to_list(args) do
+    args
+  end
+
 end

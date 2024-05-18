@@ -29,4 +29,10 @@ defmodule CPSolver.Utils.TupleArray do
       Tuple.append(acc, mapper.(elem(tuple_array, idx)))
     end)
   end
+
+  def reduce(tuple_array, initial_value, reducer) when is_function(reducer) do
+    Enum.reduce(0..(tuple_size(tuple_array) - 1), initial_value, fn idx, acc ->
+      reducer.(elem(tuple_array, idx), acc)
+    end)
+  end
 end
