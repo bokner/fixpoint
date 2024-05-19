@@ -8,25 +8,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
 
-  @spec create([Propagator.t()] | %{reference() => Propagator.t()}) :: Graph.t()
+  @spec create([Propagator.t()]) :: Graph.t()
   def create(propagators) when is_list(propagators) do
-    propagators
-    |> Enum.map(fn p -> {p.id, p} end)
-    |> Map.new()
-    |> create()
-  end
-
-  def create(propagators) when is_map(propagators) do
-    Enum.reduce(propagators, Graph.new(), fn {propagator_id, p}, acc ->
-      p
-      |> Propagator.variables()
-      |> Enum.reduce(acc, fn var, acc2 ->
-        Graph.add_vertex(acc2, propagator_vertex(propagator_id))
-        |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex(propagator_id),
-          label: %{propagate_on: get_propagate_on(var), arg_position: var.arg_position}
-        )
-      end)
-      |> Graph.label_vertex(propagator_vertex(propagator_id), p)
+    Enum.reduce(propagators, Graph.new(), fn p, graph_acc ->
+      add_propagator(graph_acc, p)
     end)
   end
 
@@ -57,6 +42,20 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   def has_variable?(graph, variable_id) do
     Graph.has_vertex?(graph, {:variable, variable_id})
+  end
+
+  def add_propagator(graph, propagator) do
+    propagator_vertex = propagator_vertex(propagator.id)
+
+    propagator
+    |> Propagator.variables()
+    |> Enum.reduce(graph, fn var, graph_acc ->
+        Graph.add_vertex(graph_acc, propagator_vertex)
+        |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex,
+          label: %{propagate_on: get_propagate_on(var), arg_position: var.arg_position}
+        )
+      end)
+      |> Graph.label_vertex(propagator_vertex, propagator)
   end
 
   def get_propagator(%Graph{} = graph, propagator_id) do
