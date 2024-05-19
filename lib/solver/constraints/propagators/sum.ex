@@ -17,12 +17,12 @@ defmodule CPSolver.Propagator.Sum do
   end
 
   defp initial_state(args) do
-    {sum_fixed, unfixed_vars} =
+    {_idx, sum_fixed, unfixed_vars} =
       args
-      |> Enum.with_index()
-      |> Enum.reduce({0, MapSet.new()}, fn {var, idx}, {sum_acc, unfixed_acc} ->
-        (fixed?(var) && {sum_acc + min(var), unfixed_acc}) ||
-          {sum_acc, MapSet.put(unfixed_acc, idx)}
+      |> Enum.reduce({0, 0, MapSet.new()}, fn var, {idx_acc, sum_acc, unfixed_acc} ->
+        idx_inc = idx_acc + 1
+        (fixed?(var) && {idx_inc, sum_acc + min(var), unfixed_acc}) ||
+          {idx_inc, sum_acc, MapSet.put(unfixed_acc, idx_acc)}
       end)
 
     %{sum_fixed: sum_fixed, unfixed_ids: unfixed_vars}
@@ -41,13 +41,13 @@ defmodule CPSolver.Propagator.Sum do
     filter(args, initial_state(args))
   end
 
-  def filter(args, nil) do
-    filter(args, initial_state(args))
+  @impl true
+  def filter(all_vars, nil, changes) do
+    filter(all_vars, initial_state(all_vars), changes)
   end
 
-  @impl true
-  def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_ids: unfixed_ids} = _state) do
-    {unfixed_vars, updated_unfixed_ids, new_sum} = update_unfixed(all_vars, unfixed_ids)
+  def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_ids: unfixed_ids} = _state, changes) do
+    {unfixed_vars, updated_unfixed_ids, new_sum} = update_unfixed(all_vars, unfixed_ids, changes)
     updated_sum = sum_fixed + new_sum
     {sum_min, sum_max} = sum_min_max(updated_sum, unfixed_vars)
 
@@ -57,7 +57,12 @@ defmodule CPSolver.Propagator.Sum do
     end
   end
 
-  defp update_unfixed(all_vars, unfixed_ids) do
+  defp update_unfixed(all_vars, unfixed_ids, _changes) do
+    #if !(Map.keys(changes) |> MapSet.new() |> MapSet.subset?(unfixed_ids)) do
+      #IO.inspect({unfixed_ids, changes}, label: :unfixed_ids)
+    #end
+    #IO.inspect(changes, label: :changes)
+    #unfixed_ids = MapSet.difference(unfixed_ids, Map.keys(changes) |> MapSet.new())
     Enum.reduce(unfixed_ids, {[], unfixed_ids, 0}, fn pos, {unfixed_acc, ids_acc, sum_acc} ->
       var = Enum.at(all_vars, pos)
 
