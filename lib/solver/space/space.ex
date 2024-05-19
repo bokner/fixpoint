@@ -266,16 +266,17 @@ defmodule CPSolver.Space do
   def distribute(
         %{
           opts: opts,
-          variables: variables
+          variables: variables,
+          constraint_graph: _graph
         } = data
       ) do
     ## The search strategy branches off the existing variables.
     ## Each branch is a list of variables to use by a child space
     branches = Search.branch(variables, opts[:search])
 
-    Enum.take_while(branches, fn variable_copies ->
+    Enum.take_while(branches, fn branch_variables ->
       !CPSolver.complete?(shared(data)) &&
-        spawn_space(data |> Map.put(:variables, variable_copies))
+        spawn_space(data |> Map.put(:variables, branch_variables))
     end)
 
     shutdown(data, :distribute)

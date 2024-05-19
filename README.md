@@ -16,8 +16,7 @@ Proof of concept. Not suitable for use in production. Significant API changes an
 
 ## Implemented constraints
 
-- `not_equal`
-- `less_or_equal`
+- `equal`, `not_equal`, `less_or_equal`
 - `all_different`
 - `sum`
 - `element`, `element2d`

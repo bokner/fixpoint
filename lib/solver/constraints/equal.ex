@@ -1,6 +1,6 @@
-defmodule CPSolver.Constraint.NotEqual do
+defmodule CPSolver.Constraint.Equal do
   use CPSolver.Constraint
-  alias CPSolver.Propagator.NotEqual, as: NotEqualPropagator
+  alias CPSolver.Propagator.Equal, as: EqualPropagator
   alias CPSolver.IntVariable, as: Variable
 
   def new(x, y, offset \\ 0)
@@ -15,6 +15,6 @@ defmodule CPSolver.Constraint.NotEqual do
 
   @impl true
   def propagators(args) do
-    [NotEqualPropagator.new(args)]
+    [EqualPropagator.new(args)]
   end
 end
