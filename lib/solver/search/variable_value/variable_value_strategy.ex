@@ -1,4 +1,4 @@
-defmodule CPSolver.Search.Strategy do
+defmodule CPSolver.Search.Strategy.VariableValue do
   alias CPSolver.Variable.Interface
   alias CPSolver.Search.VariableSelector.FirstFail
   alias CPSolver.DefaultDomain, as: Domain
