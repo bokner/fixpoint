@@ -50,12 +50,12 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     propagator
     |> Propagator.variables()
     |> Enum.reduce(graph, fn var, graph_acc ->
-        Graph.add_vertex(graph_acc, propagator_vertex)
-        |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex,
-          label: %{propagate_on: get_propagate_on(var), arg_position: var.arg_position}
-        )
-      end)
-      |> Graph.label_vertex(propagator_vertex, propagator)
+      Graph.add_vertex(graph_acc, propagator_vertex)
+      |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex,
+        label: %{propagate_on: get_propagate_on(var), arg_position: var.arg_position}
+      )
+    end)
+    |> Graph.label_vertex(propagator_vertex, propagator)
   end
 
   def get_propagator(%Graph{} = graph, propagator_id) do

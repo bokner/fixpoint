@@ -222,5 +222,4 @@ defmodule CPSolver.Propagator do
   def args_to_list(args) do
     args
   end
-
 end

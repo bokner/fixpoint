@@ -35,7 +35,6 @@ defmodule CPSolverTest.Constraint.Equal do
       unsatisfiable_model = Model.new([x], [equal_constraint])
       {:ok, res} = CPSolver.solve_sync(unsatisfiable_model)
       assert res.status == :unsatisfiable
-
     end
   end
 end
