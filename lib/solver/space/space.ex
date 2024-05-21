@@ -16,6 +16,7 @@ defmodule CPSolver.Space do
 
   alias CPSolver.Shared
   alias CPSolver.Distributed
+  alias CPSolver.Utils
 
   require Logger
 
@@ -210,25 +211,27 @@ defmodule CPSolver.Space do
   end
 
   defp handle_solved(data) do
+    maybe_tighten_objective_bound(data[:objective])
     data
-    |> solution()
-    |> then(fn
-      :fail ->
-        shutdown(data, :fail)
-
+    |> solutions()
+    |> Enum.each(fn
       solution ->
-        maybe_tighten_objective_bound(data[:objective])
         Solution.run_handler(solution, data.opts[:solution_handler])
-        shutdown(data, :solved)
     end)
+    shutdown(data, :solved)
   end
 
-  defp solution(%{variables: variables, store: store} = _data) do
-    Enum.reduce_while(variables, Map.new(), fn var, acc ->
-      case ConstraintStore.get(store, var, :min) do
-        :fail -> {:halt, :fail}
-        val -> {:cont, Map.put(acc, var.name, val)}
-      end
+  defp solutions(%{variables: variables} = _data) do
+    Enum.map(variables, fn var ->
+      Interface.domain(var) |> Domain.to_list()
+    end)
+    |> Utils.cartesian()
+    |> Enum.map(fn values ->
+      Enum.reduce(values, {0, Map.new()},
+      fn val, {idx_acc, map_acc} ->
+        {idx_acc + 1, Map.put(map_acc, Enum.at(variables, idx_acc).name, val)}
+      end)
+      |> elem(1)
     end)
   end
 

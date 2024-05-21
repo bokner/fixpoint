@@ -124,16 +124,16 @@ defmodule CPSolver.Space.Propagation do
   end
 
   ## TODO: revisit - remove passive propagators
-  defp maybe_remove_propagator(graph, propagator_id, propagator, active?, new_state) do
-    (new_state && active? &&
-       ConstraintGraph.update_propagator(
-         graph,
-         propagator_id,
-         Map.put(propagator, :state, new_state)
-       )) ||
-      graph
+  defp maybe_remove_propagator(graph, propagator_id, _propagator, active?, _new_state) do
+    # (new_state && active? &&
+    #    ConstraintGraph.update_propagator(
+    #      graph,
+    #      propagator_id,
+    #      Map.put(propagator, :state, new_state)
+    #    )) ||
 
-    graph
+    !active? && ConstraintGraph.remove_propagator(graph, propagator_id)
+    || graph
   end
 
   defp finalize(:fail, _propagators, _store) do
