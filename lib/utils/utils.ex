@@ -19,4 +19,15 @@ defmodule CPSolver.Utils do
         end
     end
   end
+
+  ## Cartesian product of list of lists
+  def cartesian([]) do
+    [[]]
+  end
+
+  def cartesian([h | t]) do
+    for i <- h, j <- cartesian(t) do
+      [i | j]
+    end
+  end
 end
