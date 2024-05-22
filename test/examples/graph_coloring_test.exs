@@ -32,8 +32,8 @@ defmodule CPSolverTest.Examples.GraphColoring do
   end
 
   @tag :slow
-  test "gc_15_30_2" do
-    test_graph("gc_15_30_2", 21408, timeout: 2000, trials: 1)
+  test "gc_15_30_5" do
+    test_graph("gc_15_30_5", 34848, timeout: 2000, trials: 1)
   end
 
   test "gc_15_30_3" do
