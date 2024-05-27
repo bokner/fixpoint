@@ -79,7 +79,6 @@ defmodule CPSolver.Search.Strategy.VariableValue do
     variable
     |> partition_impl(value_choice)
     |> split_domain_by(variable)
-
   end
 
   def all_vars_fixed_exception() do
@@ -102,9 +101,9 @@ defmodule CPSolver.Search.Strategy.VariableValue do
     end)
   end
 
-
   defp split_domain_by(value, variable) do
     domain = Interface.domain(variable)
+
     try do
       Domain.remove(domain, value)
       {:ok, [Domain.new(value), domain]}
@@ -117,5 +116,4 @@ defmodule CPSolver.Search.Strategy.VariableValue do
         throw(:fail)
     end
   end
-
 end

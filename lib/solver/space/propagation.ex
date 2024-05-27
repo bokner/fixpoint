@@ -131,8 +131,8 @@ defmodule CPSolver.Space.Propagation do
     #      propagator_id,
     #      Map.put(propagator, :state, new_state)
     #    )) ||
-    !active? && ConstraintGraph.remove_propagator(graph, propagator_id)
-    || graph
+    (!active? && ConstraintGraph.remove_propagator(graph, propagator_id)) ||
+      graph
   end
 
   defp finalize(:fail, _propagators, _store) do
