@@ -212,12 +212,14 @@ defmodule CPSolver.Space do
 
   defp handle_solved(data) do
     maybe_tighten_objective_bound(data[:objective])
+
     data
     |> solutions()
     |> Enum.each(fn
       solution ->
         Solution.run_handler(solution, data.opts[:solution_handler])
     end)
+
     shutdown(data, :solved)
   end
 
@@ -227,8 +229,7 @@ defmodule CPSolver.Space do
     end)
     |> Utils.cartesian()
     |> Enum.map(fn values ->
-      Enum.reduce(values, {0, Map.new()},
-      fn val, {idx_acc, map_acc} ->
+      Enum.reduce(values, {0, Map.new()}, fn val, {idx_acc, map_acc} ->
         {idx_acc + 1, Map.put(map_acc, Enum.at(variables, idx_acc).name, val)}
       end)
       |> elem(1)
@@ -277,7 +278,7 @@ defmodule CPSolver.Space do
     ## Each branch is a list of variables to use by a child space
     branches = Search.branch(variables, opts[:search])
 
-    Enum.take_while(branches, fn branch_variables ->
+    Enum.take_while(branches, fn {branch_variables, _constraint} ->
       !CPSolver.complete?(shared(data)) &&
         spawn_space(data |> Map.put(:variables, branch_variables))
     end)
