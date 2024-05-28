@@ -99,6 +99,7 @@ defmodule CPSolver.Search.Strategy do
       {Enum.map(variables, fn var ->
         domain_copy =
           ((var.id == selected_variable.id && domain) || var.domain)
+          #var.domain
           |> Domain.copy()
 
         set_domain(var, domain_copy)

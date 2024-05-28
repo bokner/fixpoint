@@ -10,6 +10,7 @@ defmodule CPSolver.Space do
   alias CPSolver.ConstraintStore
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
+  alias CPSolver.Constraint
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
@@ -151,7 +152,10 @@ defmodule CPSolver.Space do
         space: self()
       )
 
-    {constraint_graph, bound_propagators} = ConstraintGraph.update(graph, space_variables)
+    {constraint_graph, bound_propagators} =
+      graph
+      |> add_branch_constraint(space_opts[:branch_constraint])
+      |> ConstraintGraph.update(space_variables)
 
     space_data =
       data
@@ -258,6 +262,18 @@ defmodule CPSolver.Space do
     # objective
   end
 
+  defp add_branch_constraint(constraint_graph, _constraint) do
+    constraint_graph
+  end
+
+  # defp add_branch_constraint(constraint_graph, constraint) do
+  #   #[]
+  #   constraint
+  #   |> Constraint.constraint_to_propagators()
+  #   |> IO.inspect()
+  #   |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
+  # end
+
   defp handle_stable(data) do
     try do
       distribute(data)
@@ -278,9 +294,12 @@ defmodule CPSolver.Space do
     ## Each branch is a list of variables to use by a child space
     branches = Search.branch(variables, opts[:search])
 
-    Enum.take_while(branches, fn {branch_variables, _constraint} ->
+    Enum.take_while(branches, fn {branch_variables, constraint} ->
       !CPSolver.complete?(shared(data)) &&
-        spawn_space(data |> Map.put(:variables, branch_variables))
+        spawn_space(
+          data
+          |> Map.put(:variables, branch_variables)
+          |> put_in([:opts, :branch_constraint], constraint))
     end)
 
     shutdown(data, :distribute)
