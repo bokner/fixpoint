@@ -2,6 +2,7 @@ alias CPSolver.Variable.Interface
 
 alias CPSolver.Variable
 alias CPSolver.Variable.View
+alias CPSolver.DefaultDomain, as: Domain
 
 defimpl Interface, for: Variable do
   def id(var), do: var.id
@@ -42,6 +43,24 @@ defimpl Interface, for: View do
     updated_variable = Map.put(variable(view), field, value)
     Map.put(view, :variable, updated_variable)
   end
+end
+
+defimpl Interface, for: Integer do
+  def variable(_any), do: nil
+  def id(_val), do: nil
+  defdelegate map(val, mapper), to: Domain
+  def domain(val), do: val
+  defdelegate size(val), to: Domain
+  defdelegate min(val), to: Domain
+  defdelegate max(val), to: Domain
+  defdelegate fixed?(val), to: Domain
+  defdelegate contains?(val, value), to: Domain
+  defdelegate remove(val, remove_val), to: Domain
+  defdelegate removeAbove(val, removeAbove), to: Domain
+  defdelegate removeBelow(val, removeBelow), to: Domain
+  defdelegate fix(value, fixed_value), to: Domain
+  def update(val, _field, _value), do: val
+
 end
 
 defimpl Interface, for: Any do

@@ -21,7 +21,9 @@ defmodule CPSolver.Propagator.Equal do
     filter_impl(x, y, offset)
   end
 
-  def filter_impl(x, y, offset \\ 0) do
+  def filter_impl(x, y, offset \\ 0)
+
+  def filter_impl(x, y, offset) do
     cond do
       fixed?(x) ->
         fix(y, plus(min(x), -offset))
