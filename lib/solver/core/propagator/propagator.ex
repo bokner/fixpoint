@@ -155,6 +155,7 @@ defmodule CPSolver.Propagator do
   defp get_filter_changes({:state, state}) do
     get_filter_changes(true)
     |> Map.put(:state, state)
+    |> Map.put(:active?, Map.get(state, :active?, true))
   end
 
   defp get_filter_changes(result) do
