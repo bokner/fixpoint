@@ -111,16 +111,19 @@ defmodule CPSolver.Search.Strategy do
     domain = Interface.domain(variable)
 
     try do
-      Domain.remove(domain, value)
+      remove_changes = Domain.remove(domain, value)
 
       {:ok,
        [
          {
           Domain.new(value),
-          Equal.new(variable, value)},
+          %{variable.id => :fixed}
+          #Equal.new(variable, value)
+          },
          {
           domain,
-          NotEqual.new(variable, value)
+          %{variable.id => remove_changes}
+          #NotEqual.new(variable, value)
         }
        ]}
     rescue

@@ -23,6 +23,11 @@ defmodule CPSolver.Propagator.Equal do
 
   def filter_impl(x, y, offset \\ 0)
 
+  def filter_impl(x, c, offset) when is_integer(c) do
+    fix(x, c + offset)
+    :passive
+  end
+
   def filter_impl(x, y, offset) do
     cond do
       fixed?(x) ->
