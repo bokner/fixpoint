@@ -59,7 +59,7 @@ defmodule CPSolver.Propagator.Sum do
 
   defp update_unfixed(all_vars, unfixed_ids) do
     Enum.reduce(unfixed_ids, {[], unfixed_ids, 0}, fn pos, {unfixed_acc, ids_acc, sum_acc} ->
-      var = Enum.at(all_vars, pos)
+      var = Arrays.get(all_vars, pos)
 
       (fixed?(var) && {unfixed_acc, MapSet.delete(ids_acc, pos), sum_acc + min(var)}) ||
         {[var | unfixed_acc], ids_acc, sum_acc}

@@ -37,9 +37,10 @@ defmodule CpSolverTest.Objective do
     end
 
     test "Propagation and tightening" do
-      {:ok, [objective_variable] = _bound_vars, store} =
+      {:ok, bound_vars, store} =
         ConstraintStore.create_store([Variable.new(1..10)])
 
+        objective_variable = Arrays.get(bound_vars, 0)
       min_objective =
         %{propagator: min_propagator, bound_handle: min_handle} =
         Objective.minimize(objective_variable)
