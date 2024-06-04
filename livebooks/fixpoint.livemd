@@ -2,7 +2,8 @@
 
 ```elixir
 Mix.install([
-  :fixpoint,
+  {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
+  # :fixpoint,
   {:kino, "~> 0.10.0"}
 ])
 
@@ -161,7 +162,7 @@ To make it more concrete, we will solve some combinatorial problems using ***Fix
 ```elixir
 alias CPSolver.Examples.Queens
 n = 8
-timeout = 120_000
+timeout = 180_000
 
 {:ok, res} =
   CPSolver.solve_sync(
@@ -404,8 +405,6 @@ sorted_by_value = Enum.sort_by(items, fn {_name, _weight, value} -> value end, :
     {[n | n_acc], [w | w_acc], [v | v_acc]}
   end)
 
-model = Knapsack.model(values, weights, capacity)
-
 :ok
 ```
 
@@ -436,11 +435,12 @@ first before deciding not to.
 Overall, our search strategy translates to "pack the items with higher values first".
 
 ```elixir
+model = Knapsack.model(values, weights, capacity)
 search_strategy = {:input_order, :indomain_max}
 
 {:ok, res} =
   CPSolver.solve_sync(model,
-    space_threads: 12,
+    space_threads: 4,
     timeout: 1_000,
     search: search_strategy
   )
@@ -484,7 +484,7 @@ require Logger
 alias CPSolver.Examples.Sudoku
 
 res =
-  SudokuBenchmark.run("data/sudoku/top95", 100, 8, 30_000)
+  SudokuBenchmark.run("data/sudoku/hardest", 100, 12, 30_000)
   |> Enum.map(fn s ->
     s.solutions
     |> List.first()
