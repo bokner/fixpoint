@@ -43,17 +43,18 @@ defmodule CPSolver.Constraint.Factory do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
+  import CPSolver.Variable.View.Factory
 
   def element(array, x, opts \\ []) do
     domain = array
     y = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
-    {y, Element.new(array, x, y)}
+    result(y, Element.new(array, x, y))
   end
 
   def element2d(array2d, x, y, opts \\ []) do
     domain = array2d |> List.flatten()
     z = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
-    {z, Element2D.new([array2d, x, y, z])}
+    result(z, Element2D.new([array2d, x, y, z]))
   end
 
   def sum(vars, opts \\ []) do
@@ -73,6 +74,19 @@ defmodule CPSolver.Constraint.Factory do
       end
 
     sum_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
-    {sum_var, Sum.new(sum_var, vars)}
+    result(sum_var, Sum.new(sum_var, vars))
   end
+
+  def add(var1, var2, opts \\ []) do
+    sum([var1, var2], opts)
+  end
+
+  def subtract(var1, var2, opts \\ []) do
+    add(var1, linear(var2, -1, 0), opts)
+  end
+
+  defp result(derived_variable, constraint) do
+    {derived_variable, constraint}
+  end
+
 end
