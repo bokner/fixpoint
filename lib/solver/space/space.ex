@@ -10,8 +10,10 @@ defmodule CPSolver.Space do
   alias CPSolver.ConstraintStore
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
+  alias CPSolver.Constraint
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Space.Propagation
+  alias CPSolver.Propagator
   alias CPSolver.Objective
 
   alias CPSolver.Shared
@@ -151,7 +153,10 @@ defmodule CPSolver.Space do
         space: self()
       )
 
-    {constraint_graph, bound_propagators} = ConstraintGraph.update(graph, space_variables)
+    {constraint_graph, bound_propagators} =
+      graph
+      #|> apply_branch_constraint(space_opts[:branch_constraint])
+      |> ConstraintGraph.update(space_variables)
 
     space_data =
       data
@@ -161,6 +166,7 @@ defmodule CPSolver.Space do
       |> Map.put(:constraint_graph, constraint_graph)
       |> Map.put(:objective, update_objective(space_opts[:objective], space_variables))
       |> Map.put(:propagators, bound_propagators)
+      |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
 
     (space_opts[:postpone] &&
        {:ok, space_data}) || {:ok, space_data, {:continue, :propagate}}
@@ -186,11 +192,12 @@ defmodule CPSolver.Space do
          %{
            propagators: propagators,
            constraint_graph: constraint_graph,
+           changes: changes,
            store: store
          } =
            data
        ) do
-    case Propagation.run(propagators, constraint_graph, store) do
+    case Propagation.run(propagators, constraint_graph, store, changes) do
       :fail ->
         handle_failure(data)
 
@@ -212,12 +219,14 @@ defmodule CPSolver.Space do
 
   defp handle_solved(data) do
     maybe_tighten_objective_bound(data[:objective])
+
     data
     |> solutions()
     |> Enum.each(fn
       solution ->
         Solution.run_handler(solution, data.opts[:solution_handler])
     end)
+
     shutdown(data, :solved)
   end
 
@@ -227,9 +236,8 @@ defmodule CPSolver.Space do
     end)
     |> Utils.cartesian()
     |> Enum.map(fn values ->
-      Enum.reduce(values, {0, Map.new()},
-      fn val, {idx_acc, map_acc} ->
-        {idx_acc + 1, Map.put(map_acc, Enum.at(variables, idx_acc).name, val)}
+      Enum.reduce(values, {0, Map.new()}, fn val, {idx_acc, map_acc} ->
+        {idx_acc + 1, Map.put(map_acc, Arrays.get(variables, idx_acc).name, val)}
       end)
       |> elem(1)
     end)
@@ -248,13 +256,31 @@ defmodule CPSolver.Space do
   end
 
   defp update_objective(%{variable: variable} = objective, variables) do
-    var_domain =
-      Enum.at(variables, Interface.variable(variable).index - 1)
-      |> Interface.domain()
-
-    updated_var = Interface.update(variable, :domain, var_domain)
+    updated_var = update_domain(variable, variables)
     Map.put(objective, :variable, updated_var)
     # objective
+  end
+
+  defp update_domain(variable, space_variables) do
+    var_domain =
+      Arrays.get(space_variables, Interface.variable(variable).index - 1)
+      |> Interface.domain()
+
+    Interface.update(variable, :domain, var_domain)
+  end
+
+  defp add_branch_constraint(constraint_graph, nil) do
+    constraint_graph
+  end
+
+  defp add_branch_constraint(constraint_graph, _constraint) do
+    #[]
+    #constraint
+    #|> Constraint.constraint_to_propagators()
+    #|> IO.inspect()
+    #|> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
+    constraint_graph
+    #|> tap(fn  -> constraint.() end)
   end
 
   defp handle_stable(data) do
@@ -277,9 +303,12 @@ defmodule CPSolver.Space do
     ## Each branch is a list of variables to use by a child space
     branches = Search.branch(variables, opts[:search])
 
-    Enum.take_while(branches, fn branch_variables ->
+    Enum.take_while(branches, fn {branch_variables, constraint} ->
       !CPSolver.complete?(shared(data)) &&
-        spawn_space(data |> Map.put(:variables, branch_variables))
+        spawn_space(
+          data
+          |> Map.put(:variables, branch_variables)
+          |> put_in([:opts, :branch_constraint], constraint))
     end)
 
     shutdown(data, :distribute)

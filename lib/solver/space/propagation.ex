@@ -4,14 +4,12 @@ defmodule CPSolver.Space.Propagation do
 
   require Logger
 
-  def run(propagators, constraint_graph, store) when is_list(propagators) do
-    propagators
-    |> run_impl(constraint_graph, store, reset?: true)
-    |> finalize(propagators, store)
-  end
+  def run(propagators, constraint_graph, store, changes \\ %{})
 
-  defp run_impl(propagators, constraint_graph, store, opts) do
-    run_impl(propagators, constraint_graph, store, Map.new(), opts)
+  def run(propagators, constraint_graph, store, changes) when is_list(propagators) do
+    propagators
+    |> run_impl(constraint_graph, store, changes, reset?: true)
+    |> finalize(propagators, store)
   end
 
   defp run_impl(propagators, constraint_graph, store, domain_changes, opts) do
@@ -131,9 +129,8 @@ defmodule CPSolver.Space.Propagation do
     #      propagator_id,
     #      Map.put(propagator, :state, new_state)
     #    )) ||
-
-    !active? && ConstraintGraph.remove_propagator(graph, propagator_id)
-    || graph
+    (!active? && ConstraintGraph.remove_propagator(graph, propagator_id)) ||
+      graph
   end
 
   defp finalize(:fail, _propagators, _store) do

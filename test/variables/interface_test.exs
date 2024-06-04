@@ -15,8 +15,9 @@ defmodule CPSolverTest.Variable.Interface do
       values = [v1_values, v2_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, [var1, _var2] = bound_vars, _store} =
+      {:ok, bound_vars, _store} =
         ConstraintStore.create_store(variables)
+        [var1, _var2] = Arrays.to_list(bound_vars)
 
       [view1, view2] = Enum.map(bound_vars, fn var -> minus(var) end)
 

@@ -18,9 +18,9 @@ defmodule CPSolverTest.Variable.View do
       values = [v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, [source_var, var2, _var3, _var4] = bound_vars, _store} =
+      {:ok, bound_vars, _store} =
         ConstraintStore.create_store(variables)
-
+        [source_var, var2, _var3, _var4] = Arrays.to_list(bound_vars)
       views = [view1, view2, view3, view4] = Enum.map(bound_vars, fn var -> minus(var) end)
       ## Domains of variables that back up views do not change
       assert Variable.min(source_var) == 1
@@ -84,8 +84,9 @@ defmodule CPSolverTest.Variable.View do
     test "'mul' view" do
       domain = 1..10
 
-      {:ok, [source_var] = _bound_vars, _store} =
+      {:ok, bound_vars, _store} =
         ConstraintStore.create_store([Variable.new(domain)])
+      source_var = Arrays.get(bound_vars, 0)
 
       view1 = mul(source_var, 1)
       view2 = mul(source_var, 10)
@@ -122,8 +123,9 @@ defmodule CPSolverTest.Variable.View do
     end
 
     test "remove value that falls in the hole" do
-      {:ok, [x] = _bound_vars, _store} =
+      {:ok, bound_vars, _store} =
         ConstraintStore.create_store([Variable.new(0..5, name: "x")])
+      x = Arrays.get(bound_vars, 0)
 
       y_plus = mul(x, 20)
       y_minus = mul(x, -20)

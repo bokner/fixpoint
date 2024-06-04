@@ -12,7 +12,7 @@ defmodule SudokuBenchmark do
         {:ok, res} =
           CPSolver.solve_sync(Sudoku.model(instance),
             stop_on: {:max_solutions, 1},
-            max_space_threads: space_threads,
+            space_threads: space_threads,
             timeout: timeout,
             search: {:first_fail, :indomain_random}
           )
