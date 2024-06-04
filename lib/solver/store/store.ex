@@ -6,7 +6,6 @@ defmodule CPSolver.ConstraintStore do
   """
   #################
   alias CPSolver.{Common, Variable}
-  alias CPSolver.DefaultDomain, as: Domain
 
   require Logger
 
@@ -86,11 +85,6 @@ defmodule CPSolver.ConstraintStore do
   def create_store(variables, opts \\ [])
 
   def create_store(variables, opts) do
-    variables =
-      Enum.map(variables, fn %{domain: d} = var ->
-        Map.put(var, :domain, (Domain.fixed?(d) && Domain.min(d)) || Domain.copy(d))
-      end)
-
     opts = Keyword.merge(default_store_opts(), opts)
     space = Keyword.get(opts, :space)
     store_impl = Keyword.get(opts, :store_impl)
@@ -104,13 +98,14 @@ defmodule CPSolver.ConstraintStore do
 
     {:ok,
      variables
-     |> Enum.with_index(1)
-     |> Enum.map(fn {var, index} = _indexed_var ->
+     |> Enum.reduce({Arrays.new([], implementation: Aja.Vector), 1}, fn var, {vars_acc, idx_acc} ->
+       updated_var =
        var
-       |> Map.put(:index, index)
+       |> Map.put(:index, idx_acc)
        |> Map.put(:name, var.name)
        |> Map.put(:store, store)
-     end), store}
+       {Arrays.append(vars_acc, updated_var), idx_acc + 1}
+     end) |> elem(0), store}
     |> tap(fn _ -> set_store(store) end)
   end
 

@@ -155,6 +155,7 @@ defmodule CPSolver.Propagator do
   defp get_filter_changes({:state, state}) do
     get_filter_changes(true)
     |> Map.put(:state, state)
+    |> Map.put(:active?, Map.get(state, :active?, true))
   end
 
   defp get_filter_changes(result) do
@@ -200,7 +201,7 @@ defmodule CPSolver.Propagator do
   end
 
   def arg_at(args, pos) do
-    Enum.at(args, pos)
+    Arrays.get(args, pos)
   end
 
   def arg_map(args, mapper) when is_function(mapper) and is_list(args) do

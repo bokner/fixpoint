@@ -59,7 +59,7 @@ defmodule CPSolverTest.Store do
 
       {:ok, bound_vars, store} = ConstraintStore.create_store(variables, space: nil)
 
-      [v1, v2, v3] = bound_vars
+      [v1, v2, v3] = Arrays.to_list(bound_vars)
       # remove
       refute Enum.any?(bound_vars, fn var ->
                assert ConstraintStore.update(store, var, :remove, [1]) in [

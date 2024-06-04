@@ -23,7 +23,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
 
       {:ok, x_vars, _store} = ConstraintStore.create_store(x)
 
-      [x1_var, x2_var, x3_var, _x4_var, _x5_var] = x_vars
+      [x1_var, x2_var, x3_var, _x4_var, _x5_var] = Arrays.to_list(x_vars)
 
       ## Initial state
       ##
@@ -60,6 +60,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
         end)
 
       {:ok, x_vars, _store} = ConstraintStore.create_store(x)
+      x_vars = Arrays.to_list(x_vars)
 
       fwc_propagator = FWC.new(x_vars)
       %{changes: changes} = Propagator.filter(fwc_propagator)

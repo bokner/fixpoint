@@ -25,7 +25,7 @@ defmodule CPSolverTest.Search.FirstFail do
       assert selected_variable.id == v2_var.id
 
       # indomain_min splits domain of selected variable into min and the rest of the domain
-      {:ok, [min_value_partition, no_min_partition]} =
+      {:ok, [{min_value_partition, _equal_constraint}, {no_min_partition, _not_equal_constraint}]} =
         SearchStrategy.partition(selected_variable, :indomain_min)
 
       min_value = Domain.min(min_value_partition)
@@ -66,14 +66,14 @@ defmodule CPSolverTest.Search.FirstFail do
 
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars
-      assert Enum.all?(branches, fn branch -> length(branch) == length(variables) end)
+      assert Enum.all?(branches, fn {branch, _constraint} -> length(branch) == length(variables) end)
       ## Left branch contains v2 variable fixed at 0
-      assert Enum.at(b_left, 2)
+      assert Enum.at(b_left |> elem(0), 2)
              |> Map.get(:domain)
              |> then(fn domain -> Domain.size(domain) == 1 && Domain.min(domain) == 0 end)
 
       ## Right branch contains v2 variable with 0 removed
-      refute Enum.at(b_right, 2) |> Map.get(:domain) |> Domain.contains?(0)
+      refute Enum.at(b_right |> elem(0), 2) |> Map.get(:domain) |> Domain.contains?(0)
     end
   end
 end

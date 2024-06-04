@@ -1,6 +1,7 @@
 defmodule CPSolver.Constraint do
   alias CPSolver.Variable
   alias CPSolver.Variable.Interface
+  alias CPSolver.Propagator
 
   @callback new(args :: list()) :: Constraint.t()
   @callback propagators(args :: list()) :: [atom()]
@@ -25,9 +26,15 @@ defmodule CPSolver.Constraint do
     constraint_mod.propagators(args)
   end
 
+
   def constraint_to_propagators(constraint) when is_tuple(constraint) do
     [constraint_mod | args] = Tuple.to_list(constraint)
     constraint_to_propagators({constraint_mod, args})
+  end
+
+  def post(constraint) when is_tuple(constraint) do
+    propagators = constraint_to_propagators(constraint)
+    Enum.map(propagators, fn p -> Propagator.filter(p) end)
   end
 
   def extract_variables({_mod, args}) do
@@ -75,6 +82,10 @@ defmodule CPSolver.Constraint.Factory do
 
     sum_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
     result(sum_var, Sum.new(sum_var, vars))
+  end
+
+  def add(var, c) when is_integer(c) do
+    linear(var, 1, c)
   end
 
   def add(var1, var2, opts \\ []) do
