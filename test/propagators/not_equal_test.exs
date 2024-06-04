@@ -24,7 +24,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       assert :stable == reset_and_filter(bound_vars)
       refute PropagatorVariable.get_variable_ops()
 
-      [x_var, y_var] = bound_vars
+      [x_var, y_var] = Arrays.to_list(bound_vars)
       ## Fix one of vars
       assert :fixed = Variable.fix(x_var, 5)
       assert :max_change == reset_and_filter(bound_vars)
@@ -54,7 +54,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, bound_vars, _store} = ConstraintStore.create_store(variables, space: nil)
-      assert catch_throw(NotEqual.filter(bound_vars)) == :fail
+      assert catch_throw(NotEqual.filter(Arrays.to_list(bound_vars))) == :fail
       assert PropagatorVariable.get_variable_ops() == nil
     end
 
@@ -62,8 +62,8 @@ defmodule CPSolverTest.Propagator.NotEqual do
       x = 5..5
       y = -5..10
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-      {:ok, [x_var, y_var], _store} = ConstraintStore.create_store(variables)
-
+      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
+      [x_var, y_var] = Arrays.to_list(bound_vars)
       assert Variable.contains?(y_var, 0)
       # (x != y + 5)
       offset = 5
@@ -79,7 +79,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
 
     defp reset_and_filter(args) do
       PropagatorVariable.reset_variable_ops()
-      NotEqual.filter(args)
+      NotEqual.filter(Arrays.to_list(args))
     end
   end
 end

@@ -98,13 +98,14 @@ defmodule CPSolver.ConstraintStore do
 
     {:ok,
      variables
-     |> Enum.with_index(1)
-     |> Enum.map(fn {var, index} = _indexed_var ->
+     |> Enum.reduce({Arrays.new(), 1}, fn var, {vars_acc, idx_acc} ->
+       updated_var =
        var
-       |> Map.put(:index, index)
+       |> Map.put(:index, idx_acc)
        |> Map.put(:name, var.name)
        |> Map.put(:store, store)
-     end), store}
+       {Arrays.append(vars_acc, updated_var), idx_acc + 1}
+     end) |> elem(0), store}
     |> tap(fn _ -> set_store(store) end)
   end
 

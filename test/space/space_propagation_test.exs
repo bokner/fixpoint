@@ -132,9 +132,9 @@ defmodule CPSolverTest.SpacePropagation do
     variables =
       Enum.map([{x, "x"}, {y, "y"}, {z, "z"}], fn {d, name} -> Variable.new(d, name: name) end)
 
-    {:ok, [x_var, y_var, z_var] = bound_vars, store} =
+    {:ok,  bound_vars, store} =
       ConstraintStore.create_store(variables)
-
+      bound_vars = [x_var, y_var, z_var] = Arrays.to_list(bound_vars)
     propagators =
       Enum.map(
         [{x_var, y_var, "x != y"}, {y_var, z_var, "y != z"}, {x_var, z_var, "x != z"}],

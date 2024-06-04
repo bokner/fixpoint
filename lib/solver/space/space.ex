@@ -237,7 +237,7 @@ defmodule CPSolver.Space do
     |> Utils.cartesian()
     |> Enum.map(fn values ->
       Enum.reduce(values, {0, Map.new()}, fn val, {idx_acc, map_acc} ->
-        {idx_acc + 1, Map.put(map_acc, Enum.at(variables, idx_acc).name, val)}
+        {idx_acc + 1, Map.put(map_acc, Arrays.get(variables, idx_acc).name, val)}
       end)
       |> elem(1)
     end)
@@ -256,13 +256,17 @@ defmodule CPSolver.Space do
   end
 
   defp update_objective(%{variable: variable} = objective, variables) do
-    var_domain =
-      Enum.at(variables, Interface.variable(variable).index - 1)
-      |> Interface.domain()
-
-    updated_var = Interface.update(variable, :domain, var_domain)
+    updated_var = update_domain(variable, variables)
     Map.put(objective, :variable, updated_var)
     # objective
+  end
+
+  defp update_domain(variable, space_variables) do
+    var_domain =
+      Arrays.get(space_variables, Interface.variable(variable).index - 1)
+      |> Interface.domain()
+
+    Interface.update(variable, :domain, var_domain)
   end
 
   defp add_branch_constraint(constraint_graph, nil) do

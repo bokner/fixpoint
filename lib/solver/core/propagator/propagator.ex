@@ -201,7 +201,7 @@ defmodule CPSolver.Propagator do
   end
 
   def arg_at(args, pos) do
-    Enum.at(args, pos)
+    Arrays.get(args, pos)
   end
 
   def arg_map(args, mapper) when is_function(mapper) and is_list(args) do

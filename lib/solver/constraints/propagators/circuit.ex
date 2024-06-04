@@ -97,14 +97,14 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp reduce_graph(vars, graph, circuit, [vertex | rest], remaining_unfixed) do
-    var = Enum.at(vars, vertex)
+    var = Arrays.get(vars, vertex)
 
     if fixed?(var) do
       succ = min(var)
       {updated_graph, in_neighbours} = fix_vertex(graph, vertex, succ)
 
       ## As the successor is assigned to vertex, no other neighbours of successor can have it in their domains
-      Enum.each(in_neighbours, fn in_n_vertex -> remove(Enum.at(vars, in_n_vertex), succ) end)
+      Enum.each(in_neighbours, fn in_n_vertex -> remove(Arrays.get(vars, in_n_vertex), succ) end)
 
       reduce_graph(
         vars,
@@ -158,7 +158,7 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   def check_circuit(partial_circuit, start_at) do
-    check_circuit(partial_circuit, start_at, Enum.at(partial_circuit, start_at), 1)
+    check_circuit(partial_circuit, start_at, Arrays.get(partial_circuit, start_at), 1)
   end
 
   defp check_circuit(_partial_circuit, _started_at, nil, _step) do
@@ -171,7 +171,7 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp check_circuit(partial_circuit, started_at, currently_at, step) do
-    check_circuit(partial_circuit, started_at, Enum.at(partial_circuit, currently_at), step + 1)
+    check_circuit(partial_circuit, started_at, Arrays.get(partial_circuit, currently_at), step + 1)
   end
 
   defp check_graph(%Graph{} = graph, _fixed_vertices) do
