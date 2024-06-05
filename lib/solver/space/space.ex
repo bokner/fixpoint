@@ -10,7 +10,6 @@ defmodule CPSolver.Space do
   alias CPSolver.ConstraintStore
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
-
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
@@ -269,6 +268,20 @@ defmodule CPSolver.Space do
 
     Interface.update(variable, :domain, var_domain)
   end
+
+  #defp add_branch_constraint(constraint_graph, nil) do
+  #  constraint_graph
+  #end
+
+  #defp add_branch_constraint(constraint_graph, _constraint) do
+    #[]
+    #constraint
+    #|> Constraint.constraint_to_propagators()
+    #|> IO.inspect()
+    #|> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
+    # constraint_graph
+    #|> tap(fn  -> constraint.() end)
+  #end
 
   # defp add_branch_constraint(constraint_graph, nil) do
   #   constraint_graph
