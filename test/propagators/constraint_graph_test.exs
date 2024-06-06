@@ -4,7 +4,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
 
   describe "Propagator graph" do
     alias CPSolver.Propagator.ConstraintGraph
-    alias CPSolver.Constraint.AllDifferent
+    alias CPSolver.Constraint.AllDifferent.Binary, as: AllDifferent
     alias CPSolver.Constraint
     alias CPSolver.IntVariable, as: Variable
 

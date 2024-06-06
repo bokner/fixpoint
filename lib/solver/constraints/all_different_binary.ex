@@ -1,4 +1,4 @@
-defmodule CPSolver.Constraint.AllDifferent do
+defmodule CPSolver.Constraint.AllDifferent.Binary do
   use CPSolver.Constraint
   alias CPSolver.Propagator.NotEqual
 
