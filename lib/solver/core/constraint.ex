@@ -84,10 +84,6 @@ defmodule CPSolver.Constraint.Factory do
     result(sum_var, Sum.new(sum_var, vars))
   end
 
-  def add(var, c) when is_integer(c) do
-    linear(var, 1, c)
-  end
-
   def add(var1, var2, opts \\ []) do
     sum([var1, var2], opts)
   end

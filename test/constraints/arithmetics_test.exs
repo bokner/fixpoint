@@ -4,6 +4,7 @@ defmodule CPSolverTest.Constraint.Arithmetics do
   describe "Arithmetics" do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Constraint.Factory
+    alias CPSolver.Variable.View.Factory, as: ViewFactory
     alias CPSolver.Model
     alias CPSolver.Constraint.Equal
 
@@ -27,7 +28,7 @@ defmodule CPSolverTest.Constraint.Arithmetics do
       x_domain = 1..10
       c = 3
       x = Variable.new(x_domain, name: "x")
-      model = Model.new([x], [Equal.new(Factory.add(x, c), 10)])
+      model = Model.new([x], [Equal.new(ViewFactory.add(x, c), 10)])
       {:ok, res} = CPSolver.solve_sync(model)
 
       assert length(res.solutions) == 1

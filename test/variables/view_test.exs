@@ -122,6 +122,21 @@ defmodule CPSolverTest.Variable.View do
       assert View.fixed?(view1) && View.fixed?(view3) && Variable.fixed?(source_var)
     end
 
+    test "chained views" do
+      domain = 1..10
+
+      {:ok, bound_vars, _store} =
+        ConstraintStore.create_store([Variable.new(domain)])
+      source_var = Arrays.get(bound_vars, 0)
+
+      view1 = minus(source_var)
+      view2 = minus(view1)
+      view3 = mul(view2, 10)
+
+      assert Interface.min(source_var) == Interface.min(view2)
+      assert Interface.min(source_var) * 10 == Interface.min(view3)
+    end
+
     test "remove value that falls in the hole" do
       {:ok, bound_vars, _store} =
         ConstraintStore.create_store([Variable.new(0..5, name: "x")])
