@@ -49,8 +49,10 @@ defmodule CPSolver.Examples.Queens do
 
     {:ok, result} =
       CPSolver.solve_sync(model(nqueens, :half_symmetry),
+        search: {:input_order, :indomain_random},
         stop_on: {:max_solutions, 1},
-        timeout: timeout
+        timeout: timeout,
+        space_threads: 4
       )
 
     case result.solutions do
@@ -58,7 +60,7 @@ defmodule CPSolver.Examples.Queens do
         "No solutions found within #{timeout} milliseconds"
 
       [s | _rest] ->
-        print_board(s)
+        print_board(inside_out_to_normal(s))
         |> tap(fn _ -> check_solution(s) && Logger.notice("Solution checked!") end)
     end
 
