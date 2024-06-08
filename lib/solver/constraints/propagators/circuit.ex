@@ -171,7 +171,12 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp check_circuit(partial_circuit, started_at, currently_at, step) do
-    check_circuit(partial_circuit, started_at, Arrays.get(partial_circuit, currently_at), step + 1)
+    check_circuit(
+      partial_circuit,
+      started_at,
+      Arrays.get(partial_circuit, currently_at),
+      step + 1
+    )
   end
 
   defp check_graph(%Graph{} = graph, _fixed_vertices) do

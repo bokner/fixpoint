@@ -13,8 +13,8 @@ defmodule CPSolver.Space do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
-  #alias CPSolver.Propagator
-  #alias CPSolver.Constraint
+  # alias CPSolver.Propagator
+  # alias CPSolver.Constraint
 
   alias CPSolver.Shared
   alias CPSolver.Distributed
@@ -155,7 +155,7 @@ defmodule CPSolver.Space do
 
     {constraint_graph, bound_propagators} =
       graph
-      #|> apply_branch_constraint(space_opts[:branch_constraint])
+      # |> apply_branch_constraint(space_opts[:branch_constraint])
       |> ConstraintGraph.update(space_variables)
 
     space_data =
@@ -269,33 +269,33 @@ defmodule CPSolver.Space do
     Interface.update(variable, :domain, var_domain)
   end
 
-  #defp add_branch_constraint(constraint_graph, nil) do
+  # defp add_branch_constraint(constraint_graph, nil) do
   #  constraint_graph
-  #end
+  # end
 
-  #defp add_branch_constraint(constraint_graph, _constraint) do
-    #[]
-    #constraint
-    #|> Constraint.constraint_to_propagators()
-    #|> IO.inspect()
-    #|> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
-    # constraint_graph
-    #|> tap(fn  -> constraint.() end)
-  #end
+  # defp add_branch_constraint(constraint_graph, _constraint) do
+  # []
+  # constraint
+  # |> Constraint.constraint_to_propagators()
+  # |> IO.inspect()
+  # |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
+  # constraint_graph
+  # |> tap(fn  -> constraint.() end)
+  # end
 
   # defp add_branch_constraint(constraint_graph, nil) do
   #   constraint_graph
   # end
 
-  #defp add_branch_constraint(constraint_graph, _constraint) do
-    #[]
-    #constraint
-    #|> Constraint.constraint_to_propagators()
-    #|> IO.inspect()
-    #|> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
-    #constraint_graph
-    #|> tap(fn  -> constraint.() end)
-  #end
+  # defp add_branch_constraint(constraint_graph, _constraint) do
+  # []
+  # constraint
+  # |> Constraint.constraint_to_propagators()
+  # |> IO.inspect()
+  # |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
+  # constraint_graph
+  # |> tap(fn  -> constraint.() end)
+  # end
 
   defp handle_stable(data) do
     try do
@@ -322,7 +322,8 @@ defmodule CPSolver.Space do
         spawn_space(
           data
           |> Map.put(:variables, branch_variables)
-          |> put_in([:opts, :branch_constraint], constraint))
+          |> put_in([:opts, :branch_constraint], constraint)
+        )
     end)
 
     shutdown(data, :distribute)

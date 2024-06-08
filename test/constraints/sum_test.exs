@@ -41,7 +41,6 @@ defmodule CPSolverTest.Constraint.Sum do
       assert Enum.all?(res.solutions, fn s ->
                Enum.sum(Enum.take(s, length(s) - 1)) + c1 + c2 + c3 == List.last(s)
              end)
-
     end
   end
 end

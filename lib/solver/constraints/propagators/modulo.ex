@@ -5,7 +5,6 @@ defmodule CPSolver.Propagator.Modulo do
   @m_x_fixed [true, true, false]
   @m_y_fixed [true, false, true]
 
-
   def new(m, x, y) do
     new([m, x, y])
   end
@@ -14,7 +13,7 @@ defmodule CPSolver.Propagator.Modulo do
   def variables(args) do
     args
     |> Propagator.default_variables_impl()
-    |> Enum.map(fn var -> set_propagate_on(var, :fixed) end)
+    |> Enum.map(fn var -> set_propagate_on(var, :bound_change) end)
   end
 
   @impl true
@@ -34,66 +33,59 @@ defmodule CPSolver.Propagator.Modulo do
   end
 
   defp update_fixed(fixed_flags, changes) do
-    Enum.reduce(changes, fixed_flags, fn {idx, :fixed}, flags_acc ->
+    Enum.reduce(changes, fixed_flags,
+    fn {idx, :fixed}, flags_acc ->
       List.replace_at(flags_acc, idx, true)
+      {_idx, _bound_change}, flags_acc ->
+        flags_acc
     end)
   end
 
   def filter_impl([m, x, y] = _args, @x_y_fixed) do
-    fix(m, rem(x, y))
+    fix(m, rem(min(x), min(y)))
   end
 
   def filter_impl([m, x, y], @m_x_fixed) do
     m_value = min(m)
     x_value = min(x)
 
-    y_resolved? =
-    y
-    |> domain()
-    |> Domain.to_list()
-    |> Enum.reduce_while(false,
-    fn y_value, _match_acc ->
-      if rem(x_value, y_value) == m_value do
-        fix(y, y_value)
-        {:halt, true}
-      else
-        {:cont, false}
-      end
-    end)
-    if y_resolved? do
-      :ok
-    else
-      fail()
-    end
+    ## Modulo and dividend must have the same sign
+    if m_value * x_value < 0, do: fail()
+
+    _y_fixed =
+      y
+      |> domain()
+      |> Domain.to_list()
+      |> Enum.reduce_while(
+        false,
+        fn y_value, _match_acc ->
+          (rem(x_value, y_value) != m_value &&
+             :fixed == remove(y, y_value) && {:halt, fail()}) ||
+            {:cont, false}
+        end
+      )
   end
 
   def filter_impl([m, x, y], @m_y_fixed) do
     m_value = min(m)
     y_value = min(y)
 
-    x_resolved? =
-    x
-    |> domain()
-    |> Domain.to_list()
-    |> Enum.reduce_while(false,
-    fn x_value, _match_acc ->
-      if rem(x_value, y_value) == m_value do
-        fix(x, x_value)
-        {:halt, true}
-      else
-        {:cont, false}
-      end
-    end)
-    if x_resolved? do
-      :ok
-    else
-      fail()
-    end
-
+    _x_fixed =
+      x
+      |> domain()
+      |> Domain.to_list()
+      |> Enum.reduce_while(
+        false,
+        fn x_value, _match_acc ->
+          (rem(x_value, y_value) != m_value &&
+             :fixed == remove(x, x_value) && {:halt, fail()}) ||
+            {:cont, false}
+        end
+      )
   end
 
-  def filter_impl(_args, _fixed_flags) do
-    :no_action
+  def filter_impl([m, x, _y], _fixed_flags) do
+    if max(m) * min(x) < 0, do: fail()
   end
 
   defp fail() do

@@ -3,10 +3,10 @@ defmodule CPSolverTest.SpacePropagation do
 
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Propagator.NotEqual
-  alias CPSolver.ConstraintStore
   alias CPSolver.Space.Propagation
   alias CPSolver.Propagator
   alias CPSolver.Propagator.ConstraintGraph
+  import CPSolver.Test.Helpers
 
   test "Propagation on stable space" do
     %{
@@ -132,9 +132,11 @@ defmodule CPSolverTest.SpacePropagation do
     variables =
       Enum.map([{x, "x"}, {y, "y"}, {z, "z"}], fn {d, name} -> Variable.new(d, name: name) end)
 
-    {:ok,  bound_vars, store} =
-      ConstraintStore.create_store(variables)
-      bound_vars = [x_var, y_var, z_var] = Arrays.to_list(bound_vars)
+    {:ok, bound_vars, store} =
+      create_store(variables)
+
+    bound_vars = [x_var, y_var, z_var] = bound_vars
+
     propagators =
       Enum.map(
         [{x_var, y_var, "x != y"}, {y_var, z_var, "y != z"}, {x_var, z_var, "x != z"}],

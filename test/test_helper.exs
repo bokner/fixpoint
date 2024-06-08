@@ -6,7 +6,7 @@ defmodule CPSolver.Test.Helpers do
     string |> String.split(pattern) |> length() |> Kernel.-(1)
   end
 
-  def create_store(variables)  do
+  def create_store(variables) do
     {:ok, bound_vars, store} = CPSolver.ConstraintStore.create_store(variables)
     {:ok, Arrays.to_list(bound_vars), store}
   end

@@ -4,6 +4,7 @@ defmodule CPSolverTest.Store do
   describe "Store" do
     alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
+    import CPSolver.Test.Helpers
 
     test "create variables in the space" do
       v1_values = 1..10
@@ -11,7 +12,7 @@ defmodule CPSolverTest.Store do
       values = [v1_values, v2_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = create_store(variables)
       ## Bound vars have space and ids assigned
       assert Enum.all?(bound_vars, fn var -> var end)
     end
@@ -23,7 +24,7 @@ defmodule CPSolverTest.Store do
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, store} = create_store(variables)
       # Min
       assert Enum.all?(Enum.zip(bound_vars, values), fn {var, vals} ->
                ConstraintStore.get(store, var, :min) == Enum.min(vals)
@@ -57,9 +58,9 @@ defmodule CPSolverTest.Store do
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, store} = ConstraintStore.create_store(variables, space: nil)
+      {:ok, bound_vars, store} = create_store(variables)
 
-      [v1, v2, v3] = Arrays.to_list(bound_vars)
+      [v1, v2, v3] = bound_vars
       # remove
       refute Enum.any?(bound_vars, fn var ->
                assert ConstraintStore.update(store, var, :remove, [1]) in [

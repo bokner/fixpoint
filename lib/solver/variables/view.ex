@@ -16,7 +16,7 @@ defmodule CPSolver.Variable.View do
   """
   @spec new(Variable.t(), neg_integer() | pos_integer(), integer()) :: View.t()
   def new(variable, a, b) when is_struct(variable, Variable) do
-    %View{variable: variable, mapper:  make_mapper_fun(a, b)}
+    %View{variable: variable, mapper: make_mapper_fun(a, b)}
   end
 
   def new(%{mapper: mapper} = view, a, b) when is_struct(view, View) do
@@ -58,7 +58,8 @@ defmodule CPSolver.Variable.View do
     end
   end
 
-  defp chained_mapper(a, b, mapper) when is_integer(a) and is_integer(b) and is_function(mapper) do
+  defp chained_mapper(a, b, mapper)
+       when is_integer(a) and is_integer(b) and is_function(mapper) do
     {current_a, current_b} = mapper.(:get_params)
     make_mapper_fun(a * current_a, a * current_b + b)
   end

@@ -4,11 +4,11 @@ defmodule CPSolverTest.Variable.View do
   alias CPSolver.DefaultDomain, as: Domain
 
   describe "Views" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Variable.View
     alias CPSolver.Variable.Interface
     import CPSolver.Variable.View.Factory
+    import CPSolver.Test.Helpers
 
     test "'minus' view" do
       v1_values = 1..10
@@ -19,8 +19,9 @@ defmodule CPSolverTest.Variable.View do
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
       {:ok, bound_vars, _store} =
-        ConstraintStore.create_store(variables)
-        [source_var, var2, _var3, _var4] = Arrays.to_list(bound_vars)
+        create_store(variables)
+
+      [source_var, var2, _var3, _var4] = bound_vars
       views = [view1, view2, view3, view4] = Enum.map(bound_vars, fn var -> minus(var) end)
       ## Domains of variables that back up views do not change
       assert Variable.min(source_var) == 1
@@ -84,9 +85,8 @@ defmodule CPSolverTest.Variable.View do
     test "'mul' view" do
       domain = 1..10
 
-      {:ok, bound_vars, _store} =
-        ConstraintStore.create_store([Variable.new(domain)])
-      source_var = Arrays.get(bound_vars, 0)
+      {:ok, [source_var], _store} =
+        create_store([Variable.new(domain)])
 
       view1 = mul(source_var, 1)
       view2 = mul(source_var, 10)
@@ -125,9 +125,8 @@ defmodule CPSolverTest.Variable.View do
     test "chained views" do
       domain = 1..10
 
-      {:ok, bound_vars, _store} =
-        ConstraintStore.create_store([Variable.new(domain)])
-      source_var = Arrays.get(bound_vars, 0)
+      {:ok, [source_var], _store} =
+        create_store([Variable.new(domain)])
 
       view1 = minus(source_var)
       view2 = minus(view1)
@@ -138,9 +137,8 @@ defmodule CPSolverTest.Variable.View do
     end
 
     test "remove value that falls in the hole" do
-      {:ok, bound_vars, _store} =
-        ConstraintStore.create_store([Variable.new(0..5, name: "x")])
-      x = Arrays.get(bound_vars, 0)
+      {:ok, [x], _store} =
+        create_store([Variable.new(0..5, name: "x")])
 
       y_plus = mul(x, 20)
       y_minus = mul(x, -20)

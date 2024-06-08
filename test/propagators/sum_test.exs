@@ -2,13 +2,12 @@ defmodule CPSolverTest.Propagator.Sum do
   use ExUnit.Case
 
   describe "Propagator filtering" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Propagator
     alias CPSolver.Propagator.Sum
     import CPSolver.Variable.Interface
     import CPSolver.Variable.View.Factory
-
+    import CPSolver.Test.Helpers
 
     test "The domain bounds of 'sum' variable are reduced to the sum of bounds of the summands" do
       y = Variable.new(-100..100, name: "y")
@@ -18,8 +17,8 @@ defmodule CPSolverTest.Propagator.Sum do
           Variable.new(d, name: name)
         end)
 
-      {:ok, bound_vars, store} = ConstraintStore.create_store([y | x])
-      [y_var | x_vars] = Arrays.to_list(bound_vars)
+      {:ok, bound_vars, store} = create_store([y | x])
+      [y_var | x_vars] = bound_vars
 
       Propagator.filter(Sum.new(y_var, x_vars), store: store)
 
@@ -35,9 +34,9 @@ defmodule CPSolverTest.Propagator.Sum do
           Variable.new(d, name: name)
         end)
 
-      {:ok,  bound_vars, store} = ConstraintStore.create_store([y | x])
+      {:ok, bound_vars, store} = create_store([y | x])
 
-      [y_var | x_vars] = Arrays.to_list(bound_vars)
+      [y_var | x_vars] = bound_vars
 
       [x1_var, _x2_var, _x3_var] = x_vars
 
@@ -58,8 +57,8 @@ defmodule CPSolverTest.Propagator.Sum do
           Variable.new(d, name: name)
         end)
 
-      {:ok, bound_vars, store} = ConstraintStore.create_store([y | x])
-      [y_var | x_vars] = Arrays.to_list(bound_vars)
+      {:ok, bound_vars, store} = create_store([y | x])
+      [y_var | x_vars] = bound_vars
 
       [x1_var, _x2_var, x3_var] = x_vars
 
@@ -79,8 +78,9 @@ defmodule CPSolverTest.Propagator.Sum do
       x2 = Variable.new(0..5, name: "x2")
 
       {:ok, bound_vars, store} =
-        ConstraintStore.create_store([y, x1, x2])
-      [y_var, x1_var, x2_var] = Arrays.to_list(bound_vars)
+        create_store([y, x1, x2])
+
+      [y_var, x1_var, x2_var] = bound_vars
 
       assert :fail == Propagator.filter(Sum.new(y_var, [x1_var, x2_var]), store: store)
     end
@@ -90,9 +90,10 @@ defmodule CPSolverTest.Propagator.Sum do
       x1 = Variable.new(0..2, name: "x1")
       x2 = Variable.new(1..2, name: "x2")
 
-      {:ok,  bound_vars, store} =
-        ConstraintStore.create_store([y, x1, x2])
-        [y_var, x1_var, x2_var] = Arrays.to_list(bound_vars)
+      {:ok, bound_vars, store} =
+        create_store([y, x1, x2])
+
+      [y_var, x1_var, x2_var] = bound_vars
 
       refute :fail ==
                Propagator.filter(Sum.new(y_var, [mul(x1_var, 10), mul(x2_var, 20)]), store: store)
