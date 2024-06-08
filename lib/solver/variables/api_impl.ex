@@ -60,7 +60,6 @@ defimpl Interface, for: Integer do
   defdelegate removeBelow(val, removeBelow), to: Domain
   defdelegate fix(value, fixed_value), to: Domain
   def update(val, _field, _value), do: val
-
 end
 
 defimpl Interface, for: Any do

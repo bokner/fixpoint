@@ -2,12 +2,12 @@ defmodule CPSolverTest.Variable.Interface do
   use ExUnit.Case
 
   describe "Views" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.DefaultDomain, as: Domain
     alias CPSolver.Variable.Interface
 
     import CPSolver.Variable.View.Factory
+    import CPSolver.Test.Helpers
 
     test "view vs variable" do
       v1_values = 1..10
@@ -16,8 +16,9 @@ defmodule CPSolverTest.Variable.Interface do
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
       {:ok, bound_vars, _store} =
-        ConstraintStore.create_store(variables)
-        [var1, _var2] = Arrays.to_list(bound_vars)
+        create_store(variables)
+
+      [var1, _var2] = bound_vars
 
       [view1, view2] = Enum.map(bound_vars, fn var -> minus(var) end)
 

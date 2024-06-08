@@ -6,6 +6,7 @@ defmodule CPSolverTest.Propagator do
     alias CPSolver.Propagator.{NotEqual, LessOrEqual}
     alias CPSolver.ConstraintStore
     alias CPSolver.Propagator
+    import CPSolver.Test.Helpers
 
     import CPSolver.Variable.View.Factory
 
@@ -39,9 +40,10 @@ defmodule CPSolverTest.Propagator do
       y = 0..10
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok,  bound_vars, _store} =
-        ConstraintStore.create_store(variables, space: nil)
-      [x_var, y_var] = Arrays.to_list(bound_vars)
+      {:ok, bound_vars, _store} =
+        create_store(variables)
+
+      [x_var, y_var] = bound_vars
 
       ## Make 'minus' view
       minus_y_view = minus(y_var)
@@ -53,8 +55,8 @@ defmodule CPSolverTest.Propagator do
 
     defp setup_store(domains) do
       variables = Enum.map(domains, fn d -> Variable.new(d) end)
-      {:ok, bound_variables, store} = ConstraintStore.create_store(variables)
-      %{variables: variables, bound_variables: Arrays.to_list(bound_variables), store: store}
+      {:ok, bound_variables, store} = create_store(variables)
+      %{variables: variables, bound_variables: bound_variables, store: store}
     end
   end
 end

@@ -2,7 +2,7 @@ defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable.Interface
   alias CPSolver.Search.VariableSelector.FirstFail
   alias CPSolver.DefaultDomain, as: Domain
-  #alias CPSolver.Constraint.{Equal, NotEqual}
+  # alias CPSolver.Constraint.{Equal, NotEqual}
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random}
 
@@ -56,7 +56,7 @@ defmodule CPSolver.Search.Strategy do
   end
 
   defp partition_impl(variable, value_choice) when is_function(value_choice) do
-      value_choice.(variable)
+    value_choice.(variable)
   end
 
   def branch(variables, {variable_choice, partition_strategy}) do
@@ -97,13 +97,13 @@ defmodule CPSolver.Search.Strategy do
   defp variable_partitions(selected_variable, domain_partitions, variables) do
     Enum.map(domain_partitions, fn {domain, constraint} ->
       {Enum.map(variables, fn var ->
-        domain_copy =
-          ((var.id == selected_variable.id && domain) || var.domain)
-          #var.domain
-          |> Domain.copy()
+         domain_copy =
+           ((var.id == selected_variable.id && domain) || var.domain)
+           # var.domain
+           |> Domain.copy()
 
-        set_domain(var, domain_copy)
-      end), constraint}
+         set_domain(var, domain_copy)
+       end), constraint}
     end)
   end
 
@@ -116,15 +116,15 @@ defmodule CPSolver.Search.Strategy do
       {:ok,
        [
          {
-          Domain.new(value),
-          %{variable.id => :fixed}
-          #Equal.new(variable, value)
-          },
+           Domain.new(value),
+           %{variable.id => :fixed}
+           # Equal.new(variable, value)
+         },
          {
-          domain,
-          %{variable.id => remove_changes}
-          #NotEqual.new(variable, value)
-        }
+           domain,
+           %{variable.id => remove_changes}
+           # NotEqual.new(variable, value)
+         }
        ]}
     rescue
       :fail ->

@@ -98,14 +98,17 @@ defmodule CPSolver.ConstraintStore do
 
     {:ok,
      variables
-     |> Enum.reduce({Arrays.new([], implementation: Aja.Vector), 1}, fn var, {vars_acc, idx_acc} ->
+     |> Enum.reduce({Arrays.new([], implementation: Aja.Vector), 1}, fn var,
+                                                                        {vars_acc, idx_acc} ->
        updated_var =
-       var
-       |> Map.put(:index, idx_acc)
-       |> Map.put(:name, var.name)
-       |> Map.put(:store, store)
+         var
+         |> Map.put(:index, idx_acc)
+         |> Map.put(:name, var.name)
+         |> Map.put(:store, store)
+
        {Arrays.append(vars_acc, updated_var), idx_acc + 1}
-     end) |> elem(0), store}
+     end)
+     |> elem(0), store}
     |> tap(fn _ -> set_store(store) end)
   end
 

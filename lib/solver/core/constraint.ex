@@ -26,7 +26,6 @@ defmodule CPSolver.Constraint do
     constraint_mod.propagators(args)
   end
 
-
   def constraint_to_propagators(constraint) when is_tuple(constraint) do
     [constraint_mod | args] = Tuple.to_list(constraint)
     constraint_to_propagators({constraint_mod, args})
@@ -95,5 +94,4 @@ defmodule CPSolver.Constraint.Factory do
   defp result(derived_variable, constraint) do
     {derived_variable, constraint}
   end
-
 end

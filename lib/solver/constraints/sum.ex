@@ -14,12 +14,14 @@ defmodule CPSolver.Constraint.Sum do
     # Separate constants and variables
     {constant, vars} =
       List.foldr(x, {0, []}, fn arg, {constant_acc, vars_acc} ->
-        is_integer(arg) && {constant_acc + arg, vars_acc} ||
-        {constant_acc, [arg | vars_acc]}
-    end)
+        (is_integer(arg) && {constant_acc + arg, vars_acc}) ||
+          {constant_acc, [arg | vars_acc]}
+      end)
+
     ## Adjust sum (variable or constant)
-    y_arg = is_integer(y) && Variable.new(y - constant) ||
-    Factory.add(y, -constant)
+    y_arg =
+      (is_integer(y) && Variable.new(y - constant)) ||
+        Factory.add(y, -constant)
 
     [SumPropagator.new(y_arg, vars)]
   end
