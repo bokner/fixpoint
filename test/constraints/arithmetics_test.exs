@@ -3,7 +3,7 @@ defmodule CPSolverTest.Constraint.Arithmetics do
 
   describe "Arithmetics" do
     alias CPSolver.IntVariable, as: Variable
-    alias CPSolver.Constraint.Factory
+    alias CPSolver.Constraint.Factory, as: ConstraintFactory
     alias CPSolver.Variable.View.Factory, as: ViewFactory
     alias CPSolver.Model
     alias CPSolver.Constraint.Equal
@@ -42,8 +42,8 @@ defmodule CPSolverTest.Constraint.Arithmetics do
       y = Variable.new(y_domain, name: "y")
 
       {_sum_var, constraint} = case constraint_kind do
-        :add_variable -> Factory.add(x, y, name: "add_x_y")
-        :subtract_variable -> Factory.subtract(x, y, name: "subtract_x_y")
+        :add_variable -> ConstraintFactory.add(x, y, name: "add_x_y")
+        :subtract_variable -> ConstraintFactory.subtract(x, y, name: "subtract_x_y")
       end
 
       model = Model.new([x, y], [constraint])
