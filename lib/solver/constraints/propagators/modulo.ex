@@ -95,14 +95,34 @@ defmodule CPSolver.Propagator.Modulo do
     false
   end
 
-  def filter_impl([m, x, _y] = args, [false | x_y_flags]) do
+  def filter_impl([m, _x, _y] = args, [false | x_y_flags]) do
+    update_bounds(args)
+    fixed?(m) && filter_impl(args, [true | x_y_flags])
+  end
+
+  defp update_bounds([m, x, y] = _args) do
     max_x = max(x)
     min_x = min(x)
-    m_lower_bound = min(min_x, 0)
-    m_upper_bound = max(max_x, 0)
+    max_y = max(y)
+    min_y = min(y)
+
+    {m_lower_bound, m_upper_bound} =
+      cond do
+        min_x >= 0 ->
+          {0, (max(abs(min_y), abs(max_y)) - 1) |> min(max_x)}
+
+        max_x < 0 ->
+          {(-max(abs(min_y), abs(max_y)) + 1) |> max(min_x), 0}
+
+        true ->
+          {
+            (min(min(min_y, -min_y), min(max_y, -max_y)) + 1) |> max(min_x),
+            (max(max(min_y, -min_y), max(max_y, -max_y)) - 1) |> min(max_x)
+          }
+      end
+
     removeAbove(m, m_upper_bound)
     removeBelow(m, m_lower_bound)
-    fixed?(m) && filter_impl(args, [true | x_y_flags])
   end
 
   def initial_state([_m, _x, y] = args) do

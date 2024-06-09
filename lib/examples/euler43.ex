@@ -23,13 +23,13 @@ defmodule CPSolver.Examples.Euler43 do
   require Logger
 
   @minizinc_solutions Enum.sort([
-    [4, 1, 6, 0, 3, 5, 7, 2, 8, 9],
-    [1, 4, 6, 0, 3, 5, 7, 2, 8, 9],
-    [4, 1, 0, 6, 3, 5, 7, 2, 8, 9],
-    [1, 4, 0, 6, 3, 5, 7, 2, 8, 9],
-    [4, 1, 3, 0, 9, 5, 2, 8, 6, 7],
-    [1, 4, 3, 0, 9, 5, 2, 8, 6, 7]
-  ])
+                        [4, 1, 6, 0, 3, 5, 7, 2, 8, 9],
+                        [1, 4, 6, 0, 3, 5, 7, 2, 8, 9],
+                        [4, 1, 0, 6, 3, 5, 7, 2, 8, 9],
+                        [1, 4, 0, 6, 3, 5, 7, 2, 8, 9],
+                        [4, 1, 3, 0, 9, 5, 2, 8, 6, 7],
+                        [1, 4, 3, 0, 9, 5, 2, 8, 6, 7]
+                      ])
 
   def model() do
     primes = [2, 3, 5, 7, 11, 13, 17]
@@ -38,15 +38,17 @@ defmodule CPSolver.Examples.Euler43 do
     x = Enum.map(1..10, fn i -> Variable.new(domain, name: "x#{i}") end)
 
     all_different_constraint = AllDifferent.new(x)
-    constraints = Enum.reduce(2..8, [all_different_constraint], fn i, constraints_acc ->
-      x_i = Enum.at(x, i - 1)
-      x_i_1 = Enum.at(x, i)
-      x_i_2 = Enum.at(x, i + 1)
-      prime = Enum.at(primes, i - 2)
-      {sum_var, sum_constraint} = sum([mul(x_i, 100), mul(x_i_1, 10), x_i_2])
-      mod_constraint = Modulo.new(Variable.new(0), sum_var, Variable.new(prime))
-      [sum_constraint, mod_constraint | constraints_acc]
-    end)
+
+    constraints =
+      Enum.reduce(2..8, [all_different_constraint], fn i, constraints_acc ->
+        x_i = Enum.at(x, i - 1)
+        x_i_1 = Enum.at(x, i)
+        x_i_2 = Enum.at(x, i + 1)
+        prime = Enum.at(primes, i - 2)
+        {sum_var, sum_constraint} = sum([mul(x_i, 100), mul(x_i_1, 10), x_i_2])
+        mod_constraint = Modulo.new(0, sum_var, prime)
+        [sum_constraint, mod_constraint | constraints_acc]
+      end)
 
     Model.new(x, constraints)
   end
@@ -59,9 +61,9 @@ defmodule CPSolver.Examples.Euler43 do
 
   def run(opts \\ []) do
     {:ok, res} = CPSolver.solve_sync(model(), opts)
-    Enum.sort(Enum.map(res.solutions, fn s -> Enum.take(s, 10) end)) == @minizinc_solutions &&
-    Logger.notice("Solutions correspond to the ones given by MinZinc")
-    || Logger.error("Solutions do not match MiniZinc")
-  end
 
+    (Enum.sort(Enum.map(res.solutions, fn s -> Enum.take(s, 10) end)) == @minizinc_solutions &&
+       Logger.notice("Solutions correspond to the ones given by MinZinc")) ||
+      Logger.error("Solutions do not match MiniZinc")
+  end
 end

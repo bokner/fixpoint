@@ -5,6 +5,7 @@ defmodule CPSolver.Constraint do
 
   @callback new(args :: list()) :: Constraint.t()
   @callback propagators(args :: list()) :: [atom()]
+  @callback arguments(args :: list()) :: list()
 
   defmacro __using__(_) do
     quote do
@@ -13,8 +14,14 @@ defmodule CPSolver.Constraint do
       alias CPSolver.Common
 
       def new(args) do
-        Constraint.new(__MODULE__, args)
+        Constraint.new(__MODULE__, arguments(args))
       end
+
+      def arguments(args) do
+        args
+      end
+
+      defoverridable new: 1, arguments: 1
     end
   end
 

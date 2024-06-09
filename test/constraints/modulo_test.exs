@@ -11,7 +11,7 @@ defmodule CPSolverTest.Constraint.Modulo do
 
     var -2..2: x;
     var -2..2: y;
-    var -300..300: m;
+    var -100..100: m;
     constraint m = x mod y;
 
     """
