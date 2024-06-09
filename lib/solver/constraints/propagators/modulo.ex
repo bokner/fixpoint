@@ -28,8 +28,11 @@ defmodule CPSolver.Propagator.Modulo do
 
   def filter(args, %{fixed_flags: fixed_flags}, changes) do
     updated_fixed = update_fixed(fixed_flags, changes)
-    filter_impl(args, updated_fixed)
-    {:state, %{fixed_flags: updated_fixed}}
+    updated_fixed2 = case filter_impl(args, updated_fixed) do
+      idx when is_integer(idx) -> List.replace_at(updated_fixed, idx, true)
+      _other -> updated_fixed
+    end
+    {:state, %{fixed_flags: updated_fixed2}}
   end
 
   defp update_fixed(fixed_flags, changes) do
@@ -52,36 +55,30 @@ defmodule CPSolver.Propagator.Modulo do
     ## Modulo and dividend must have the same sign
     if m_value * x_value < 0, do: fail()
 
-    _y_fixed =
-      y
-      |> domain()
+      domain(y)
       |> Domain.to_list()
-      |> Enum.reduce_while(
-        false,
-        fn y_value, _match_acc ->
-          (rem(x_value, y_value) != m_value &&
-             :fixed == remove(y, y_value) && {:halt, fail()}) ||
-            {:cont, false}
+      |> Enum.each(
+        fn y_value ->
+          (rem(x_value, y_value) != m_value) &&
+             remove(y, y_value)
         end
       )
+      fixed?(y) && 2 || nil
   end
 
   def filter_impl([m, x, y], @m_y_fixed) do
     m_value = min(m)
     y_value = min(y)
 
-    _x_fixed =
-      x
-      |> domain()
+      domain(x)
       |> Domain.to_list()
-      |> Enum.reduce_while(
-        false,
-        fn x_value, _match_acc ->
-          (rem(x_value, y_value) != m_value &&
-             :fixed == remove(x, x_value) && {:halt, fail()}) ||
-            {:cont, false}
+      |> Enum.each(
+        fn x_value ->
+          (rem(x_value, y_value) != m_value) &&
+            remove(x, x_value)
         end
       )
+      fixed?(x) && 1 || nil
   end
 
   def filter_impl([m, x, _y], _fixed_flags) do
