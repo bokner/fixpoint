@@ -1,4 +1,4 @@
-defmodule CPSolverTest.Constraint.Element do
+defmodule CPSolverTest.Constraint.Modulo do
   use ExUnit.Case, async: false
 
   describe "Modulo" do
