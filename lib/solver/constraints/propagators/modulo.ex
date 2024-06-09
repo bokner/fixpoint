@@ -4,6 +4,7 @@ defmodule CPSolver.Propagator.Modulo do
   @x_y_fixed [false, true, true]
   @m_x_fixed [true, true, false]
   @m_y_fixed [true, false, true]
+  @all_fixed [true, true, true]
 
   def new(m, x, y) do
     new([m, x, y])
@@ -27,18 +28,28 @@ defmodule CPSolver.Propagator.Modulo do
   end
 
   def filter(args, %{fixed_flags: fixed_flags}, changes) do
-    updated_fixed = update_fixed(fixed_flags, changes)
-    updated_fixed2 = case filter_impl(args, updated_fixed) do
-      idx when is_integer(idx) -> List.replace_at(updated_fixed, idx, true)
-      _other -> updated_fixed
+    updated_fixed = update_fixed(args, fixed_flags, changes)
+
+    if filter_impl(args, updated_fixed) do
+      :passive
+    else
+      {:state, %{fixed_flags: updated_fixed}}
     end
-    {:state, %{fixed_flags: updated_fixed2}}
   end
 
-  defp update_fixed(fixed_flags, changes) do
-    Enum.reduce(changes, fixed_flags,
-    fn {idx, :fixed}, flags_acc ->
-      List.replace_at(flags_acc, idx, true)
+  ## This (no changes) will happen when the propagator doesn't receive changes
+  ## (either because it was first to run or there were no changes)
+  defp update_fixed(args, fixed_flags, changes) when map_size(changes) == 0 do
+    for idx <- 0..2 do
+      Enum.at(fixed_flags, idx) || fixed?(Enum.at(args, idx))
+    end
+  end
+
+  defp update_fixed(_args, fixed_flags, changes) do
+    Enum.reduce(changes, fixed_flags, fn
+      {idx, :fixed}, flags_acc ->
+        List.replace_at(flags_acc, idx, true)
+
       {_idx, _bound_change}, flags_acc ->
         flags_acc
     end)
@@ -52,41 +63,46 @@ defmodule CPSolver.Propagator.Modulo do
     m_value = min(m)
     x_value = min(x)
 
-    ## Modulo and dividend must have the same sign
-    if m_value * x_value < 0, do: fail()
+    domain(y)
+    |> Domain.to_list()
+    |> Enum.each(fn y_value ->
+      rem(x_value, y_value) != m_value &&
+        remove(y, y_value)
+    end)
 
-      domain(y)
-      |> Domain.to_list()
-      |> Enum.each(
-        fn y_value ->
-          (rem(x_value, y_value) != m_value) &&
-             remove(y, y_value)
-        end
-      )
-      fixed?(y) && 2 || nil
+    fixed?(y)
   end
 
   def filter_impl([m, x, y], @m_y_fixed) do
     m_value = min(m)
     y_value = min(y)
 
-      domain(x)
-      |> Domain.to_list()
-      |> Enum.each(
-        fn x_value ->
-          (rem(x_value, y_value) != m_value) &&
-            remove(x, x_value)
-        end
-      )
-      fixed?(x) && 1 || nil
+    domain(x)
+    |> Domain.to_list()
+    |> Enum.each(fn x_value ->
+      rem(x_value, y_value) != m_value &&
+        remove(x, x_value)
+    end)
+
+    fixed?(x)
   end
 
-  def filter_impl([m, x, _y], _fixed_flags) do
-    if max(m) * min(x) < 0, do: fail()
+  def filter_impl(_args, @all_fixed) do
+    true
   end
 
-  defp fail() do
-    throw(:fail)
+  def filter_impl(_args, [true | _x_y_flags]) do
+    false
+  end
+
+  def filter_impl([m, x, _y] = args, [false | x_y_flags]) do
+    max_x = max(x)
+    min_x = min(x)
+    m_lower_bound = min(min_x, 0)
+    m_upper_bound = max(max_x, 0)
+    removeAbove(m, m_upper_bound)
+    removeBelow(m, m_lower_bound)
+    fixed?(m) && filter_impl(args, [true | x_y_flags])
   end
 
   def initial_state([_m, _x, y] = args) do

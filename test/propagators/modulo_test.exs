@@ -100,6 +100,5 @@ defmodule CPSolverTest.Propagator.Modulo do
 
       assert :fail = Propagator.filter(p)
     end
-
   end
 end
