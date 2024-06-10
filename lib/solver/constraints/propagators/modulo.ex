@@ -107,19 +107,7 @@ defmodule CPSolver.Propagator.Modulo do
     min_y = min(y)
 
     {m_lower_bound, m_upper_bound} =
-      cond do
-        min_x >= 0 ->
-          {0, (max(abs(min_y), abs(max_y)) - 1) |> min(max_x)}
-
-        max_x < 0 ->
-          {(-max(abs(min_y), abs(max_y)) + 1) |> max(min_x), 0}
-
-        true ->
-          {
-            (min(min(min_y, -min_y), min(max_y, -max_y)) + 1) |> max(min_x),
-            (max(max(min_y, -min_y), max(max_y, -max_y)) - 1) |> min(max_x)
-          }
-      end
+      mod_bounds(min_x, max_x, min_y, max_y)
 
     removeAbove(m, m_upper_bound)
     removeBelow(m, m_lower_bound)
@@ -128,5 +116,25 @@ defmodule CPSolver.Propagator.Modulo do
   def initial_state([_m, _x, y] = args) do
     remove(y, 0)
     %{fixed_flags: Enum.map(args, fn arg -> fixed?(arg) end)}
+  end
+
+  defp mod_bounds(min_x, max_x, min_y, max_y) do
+    cond do
+      min_x >= 0 ->
+        {0, (max(abs(min_y), abs(max_y)) - 1) |> min(max_x)}
+
+      max_x < 0 ->
+        {(-max(abs(min_y), abs(max_y)) + 1) |> max(min_x), 0}
+
+      true ->
+        {
+          (min(min(min_y, -min_y), min(max_y, -max_y)) + 1) |> max(min_x),
+          (max(max(min_y, -min_y), max(max_y, -max_y)) - 1) |> min(max_x)
+        }
+    end
+  end
+
+  def mod_bounds(x, y) do
+    mod_bounds(min(x), max(x), min(y), max(y))
   end
 end

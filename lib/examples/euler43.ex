@@ -67,9 +67,11 @@ defmodule CPSolver.Examples.Euler43 do
     {:ok, res} = CPSolver.solve_sync(model(), opts)
 
     Enum.sort(Enum.map(res.solutions, fn s -> Enum.take(s, 10) end))
-    |> tap(fn sorted_solutions -> sorted_solutions == @minizinc_solutions &&
-       Logger.notice("Solutions correspond to the ones given by MinZinc") ||
-      Logger.error("Solutions do not match MiniZinc") end)
+    |> tap(fn sorted_solutions ->
+      (sorted_solutions == @minizinc_solutions &&
+         Logger.notice("Solutions correspond to the ones given by MinZinc")) ||
+        Logger.error("Solutions do not match MiniZinc")
+    end)
     |> Enum.reduce(0, fn s, sum_acc -> Integer.undigits(s) + sum_acc end)
   end
 end
