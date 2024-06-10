@@ -59,7 +59,7 @@ defmodule CPSolver.Examples.Euler43 do
     |> Kernel.in(@minizinc_solutions)
   end
 
-  def run(opts \\ []) do
+  def run(opts \\ [search: {:input_order, :indomain_random}, space_threads: 8]) do
     {:ok, res} = CPSolver.solve_sync(model(), opts)
 
     (Enum.sort(Enum.map(res.solutions, fn s -> Enum.take(s, 10) end)) == @minizinc_solutions &&
