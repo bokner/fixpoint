@@ -4,7 +4,9 @@ defmodule CPSolverTest.Constraint.Modulo do
   describe "Modulo" do
     alias CPSolver.Constraint.Modulo
     alias CPSolver.IntVariable, as: Variable
+    alias CPSolver.Variable.Interface
     alias CPSolver.Model
+    alias CPSolver.Constraint.Factory, as: ConstraintFactory
 
     ~c"""
     MiniZinc model (for verification):
@@ -25,7 +27,25 @@ defmodule CPSolverTest.Constraint.Modulo do
 
       {:ok, res} = CPSolver.solve_sync(model)
       assert res.statistics.solution_count == 20
-      assert Enum.all?(res.solutions, fn [x_val, y_val, m_val] -> rem(x_val, y_val) == m_val end)
+      assert check_solutions(res)
+    end
+
+    test "Factory.mod/2,3" do
+      x = Variable.new(-100..100, name: "x")
+      y = Variable.new(-7..7, name: "y")
+      {mod_var, mod_constraint} = ConstraintFactory.mod(x, y)
+      assert Interface.min(mod_var) == -6
+      assert Interface.max(mod_var) == 6
+
+      model = Model.new([x, y], [mod_constraint])
+      {:ok, res} = CPSolver.solve_sync(model)
+      assert res.statistics.solution_count == 2814 ## Verification against MiniZinc count
+      assert check_solutions(res)
+
+    end
+
+    defp check_solutions(result) do
+      Enum.all?(result.solutions, fn [x_val, y_val, m_val] -> rem(x_val, y_val) == m_val end)
     end
   end
 end
