@@ -18,7 +18,7 @@ Proof of concept. Not suitable for use in production. Significant API changes an
 
 - `equal`, `not_equal`, `less_or_equal`
 - `all_different`
-- `sum`
+- `sum`, `modulo`
 - `element`, `element2d`
 - `circuit`
 
@@ -335,4 +335,3 @@ https://en.wikipedia.org/wiki/Travelling_salesman_problem
 #### [`xkcd` comic](livebooks/xkcd_np.livemd)
 
 Two combinatorial problems from https://xkcd.com/287/
-

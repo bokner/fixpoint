@@ -1,4 +1,8 @@
 defmodule CPSolver.Examples.Euler43 do
+  @moduledoc """
+  https://projecteuler.net/problem=43
+  """
+
   @doc """
   int: n = 10;
   array[1..n] of var 0..9: x;
