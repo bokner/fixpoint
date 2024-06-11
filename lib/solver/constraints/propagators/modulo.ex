@@ -108,6 +108,7 @@ defmodule CPSolver.Propagator.Modulo do
 
     {m_lower_bound, m_upper_bound} =
       mod_bounds(min_x, max_x, min_y, max_y)
+
     removeAbove(m, m_upper_bound)
     removeBelow(m, m_lower_bound)
   end

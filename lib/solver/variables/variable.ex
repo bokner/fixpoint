@@ -94,14 +94,14 @@ defmodule CPSolver.Variable do
 
   defp store_op(op, %{store: store, domain: domain} = variable, value)
        when op in [:remove, :removeAbove, :removeBelow, :fix] do
-        domain && apply(Domain, op, [domain, value]) |> normalize_update_result() ||
-    ConstraintStore.update(store, variable, op, [value])
+    (domain && apply(Domain, op, [domain, value]) |> normalize_update_result()) ||
+      ConstraintStore.update(store, variable, op, [value])
   end
 
   defp store_op(op, %{store: store, domain: domain} = variable, value)
        when op in [:contains?] do
-    domain && Domain.contains?(domain, value) ||
-    ConstraintStore.get(store, variable, op, [value])
+    (domain && Domain.contains?(domain, value)) ||
+      ConstraintStore.get(store, variable, op, [value])
   end
 
   defp store_op(op, %View{variable: variable}) do
@@ -110,8 +110,8 @@ defmodule CPSolver.Variable do
 
   defp store_op(op, %{store: store, domain: domain} = variable)
        when op in [:size, :fixed?, :min, :max] do
-    domain && apply(Domain, op, [domain]) ||
-    ConstraintStore.get(store, variable, op)
+    (domain && apply(Domain, op, [domain])) ||
+      ConstraintStore.get(store, variable, op)
   end
 
   defp store_op(:domain, %{store: nil, domain: domain}) when not is_nil(domain) do

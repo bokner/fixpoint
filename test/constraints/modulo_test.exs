@@ -39,9 +39,9 @@ defmodule CPSolverTest.Constraint.Modulo do
 
       model = Model.new([x, y], [mod_constraint])
       {:ok, res} = CPSolver.solve_sync(model)
-      assert res.statistics.solution_count == 2814 ## Verification against MiniZinc count
+      ## Verification against MiniZinc count
+      assert res.statistics.solution_count == 2814
       assert check_solutions(res)
-
     end
 
     defp check_solutions(result) do

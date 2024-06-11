@@ -47,8 +47,14 @@ defmodule CPSolver.Constraint.Factory do
   end
 
   def mod(x, y, opts \\ []) do
-    {lb, ub} = ModuloPropagator.mod_bounds(x, y)
-    mod_var = Variable.new(lb..ub, name: Keyword.get(opts, :name, make_ref()))
+    domain =
+      Keyword.get(opts, :domain) ||
+        (
+          {lb, ub} = ModuloPropagator.mod_bounds(x, y)
+          lb..ub
+        )
+
+    mod_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
     result(mod_var, Modulo.new(mod_var, x, y))
   end
 
