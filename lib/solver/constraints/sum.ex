@@ -5,6 +5,11 @@ defmodule CPSolver.Constraint.Sum do
   alias CPSolver.IntVariable, as: Variable
 
   @spec new(Variable.variable_or_view(), [Variable.variable_or_view()]) :: Constraint.t()
+
+  def new(c, x) when is_integer(c) do
+    new(Variable.new(c), x)
+  end
+
   def new(y, x) do
     new([y | x])
   end
