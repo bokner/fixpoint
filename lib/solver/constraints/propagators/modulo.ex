@@ -137,5 +137,4 @@ defmodule CPSolver.Propagator.Modulo do
   def mod_bounds(x, y) do
     mod_bounds(min(x), max(x), min(y), max(y))
   end
-
 end

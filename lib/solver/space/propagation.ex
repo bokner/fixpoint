@@ -232,6 +232,16 @@ defmodule CPSolver.Space.Propagation do
     :domain_change
   end
 
+  defp maybe_update_domain_change(:bound_change, bound_change)
+       when bound_change in [:min_change, :max_change] do
+    bound_change
+  end
+
+  defp maybe_update_domain_change(bound_change, :bound_change)
+       when bound_change in [:min_change, :max_change] do
+    bound_change
+  end
+
   defp maybe_update_domain_change(:min_change, :max_change) do
     :bound_change
   end
