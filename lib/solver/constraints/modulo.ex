@@ -1,9 +1,7 @@
 defmodule CPSolver.Constraint.Modulo do
   use CPSolver.Constraint
   alias CPSolver.Propagator.Modulo, as: ModuloPropagator
-  alias CPSolver.IntVariable, as: Variable
-
-  def new(m, x, y)
+  alias CPSolver.IntVariable
 
   def new(m, x, y) do
     new([m, x, y])
@@ -11,7 +9,7 @@ defmodule CPSolver.Constraint.Modulo do
 
   @impl true
   def arguments(args) do
-    Enum.map(args, fn arg -> (is_integer(arg) && Variable.new(arg)) || arg end)
+    Enum.map(args, fn arg -> IntVariable.to_variable(arg) end)
   end
 
   @impl true
