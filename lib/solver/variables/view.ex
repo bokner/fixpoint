@@ -1,4 +1,8 @@
 defmodule CPSolver.Variable.View do
+  @moduledoc """
+  View is a variable with attached `mapper` function.
+  `mapper` is a bijection of the domain of original variable to the domain of the view
+  """
   alias CPSolver.Variable
   alias CPSolver.DefaultDomain, as: Domain
   alias __MODULE__, as: View
