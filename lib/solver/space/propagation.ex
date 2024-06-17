@@ -72,6 +72,9 @@ defmodule CPSolver.Space.Propagation do
          {scheduled_acc, g_acc, changes_acc} =
            _acc ->
         case res do
+          {:filter_error, error} ->
+            throw({:error, {:filter_error, error}})
+
           :fail ->
             {:halt, :fail}
 

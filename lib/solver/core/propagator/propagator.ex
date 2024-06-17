@@ -105,20 +105,25 @@ defmodule CPSolver.Propagator do
 
     try do
       state = (reset? && mod.reset(args, state)) || state
-      mod.filter(args, state, incoming_changes)
+      case mod.filter(args, state, incoming_changes) do
+        :fail ->
+          :fail
+
+        :stable ->
+          :stable
+
+        result ->
+          get_filter_changes(result)
+      end
+
     catch
-      :fail ->
-        :fail
-    else
+      :error, error ->
+        {:filter_error, {mod, error}}
+
       :fail ->
         :fail
 
-      :stable ->
-        :stable
-
-      result ->
-        get_filter_changes(result)
-    end
+      end
   end
 
   ## How propagator events map to domain events

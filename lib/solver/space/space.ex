@@ -185,7 +185,7 @@ defmodule CPSolver.Space do
 
   @impl true
   def handle_call(:propagate, caller, data) do
-    propagate(Map.put(data, :caller, caller))
+      propagate(Map.put(data, :caller, caller))
   end
 
   defp propagate(
@@ -197,6 +197,7 @@ defmodule CPSolver.Space do
          } =
            data
        ) do
+    try do
     case Propagation.run(propagators, constraint_graph, store, changes) do
       :fail ->
         handle_failure(data)
@@ -211,6 +212,10 @@ defmodule CPSolver.Space do
         }
         |> handle_stable()
     end
+  catch
+    {:error, error} ->
+      handle_error(error, data)
+  end
   end
 
   defp handle_failure(data) do
@@ -228,6 +233,12 @@ defmodule CPSolver.Space do
     end)
 
     shutdown(data, :solved)
+  end
+
+  defp handle_error(exception, data) do
+    Logger.error(inspect(exception))
+    Shared.set_complete(shared(data))
+    shutdown(data, :error)
   end
 
   defp solutions(%{variables: variables} = _data) do

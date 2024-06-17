@@ -38,7 +38,6 @@ defmodule CPSolverTest.Constraint.Element do
       {:ok, result} = CPSolver.solve_sync(model)
       refute Enum.empty?(result.solutions)
       assert_element2d(result.solutions, t)
-
     end
 
     test "`element` factory function" do
@@ -53,7 +52,6 @@ defmodule CPSolverTest.Constraint.Element do
 
       {:ok, result} = CPSolver.solve_sync(model)
       assert_element(result.solutions, t)
-
     end
 
     test "`element2d` factory function" do
@@ -69,7 +67,8 @@ defmodule CPSolverTest.Constraint.Element do
 
       {z_var, element2d_constraint} = ConstraintFactory.element2d(t, x_var, y_var)
       ## domain of generated variable corresponds to content of t (all unique values)
-      assert Domain.to_list(z_var.domain) |> Enum.sort() == t |> List.flatten() |> Enum.uniq() |> Enum.sort()
+      assert Domain.to_list(z_var.domain) |> Enum.sort() ==
+               t |> List.flatten() |> Enum.uniq() |> Enum.sort()
 
       model = Model.new([x_var, y_var, z_var], [element2d_constraint])
 
@@ -84,14 +83,14 @@ defmodule CPSolverTest.Constraint.Element do
     ##
     defp assert_element(solutions, t) do
       assert Enum.all?(solutions, fn [y_value, z_value, _placeholder] ->
-        Enum.at(t, y_value) == z_value
-      end)
+               Enum.at(t, y_value) == z_value
+             end)
     end
 
     defp assert_element2d(solutions, t) do
       assert Enum.all?(solutions, fn [x, y, z] ->
-        Enum.at(t, x) |> Enum.at(y) == z
-      end)
+               Enum.at(t, x) |> Enum.at(y) == z
+             end)
     end
   end
 end

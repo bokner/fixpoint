@@ -24,7 +24,7 @@ defmodule CPSolver.Constraint.Element do
   end
 
   @impl true
-  def arguments([array, x, y]) do
+  def arguments([array, x, y]) when is_list(array) and is_list(hd(array)) do
     [array, IntVariable.to_variable(x), IntVariable.to_variable(y)]
   end
 end
