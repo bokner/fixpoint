@@ -25,7 +25,7 @@ defmodule CPSolver.Constraint.Element2D do
   end
 
   @impl true
-  def arguments([array2d, x, y, z]) do
+  def arguments([array2d, x, y, z]) when is_list(array2d) and is_list(hd(array2d)) do
     [array2d, Variable.to_variable(x), Variable.to_variable(y), Variable.to_variable(z)]
   end
 end

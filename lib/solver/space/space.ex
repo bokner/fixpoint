@@ -13,9 +13,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
-  # alias CPSolver.Propagator
-  # alias CPSolver.Constraint
-
+  
   alias CPSolver.Shared
   alias CPSolver.Distributed
   alias CPSolver.Utils
