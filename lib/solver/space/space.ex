@@ -13,7 +13,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
-  
+
   alias CPSolver.Shared
   alias CPSolver.Distributed
   alias CPSolver.Utils
@@ -183,7 +183,7 @@ defmodule CPSolver.Space do
 
   @impl true
   def handle_call(:propagate, caller, data) do
-      propagate(Map.put(data, :caller, caller))
+    propagate(Map.put(data, :caller, caller))
   end
 
   defp propagate(
@@ -196,24 +196,24 @@ defmodule CPSolver.Space do
            data
        ) do
     try do
-    case Propagation.run(propagators, constraint_graph, store, changes) do
-      :fail ->
-        handle_failure(data)
+      case Propagation.run(propagators, constraint_graph, store, changes) do
+        :fail ->
+          handle_failure(data)
 
-      :solved ->
-        handle_solved(data)
+        :solved ->
+          handle_solved(data)
 
-      {:stable, reduced_constraint_graph} ->
-        %{
-          data
-          | constraint_graph: reduced_constraint_graph
-        }
-        |> handle_stable()
+        {:stable, reduced_constraint_graph} ->
+          %{
+            data
+            | constraint_graph: reduced_constraint_graph
+          }
+          |> handle_stable()
+      end
+    catch
+      {:error, error} ->
+        handle_error(error, data)
     end
-  catch
-    {:error, error} ->
-      handle_error(error, data)
-  end
   end
 
   defp handle_failure(data) do
