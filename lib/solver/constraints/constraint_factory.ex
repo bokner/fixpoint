@@ -1,5 +1,5 @@
 defmodule CPSolver.Constraint.Factory do
-  alias CPSolver.Constraint.{Sum, Element, Element2D, Modulo}
+  alias CPSolver.Constraint.{Sum, Element, Element2D, Modulo, Absolute}
   alias CPSolver.Propagator.Modulo, as: ModuloPropagator
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
@@ -56,6 +56,19 @@ defmodule CPSolver.Constraint.Factory do
 
     mod_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
     result(mod_var, Modulo.new(mod_var, x, y))
+  end
+
+  def absolute(x, opts \\ []) do
+    domain =
+      Keyword.get(opts, :domain) ||
+        (
+          abs_min = abs(Interface.min(x))
+          abs_max = abs(Interface.max(x))
+          0..max(abs_min, abs_max)
+        )
+
+    abs_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
+    result(abs_var, Absolute.new(x, abs_var))
   end
 
   defp result(derived_variable, constraint) do
