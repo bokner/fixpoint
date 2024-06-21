@@ -62,7 +62,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
 
   @impl true
   def filter(args) do
-    filter(args, initial_reduction(args))
+    filter(args, nil)
   end
 
   @impl true

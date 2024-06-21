@@ -111,7 +111,7 @@ defmodule CPSolver.Search.Strategy do
     domain = Interface.domain(variable)
 
     try do
-      remove_changes = Domain.remove(domain, value)
+      {remove_changes, _domain} = Domain.remove(domain, value)
 
       {:ok,
        [
