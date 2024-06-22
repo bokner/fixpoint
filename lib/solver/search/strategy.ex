@@ -2,7 +2,7 @@ defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable.Interface
   alias CPSolver.Search.VariableSelector.FirstFail
   alias CPSolver.DefaultDomain, as: Domain
-  # alias CPSolver.Constraint.{Equal, NotEqual}
+  alias CPSolver.Constraint.{Equal, NotEqual}
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random}
 
@@ -72,14 +72,14 @@ defmodule CPSolver.Search.Strategy do
         {:ok, domain_partitions} =
           partition(selected_variable, partition_strategy)
 
-        variable_partitions(selected_variable, domain_partitions, variables)
+        variable_partitions(domain_partitions, variables)
     end
   end
 
   def partition(variable, value_choice) do
     variable
     |> partition_impl(value_choice)
-    |> split_domain_by(variable)
+    |> branching_constraints(variable)
   end
 
   def all_vars_fixed_exception() do
@@ -94,45 +94,19 @@ defmodule CPSolver.Search.Strategy do
     Map.put(variable, :domain, domain)
   end
 
-  defp variable_partitions(selected_variable, domain_partitions, variables) do
-    Enum.map(domain_partitions, fn {domain, constraint} ->
+  defp variable_partitions(domain_partitions, variables) do
+    Enum.map(domain_partitions, fn constraint ->
       {Enum.map(variables, fn var ->
-         domain_copy =
-           ((var.id == selected_variable.id && domain) || var.domain)
-           # var.domain
-           |> Domain.copy()
-
-         set_domain(var, domain_copy)
+         set_domain(var, Domain.copy(var.domain))
        end), constraint}
     end)
   end
 
-  defp split_domain_by(value, variable) do
-    domain = Interface.domain(variable)
-
-    try do
-      {remove_changes, _domain} = Domain.remove(domain, value)
-
+  defp branching_constraints(value, variable) do
       {:ok,
        [
-         {
-           Domain.new(value),
-           %{variable.id => :fixed}
-           # Equal.new(variable, value)
-         },
-         {
-           domain,
-           %{variable.id => remove_changes}
-           # NotEqual.new(variable, value)
-         }
+           Equal.new(variable, value),
+           NotEqual.new(variable, value)
        ]}
-    rescue
-      :fail ->
-        Logger.error(
-          "Failure on partitioning with value #{inspect(value)}, domain: #{inspect(CPSolver.BitVectorDomain.raw(domain))}"
-        )
-
-        throw(:fail)
     end
-  end
 end

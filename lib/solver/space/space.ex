@@ -7,6 +7,7 @@ defmodule CPSolver.Space do
 
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
+  alias CPSolver.Constraint
   alias CPSolver.ConstraintStore
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
@@ -150,12 +151,13 @@ defmodule CPSolver.Space do
         store_impl: space_opts[:store_impl],
         space: self()
       )
-
+      branch_constraint = space_opts[:branch_constraint]
     {constraint_graph, bound_propagators} =
       graph
-      # |> apply_branch_constraint(space_opts[:branch_constraint])
+      #|> add_branch_constraint(branch_constraint)
       |> ConstraintGraph.update(space_variables)
 
+    branch_constraint_changes = Constraint.post(branch_constraint, store)
     space_data =
       data
       |> Map.put(:id, make_ref())
@@ -164,7 +166,7 @@ defmodule CPSolver.Space do
       |> Map.put(:constraint_graph, constraint_graph)
       |> Map.put(:objective, update_objective(space_opts[:objective], space_variables))
       |> Map.put(:propagators, bound_propagators)
-      |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
+      |> Map.put(:changes, branch_constraint_changes)
 
     (space_opts[:postpone] &&
        {:ok, space_data}) || {:ok, space_data, {:continue, :propagate}}
@@ -275,33 +277,15 @@ defmodule CPSolver.Space do
     Interface.update(variable, :domain, var_domain)
   end
 
-  # defp add_branch_constraint(constraint_graph, nil) do
-  #  constraint_graph
-  # end
+  defp add_branch_constraint(constraint_graph, nil) do
+   constraint_graph
+  end
 
-  # defp add_branch_constraint(constraint_graph, _constraint) do
-  # []
-  # constraint
-  # |> Constraint.constraint_to_propagators()
-  # |> IO.inspect()
-  # |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
-  # constraint_graph
-  # |> tap(fn  -> constraint.() end)
-  # end
-
-  # defp add_branch_constraint(constraint_graph, nil) do
-  #   constraint_graph
-  # end
-
-  # defp add_branch_constraint(constraint_graph, _constraint) do
-  # []
-  # constraint
-  # |> Constraint.constraint_to_propagators()
-  # |> IO.inspect()
-  # |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
-  # constraint_graph
-  # |> tap(fn  -> constraint.() end)
-  # end
+  defp add_branch_constraint(constraint_graph, constraint) do
+    constraint
+    |> Constraint.constraint_to_propagators()
+    |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
+  end
 
   defp handle_stable(data) do
     try do
