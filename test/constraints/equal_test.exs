@@ -1,7 +1,7 @@
 defmodule CPSolverTest.Constraint.Equal do
   use ExUnit.Case, async: false
 
-  describe "LessOrEqual" do
+  describe "Equal" do
     alias CPSolver.Constraint.Equal
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Model
