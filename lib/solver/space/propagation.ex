@@ -53,24 +53,14 @@ defmodule CPSolver.Space.Propagation do
   def propagate(propagators, graph, store, domain_changes, opts) when is_map(propagators) do
     propagators
     |> reorder()
-    |> Task.async_stream(
-      fn {p_id, p} ->
-        {p_id, p,
-         Propagator.filter(p,
-           store: store,
-           reset?: opts[:reset?],
-           changes: Map.get(domain_changes, p_id)
-         )}
-      end,
-      ## TODO: make it an option
-      ##
-      max_concurrency: 1
-    )
     |> Enum.reduce_while(
       {MapSet.new(), graph, Map.new()},
-      fn {:ok, {p_id, p, res}},
-         {scheduled_acc, g_acc, changes_acc} =
-           _acc ->
+      fn {p_id, p}, {scheduled_acc, g_acc, changes_acc} = _acc ->
+        res = Propagator.filter(p,
+        store: store,
+        reset?: opts[:reset?],
+        changes: Map.get(domain_changes, p_id)
+      )
         case res do
           {:filter_error, error} ->
             throw({:error, {:filter_error, error}})
@@ -81,7 +71,7 @@ defmodule CPSolver.Space.Propagation do
           :stable ->
             {:cont, {unschedule(scheduled_acc, p_id), g_acc, changes_acc}}
 
-          %{changes: nil, active?: active?, state: new_state} ->
+          %{changes: no_changes, active?: active?, state: new_state} when no_changes in [nil, %{}] ->
             {:cont,
              {unschedule(scheduled_acc, p_id),
               maybe_remove_propagator(g_acc, p_id, p, active?, new_state), changes_acc}}
