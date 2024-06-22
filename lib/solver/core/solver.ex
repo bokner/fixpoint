@@ -105,7 +105,7 @@ defmodule CPSolver do
     status(statistics(solver), objective_value(solver), complete?(solver))
   end
 
-  defp status(%{active_node_count: 0, solution_count: 0}, _objective_value, true) do
+  defp status(%{active_node_count: active_node_count, solution_count: 0}, _objective_value, true) when active_node_count <=1 do
     :unsatisfiable
   end
 
