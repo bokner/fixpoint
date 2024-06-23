@@ -17,6 +17,7 @@ Proof of concept. Not suitable for use in production. Significant API changes an
 ## Implemented constraints
 
 - `equal`, `not_equal`, `less_or_equal`
+- `absolute`
 - `all_different`
 - `sum`, `modulo`
 - `element`, `element2d`
@@ -35,7 +36,7 @@ The package can be installed by adding `fixpoint` to your list of dependencies i
 ```elixir
 def deps do
   [
-    {:fixpoint, "~> 0.8.4"}
+    {:fixpoint, "~> 0.8.28"}
   ]
 end
 ```

@@ -4,7 +4,7 @@ defmodule CPSolver.MixProject do
   def project do
     [
       app: :fixpoint,
-      version: "0.8.27",
+      version: "0.8.28",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -59,6 +59,7 @@ defmodule CPSolver.MixProject do
       # These are the default files included in the package
       files: ~w(lib src test data .formatter.exs mix.exs README* LICENSE*
                 ),
+      exclude_patterns: ["lib/examples/hakank/*.ex"],
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/bokner/cpsolver"}
     ]
