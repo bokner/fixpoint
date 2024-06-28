@@ -336,3 +336,6 @@ https://en.wikipedia.org/wiki/Travelling_salesman_problem
 #### [`xkcd` comic](livebooks/xkcd_np.livemd)
 
 Two combinatorial problems from https://xkcd.com/287/
+
+#### [Fixpoint models created by Håkan Kjellerstrand](http://hakank.org/elixir/) 
+
