@@ -1,6 +1,7 @@
 defmodule CPSolver.Space.Propagation do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Propagator
+  import CPSolver.Common
 
   require Logger
 
@@ -195,55 +196,11 @@ defmodule CPSolver.Space.Propagation do
           Map.put(
             var_map,
             arg_position,
-            maybe_update_domain_change(current_var_change, domain_change)
+            stronger_domain_change(current_var_change, domain_change)
           )
         end)
       end
     )
   end
 
-  ## This is to "fold" all incoming changes for the propagator+variable into a single value.
-  ## Reflects hierarchy of domain changes
-  ##
-  defp maybe_update_domain_change(nil, new_change) do
-    new_change
   end
-
-  defp maybe_update_domain_change(:fixed, _new_change) do
-    :fixed
-  end
-
-  defp maybe_update_domain_change(_current_change, :fixed) do
-    :fixed
-  end
-
-  defp maybe_update_domain_change(:domain_change, _new_change) do
-    :domain_change
-  end
-
-  defp maybe_update_domain_change(_current_change, :domain_change) do
-    :domain_change
-  end
-
-  defp maybe_update_domain_change(:bound_change, bound_change)
-       when bound_change in [:min_change, :max_change] do
-    bound_change
-  end
-
-  defp maybe_update_domain_change(bound_change, :bound_change)
-       when bound_change in [:min_change, :max_change] do
-    bound_change
-  end
-
-  defp maybe_update_domain_change(:min_change, :max_change) do
-    :bound_change
-  end
-
-  defp maybe_update_domain_change(:max_change, :min_change) do
-    :bound_change
-  end
-
-  defp maybe_update_domain_change(current_change, new_change) when current_change == new_change do
-    current_change
-  end
-end

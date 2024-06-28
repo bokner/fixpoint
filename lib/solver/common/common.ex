@@ -20,4 +20,54 @@ defmodule CPSolver.Common do
     |> :atomics.info()
     |> Map.get(:max)
   end
+
+  ## Choose a "stronger" domain change
+  ## from two.
+  ## "Stronger" domain change implies the weaker one.
+  ## For instance,
+  ## - :bound_change implies :domain_change;
+  ## - :fixed implies all domain changes.
+  ## - :domain_change implies no other domain changes
+  def stronger_domain_change(nil, new_change) do
+    new_change
+  end
+
+  def stronger_domain_change(:fixed, _new_change) do
+    :fixed
+  end
+
+  def stronger_domain_change(_current_change, :fixed) do
+    :fixed
+  end
+
+  def stronger_domain_change(:domain_change, new_change) do
+    new_change
+  end
+
+  def stronger_domain_change(current_change, :domain_change) do
+    current_change
+  end
+
+  def stronger_domain_change(:bound_change, bound_change)
+       when bound_change in [:min_change, :max_change] do
+    bound_change
+  end
+
+  def stronger_domain_change(bound_change, :bound_change)
+       when bound_change in [:min_change, :max_change] do
+    bound_change
+  end
+
+  def stronger_domain_change(:min_change, :max_change) do
+    :bound_change
+  end
+
+  def stronger_domain_change(:max_change, :min_change) do
+    :bound_change
+  end
+
+  def stronger_domain_change(current_change, new_change) when current_change == new_change do
+    current_change
+  end
+
 end

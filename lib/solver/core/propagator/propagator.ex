@@ -127,11 +127,11 @@ defmodule CPSolver.Propagator do
 
   ## How propagator events map to domain events
   def to_domain_events(:domain_change) do
-    [:domain_change, :min_change, :max_change, :fixed]
+    [:domain_change | to_domain_events(:bound_change)]
   end
 
   def to_domain_events(:bound_change) do
-    [:min_change, :max_change, :fixed]
+    [:min_change, :max_change, :bound_change, :fixed]
   end
 
   def to_domain_events(:min_change) do
