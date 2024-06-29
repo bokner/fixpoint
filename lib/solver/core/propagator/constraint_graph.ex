@@ -15,7 +15,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
-  def get_propagator_ids(constraint_graph, variable_id, filter_fun)
+  def propagators_by_variable(constraint_graph, variable_id, filter_fun)
       when is_function(filter_fun) do
     constraint_graph
     |> Graph.edges({:variable, variable_id})
@@ -30,12 +30,12 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   ## Get a list of propagator ids that "listen" to the domain change of given variable.
-  def get_propagator_ids(
+  def propagators_by_variable(
         constraint_graph,
         variable_id,
         domain_change
       ) do
-    get_propagator_ids(constraint_graph, variable_id, fn edge ->
+    propagators_by_variable(constraint_graph, variable_id, fn edge ->
       domain_change in edge.label.propagate_on
     end)
   end
@@ -102,7 +102,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
            graph_acc
          end,
          propagators_acc ++
-           Map.keys(get_propagator_ids(graph_acc, Interface.id(v), fn _ -> true end)),
+           Map.keys(propagators_by_variable(graph_acc, Interface.id(v), fn _ -> true end)),
          Map.put(variables_acc, Interface.id(v), v)}
       end)
 

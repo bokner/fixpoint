@@ -30,7 +30,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
 
       ## For each variable, there are 2 propagators listening to ':fixed' domain change
       Enum.all?(variables, fn var_id ->
-        assert map_size(ConstraintGraph.get_propagator_ids(graph, var_id, :fixed)) == 2
+        assert map_size(ConstraintGraph.propagators_by_variable(graph, var_id, :fixed)) == 2
       end)
     end
 

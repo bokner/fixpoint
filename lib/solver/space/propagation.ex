@@ -102,7 +102,7 @@ defmodule CPSolver.Space.Propagation do
         {graph, current_schedule, current_changes},
         fn {var_id, domain_change} = change, {g_acc, propagators_acc, changes_acc} ->
           propagator_ids =
-            ConstraintGraph.get_propagator_ids(g_acc, var_id, domain_change)
+            ConstraintGraph.propagators_by_variable(g_acc, var_id, domain_change)
 
           {maybe_remove_variable(g_acc, var_id, domain_change),
            MapSet.union(
