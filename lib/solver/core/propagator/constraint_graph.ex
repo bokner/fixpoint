@@ -21,8 +21,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     |> Graph.edges({:variable, variable_id})
     |> Enum.reduce(Map.new(), fn edge, acc ->
       {:propagator, p_id} = edge.v2
-      (p_data = reduce_fun.(p_id, edge.label)) && p_data && Map.put(acc, p_id, p_data)
-      || acc
+
+      ((p_data = reduce_fun.(p_id, edge.label)) && p_data && Map.put(acc, p_id, p_data)) ||
+        acc
     end)
   end
 
@@ -32,10 +33,18 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         variable_id,
         domain_change
       ) do
-    propagators_by_variable(constraint_graph, variable_id, fn _p_id, propagator_variable_edge ->
-      domain_change in propagator_variable_edge.propagate_on
-        && propagator_variable_edge
+    propagators_by_variable(constraint_graph, variable_id, fn p_id, propagator_variable_edge ->
+      domain_change in propagator_variable_edge.propagate_on &&
+        get_propagator_data(
+          propagator_variable_edge,
+          domain_change,
+          get_propagator(constraint_graph, p_id)
+        )
     end)
+  end
+
+  defp get_propagator_data(edge, domain_change, propagator) do
+    %{arg_position: edge.arg_position, domain_change: domain_change, propagator: propagator}
   end
 
   def has_variable?(graph, variable_id) do
@@ -100,8 +109,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
            graph_acc
          end,
          propagators_acc ++
-           Map.keys(propagators_by_variable(graph_acc, Interface.id(v), fn _p_id, edge -> edge end)),
-         Map.put(variables_acc, Interface.id(v), v)}
+           Map.keys(
+             propagators_by_variable(graph_acc, Interface.id(v), fn _p_id, edge -> edge end)
+           ), Map.put(variables_acc, Interface.id(v), v)}
       end)
 
     ## Update domains

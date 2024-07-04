@@ -68,14 +68,14 @@ defmodule CPSolver.Propagator.Variable do
     current_changes = ((changes = get_variable_ops()) && changes) || Map.new()
 
     {_, updated_changes} =
-      Map.get_and_update(current_changes, Interface.id(var),
-      fn current_var_change -> {current_var_change, stronger_domain_change(current_var_change, domain_change)}
-  end)
+      Map.get_and_update(current_changes, Interface.id(var), fn current_var_change ->
+        {current_var_change, stronger_domain_change(current_var_change, domain_change)}
+      end)
 
     Process.put(
       @variable_op_results_key,
       updated_changes
-      )
+    )
   end
 
   def get_variable_ops() do

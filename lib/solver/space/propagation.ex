@@ -57,11 +57,13 @@ defmodule CPSolver.Space.Propagation do
     |> Enum.reduce_while(
       {MapSet.new(), graph, Map.new()},
       fn {p_id, p}, {scheduled_acc, g_acc, changes_acc} = _acc ->
-        res = Propagator.filter(p,
-        store: store,
-        reset?: opts[:reset?],
-        changes: Map.get(domain_changes, p_id)
-      )
+        res =
+          Propagator.filter(p,
+            store: store,
+            reset?: opts[:reset?],
+            changes: Map.get(domain_changes, p_id)
+          )
+
         case res do
           {:filter_error, error} ->
             throw({:error, {:filter_error, error}})
@@ -72,7 +74,8 @@ defmodule CPSolver.Space.Propagation do
           :stable ->
             {:cont, {unschedule(scheduled_acc, p_id), g_acc, changes_acc}}
 
-          %{changes: no_changes, active?: active?, state: new_state} when no_changes in [nil, %{}] ->
+          %{changes: no_changes, active?: active?, state: new_state}
+          when no_changes in [nil, %{}] ->
             {:cont,
              {unschedule(scheduled_acc, p_id),
               maybe_remove_propagator(g_acc, p_id, p, active?, new_state), changes_acc}}
@@ -183,16 +186,12 @@ defmodule CPSolver.Space.Propagation do
     propagators
   end
 
-  defp propagator_changes(propagators_map, {_var_id, domain_change} = _change, changes_acc) do
+  defp propagator_changes(propagator_maps, {_var_id, domain_change} = _change, changes_acc) do
     Enum.reduce(
-      propagators_map,
+      propagator_maps,
       changes_acc,
-      fn {p_id, p_data}, acc ->
-        arg_position = p_data.arg_position
-
-        Map.update(acc, p_id, Map.new(%{arg_position => domain_change}), fn var_map ->
-          current_var_change = Map.get(var_map, arg_position)
-
+      fn {p_id, %{arg_position: arg_position, domain_change: current_var_change}}, acc ->
+        Map.update(acc, p_id, Map.new(%{arg_position => current_var_change}), fn var_map ->
           Map.put(
             var_map,
             arg_position,
@@ -202,5 +201,4 @@ defmodule CPSolver.Space.Propagation do
       end
     )
   end
-
-  end
+end

@@ -49,12 +49,12 @@ defmodule CPSolver.Common do
   end
 
   def stronger_domain_change(:bound_change, bound_change)
-       when bound_change in [:min_change, :max_change] do
+      when bound_change in [:min_change, :max_change] do
     bound_change
   end
 
   def stronger_domain_change(bound_change, :bound_change)
-       when bound_change in [:min_change, :max_change] do
+      when bound_change in [:min_change, :max_change] do
     bound_change
   end
 
@@ -69,5 +69,4 @@ defmodule CPSolver.Common do
   def stronger_domain_change(current_change, new_change) when current_change == new_change do
     current_change
   end
-
 end

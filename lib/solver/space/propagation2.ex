@@ -1,6 +1,13 @@
 defmodule CPSolver.Space.Propagation2 do
   alias CPSolver.Propagator.ConstraintGraph
+  alias CPSolver.Propagator
   import CPSolver.Common
+
+  @spec run(Graph.t(), map() | list()) :: :fail | :solved | {:stable, Graph.t()}
+  def run(constraint_graph, propagators) when is_list(propagators) do
+    run_impl(constraint_graph, propagators)
+  end
+
 
   def run(constraint_graph, events) when is_map(events) do
     run_impl(constraint_graph, :maps.iterator(events) |> :maps.next())
@@ -16,24 +23,49 @@ defmodule CPSolver.Space.Propagation2 do
     |> run_impl(:maps.next(rest_iterator))
   end
 
+  defp run_impl(constraint_graph, propagators) do
+
+  end
+
   defp finalize(constraint_graph) do
     :todo
   end
 
   defp apply_domain_change(constraint_graph, var_id, domain_change) do
-    triggered_propagators = ConstraintGraph.propagators_by_variable(constraint_graph, var_id, domain_change)
-    Enum.reduce(triggered_propagators, constraint_graph, fn propagator, graph_acc ->
-      result = propagate(propagator, var_id, domain_change)
-      update_constraint_graph(graph_acc, result)
-    end)
+    triggered_propagators =
+      ConstraintGraph.propagators_by_variable(constraint_graph, var_id, domain_change)
+      propagation_pass(constraint_graph, triggered_propagators)
+  end
+
+  defp propagation_pass(constraint_graph, propagators) do
+    Enum.reduce(
+      propagators,
+      constraint_graph,
+      fn p,
+         graph_acc ->
+        result = propagate(p)
+        update_constraint_graph(graph_acc, result)
+      end
+    )
+
   end
 
   defp update_constraint_graph(constraint_graph, propagation_result) do
     :todo
+    constraint_graph
   end
 
-  defp propagate(propagator, var_id, domain_change) do
+  defp propagate(%{
+    propagator: propagator,
+    arg_position: arg_position,
+    domain_change: domain_change
+  } = _p_map) do
+    Propagator.filter(propagator, changes: %{arg_position => domain_change})
+  end
 
+  ## This call will be done once by the top space (no changes)
+  defp propagate(propagator) do
+    Propagator.filter(propagator)
   end
 
 
@@ -45,6 +77,7 @@ defmodule CPSolver.Space.Propagation2 do
   defp get_triggered_propagators(events, constraint_graph) when is_map(events) do
     Enum.reduce(events, Map.new(), fn {var_id, domain_change}, propagators_acc ->
       p_ids = ConstraintGraph.propagators_by_variable(constraint_graph, var_id, domain_change)
+
       Map.merge(propagators_acc, p_ids, fn p_id, incoming_events, propagator_data ->
         Map.put(incoming_events, var_id, propagator_data.arg_position)
       end)
@@ -52,26 +85,17 @@ defmodule CPSolver.Space.Propagation2 do
   end
 
   defp get_all_propagators(constraint_graph) do
-
   end
-
-
-
-
 
   defp propagator_changes(propagator_ids, {_var_id, domain_change} = _change, changes_acc) do
     Enum.reduce(
       propagator_ids,
       changes_acc,
-      fn {p_id, p_data}, acc ->
-        arg_position = p_data.arg_position
-
-        Map.update(acc, p_id, Map.new(%{arg_position => domain_change}), fn var_map ->
-          current_var_change = Map.get(var_map, arg_position)
-
+      fn {p_id, {position, current_var_change}}, acc ->
+        Map.update(acc, p_id, Map.new(%{position => domain_change}), fn var_map ->
           Map.put(
             var_map,
-            arg_position,
+            position,
             maybe_update_domain_change(current_var_change, domain_change)
           )
         end)
@@ -123,5 +147,4 @@ defmodule CPSolver.Space.Propagation2 do
   defp maybe_update_domain_change(current_change, new_change) when current_change == new_change do
     current_change
   end
-
 end
