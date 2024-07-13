@@ -5,146 +5,139 @@ defmodule CPSolver.Space.Propagation2 do
 
   @spec run(Graph.t(), map() | list()) :: :fail | :solved | {:stable, Graph.t()}
   def run(constraint_graph, propagators) when is_list(propagators) do
-    run_impl(constraint_graph, propagators)
+    propagate(constraint_graph, propagators)
   end
-
 
   def run(constraint_graph, events) when is_map(events) do
-    run_impl(constraint_graph, :maps.iterator(events) |> :maps.next())
+    propagate(constraint_graph, :maps.iterator(events) |> :maps.next())
   end
 
-  defp run_impl(constraint_graph, :none) do
+  ## This function head is for top space propagation.
+  ## That is, we run filtering on the initial propagator list.
+  ##
+  defp propagate(constraint_graph, propagators) when is_list(propagators) do
+    {new_changes, updated_constraint_graph} = propagation_pass(constraint_graph, propagators)
+    propagate(updated_constraint_graph, new_changes)
+  end
+
+  defp propagate(constraint_graph, :none) do
     finalize(constraint_graph)
   end
 
-  defp run_impl(constraint_graph, {var_id, domain_change, rest_iterator}) do
-    constraint_graph
-    |> apply_domain_change(var_id, domain_change)
-    |> run_impl(:maps.next(rest_iterator))
+  defp propagate(constraint_graph, {var_id, domain_change, rest_iterator}) do
+    propagate(constraint_graph, {var_id, domain_change, rest_iterator}, Map.new())
   end
 
-  defp run_impl(constraint_graph, propagators) do
-
+  defp propagate(constraint_graph, {var_id, domain_change, rest_iterator}, accumulated_changes) do
+    constraint_graph
+    |> apply_domain_change(var_id, domain_change, accumulated_changes)
+    |> then(fn {new_changes, updated_graph} ->
+      propagate(updated_graph, :maps.next(rest_iterator), new_changes)
+    end)
   end
 
   defp finalize(constraint_graph) do
     :todo
   end
 
-  defp apply_domain_change(constraint_graph, var_id, domain_change) do
+  defp apply_domain_change(constraint_graph, var_id, domain_change, accumulated_changes) do
     triggered_propagators =
       ConstraintGraph.propagators_by_variable(constraint_graph, var_id, domain_change)
-      propagation_pass(constraint_graph, triggered_propagators)
+
+    Enum.reduce_while(
+      triggered_propagators,
+      {maybe_update_domain_changes(var_id, domain_change, accumulated_changes),
+       maybe_update_constraint_graph(constraint_graph, var_id, domain_change)},
+      fn p, {changes_acc, g_acc} = acc ->
+        filter_result = filter(p)
+        case process_result(filter_result, p, acc) do
+          :fail -> {:halt, :fail}
+          other -> {:cont, other}
+        end
+        ## TODO: handle filtering results
+        ## TODO: update accumulated changes with the result ()
+        ## TODO: remove fixed variables
+      end
+    )
   end
 
   defp propagation_pass(constraint_graph, propagators) do
     Enum.reduce(
       propagators,
       constraint_graph,
-      fn p,
-         graph_acc ->
-        result = propagate(p)
-        update_constraint_graph(graph_acc, result)
+      fn p, graph_acc ->
+        ## TODO: revisit
+        filter(p)
       end
     )
-
   end
 
-  defp update_constraint_graph(constraint_graph, propagation_result) do
-    :todo
-    constraint_graph
+
+  defp maybe_update_constraint_graph(graph, var_id, :fixed) do
+    ConstraintGraph.remove_variable(graph, var_id)
   end
 
-  defp propagate(%{
-    propagator: propagator,
-    arg_position: arg_position,
-    domain_change: domain_change
-  } = _p_map) do
+  defp maybe_update_constraint_graph(graph, _var_id, _domain_change) do
+    graph
+  end
+
+  defp maybe_update_domain_changes(var_id, domain_change, accumulated_changes) do
+    ## We update to the stronger of the incoming domain change
+    ## and the one that has already been present in accumulated changes.
+    stronger_change = stronger_domain_change(domain_change, Map.get(accumulated_changes, var_id))
+    Map.put(accumulated_changes, var_id, stronger_change)
+  end
+
+  defp filter(
+         %{
+           propagator: propagator,
+           arg_position: arg_position,
+           domain_change: domain_change
+         } = _p_map
+       ) do
     Propagator.filter(propagator, changes: %{arg_position => domain_change})
   end
 
-  ## This call will be done once by the top space (no changes)
-  defp propagate(propagator) do
+  defp filter(propagator) do
     Propagator.filter(propagator)
   end
 
-
-
-  ## The list of tuples {propagator, events}.
-  ## Given the map of events {variable_id => domain_change}
-  ## derive the propagators triggered by these events.
-
-  defp get_triggered_propagators(events, constraint_graph) when is_map(events) do
-    Enum.reduce(events, Map.new(), fn {var_id, domain_change}, propagators_acc ->
-      p_ids = ConstraintGraph.propagators_by_variable(constraint_graph, var_id, domain_change)
-
-      Map.merge(propagators_acc, p_ids, fn p_id, incoming_events, propagator_data ->
-        Map.put(incoming_events, var_id, propagator_data.arg_position)
-      end)
-    end)
+  defp process_result({:filter_error, error}, _propagator, _acc) do
+    throw({:error, {:filter_error, error}})
   end
 
-  defp get_all_propagators(constraint_graph) do
+  defp process_result(:fail, _propagator, _acc) do
+    :fail
   end
 
-  defp propagator_changes(propagator_ids, {_var_id, domain_change} = _change, changes_acc) do
-    Enum.reduce(
-      propagator_ids,
-      changes_acc,
-      fn {p_id, {position, current_var_change}}, acc ->
-        Map.update(acc, p_id, Map.new(%{position => domain_change}), fn var_map ->
-          Map.put(
-            var_map,
-            position,
-            maybe_update_domain_change(current_var_change, domain_change)
-          )
-        end)
+  defp process_result(:stable, _propagator, acc) do
+    acc
+  end
+
+  defp process_result(
+         %{changes: filter_changes, state: new_state, active: active?},
+         propagator,
+         {changes_acc, graph_acc} = _acc
+       ) do
+    changes =
+      if filter_changes && map_size(filter_changes) > 0 do
+        merge_changes(filter_changes, changes_acc)
+      else
+        changes_acc
       end
-    )
+
+    {changes, remove_or_update_propagator(graph_acc, propagator, new_state, active?)}
   end
 
-  ## This is to "fold" all incoming changes for the propagator+variable into a single value.
-  ## Reflects hierarchy of domain changes
-  ##
-  defp maybe_update_domain_change(nil, new_change) do
-    new_change
+  defp merge_changes(change_map1, change_map2) do
+    :todo
   end
 
-  defp maybe_update_domain_change(:fixed, _new_change) do
-    :fixed
+  defp remove_or_update_propagator(graph, p, state, active?) when active? do
+    ConstraintGraph.update_propagator(graph, p.id, Map.put(p, :state, state))
   end
 
-  defp maybe_update_domain_change(_current_change, :fixed) do
-    :fixed
-  end
-
-  defp maybe_update_domain_change(:domain_change, _new_change) do
-    :domain_change
-  end
-
-  defp maybe_update_domain_change(_current_change, :domain_change) do
-    :domain_change
-  end
-
-  defp maybe_update_domain_change(:bound_change, bound_change)
-       when bound_change in [:min_change, :max_change] do
-    bound_change
-  end
-
-  defp maybe_update_domain_change(bound_change, :bound_change)
-       when bound_change in [:min_change, :max_change] do
-    bound_change
-  end
-
-  defp maybe_update_domain_change(:min_change, :max_change) do
-    :bound_change
-  end
-
-  defp maybe_update_domain_change(:max_change, :min_change) do
-    :bound_change
-  end
-
-  defp maybe_update_domain_change(current_change, new_change) when current_change == new_change do
-    current_change
+  defp remove_or_update_propagator(graph, p, _state, _active?) do
+    ConstraintGraph.remove_propagator(graph, p.id)
   end
 end
