@@ -91,6 +91,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     remove_vertex(graph, propagator_vertex(propagator_id))
   end
 
+  def entailed_propagator?(graph, propagator_id) do
+    Enum.empty?(Graph.neighbors(graph, propagator_vertex(propagator_id)))
+  end
+
   ## Remove variable and all propagators that are isolated points as a result of variable removal
   def remove_variable(graph, variable_id) do
     remove_vertex(graph, {:variable, variable_id})

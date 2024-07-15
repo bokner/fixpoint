@@ -28,7 +28,12 @@ defmodule CPSolver.Common do
   ## - :bound_change implies :domain_change;
   ## - :fixed implies all domain changes.
   ## - :domain_change implies no other domain changes.
+
   def stronger_domain_change(nil, new_change) do
+    new_change
+  end
+
+  def stronger_domain_change(new_change, nil) do
     new_change
   end
 
