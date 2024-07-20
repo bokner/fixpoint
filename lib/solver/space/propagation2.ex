@@ -64,7 +64,7 @@ defmodule CPSolver.Space.Propagation2 do
       triggered_propagators,
       {accumulated_changes,
        maybe_remove_variable(constraint_graph, var_id, domain_change)},
-      fn p, {_changes_acc, _graph_acc} = acc ->
+      fn {_p_id, p}, {_changes_acc, _graph_acc} = acc ->
         filter(p, acc, opts)
       end
     )
@@ -132,7 +132,9 @@ defmodule CPSolver.Space.Propagation2 do
     {changes, updated_graph1} =
       if filter_changes && map_size(filter_changes) > 0 do
         {merge_changes(filter_changes, changes_acc),
-         maybe_remove_fixed_vars(graph_acc, filter_changes)}
+         #maybe_remove_fixed_vars(graph_acc, filter_changes)
+         graph_acc
+        }
       else
         {changes_acc, graph_acc}
       end
@@ -152,9 +154,4 @@ defmodule CPSolver.Space.Propagation2 do
       ConstraintGraph.remove_propagator(graph, p.id)
   end
 
-  defp maybe_remove_fixed_vars(graph, changes) do
-    Enum.reduce(changes, graph, fn {var_id, domain_change}, g_acc ->
-      maybe_remove_variable(g_acc, var_id, domain_change)
-    end)
-  end
 end
