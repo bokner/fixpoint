@@ -31,13 +31,18 @@ defmodule CpSolverTest do
 
     assert CPSolver.statistics(solver).failure_count == 0
     ## Note: there are 2 "first fail" distributions:
-    ## 1. Variable 'x' triggers distribution into 2 spaces - (x: 1, y: [0, 1]) and (x: 2, y: [0, 1])).
+    ## 1. Choice of variable 'x' triggers distribution into 2 spaces - (x: 1, y: [0, 1]) and (x: 2, y: [0, 1])).
     ## 2. First space produces solution (x: 1, y: 0)
     ## 3. Second space triggers distribution into 2 spaces - (x: 2, y: 0) and (x: 2, y: 1)
     ## 4. These 2 spaces produce remaining solutions.
     ## 5. There have been 5 spaces - top one, and 4 as described above, which corresponds
     ## to 5 nodes.
-    assert CPSolver.statistics(solver).node_count == 5
+    ## Note 2: we changed count of nodes - for the second space, the child spaces are not being created anymore,
+    ## as NotEqual is passive in that space (x: 2, y: [0, 1]).
+    ## So the solutions are deducted by cartesian product.
+    ## Finaly, we have only 3 nodes: top one, first space (p.2), and second space (p.3).
+    ##
+    assert CPSolver.statistics(solver).node_count == 3
     assert CPSolver.statistics(solver).solution_count == 3
 
     solutions =

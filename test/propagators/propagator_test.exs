@@ -29,7 +29,7 @@ defmodule CPSolverTest.Propagator do
       assert Variable.fixed?(x_bound)
       propagator = NotEqual.new(bound_variables)
 
-      assert %{changes: %{y_bound.id => :fixed}, active?: true, state: nil} ==
+      assert %{changes: %{y_bound.id => :fixed}, active?: false, state: nil} ==
                Propagator.filter(propagator)
 
       assert ConstraintStore.get(store, y_bound, :fixed?)

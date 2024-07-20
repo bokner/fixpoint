@@ -32,9 +32,11 @@ defmodule CPSolver.Propagator.NotEqual do
     cond do
       fixed?(x) ->
         remove(y, plus(min(x), -offset))
+        :passive
 
       fixed?(y) ->
         remove(x, plus(min(y), offset))
+        :passive
 
       true ->
         :stable

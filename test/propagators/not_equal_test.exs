@@ -27,7 +27,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       [x_var, y_var] = bound_vars
       ## Fix one of vars
       assert :fixed = Variable.fix(x_var, 5)
-      assert :max_change == reset_and_filter(bound_vars)
+      assert :passive == reset_and_filter(bound_vars)
       assert PropagatorVariable.get_variable_ops() == %{y_var.id => :max_change}
 
       ## The filtering should have removed '5' from y_var
@@ -36,7 +36,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
 
       ## Fix second var and filter again
       assert :fixed == Variable.fix(y_var, 4)
-      assert :no_change == reset_and_filter(bound_vars)
+      assert :passive == reset_and_filter(bound_vars)
       refute PropagatorVariable.get_variable_ops()
       ## Make sure filtering doesn't fail on further calls
       refute Enum.any?(
@@ -45,7 +45,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
              )
 
       ## Consequent filtering does not trigger domain change events
-      assert :no_change == reset_and_filter(bound_vars)
+      assert :passive == reset_and_filter(bound_vars)
     end
 
     test "inconsistency" do
