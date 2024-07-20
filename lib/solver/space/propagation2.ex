@@ -1,6 +1,7 @@
 defmodule CPSolver.Space.Propagation2 do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Propagator
+  alias CPSolver.Variable.Interface
   import CPSolver.Common
 
   @spec run(Graph.t(), map() | list(), Keyword.t()) :: :fail | :solved | {:stable, Graph.t()}
@@ -9,8 +10,11 @@ defmodule CPSolver.Space.Propagation2 do
   ## That is, we run filtering on the initial propagator list.
   ##
   def run(constraint_graph, propagators, opts) when is_list(propagators) do
-    {new_changes, updated_constraint_graph} = first_pass(constraint_graph, propagators, opts)
-    run(updated_constraint_graph, new_changes, opts)
+    case first_pass(constraint_graph, propagators, opts) do
+      {new_changes, updated_constraint_graph} ->
+        run(updated_constraint_graph, new_changes, opts)
+      completed -> completed
+    end
   end
 
   def run(constraint_graph, events, opts) when is_map(events) do
@@ -71,9 +75,15 @@ defmodule CPSolver.Space.Propagation2 do
   end
 
   defp first_pass(constraint_graph, propagators, opts) do
+    # Build initial changes off fixed variables
+    initial_changes = 
+    Enum.reduce(Keyword.get(opts, :variables, []), %{},
+      fn var, acc -> Interface.fixed?(var) && Map.put(acc, Interface.id(var), :fixed) || acc end
+    )
+
     Enum.reduce_while(
       propagators,
-      {%{}, constraint_graph},
+      {initial_changes, constraint_graph},
       fn p, {_changes_acc, _graph_acc} = acc ->
         filter(p, acc, opts)
       end
