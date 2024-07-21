@@ -204,10 +204,7 @@ defmodule CPSolver.Space do
           handle_solved(data)
 
         {:stable, reduced_constraint_graph} ->
-          %{
-            data
-            | constraint_graph: reduced_constraint_graph
-          }
+          Map.put(data, :constraint_graph, reduced_constraint_graph)
           |> handle_stable()
       end
     catch

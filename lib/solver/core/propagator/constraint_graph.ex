@@ -105,7 +105,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       end)
 
     ## Update domains
-    List.foldr(propagators, {g1, []}, fn p_id, {graph_acc, p_acc} ->
+    List.foldr(Enum.uniq(propagators), {g1, []}, fn p_id, {graph_acc, p_acc} ->
       get_propagator(graph_acc, p_id)
       |> Propagator.bind_to_variables(variable_map, :domain)
       |> then(fn bound_p ->
