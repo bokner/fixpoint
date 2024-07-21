@@ -4,7 +4,7 @@
 Mix.install([
   {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
   # :fixpoint,
-  {:kino, "~> 0.10.0"}
+  :kino
 ])
 
 Logger.configure(level: :notice)
@@ -440,7 +440,7 @@ search_strategy = {:input_order, :indomain_max}
 
 {:ok, res} =
   CPSolver.solve_sync(model,
-    space_threads: 4,
+    space_threads: 8,
     timeout: 1_000,
     search: search_strategy
   )
