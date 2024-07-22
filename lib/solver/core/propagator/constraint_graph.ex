@@ -122,7 +122,8 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     propagators
     |> Enum.uniq()
     |> List.foldr({g1, []}, fn p_id, {graph_acc, p_acc} ->
-      get_propagator(graph_acc, p_id)
+      graph_acc
+      |> get_propagator(p_id)
       |> Propagator.bind_to_variables(variable_map, :domain)
       |> then(fn bound_p ->
         {
