@@ -11,7 +11,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
   alias CPSolver.Propagator.ConstraintGraph
-  alias CPSolver.Space.Propagation
+  alias CPSolver.Space.Propagation2, as: Propagation
   alias CPSolver.Objective
 
   alias CPSolver.Shared
@@ -164,7 +164,7 @@ defmodule CPSolver.Space do
       |> Map.put(:constraint_graph, constraint_graph)
       |> Map.put(:objective, update_objective(space_opts[:objective], space_variables))
       |> Map.put(:propagators, bound_propagators)
-      |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
+      |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint))
 
     (space_opts[:postpone] &&
        {:ok, space_data}) || {:ok, space_data, {:continue, :propagate}}
@@ -190,13 +190,19 @@ defmodule CPSolver.Space do
          %{
            propagators: propagators,
            constraint_graph: constraint_graph,
-           changes: changes,
+           changes: domain_changes,
+           variables: variables,
            store: store
          } =
            data
        ) do
     try do
-      case Propagation.run(propagators, constraint_graph, store, changes) do
+      ## For the top space, domain changes are not availabe;
+      ## We run the propagation over the set of propagators.
+      ## The spaces on lower levels will have the initial domain changes passed
+      ## as a result of domain splits.
+      propagate_with = domain_changes || propagators
+      case Propagation.run(constraint_graph, propagate_with, variables: variables, store: store) do
         :fail ->
           handle_failure(data)
 
@@ -204,10 +210,7 @@ defmodule CPSolver.Space do
           handle_solved(data)
 
         {:stable, reduced_constraint_graph} ->
-          %{
-            data
-            | constraint_graph: reduced_constraint_graph
-          }
+          Map.put(data, :constraint_graph, reduced_constraint_graph)
           |> handle_stable()
       end
     catch
