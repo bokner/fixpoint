@@ -322,12 +322,13 @@ defmodule CPSolver.Space do
         %{
           opts: opts,
           variables: variables,
-          constraint_graph: _graph
+          constraint_graph: graph
         } = data
       ) do
     ## The search strategy branches off the existing variables.
     ## Each branch is a list of variables to use by a child space
-    branches = Search.branch(variables, opts[:search])
+    try do
+      branches = Search.branch(variables, opts[:search])
 
     Enum.take_while(branches, fn {branch_variables, constraint} ->
       !CPSolver.complete?(shared(data)) &&
@@ -339,6 +340,11 @@ defmodule CPSolver.Space do
     end)
 
     shutdown(data, :distribute)
+  catch :all_vars_fixed ->
+    #IO.inspect(%{graph: graph, variables: Enum.map(variables, fn v -> {v.id, Interface.fixed?(v)} end)}, label: :all_vars_fixed)
+    handle_solved(data)
+  end
+
   end
 
   defp shutdown(data, reason) do

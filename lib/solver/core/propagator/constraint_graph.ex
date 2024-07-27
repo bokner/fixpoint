@@ -18,7 +18,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   def propagators_by_variable(constraint_graph, variable_id, reduce_fun)
       when is_function(reduce_fun, 2) do
     constraint_graph
-    |> Graph.edges({:variable, variable_id})
+    |> Graph.edges(variable_vertex(variable_id))
     |> Enum.reduce(Map.new(), fn edge, acc ->
       {:propagator, p_id} = edge.v2
 
@@ -48,7 +48,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def has_variable?(graph, variable_id) do
-    Graph.has_vertex?(graph, {:variable, variable_id})
+    Graph.has_vertex?(graph, variable_vertex(variable_id))
   end
 
   def add_propagator(graph, propagator) do
@@ -58,7 +58,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     |> Propagator.variables()
     |> Enum.reduce(graph, fn var, graph_acc ->
       Graph.add_vertex(graph_acc, propagator_vertex)
-      |> Graph.add_edge({:variable, Interface.id(var)}, propagator_vertex,
+      |> Graph.add_edge(variable_vertex(Interface.id(var)), propagator_vertex,
         label: %{propagate_on: get_propagate_on(var), arg_position: var.arg_position}
       )
     end)
@@ -83,6 +83,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     |> Map.put(:vertex_labels, Map.put(labels, identifier.(vertex), [propagator]))
   end
 
+  def variable_vertex(variable_id) do
+    {:variable, variable_id}
+  end
+
   def propagator_vertex(propagator_id) do
     {:propagator, propagator_id}
   end
@@ -91,13 +95,17 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     remove_vertex(graph, propagator_vertex(propagator_id))
   end
 
-  def entailed_propagator?(graph, propagator_id) do
-    Enum.empty?(Graph.neighbors(graph, propagator_vertex(propagator_id)))
+  def remove_edge(graph, var_id, propagator_id) do
+    Graph.delete_edge(graph, variable_vertex(var_id), propagator_vertex(propagator_id))
+  end
+
+  def entailed_propagator?(graph, propagator) do
+    Enum.empty?(Graph.neighbors(graph, propagator_vertex(propagator.id)))
   end
 
   ## Remove variable and all propagators that are isolated points as a result of variable removal
   def remove_variable(graph, variable_id) do
-    remove_vertex(graph, {:variable, variable_id})
+    remove_vertex(graph, variable_vertex(variable_id))
   end
 
   ### Remove fixed variables and update propagators with variable domains.
@@ -108,7 +116,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       Enum.reduce(vars, {graph, [], Map.new()}, fn %{domain: domain} = v,
                                                    {graph_acc, propagators_acc, variables_acc} ->
         {if Domain.fixed?(domain) do
-           remove_variable(graph_acc, Interface.id(v))
+
+            #remove_variable(graph_acc, Interface.id(v))
+            graph_acc
          else
            graph_acc
          end,

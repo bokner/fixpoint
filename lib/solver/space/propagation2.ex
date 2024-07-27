@@ -76,7 +76,7 @@ defmodule CPSolver.Space.Propagation2 do
 
   defp first_pass(constraint_graph, propagators, opts) do
     # Build initial changes off fixed variables
-    initial_changes = 
+    initial_changes =
     Enum.reduce(Keyword.get(opts, :variables, []), %{},
       fn var, acc -> Interface.fixed?(var) && Map.put(acc, Interface.id(var), :fixed) || acc end
     )
@@ -142,8 +142,7 @@ defmodule CPSolver.Space.Propagation2 do
     {changes, updated_graph1} =
       if filter_changes && map_size(filter_changes) > 0 do
         {merge_changes(filter_changes, changes_acc),
-         #maybe_remove_fixed_vars(graph_acc, filter_changes)
-         graph_acc
+         maybe_detach_fixed_vars(graph_acc, propagator, filter_changes)
         }
       else
         {changes_acc, graph_acc}
@@ -162,6 +161,15 @@ defmodule CPSolver.Space.Propagation2 do
     (active? && !ConstraintGraph.entailed_propagator?(graph, p) &&
        ConstraintGraph.update_propagator(graph, p.id, Map.put(p, :state, state))) ||
       ConstraintGraph.remove_propagator(graph, p.id)
+  end
+
+  defp maybe_detach_fixed_vars(graph, propagator, filter_changes) do
+    #graph
+    Enum.reduce(filter_changes, graph, fn
+      {var_id, :fixed}, graph_acc ->
+        ConstraintGraph.remove_edge(graph_acc, var_id, propagator.id)
+      _domain_change, graph_acc -> graph_acc
+    end)
   end
 
 end
