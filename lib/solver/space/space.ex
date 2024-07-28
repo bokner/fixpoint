@@ -11,6 +11,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
   alias CPSolver.Propagator.ConstraintGraph
+  alias CPSolver.Propagator
   alias CPSolver.Space.Propagation2, as: Propagation
   alias CPSolver.Objective
 
@@ -322,7 +323,7 @@ defmodule CPSolver.Space do
         %{
           opts: opts,
           variables: variables,
-          constraint_graph: graph
+          constraint_graph: constraint_graph
         } = data
       ) do
     ## The search strategy branches off the existing variables.
@@ -342,7 +343,8 @@ defmodule CPSolver.Space do
     shutdown(data, :distribute)
   catch :all_vars_fixed ->
     #IO.inspect(%{graph: graph, variables: Enum.map(variables, fn v -> {v.id, Interface.fixed?(v)} end)}, label: :all_vars_fixed)
-    handle_solved(data)
+    checkpoint(constraint_graph) &&
+    handle_solved(data) || handle_failure(data)
   end
 
   end
@@ -362,8 +364,29 @@ defmodule CPSolver.Space do
     Map.put(data, :finalized, true)
   end
 
+  ## This is for handling the situations where
+  ## all variables are fixed, but there are still unentailed propagators
+  defp checkpoint(constraint_graph) do
+    checkpoint(constraint_graph, Graph.edges(constraint_graph))
+  end
+
+  defp checkpoint(_constraint_graph, []) do
+    true
+  end
+
+  defp checkpoint(constraint_graph, [edge | _rest]) do
+    propagator = ConstraintGraph.get_propagator(constraint_graph, edge.v2)
+    if Propagator.filter(propagator) == :fail do
+      false
+    else
+      checkpoint(ConstraintGraph.remove_propagator(constraint_graph, propagator.id))
+    end
+  end
+
+
   @impl true
   def terminate(reason, data) do
     shutdown(data, reason)
   end
+
 end

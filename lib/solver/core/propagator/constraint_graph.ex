@@ -65,11 +65,15 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     |> Graph.label_vertex(propagator_vertex, propagator)
   end
 
-  def get_propagator(%Graph{} = graph, propagator_id) do
-    case Graph.vertex_labels(graph, propagator_vertex(propagator_id)) do
+  def get_propagator(%Graph{} = graph, {:propagator, _propagator_id} = vertex) do
+    case Graph.vertex_labels(graph, vertex) do
       [] -> nil
       [p] -> p
     end
+  end
+
+  def get_propagator(graph, propagator_id) do
+    get_propagator(graph, propagator_vertex(propagator_id))
   end
 
   def update_propagator(
