@@ -28,7 +28,12 @@ defmodule CPSolver.Common do
   ## - :bound_change implies :domain_change;
   ## - :fixed implies all domain changes.
   ## - :domain_change implies no other domain changes.
+
   def stronger_domain_change(nil, new_change) do
+    new_change
+  end
+
+  def stronger_domain_change(new_change, nil) do
     new_change
   end
 
@@ -49,12 +54,12 @@ defmodule CPSolver.Common do
   end
 
   def stronger_domain_change(:bound_change, bound_change)
-       when bound_change in [:min_change, :max_change] do
+      when bound_change in [:min_change, :max_change] do
     bound_change
   end
 
   def stronger_domain_change(bound_change, :bound_change)
-       when bound_change in [:min_change, :max_change] do
+      when bound_change in [:min_change, :max_change] do
     bound_change
   end
 
@@ -69,5 +74,4 @@ defmodule CPSolver.Common do
   def stronger_domain_change(current_change, new_change) when current_change == new_change do
     current_change
   end
-
 end
