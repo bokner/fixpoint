@@ -187,11 +187,12 @@ else
             "Solution is correct!") || IO.ANSI.red() <> "Solution is wrong!") <> IO.ANSI.reset()
     )
 
-    RenderHTML.render_nqueens(solution)
     IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
   else
     IO.puts("No solution was found within #{timeout} \u33b3")
   end
+
+  if n < 25, do: RenderHTML.render_nqueens(solution)
 end
 ```
 
