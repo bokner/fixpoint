@@ -159,7 +159,8 @@ defmodule CPSolver.Space.Propagation2 do
 
   defp remove_or_update_propagator(graph, p, state, active?) do
     (active? && !ConstraintGraph.entailed_propagator?(graph, p) &&
-       ConstraintGraph.update_propagator(graph, p.id, Map.put(p, :state, state))) ||
+      graph) ||
+      #ConstraintGraph.update_propagator(graph, p.id, Map.put(p, :state, state))) ||
       ConstraintGraph.remove_propagator(graph, p.id)
   end
 

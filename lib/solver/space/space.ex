@@ -342,9 +342,7 @@ defmodule CPSolver.Space do
 
     shutdown(data, :distribute)
   catch :all_vars_fixed ->
-    #IO.inspect(%{graph: graph, variables: Enum.map(variables, fn v -> {v.id, Interface.fixed?(v)} end)}, label: :all_vars_fixed)
-    checkpoint(constraint_graph) &&
-    handle_solved(data) || handle_failure(data)
+      handle_solved(data)
   end
 
   end
