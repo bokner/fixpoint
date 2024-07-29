@@ -68,11 +68,11 @@ defmodule CPSolverTest.SpacePropagation do
     %{propagators: propagators, constraint_graph: graph, store: store} = space_setup(x, y, z)
 
     {scheduled_propagators, reduced_graph, domain_changes} =
-      Propagation.propagate(propagators, graph, store)
+      Propagation.propagate(propagators |> Map.new(fn p -> {p.id, p} end), graph, store)
 
     assert Enum.all?(scheduled_propagators, fn p_id -> p_id in Map.keys(domain_changes) end)
 
-    ## Domain s changes are `pos => domain_change` maps, where `pos` is the position
+    ## Domain changes are `pos => domain_change` maps, where `pos` is the position
     ## of a variable in the propagator arguments
     assert Enum.all?(propagators, fn p ->
              propagator_domain_changes = Map.get(domain_changes, p.id)

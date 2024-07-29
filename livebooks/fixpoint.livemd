@@ -4,7 +4,7 @@
 Mix.install([
   {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
   # :fixpoint,
-  {:kino, "~> 0.10.0"}
+  :kino
 ])
 
 Logger.configure(level: :notice)
@@ -192,7 +192,13 @@ else
     IO.puts("No solution was found within #{timeout} \u33b3")
   end
 
-  if n < 25, do: RenderHTML.render_nqueens(solution)
+  view_limit = 20
+
+  if n <= view_limit do
+    RenderHTML.render_nqueens(solution)
+  else
+    IO.puts("Chess board will only be shown for n <= #{view_limit}")
+  end
 end
 ```
 
