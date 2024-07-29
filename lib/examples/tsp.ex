@@ -22,6 +22,9 @@ defmodule CPSolver.Examples.TSP do
 
   require Logger
 
+  @checkmark_symbol "\u2713"
+  @failure_symbol "\u1D350"
+
   def run(instance, opts \\ []) do
     model = model(instance)
 
@@ -128,7 +131,7 @@ defmodule CPSolver.Examples.TSP do
            Enum.map(solution, fn {_, val} -> val end),
            model
          ) &&
-           Logger.warning(ans_str)) || Logger.error(ans_str <> ": wrong -((")
+           Logger.warning("#{@checkmark_symbol} #{ans_str}")) || Logger.error("#{@failure_symbol} #{ans_str}" <> ": wrong -((")
       end)
     end
   end
