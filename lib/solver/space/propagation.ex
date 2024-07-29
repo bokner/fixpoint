@@ -134,12 +134,13 @@ defmodule CPSolver.Space.Propagation do
   end
 
   defp checkpoint(propagators, store) do
-    Enum.reduce_while(propagators, true, fn p, acc ->
-      case Propagator.filter(p, store: store, reset?: true) do
-        :fail -> {:halt, false}
-        _ -> {:cont, acc}
-      end
-    end)
+    true
+    # Enum.reduce_while(propagators, true, fn p, acc ->
+    #   case Propagator.filter(p, store: store, reset?: true) do
+    #     :fail -> {:halt, false}
+    #     _ -> {:cont, acc}
+    #   end
+    # end)
   end
 
   defp remove_entailed_propagators(graph, propagators) do
