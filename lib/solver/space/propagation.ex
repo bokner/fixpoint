@@ -7,21 +7,10 @@ defmodule CPSolver.Space.Propagation do
 
   def run(propagators, constraint_graph, store, changes \\ %{})
 
-  def run(state_propagators, %Graph{} = constraint_graph, store, changes) do
-    constraint_graph
-    |> get_propagators()
-    |> then(fn propagators ->
-      run_impl(propagators, constraint_graph, store, changes, reset?: true)
-      |> finalize(state_propagators, store)
-    end)
-  end
-
-  defp get_propagators(constraint_graph) do
-    constraint_graph
-    |> Graph.edges()
-    ## Get %{id => propagator} map
-    |> Enum.reduce(Map.new(), fn %{v2: {:propagator, p_id}} = _edge, acc ->
-      Map.put(acc, p_id, ConstraintGraph.get_propagator(constraint_graph, p_id)) end)
+  def run(propagators, constraint_graph, store, changes) when is_list(propagators) do
+    propagators
+    |> run_impl(constraint_graph, store, changes, reset?: true)
+    |> finalize(propagators, store)
   end
 
   defp run_impl(propagators, constraint_graph, store, domain_changes, opts) do
@@ -51,6 +40,11 @@ defmodule CPSolver.Space.Propagation do
   Side effect: modifies the constraint graph.
   The graph will be modified on every individual Propagator.filter/1, if the latter results in any domain changes.
   """
+  def propagate(propagators, graph, store, domain_changes, opts) when is_list(propagators) do
+    propagators
+    |> Map.new(fn p -> {p.id, p} end)
+    |> propagate(graph, store, domain_changes, opts)
+  end
 
   def propagate(%MapSet{} = propagator_ids, graph, store, domain_changes, opts) do
     Map.new(propagator_ids, fn p_id -> {p_id, ConstraintGraph.get_propagator(graph, p_id)} end)
