@@ -11,6 +11,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
   alias CPSolver.Propagator.ConstraintGraph
+  alias CPSolver.Propagator
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
 
@@ -196,7 +197,7 @@ defmodule CPSolver.Space do
            data
        ) do
     try do
-      case Propagation.run(propagators, constraint_graph, store, changes) do
+      case Propagation.run(constraint_graph, store, changes) do
         :fail ->
           handle_failure(data)
 
@@ -204,7 +205,7 @@ defmodule CPSolver.Space do
           handle_solved(data)
 
         {:stable, reduced_constraint_graph} ->
-          Map.put(data, :constraint_graph, reduced_constraint_graph)
+          Map.put(data, :constraint_graph, remove_entailed_propagators(reduced_constraint_graph, propagators))
           |> handle_stable()
       end
     catch
@@ -218,16 +219,20 @@ defmodule CPSolver.Space do
   end
 
   defp handle_solved(data) do
-    maybe_tighten_objective_bound(data[:objective])
+    if checkpoint(data.propagators, data.store) do
+      maybe_tighten_objective_bound(data[:objective])
 
-    data
-    |> solutions()
-    |> Enum.each(fn
-      solution ->
-        Solution.run_handler(solution, data.opts[:solution_handler])
-    end)
+      data
+      |> solutions()
+      |> Enum.each(fn
+        solution ->
+          Solution.run_handler(solution, data.opts[:solution_handler])
+      end)
 
-    shutdown(data, :solved)
+      shutdown(data, :solved)
+    else
+      handle_failure(data)
+    end
   end
 
   defp handle_error(exception, data) do
@@ -274,6 +279,27 @@ defmodule CPSolver.Space do
 
     Interface.update(variable, :domain, var_domain)
   end
+
+  def checkpoint(propagators, store) do
+    Enum.reduce_while(propagators, true, fn p, acc ->
+      case Propagator.filter(p, store: store, reset?: true) do
+        :fail -> {:halt, false}
+        _ -> {:cont, acc}
+      end
+    end)
+  end
+
+  def remove_entailed_propagators(graph, propagators) do
+    Enum.reduce(propagators, graph, fn p, g ->
+      p_vertex = ConstraintGraph.propagator_vertex(p.id)
+
+      case Graph.neighbors(g, p_vertex) do
+        [] -> ConstraintGraph.remove_propagator(g, p.id)
+        _connected_vars -> g
+      end
+    end)
+  end
+
 
   # defp add_branch_constraint(constraint_graph, nil) do
   #  constraint_graph

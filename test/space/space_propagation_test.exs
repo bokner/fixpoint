@@ -16,7 +16,10 @@ defmodule CPSolverTest.SpacePropagation do
       store: store
     } = stable_setup()
 
-    {:stable, constraint_graph} = Propagation.run(propagators, graph, store)
+    {:stable, constraint_graph} = Propagation.run(graph, store)
+    constraint_graph = Enum.reduce(propagators, constraint_graph,
+      fn p, g_acc ->
+        ConstraintGraph.entailed_propagator?(g_acc, p) && ConstraintGraph.remove_propagator(g_acc, p.id) || g_acc end)
     assert Graph.num_vertices(constraint_graph) == 3
 
     assert [y] ==
@@ -48,17 +51,17 @@ defmodule CPSolverTest.SpacePropagation do
   end
 
   test "Propagation on solvable space" do
-    %{propagators: propagators, variables: variables, constraint_graph: graph, store: store} =
+    %{variables: variables, constraint_graph: graph, store: store} =
       solved_setup()
 
     refute Enum.all?(variables, fn var -> Variable.fixed?(var) end)
-    assert :solved == Propagation.run(propagators, graph, store)
+    assert :solved == Propagation.run(graph, store)
     assert Enum.all?(variables, fn var -> Variable.fixed?(var) end)
   end
 
   test "Propagation on failed space" do
-    %{propagators: propagators, constraint_graph: graph, store: store} = fail_setup()
-    assert :fail == Propagation.run(propagators, graph, store)
+    %{constraint_graph: graph, store: store} = fail_setup()
+    assert :fail == Propagation.run(graph, store)
   end
 
   test "Propagation pass" do

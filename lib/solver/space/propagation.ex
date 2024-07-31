@@ -5,12 +5,25 @@ defmodule CPSolver.Space.Propagation do
 
   require Logger
 
-  def run(propagators, constraint_graph, store, changes \\ %{})
+  def run(constraint_graph, store, changes \\ %{})
 
-  def run(propagators, constraint_graph, store, changes) when is_list(propagators) do
-    propagators
-    |> run_impl(constraint_graph, store, changes, reset?: true)
-    |> finalize(propagators, store)
+  def run(%Graph{} = constraint_graph, store, changes) do
+    constraint_graph
+    |> get_propagators()
+    |> then(fn propagators ->
+      run_impl(propagators, constraint_graph, store, changes, reset?: true)
+      |> finalize()
+    end)
+  end
+
+  defp get_propagators(constraint_graph) do
+    constraint_graph
+    |> Graph.vertices()
+    ## Get %{id => propagator} map
+    |> Enum.flat_map(fn {:propagator, p_id} ->
+      [ConstraintGraph.get_propagator(constraint_graph, p_id)]
+      _ -> []
+    end)
   end
 
   defp run_impl(propagators, constraint_graph, store, domain_changes, opts) do
@@ -120,37 +133,17 @@ defmodule CPSolver.Space.Propagation do
     active? && graph || ConstraintGraph.remove_propagator(graph, propagator_id)
   end
 
-  defp finalize(:fail, _propagators, _store) do
+  defp finalize(:fail) do
     :fail
   end
 
   ## At this point, the space is either solved or stable.
-  defp finalize(%Graph{} = residual_graph, propagators, store) do
+  defp finalize(%Graph{} = residual_graph) do
     if Enum.empty?(Graph.edges(residual_graph)) do
-      (checkpoint(propagators, store) && :solved) || :fail
+      :solved
     else
-      {:stable, remove_entailed_propagators(residual_graph, propagators)}
+      {:stable, residual_graph}
     end
-  end
-
-  defp checkpoint(propagators, store) do
-    Enum.reduce_while(propagators, true, fn p, acc ->
-      case Propagator.filter(p, store: store, reset?: true) do
-        :fail -> {:halt, false}
-        _ -> {:cont, acc}
-      end
-    end)
-  end
-
-  defp remove_entailed_propagators(graph, propagators) do
-    Enum.reduce(propagators, graph, fn p, g ->
-      p_vertex = ConstraintGraph.propagator_vertex(p.id)
-
-      case Graph.neighbors(g, p_vertex) do
-        [] -> ConstraintGraph.remove_propagator(g, p.id)
-        _connected_vars -> g
-      end
-    end)
   end
 
   defp maybe_remove_variable(graph, var_id, :fixed) do
