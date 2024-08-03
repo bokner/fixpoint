@@ -113,7 +113,7 @@ defmodule CPSolver.Propagator.Modulo do
     removeBelow(m, m_lower_bound)
   end
 
-  def initial_state([_m, _x, y] = args) do
+  defp initial_state([_m, _x, y] = args) do
     remove(y, 0)
     %{fixed_flags: Enum.map(args, fn arg -> fixed?(arg) end)}
   end

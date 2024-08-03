@@ -1,6 +1,9 @@
 defmodule CPSolver.Propagator.Reified do
   use CPSolver.Propagator
 
+  alias CPSolver.BooleanVariable, as: BoolVar
+  alias CPSolver.Propagator
+
 
   @moduledoc """
   The propagator for reification constraints.
@@ -8,7 +11,7 @@ defmodule CPSolver.Propagator.Reified do
   Full reification:
 
    1. if b_var is fixed to 1, filter on all propagators;
-   2. if b_var is fixed to 0, filter on all "opposite" propagators (stop if any propagator is resolved);
+   2. if b_var is fixed to 0, filter on all "opposite" propagators (stop if any of these propagators is resolved);
    3. if all propagators are resolved (i.e., entailed or passive), fix b to 1;
    4. if any propagator fails, fix b to 0.
 
@@ -34,13 +37,67 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   @impl true
-  def filter([_propagators, _b_var, _mode], _state, _changes) do
-    {:state, %{}}
+  def filter([propagators, b_var, mode], %{opposite: opposite_propagators} = state, changes) do
+    cond do
+      mode == :full && BoolVar.true?(b_var) ->
+        propagate_direct(propagators, changes)
+
+      BoolVar.false?(b_var) ->
+        propagate_opposite(propagators, changes)
+
+        resolved?(propagators) ->
+        BoolVar.set_true(b_var)
+        :passive
+
+      mode == :full && resolved?(opposite_propagators) ->
+        BoolVar.set_false(b_var)
+        :passive
+
+      true -> {:state, state}
+    end
   end
 
-  defp initial_state(_args) do
-    %{}
+  defp initial_state([propagators, _b_var, _mode]) do
+    %{opposite: opposite_propagators(propagators)}
   end
 
+  defp propagate_direct(propagators, incoming_changes) do
+    :todo
+  end
+
+  defp propagate_opposite(propagators, incoming_changes) do
+    :todo
+  end
+
+  defp resolved?(propagators) do
+    Enum.all?(propagators, fn p ->
+      Propagator.entailed?(p)
+    end)
+  end
+
+  defp opposite_propagators(propagators) do
+    Enum.filter(propagators, fn p -> opposite(p) end)
+  end
+
+
+
+  ## Opposite propagators
+  alias CPSolver.Propagator.{Equal, NotEqual, Less, LessOrEqual}
+
+  defp opposite(%{mod: Equal} = p) do
+    %{p | mod: NotEqual}
+  end
+
+  defp opposite(%{mod: NotEqual} = p) do
+    %{p | mod: Equal}
+  end
+
+  defp opposite(%{mod: mod} = p) when mod in [Less, LessOrEqual] do
+    swap_args(p)
+  end
+
+  defp swap_args(%{args: [x, y | rest]} = p) do
+    %{p | args: [y, x | rest]}
+  end
 
 end

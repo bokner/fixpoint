@@ -11,6 +11,7 @@ defmodule CPSolver.Propagator do
   @callback arguments(args :: list()) :: Arrays.t()
 
   alias CPSolver.Variable
+  alias CPSolver.Variable.Interface
   alias CPSolver.Variable.View
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.DefaultDomain, as: Domain
@@ -123,6 +124,11 @@ defmodule CPSolver.Propagator do
       :fail ->
         :fail
     end
+  end
+
+  ## Check if propagator is entailed (i.e., all variables are fixed)
+  def entailed?(%{args: args} = _propagator) do
+    Enum.all?(args, fn arg -> Interface.fixed?(arg) end)
   end
 
   ## How propagator events map to domain events

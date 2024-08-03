@@ -64,22 +64,22 @@ end
 
 defimpl Interface, for: Any do
   def variable(_any), do: nil
-  def id(var), do: not_supported(:id, var)
-  def map(var, _value), do: var
-  def domain(var), do: not_supported(:domain, var)
-  def size(var), do: not_supported(:size, var)
-  def min(var), do: not_supported(:min, var)
-  def max(var), do: not_supported(:max, var)
-  def fixed?(var), do: not_supported(:fixed?, var)
-  def contains?(var, _val), do: not_supported(:contains, var)
-  def remove(var, _val), do: not_supported(:remove, var)
-  def removeAbove(var, _val), do: not_supported(:removeAbove, var)
-  def removeBelow(var, _val), do: not_supported(:removeBelow, var)
-  def fix(var, _val), do: not_supported(:fix, var)
-  def update(var, _field, _value), do: not_supported(:update, var)
+  def id(non_var), do: not_supported(:id, non_var)
+  def map(non_var, _value), do: non_var
+  def domain(non_var), do: not_supported(:domain, non_var)
+  def size(non_var), do: not_supported(:size, non_var)
+  def min(non_var), do: not_supported(:min, non_var)
+  def max(non_var), do: not_supported(:max, non_var)
+  def fixed?(_), do: true
+  def contains?(non_var, _val), do: not_supported(:contains, non_var)
+  def remove(non_var, _val), do: not_supported(:remove, non_var)
+  def removeAbove(non_var, _val), do: not_supported(:removeAbove, non_var)
+  def removeBelow(non_var, _val), do: not_supported(:removeBelow, non_var)
+  def fix(non_var, _val), do: not_supported(:fix, non_var)
+  def update(non_var, _field, _value), do: not_supported(:update, non_var)
 
-  defp not_supported(var, op) do
-    throw({:operation_not_supported, op, for: var})
+  defp not_supported(non_var, op) do
+    throw({:operation_not_supported, op, for: non_var})
   end
 end
 
