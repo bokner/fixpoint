@@ -157,6 +157,23 @@ defmodule CPSolverTest.MutableDomain do
       assert_domain(domain, values1)
     end
 
+    test "Concurrent removal of values" do
+      ##
+      values = 1..10000
+      domain = Domain.new(values)
+      Task.async_stream(values, fn val ->
+        try do
+          Domain.remove(domain, val)
+        catch _ ->
+          :ok
+        end
+
+        end, max_concurrency: 2)
+      |> Enum.to_list()
+
+      assert Domain.failed?(domain)
+    end
+
     defp build_domain(data) do
       ref = :atomics.new(length(data.raw.content), [{:signed, false}])
 
