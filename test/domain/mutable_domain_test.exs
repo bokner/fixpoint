@@ -158,7 +158,7 @@ defmodule CPSolverTest.MutableDomain do
     end
 
     @tag :slow
-    test "Concurrent removal of values" do
+    test "Concurrent removal of values (threads remove distinct values)" do
       ##
       values = 1..100_000
       domain = Domain.new(values)
@@ -173,6 +173,24 @@ defmodule CPSolverTest.MutableDomain do
       |> Enum.to_list()
 
       assert Domain.failed?(domain)
+    end
+
+    test "Concurrent removal of values (2 threads remove shared values)" do
+      ##
+      n_values = 3
+      values = 1..n_values
+      domain = Domain.new(values)
+      Task.async_stream(1..2, fn _thread_id ->
+        try do
+          Enum.each(Enum.take_random(values, n_values-1), fn val -> Domain.remove(domain, val) end)
+        catch _ ->
+          :ok
+        end
+
+        end, max_concurrency: 2)
+      |> Enum.to_list()
+
+      refute Domain.failed?(domain)
     end
 
     defp build_domain(data) do
