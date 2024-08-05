@@ -160,7 +160,7 @@ defmodule CPSolverTest.MutableDomain do
     @tag :slow
     test "Concurrent removal of values" do
       ##
-      values = 1..100000
+      values = 1..100_000
       domain = Domain.new(values)
       Task.async_stream(values, fn val ->
         try do
