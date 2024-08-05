@@ -157,7 +157,7 @@ defmodule CPSolverTest.MutableDomain do
       assert_domain(domain, values1)
     end
 
-    @tag :slow
+    @tag :slowsible-race-condition-when-removing-a-single-value-from-bitvector-domain
     test "Concurrent removal of values (threads remove distinct values)" do
       ##
       values = 1..100_000
