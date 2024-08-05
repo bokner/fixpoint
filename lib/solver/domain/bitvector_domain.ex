@@ -141,10 +141,7 @@ defmodule CPSolver.BitVectorDomain do
 
     cond do
       ## No value in the domain, do nothing
-      !contains?(bit_vector, vector_value, min_value, max_value) ->
-        :no_change
-
-      true ->
+      contains?(bit_vector, vector_value, min_value, max_value) ->
         domain_change =
           cond do
             min_value == max_value && vector_value == min_value ->
@@ -163,7 +160,11 @@ defmodule CPSolver.BitVectorDomain do
 
         {domain_change, domain}
         |> tap(fn _ -> :bit_vector.clear(bit_vector, vector_value) end)
+
+    true ->
+      failed?(bit_vector) && fail() || :no_change
     end
+
   end
 
   def removeAbove({bit_vector, offset} = domain, value) do

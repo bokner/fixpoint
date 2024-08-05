@@ -1,7 +1,7 @@
 defmodule CPSolverTest.MutableDomain do
   use ExUnit.Case
 
-  describe "Default domain" do
+  describe "Mutable domain" do
     alias CPSolver.BitVectorDomain, as: Domain
 
     test "creates domain from integer range and list" do
@@ -157,9 +157,10 @@ defmodule CPSolverTest.MutableDomain do
       assert_domain(domain, values1)
     end
 
+    @tag :slow
     test "Concurrent removal of values" do
       ##
-      values = 1..10000
+      values = 1..100000
       domain = Domain.new(values)
       Task.async_stream(values, fn val ->
         try do
@@ -168,7 +169,7 @@ defmodule CPSolverTest.MutableDomain do
           :ok
         end
 
-        end, max_concurrency: 2)
+        end, max_concurrency: 8)
       |> Enum.to_list()
 
       assert Domain.failed?(domain)

@@ -25,11 +25,10 @@ defmodule CpSolverTest do
         [NotEqual.new(x, y)]
       )
 
-    {:ok, solver} = CPSolver.solve(model)
+    {:ok, res} = CPSolver.solve_sync(model)
 
-    Process.sleep(100)
 
-    assert CPSolver.statistics(solver).failure_count == 0
+    assert res.statistics.failure_count == 0
     ## Note: there are 2 "first fail" distributions:
     ## 1. Choice of variable 'x' triggers distribution into 2 spaces - (x: 1, y: [0, 1]) and (x: 2, y: [0, 1])).
     ## 2. First space produces solution (x: 1, y: 0)
@@ -42,12 +41,12 @@ defmodule CpSolverTest do
     ## solutions (x: 2, y: 0) and (x: 2, y: 1).
     ## Finally, we have only 3 nodes: top one, and two child spaces (p.2, p.3).
     ##
-    assert CPSolver.statistics(solver).node_count == 3
-    assert CPSolver.statistics(solver).solution_count == 3
+    assert res.statistics.node_count == 3
+    assert res.statistics.solution_count == 3
 
     solutions =
-      solver
-      |> CPSolver.solutions()
+
+      res.solutions
       |> Enum.sort_by(fn [x, y] -> x + y end)
 
     assert solutions == [[1, 0], [2, 0], [2, 1]]
