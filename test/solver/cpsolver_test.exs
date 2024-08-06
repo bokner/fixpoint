@@ -27,7 +27,6 @@ defmodule CpSolverTest do
 
     {:ok, res} = CPSolver.solve_sync(model)
 
-
     assert res.statistics.failure_count == 0
     ## Note: there are 2 "first fail" distributions:
     ## 1. Choice of variable 'x' triggers distribution into 2 spaces - (x: 1, y: [0, 1]) and (x: 2, y: [0, 1])).
@@ -45,7 +44,6 @@ defmodule CpSolverTest do
     assert res.statistics.solution_count == 3
 
     solutions =
-
       res.solutions
       |> Enum.sort_by(fn [x, y] -> x + y end)
 

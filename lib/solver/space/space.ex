@@ -205,7 +205,11 @@ defmodule CPSolver.Space do
           handle_solved(data)
 
         {:stable, reduced_constraint_graph} ->
-          Map.put(data, :constraint_graph, remove_entailed_propagators(reduced_constraint_graph, propagators))
+          Map.put(
+            data,
+            :constraint_graph,
+            remove_entailed_propagators(reduced_constraint_graph, propagators)
+          )
           |> handle_stable()
       end
     catch
@@ -299,7 +303,6 @@ defmodule CPSolver.Space do
       end
     end)
   end
-
 
   # defp add_branch_constraint(constraint_graph, nil) do
   #  constraint_graph

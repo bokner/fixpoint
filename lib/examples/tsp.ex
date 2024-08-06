@@ -131,7 +131,8 @@ defmodule CPSolver.Examples.TSP do
            Enum.map(solution, fn {_, val} -> val end),
            model
          ) &&
-           Logger.warning("#{@checkmark_symbol} #{ans_str}")) || Logger.error("#{@failure_symbol} #{ans_str}" <> ": wrong -((")
+           Logger.warning("#{@checkmark_symbol} #{ans_str}")) ||
+          Logger.error("#{@failure_symbol} #{ans_str}" <> ": wrong -((")
       end)
     end
   end
