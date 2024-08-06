@@ -161,10 +161,9 @@ defmodule CPSolver.BitVectorDomain do
         {domain_change, domain}
         |> tap(fn _ -> :bit_vector.clear(bit_vector, vector_value) end)
 
-    true ->
-      failed?(bit_vector) && fail() || :no_change
+      true ->
+        (failed?(bit_vector) && fail()) || :no_change
     end
-
   end
 
   def removeAbove({bit_vector, offset} = domain, value) do

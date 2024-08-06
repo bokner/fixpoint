@@ -17,9 +17,13 @@ defmodule CPSolverTest.SpacePropagation do
     } = stable_setup()
 
     {:stable, constraint_graph} = Propagation.run(graph, store)
-    constraint_graph = Enum.reduce(propagators, constraint_graph,
-      fn p, g_acc ->
-        ConstraintGraph.entailed_propagator?(g_acc, p) && ConstraintGraph.remove_propagator(g_acc, p.id) || g_acc end)
+
+    constraint_graph =
+      Enum.reduce(propagators, constraint_graph, fn p, g_acc ->
+        (ConstraintGraph.entailed_propagator?(g_acc, p) &&
+           ConstraintGraph.remove_propagator(g_acc, p.id)) || g_acc
+      end)
+
     assert Graph.num_vertices(constraint_graph) == 3
 
     assert [y] ==
