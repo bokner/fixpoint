@@ -20,9 +20,12 @@ defmodule CPSolver.Space.Propagation do
     constraint_graph
     |> Graph.vertices()
     ## Get %{id => propagator} map
-    |> Enum.flat_map(fn {:propagator, p_id} ->
-      [ConstraintGraph.get_propagator(constraint_graph, p_id)]
-      _ -> []
+    |> Enum.flat_map(fn
+      {:propagator, p_id} ->
+        [ConstraintGraph.get_propagator(constraint_graph, p_id)]
+
+      _ ->
+        []
     end)
   end
 
@@ -70,11 +73,13 @@ defmodule CPSolver.Space.Propagation do
     |> Enum.reduce_while(
       {MapSet.new(), graph, Map.new()},
       fn {p_id, p}, {scheduled_acc, g_acc, changes_acc} = _acc ->
-        res = Propagator.filter(p,
-        store: store,
-        reset?: opts[:reset?],
-        changes: Map.get(domain_changes, p_id)
-      )
+        res =
+          Propagator.filter(p,
+            store: store,
+            reset?: opts[:reset?],
+            changes: Map.get(domain_changes, p_id)
+          )
+
         case res do
           {:filter_error, error} ->
             throw({:error, {:filter_error, error}})
@@ -87,8 +92,8 @@ defmodule CPSolver.Space.Propagation do
 
           %{changes: no_changes, active?: active?} when no_changes in [nil, %{}] ->
             {:cont,
-             {unschedule(scheduled_acc, p_id),
-              maybe_remove_propagator(g_acc, p_id, active?), changes_acc}}
+             {unschedule(scheduled_acc, p_id), maybe_remove_propagator(g_acc, p_id, active?),
+              changes_acc}}
 
           %{changes: new_changes, state: state} ->
             {updated_graph, updated_scheduled, updated_changes} =
@@ -130,7 +135,7 @@ defmodule CPSolver.Space.Propagation do
 
   ## Remove passive propagator
   defp maybe_remove_propagator(graph, propagator_id, active?) do
-    active? && graph || ConstraintGraph.remove_propagator(graph, propagator_id)
+    (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
   end
 
   defp finalize(:fail) do
@@ -188,5 +193,4 @@ defmodule CPSolver.Space.Propagation do
       end
     )
   end
-
-  end
+end

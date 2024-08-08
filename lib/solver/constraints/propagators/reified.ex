@@ -4,7 +4,6 @@ defmodule CPSolver.Propagator.Reified do
   alias CPSolver.BooleanVariable, as: BoolVar
   alias CPSolver.Propagator
 
-
   @moduledoc """
   The propagator for reification constraints.
 
@@ -25,10 +24,12 @@ defmodule CPSolver.Propagator.Reified do
 
   @impl true
   def variables([propagators, b_var, _mode]) do
-    Enum.reduce(propagators,
-    [set_propagate_on(b_var, :fixed)],
-    fn p, acc -> acc ++ Propagator.variables(p)
-    end) |> Enum.uniq()
+    Enum.reduce(
+      propagators,
+      [set_propagate_on(b_var, :fixed)],
+      fn p, acc -> acc ++ Propagator.variables(p) end
+    )
+    |> Enum.uniq()
   end
 
   @impl true
@@ -37,35 +38,42 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   @impl true
-  def filter([propagators, b_var, mode], %{opposite: opposite_propagators} = state, changes) do
+  def filter(
+        [_propagators, b_var, mode],
+        %{active_propagators: active_propagators} = _state,
+        changes
+      ) do
     cond do
       mode == :full && BoolVar.true?(b_var) ->
-        propagate_direct(propagators, changes)
+        propagate(active_propagators, changes)
 
       BoolVar.false?(b_var) ->
-        propagate_opposite(propagators, changes)
+        active_propagators
+        |> opposite_propagators()
+        |> propagate(changes)
 
-        resolved?(propagators) ->
-        BoolVar.set_true(b_var)
-        :passive
+      ## control variable is not fixed
+      true ->
+        case propagate(active_propagators, changes) do
+          :resolved? ->
+            BoolVar.set_true(b_var)
+            :passive
 
-      mode == :full && resolved?(opposite_propagators) ->
-        BoolVar.set_false(b_var)
-        :passive
+          :failed? when mode == :full ->
+            BoolVar.set_false(b_var)
+            :passive
 
-      true -> {:state, state}
+          unentailed_propagators ->
+            {:state, %{active_propagators: unentailed_propagators}}
+        end
     end
   end
 
   defp initial_state([propagators, _b_var, _mode]) do
-    %{opposite: opposite_propagators(propagators)}
+    %{active_propagators: propagators}
   end
 
-  defp propagate_direct(propagators, incoming_changes) do
-    :todo
-  end
-
-  defp propagate_opposite(propagators, incoming_changes) do
+  defp propagate(propagators, incoming_changes) do
     :todo
   end
 
@@ -78,8 +86,6 @@ defmodule CPSolver.Propagator.Reified do
   defp opposite_propagators(propagators) do
     Enum.filter(propagators, fn p -> opposite(p) end)
   end
-
-
 
   ## Opposite propagators
   alias CPSolver.Propagator.{Equal, NotEqual, Less, LessOrEqual}
@@ -99,5 +105,4 @@ defmodule CPSolver.Propagator.Reified do
   defp swap_args(%{args: [x, y | rest]} = p) do
     %{p | args: [y, x | rest]}
   end
-
 end

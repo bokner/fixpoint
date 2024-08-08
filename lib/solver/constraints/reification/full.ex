@@ -8,7 +8,7 @@ defmodule CPSolver.Constraint.Reified.Full do
   use CPSolver.Constraint
   alias CPSolver.Propagator.Reified, as: ReifPropagator
   alias CPSolver.IntVariable
-  
+
   def new(x, y) do
     new([x, y])
   end
@@ -19,7 +19,8 @@ defmodule CPSolver.Constraint.Reified.Full do
   end
 
   @impl true
-  def arguments([{constraint_impl, args} = constraint, y]) when is_atom(constraint_impl) and is_list(args) do
+  def arguments([{constraint_impl, args} = constraint, y])
+      when is_atom(constraint_impl) and is_list(args) do
     [constraint, IntVariable.to_variable(y)]
   end
 end

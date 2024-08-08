@@ -1,6 +1,8 @@
 defmodule CPSolver.BitVectorDomain do
   import Bitwise
 
+  @failure_value (1 <<< 64) - 1
+
   def new([]) do
     fail()
   end
@@ -66,7 +68,7 @@ defmodule CPSolver.BitVectorDomain do
 
   def fixed?({bit_vector, _offset} = _domain) do
     {current_min_max, _min_max_idx, current_min, current_max} = get_min_max(bit_vector)
-    current_max == current_min
+    current_max == current_min && current_min_max != @failure_value
   end
 
   def failed?({:bit_vector, _ref} = bit_vector) do
@@ -78,7 +80,7 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   def failed?(min_max_value) when is_integer(min_max_value) do
-      PackedMinMax.get_min(min_max_value) > PackedMinMax.get_max(min_max_value)
+    min_max_value == @failure_value
   end
 
   def min({bit_vector, offset} = _domain) do
@@ -159,7 +161,7 @@ defmodule CPSolver.BitVectorDomain do
         |> tap(fn _ -> :bit_vector.clear(bit_vector, vector_value) end)
 
     true ->
-      failed?(bit_vector) && fail() || :no_change
+      :no_change
     end
 
   end
@@ -237,6 +239,7 @@ defmodule CPSolver.BitVectorDomain do
   def get_min_max(bit_vector) do
     get_min_max_impl(bit_vector)
     |> then(fn {min_max_index, min_max} ->
+      min_max == @failure_value && fail(bit_vector)
       {min_max, min_max_index, PackedMinMax.get_min(min_max), PackedMinMax.get_max(min_max)}
     end)
   end
@@ -412,6 +415,7 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   defp fail(bit_vector \\ nil) do
+    bit_vector && set_min_max(bit_vector, @failure_value)
     throw(:fail)
   end
 
