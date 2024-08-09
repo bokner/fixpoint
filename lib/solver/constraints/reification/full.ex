@@ -9,8 +9,8 @@ defmodule CPSolver.Constraint.Reified.Full do
   alias CPSolver.Propagator.Reified, as: ReifPropagator
   alias CPSolver.IntVariable
 
-  def new(x, y) do
-    new([x, y])
+  def new(constraint, b) do
+    new([constraint, b])
   end
 
   @impl true

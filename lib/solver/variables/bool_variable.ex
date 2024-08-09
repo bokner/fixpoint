@@ -2,8 +2,8 @@ defmodule CPSolver.BooleanVariable do
   alias CPSolver.IntVariable
   alias CPSolver.Variable.Interface
 
-  def new() do
-    IntVariable.new(0..1)
+  def new(opts \\ []) do
+    IntVariable.new(0..1, opts)
   end
 
   def set_false(var) do
