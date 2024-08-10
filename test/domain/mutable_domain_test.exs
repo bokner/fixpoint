@@ -158,7 +158,7 @@ defmodule CPSolverTest.MutableDomain do
     end
 
     @tag :slow
-    test "Concurrent removal of values" do
+    test "Concurrent removal of values (threads remove distinct values)" do
       ##
       values = 1..100_000
       domain = Domain.new(values)
