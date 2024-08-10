@@ -34,10 +34,14 @@ defmodule CPSolver.Propagator.Reified do
 
   @impl true
   def filter(args) do
-    filter(args, initial_state(args))
+    filter(args, initial_state(args), %{})
   end
 
   @impl true
+  def filter(args, nil, changes) do
+    filter(args, initial_state(args), changes)
+  end
+
   def filter(
         [_propagators, b_var, mode],
         %{active_propagators: active_propagators} = _state,
@@ -74,7 +78,11 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   defp propagate(propagators, incoming_changes) do
-    :todo
+    Enum.reduce_while(propagators, [], fn p, active_propagators_acc ->
+      case Propagator.filter(p, changes: incoming_changes) do
+        :fail -> {:halt, :fail}
+      end
+    end)
   end
 
   defp resolved?(propagators) do

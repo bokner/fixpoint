@@ -47,6 +47,5 @@ defmodule CPSolverTest.Constraint.Reified do
     defp check_solution([{"x", x}, {"y", y}, {"b", b}]) do
       (x <= y && b == 1) || b == 0
     end
-
-    end
+  end
 end

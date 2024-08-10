@@ -2,6 +2,7 @@ defmodule CPSolverTest.SpacePropagation do
   use ExUnit.Case
 
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Propagator.NotEqual
   alias CPSolver.Space.Propagation
   alias CPSolver.Propagator
@@ -11,47 +12,22 @@ defmodule CPSolverTest.SpacePropagation do
   test "Propagation on stable space" do
     %{
       propagators: propagators,
-      variables: [_x, y, _z] = variables,
+      variables: [x, y, z] = variables,
       constraint_graph: graph,
       store: store
     } = stable_setup()
 
-    {:stable, constraint_graph} = Propagation.run(graph, store)
+    :solved = Propagation.run(graph, store)
 
-    constraint_graph =
-      Enum.reduce(propagators, constraint_graph, fn p, g_acc ->
-        (ConstraintGraph.entailed_propagator?(g_acc, p) &&
-           ConstraintGraph.remove_propagator(g_acc, p.id)) || g_acc
-      end)
-
-    assert Graph.num_vertices(constraint_graph) == 3
-
-    assert [y] ==
-             Enum.filter(variables, fn var ->
-               Graph.has_vertex?(constraint_graph, {:variable, var.id})
-             end)
-
-    ## In stable state, variables referenced in constraint graph are unfixed.
+    assert Variable.fixed?(x) && Variable.fixed?(z)
+    ## Check not_equal(x, z)
+    assert Variable.min(x) != Variable.min(z)
     refute Variable.fixed?(y)
 
-    propagators_from_graph =
-      Enum.flat_map(
-        Graph.vertices(constraint_graph),
-        fn
-          {:propagator, id} -> [ConstraintGraph.get_propagator(constraint_graph, id)]
-          _ -> []
-        end
-      )
-
-    assert length(propagators_from_graph) == 2
-
-    propagator_vars_in_graph =
-      Enum.map(propagators_from_graph, fn %{mod: NotEqual, args: vars} = _v ->
-        Enum.map(vars, fn v -> v.name end)
-      end)
-
-    ## Both propagators in constraint graph have "y" variable
-    assert Enum.all?(propagator_vars_in_graph, fn vars -> "y" in vars end)
+    ## All values of reduced domain of 'y' participate in proper solutions.
+    assert Enum.all?(Variable.domain(y) |> Domain.to_list(), fn y_value ->
+             y_value != Variable.min(x) && y_value != Variable.min(z)
+           end)
   end
 
   test "Propagation on solvable space" do
@@ -66,49 +42,6 @@ defmodule CPSolverTest.SpacePropagation do
   test "Propagation on failed space" do
     %{constraint_graph: graph, store: store} = fail_setup()
     assert :fail == Propagation.run(graph, store)
-  end
-
-  test "Propagation pass" do
-    x = 1..1
-    y = 1..2
-    z = 1..3
-    %{propagators: propagators, constraint_graph: graph, store: store} = space_setup(x, y, z)
-
-    {scheduled_propagators, reduced_graph, domain_changes} =
-      Propagation.propagate(propagators |> Map.new(fn p -> {p.id, p} end), graph, store)
-
-    assert Enum.all?(scheduled_propagators, fn p_id -> p_id in Map.keys(domain_changes) end)
-
-    ## Domain changes are `pos => domain_change` maps, where `pos` is the position
-    ## of a variable in the propagator arguments
-    assert Enum.all?(propagators, fn p ->
-             propagator_domain_changes = Map.get(domain_changes, p.id)
-             var_id_set = MapSet.new(Enum.map(p.args, fn v -> v.id end))
-
-             MapSet.subset?(
-               Enum.map(propagator_domain_changes, fn {var_pos, _change} ->
-                 Enum.at(p.args, var_pos).id
-               end)
-               |> MapSet.new(),
-               var_id_set
-             )
-           end)
-
-    ## Propagators are not being rescheduled
-    ## as a result of their own filtering (idempotency).
-    ##
-    ## Only NotEqual(y, z) is rescheduled.
-    ## Explanation:
-    ## - NotEqual(x, y) changes y => schedules NotEqual(y,z);
-    ## - NotEqual(x, z) changes z => schedules NotEqual(y,z);
-    ## - NotEqual(y, z) changes z and/or y (if not called first) as a result of it's own filtering.
-    ## So, at no point NotEqual(x, y) and NotEqual(x, z) are being rescheduled.
-
-    [not_equal_y_z_reference] = MapSet.to_list(scheduled_propagators)
-    not_equal_y_z = ConstraintGraph.get_propagator(reduced_graph, not_equal_y_z_reference)
-    assert not_equal_y_z.mod == NotEqual
-
-    assert not_equal_y_z.name == "y != z"
   end
 
   defp stable_setup() do

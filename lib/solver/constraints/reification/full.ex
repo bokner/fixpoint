@@ -15,7 +15,7 @@ defmodule CPSolver.Constraint.Reified.Full do
 
   @impl true
   def propagators([constraint, b]) do
-    [ReifPropagator.new(constraint, b, :full)]
+    [ReifPropagator.new(Constraint.constraint_to_propagators(constraint), b, :full)]
   end
 
   @impl true

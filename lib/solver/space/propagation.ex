@@ -95,9 +95,14 @@ defmodule CPSolver.Space.Propagation do
              {unschedule(scheduled_acc, p_id), maybe_remove_propagator(g_acc, p_id, active?),
               changes_acc}}
 
-          %{changes: new_changes, state: state} ->
+          %{changes: new_changes, active?: active?, state: state} ->
             {updated_graph, updated_scheduled, updated_changes} =
-              update_schedule(scheduled_acc, changes_acc, new_changes, g_acc)
+              update_schedule(
+                scheduled_acc,
+                changes_acc,
+                new_changes,
+                maybe_remove_propagator(g_acc, p_id, active?)
+              )
 
             {:cont,
              {updated_scheduled |> unschedule(p_id),
