@@ -19,7 +19,7 @@ defmodule CPSolverTest.Propagator.Absolute do
       _res = Propagator.filter(p)
       ## y has negative values removed
       assert Interface.min(y_var) >= 0
-      ## min(y) = min(|x\)
+      ## min(y) = min(|x|)
       assert Interface.min(y_var) == 0
       assert Interface.max(y_var) == 5
       ## max(y) is now min(max(|x|), max(y) (i.e. din't change in this case)
