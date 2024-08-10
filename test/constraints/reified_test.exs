@@ -44,7 +44,7 @@ defmodule CPSolverTest.Constraint.Reified do
       assert Enum.all?(res.solutions, fn s -> check_solution(s) end)
     end
 
-    defp check_solution([{"x", x}, {"y", y}, {"b", b}]) do
+    defp check_solution([x, y, b]) do
       (x <= y && b == 1) || b == 0
     end
   end

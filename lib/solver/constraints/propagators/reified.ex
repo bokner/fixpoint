@@ -59,11 +59,11 @@ defmodule CPSolver.Propagator.Reified do
       ## control variable is not fixed
       true ->
         case propagate(active_propagators, changes) do
-          :resolved? ->
+          :resolved ->
             BoolVar.set_true(b_var)
             :passive
 
-          :failed? when mode == :full ->
+          :failed when mode == :full ->
             BoolVar.set_false(b_var)
             :passive
 
@@ -78,11 +78,19 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   defp propagate(propagators, incoming_changes) do
-    Enum.reduce_while(propagators, [], fn p, active_propagators_acc ->
+    res = Enum.reduce_while(propagators, [], fn p, active_propagators_acc ->
       case Propagator.filter(p, changes: incoming_changes) do
         :fail -> {:halt, :fail}
+        %{active?: active?} ->
+          {:cont, active? && [p | active_propagators_acc] || active_propagators_acc}
       end
     end)
+
+    cond do
+      res == :fail -> :failed
+      Enum.empty?(res) -> :resolved
+      true -> res
+    end
   end
 
   defp resolved?(propagators) do
