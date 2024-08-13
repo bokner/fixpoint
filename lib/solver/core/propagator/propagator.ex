@@ -7,6 +7,9 @@ defmodule CPSolver.Propagator do
               {:state, map()} | :stable | :fail | propagator_event()
   @callback filter(args :: list(), state :: map() | nil, changes :: map()) ::
               {:state, map()} | :stable | :fail | propagator_event()
+  @callback resolved?(Propagator.t(), state :: map() | nil) :: boolean()
+  @callback failed?(Propagator.t(), state :: map() | nil) :: boolean()
+
   @callback variables(args :: list()) :: list()
   @callback arguments(args :: list()) :: Arrays.t()
 
@@ -47,11 +50,20 @@ defmodule CPSolver.Propagator do
         filter(args, propagator_state)
       end
 
+      def resolved?(args, propagator_state) do
+        !propagator_state[:active?] ||
+        Propagator.entailed?(args)
+      end
+
+      def failed?(args, _propagator_state) do
+        false
+      end
+
       def variables(args) do
         Propagator.default_variables_impl(args)
       end
 
-      defoverridable arguments: 1, variables: 1, reset: 2, filter: 2, filter: 3
+      defoverridable arguments: 1, variables: 1, reset: 2, filter: 2, filter: 3, failed?: 2, resolved?: 2
     end
   end
 
@@ -128,7 +140,19 @@ defmodule CPSolver.Propagator do
 
   ## Check if propagator is entailed (i.e., all variables are fixed)
   def entailed?(%{args: args} = _propagator) do
+    entailed?(args)
+  end
+
+  def entailed?(args) do
     Enum.all?(args, fn arg -> Interface.fixed?(arg) end)
+  end
+
+  def resolved?(%{mod: mod, args: args} = propagator) do
+    mod.resolved?(args, propagator[:state])
+  end
+
+  def failed?(%{mod: mod, args: args} = propagator) do
+    mod.failed?(args, propagator[:state])
   end
 
   ## How propagator events map to domain events

@@ -47,39 +47,71 @@ defmodule CPSolver.Propagator.Reified do
         %{active_propagators: active_propagators} = _state,
         changes
       ) do
+        filter_impl(mode, b_var, active_propagators, changes)
+  end
+
+  defp actions() do
+    %{:full => [
+      &propagate/2,
+      &propagate_negative/2,
+      &terminate_false/1,
+      &terminate_true/1],
+      :half => [nil, &propagate_negative/2, nil, &terminate_true/1],
+      :inverse => [&propagate/2, nil, &terminate_false/1, nil]
+
+    }
+  end
+
+  defp terminate_true(b_var) do
+    terminate_propagator(b_var, true)
+  end
+
+  defp terminate_false(b_var) do
+    terminate_propagator(b_var, false)
+  end
+
+  defp terminate_propagator(b_var, bool) do
+    bool && BoolVar.set_true(b_var) || BoolVar.set_false(b_var)
+    :passive
+  end
+
+  defp filter_impl(mode, b_var, propagators, changes) do
+    [b_true_action, b_false_action, failed_action, resolved_action] = Map.get(actions(), mode)
     cond do
-      mode == :full && BoolVar.true?(b_var) ->
-        propagate(active_propagators, changes)
-
-      BoolVar.false?(b_var) ->
-        active_propagators
-        |> opposite_propagators()
-        |> propagate(changes)
-
-      ## control variable is not fixed
+      BoolVar.true?(b_var) -> b_true_action && b_true_action.(propagators, changes) || :passive
+      BoolVar.false?(b_var) -> b_false_action && b_false_action.(propagators, changes) || :passive
       true ->
-        case propagate(active_propagators, changes) do
-          :resolved ->
-            BoolVar.set_true(b_var)
-            :passive
-
-          :failed when mode == :full ->
-            BoolVar.set_false(b_var)
-            :passive
-
-          unentailed_propagators ->
-            {:state, %{active_propagators: unentailed_propagators}}
-        end
-    end
+        ## Control variable is not fixed
+        case check_propagators(propagators) do
+          :fail -> failed_action && failed_action.(b_var) || :passive
+          :resolved -> resolved_action && resolved_action.(b_var) || :passive
+          unresolved_propagators ->
+            %{state: %{active_propagators: unresolved_propagators}}
+          end
+      end
   end
 
   defp initial_state([propagators, _b_var, _mode]) do
     %{active_propagators: propagators}
   end
 
+  defp check_propagators(propagators) do
+    propagators
+    |> Enum.reduce_while([],
+      fn p, active_propagators_acc ->
+        cond do
+          Propagator.failed?(p) -> {:halt, :fail}
+          Propagator.resolved?(p) -> {:cont, active_propagators_acc}
+          true -> {:cont, [p | active_propagators_acc]}
+        end
+    end)
+  end
+
   defp propagate(propagators, incoming_changes) do
     res = Enum.reduce_while(propagators, [], fn p, active_propagators_acc ->
+      IO.inspect(p.mod, label: :propagator)
       case Propagator.filter(p, changes: incoming_changes) do
+
         :fail -> {:halt, :fail}
         %{active?: active?} ->
           {:cont, active? && [p | active_propagators_acc] || active_propagators_acc}
@@ -87,20 +119,20 @@ defmodule CPSolver.Propagator.Reified do
     end)
 
     cond do
-      res == :fail -> :failed
-      Enum.empty?(res) -> :resolved
-      true -> res
+      res == :fail -> :fail
+      Enum.empty?(res) -> :passive
+      true -> %{state: %{active_propagators: res}}
     end
   end
 
-  defp resolved?(propagators) do
-    Enum.all?(propagators, fn p ->
-      Propagator.entailed?(p)
-    end)
+  defp propagate_negative(propagators, changes) do
+    propagators
+    |> opposite_propagators()
+    |> propagate(changes)
   end
 
   defp opposite_propagators(propagators) do
-    Enum.filter(propagators, fn p -> opposite(p) end)
+    Enum.map(propagators, fn p -> opposite(p) end)
   end
 
   ## Opposite propagators
@@ -114,8 +146,14 @@ defmodule CPSolver.Propagator.Reified do
     %{p | mod: Equal}
   end
 
-  defp opposite(%{mod: mod} = p) when mod in [Less, LessOrEqual] do
-    swap_args(p)
+  defp opposite(%{mod: Less} = p) do
+    %{p | mod: LessOrEqual}
+    |> swap_args()
+  end
+
+  defp opposite(%{mod: LessOrEqual} = p) do
+    %{p | mod: Less}
+    |> swap_args()
   end
 
   defp swap_args(%{args: [x, y | rest]} = p) do
