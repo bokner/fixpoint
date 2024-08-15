@@ -17,6 +17,10 @@ defmodule CPSolver.Propagator.Reified do
   Half-reification:
 
   Rules 2 and 3 of full reification.
+
+  Inverse implication:
+
+  Rules 1 and 4 of full reification.
   """
   def new(propagators, b_var, mode) when mode in [:full, :half] do
     new([propagators, b_var, mode])
@@ -86,7 +90,7 @@ defmodule CPSolver.Propagator.Reified do
           :fail -> failed_action && failed_action.(b_var) || :passive
           :resolved -> resolved_action && resolved_action.(b_var) || :passive
           unresolved_propagators ->
-            %{state: %{active_propagators: unresolved_propagators}}
+            {:state, %{active_propagators: unresolved_propagators}}
           end
       end
   end
@@ -99,6 +103,7 @@ defmodule CPSolver.Propagator.Reified do
     propagators
     |> Enum.reduce_while([],
       fn p, active_propagators_acc ->
+        IO.inspect({p.mod, Propagator.propagator_domain_values(p)}, label: :checking_domain_values)
         cond do
           Propagator.failed?(p) -> {:halt, :fail}
           Propagator.resolved?(p) -> {:cont, active_propagators_acc}
@@ -109,7 +114,7 @@ defmodule CPSolver.Propagator.Reified do
 
   defp propagate(propagators, incoming_changes) do
     res = Enum.reduce_while(propagators, [], fn p, active_propagators_acc ->
-      IO.inspect(p.mod, label: :propagator)
+      #IO.inspect(p.mod, label: :propagator)
       case Propagator.filter(p, changes: incoming_changes) do
 
         :fail -> {:halt, :fail}
@@ -121,7 +126,7 @@ defmodule CPSolver.Propagator.Reified do
     cond do
       res == :fail -> :fail
       Enum.empty?(res) -> :passive
-      true -> %{state: %{active_propagators: res}}
+      true -> {:state, %{active_propagators: res}}
     end
   end
 

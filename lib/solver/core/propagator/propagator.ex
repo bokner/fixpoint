@@ -20,6 +20,7 @@ defmodule CPSolver.Propagator do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.ConstraintStore
   alias CPSolver.Utils.TupleArray
+  alias CPSolver.Utils
 
   defmacro __using__(_) do
     quote do
@@ -103,6 +104,7 @@ defmodule CPSolver.Propagator do
   end
 
   def filter(%{mod: mod, args: args} = propagator, opts \\ []) do
+    args = Keyword.get(opts, :dry_run, false) && copy_args(args) || args
     PropagatorVariable.reset_variable_ops()
     store = Keyword.get(opts, :store)
     state = propagator[:state]
@@ -204,6 +206,14 @@ defmodule CPSolver.Propagator do
     Map.put(propagator, :args, bound_args)
   end
 
+  defp copy_variable(%Variable{domain: domain} = var) do
+    %{var | domain: Domain.copy(domain)}
+  end
+
+  defp copy_variable(%View{variable: variable} = view) do
+    Map.put(view, :variable, copy_variable(variable))
+  end
+
   defp bind_to_variable(%Variable{id: id} = var, indexed_variables, var_field) do
     field_value = Map.get(indexed_variables, id) |> Map.get(var_field)
     Map.put(var, var_field, field_value)
@@ -257,4 +267,16 @@ defmodule CPSolver.Propagator do
   def args_to_list(args) do
     args
   end
+
+  def propagator_domain_values(%{args: args} = _p) do
+    arg_map(args, fn arg -> is_constant_arg(arg) && arg || Utils.domain_values(arg) end)
+  end
+
+  defp copy_args(args) do
+    arg_map(args, fn arg ->
+      is_constant_arg(arg) && arg
+      || copy_variable(arg)
+    end)
+  end
+
 end

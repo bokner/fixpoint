@@ -51,8 +51,12 @@ defmodule CPSolver.DefaultDomain do
     fixed
   end
 
+  def copy(values) when is_list(values) do
+    Enum.empty?(values) && fail() || Domain.new(values)
+  end
+
   def copy(domain) do
-    (Domain.fixed?(domain) && Domain.min(domain)) || Domain.copy(domain)
+    (fixed?(domain) && min(domain)) || Domain.copy(domain)
   end
 
   def size(fixed) when is_integer(fixed) do
@@ -65,6 +69,10 @@ defmodule CPSolver.DefaultDomain do
 
   def fixed?(fixed) when is_integer(fixed) do
     true
+  end
+
+  def fixed?(values) when is_list(values) do
+    length(values) == 1
   end
 
   def fixed?(domain) do

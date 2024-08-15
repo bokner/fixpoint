@@ -3,6 +3,8 @@ defmodule CPSolverTest.Propagator do
 
   describe "Propagator general" do
     alias CPSolver.IntVariable, as: Variable
+    alias CPSolver.DefaultDomain, as: Domain
+    alias CPSolver.Variable.Interface
     alias CPSolver.Propagator.{NotEqual, LessOrEqual}
     alias CPSolver.ConstraintStore
     alias CPSolver.Propagator
@@ -51,6 +53,63 @@ defmodule CPSolverTest.Propagator do
       ##
       ## The propagator will fail on one of the variables
       assert :fail = Propagator.filter(LessOrEqual.new(x_var, minus_y_view))
+    end
+
+    test "dry run (reduction)" do
+      # `dry_run` option tests the result of the propagator filtering,
+      # but does not change space variables
+      %{bound_variables: bound_variables} =
+        setup_store([1..1, 1..2])
+
+      [x_bound, y_bound] = bound_variables
+
+      assert Variable.fixed?(x_bound)
+      refute Variable.fixed?(y_bound)
+
+      propagator = NotEqual.new(bound_variables)
+
+      ## Dry-run first
+      dry_run_result = Propagator.filter(propagator, dry_run: true)
+      assert dry_run_result == %{changes: %{y_bound.id => :fixed}, active?: false, state: nil}
+
+      # Store variables didn't change
+      assert Variable.fixed?(x_bound)
+      refute Variable.fixed?(y_bound)
+
+      ## Real run now
+      real_run_result = Propagator.filter(propagator)
+      ## The results of dry run vs. real run
+      assert dry_run_result == real_run_result
+
+      ## Variables are fixed, as expected
+      assert Variable.fixed?(x_bound)
+      assert Variable.fixed?(y_bound)
+
+    end
+
+    test "dry run (inconsistency, view)" do
+      x = 1..10
+      y = 0..10
+      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+
+      {:ok, bound_vars, _store} =
+        create_store(variables)
+
+      [x_var, y_var] = bound_vars
+
+      minus_y_view = minus(y_var)
+      res = Propagator.filter(LessOrEqual.new(x_var, minus_y_view), dry_run: true)
+
+      ## Should fail, because `minus` view turns `y` domain to -10..0
+      assert res == :fail
+      ## ...but the domains of variables stay intact
+      assert (10 == Interface.size(x_var)) && (11 = Interface.size(y_var))
+
+      ## Now, filter for real
+      assert :fail == Propagator.filter(LessOrEqual.new(x_var, minus_y_view))
+      ## At least one variable is now in :fail state
+      assert catch_throw((10 == Interface.size(x_var)) && (11 = Interface.size(y_var))) == :fail
+
     end
 
     defp setup_store(domains) do
