@@ -80,17 +80,19 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   defp filter_impl(mode, b_var, propagators, changes) do
+    IO.inspect(Interface.domain(b_var) |> Domain.to_list(), label: :b)
+    IO.inspect(Enum.map(propagators, fn p -> Propagator.propagator_domain_values(p) end), label: :propagator_values)
     [b_true_action, b_false_action, failed_action, resolved_action] = Map.get(actions(), mode)
     cond do
       BoolVar.true?(b_var) -> b_true_action && b_true_action.(propagators, changes) || :passive
       BoolVar.false?(b_var) -> b_false_action && b_false_action.(propagators, changes) || :passive
       true ->
         ## Control variable is not fixed
-        case check_propagators(propagators) do
+        case check_propagators(propagators, changes) do
           :fail -> failed_action && failed_action.(b_var) || :passive
           :resolved -> resolved_action && resolved_action.(b_var) || :passive
-          unresolved_propagators ->
-            {:state, %{active_propagators: unresolved_propagators}}
+          {:active, active_propagators} ->
+            {:state, %{active_propagators: active_propagators}}
           end
       end
   end
@@ -99,24 +101,28 @@ defmodule CPSolver.Propagator.Reified do
     %{active_propagators: propagators}
   end
 
-  defp check_propagators(propagators) do
+  defp check_propagators(propagators, incoming_changes) do
     propagators
     |> Enum.reduce_while([],
       fn p, active_propagators_acc ->
-        IO.inspect({p.mod, Propagator.propagator_domain_values(p)}, label: :checking_domain_values)
-        cond do
-          Propagator.failed?(p) -> {:halt, :fail}
-          Propagator.resolved?(p) -> {:cont, active_propagators_acc}
-          true -> {:cont, [p | active_propagators_acc]}
+        case Propagator.filter(p, changes: incoming_changes, dry_run: true) |> IO.inspect(label: :check) do
+          :fail -> {:halt, :fail}
+          %{active?: active?} ->
+            {:cont, active? && [p | active_propagators_acc] || active_propagators_acc}
         end
-    end)
+      end)
+      |> case do
+        :fail -> :fail
+        active_propagators ->
+          Enum.empty?(active_propagators) && :resolved || {:active, active_propagators}
+        end
+
   end
 
   defp propagate(propagators, incoming_changes) do
     res = Enum.reduce_while(propagators, [], fn p, active_propagators_acc ->
-      #IO.inspect(p.mod, label: :propagator)
+      IO.inspect(p.mod, label: :propagator_mod)
       case Propagator.filter(p, changes: incoming_changes) do
-
         :fail -> {:halt, :fail}
         %{active?: active?} ->
           {:cont, active? && [p | active_propagators_acc] || active_propagators_acc}
