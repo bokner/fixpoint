@@ -1,7 +1,7 @@
 defmodule CPSolverTest.Constraint.Reified do
   use ExUnit.Case, async: false
 
-  describe "Absolute" do
+  describe "Reification" do
     alias CPSolver.Constraint.Reified.Full, as: Reified
     alias CPSolver.Constraint.Reified.Half, as: HalfReified
     alias CPSolver.Constraint.{Equal, NotEqual, LessOrEqual}
@@ -31,7 +31,7 @@ defmodule CPSolverTest.Constraint.Reified do
 
     """
 
-    test "`Reified` functionality" do
+    test "functionality" do
       x = IntVariable.new(0..1, name: "x")
       y = IntVariable.new(0..1, name: "y")
       b = BooleanVariable.new(name: "b")

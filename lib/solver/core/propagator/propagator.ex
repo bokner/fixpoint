@@ -134,6 +134,7 @@ defmodule CPSolver.Propagator do
     catch
       :error, error ->
         {:filter_error, {mod, error}}
+        |> IO.inspect(__STACKTRACE__)
 
       :fail ->
         :fail
@@ -269,7 +270,7 @@ defmodule CPSolver.Propagator do
   end
 
   def propagator_domain_values(%{args: args} = _p) do
-    arg_map(args, fn arg -> is_constant_arg(arg) && arg || Utils.domain_values(arg) end)
+    arg_map(args, fn arg -> is_constant_arg(arg) && arg || {Interface.variable(arg).name, Utils.domain_values(arg)} end)
   end
 
   defp copy_args(args) do
