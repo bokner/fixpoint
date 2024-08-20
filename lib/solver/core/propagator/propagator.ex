@@ -2,6 +2,7 @@ defmodule CPSolver.Propagator do
   @type propagator_event :: :domain_change | :bound_change | :min_change | :max_change | :fixed
 
   @callback reset(args :: list(), state :: map()) :: map() | nil
+  @callback reset(args :: list(), state :: map(), opts :: Keyword.t()) :: map() | nil
   @callback filter(args :: list()) :: {:state, map()} | :stable | :fail | propagator_event()
   @callback filter(args :: list(), state :: map() | nil) ::
               {:state, map()} | :stable | :fail | propagator_event()
@@ -39,6 +40,10 @@ defmodule CPSolver.Propagator do
         args
       end
 
+      def reset(args, state, _opts) do
+        reset(args, state)
+      end
+
       def reset(_args, state) do
         state
       end
@@ -64,7 +69,7 @@ defmodule CPSolver.Propagator do
         Propagator.default_variables_impl(args)
       end
 
-      defoverridable arguments: 1, variables: 1, reset: 2, filter: 2, filter: 3, failed?: 2, resolved?: 2
+      defoverridable arguments: 1, variables: 1, reset: 2, reset: 3, filter: 2, filter: 3, failed?: 2, resolved?: 2
     end
   end
 
@@ -99,8 +104,8 @@ defmodule CPSolver.Propagator do
     |> mod.variables()
   end
 
-  def reset(%{mod: mod, args: args} = propagator) do
-    Map.put(propagator, :state, mod.reset(args, Map.get(propagator, :state)))
+  def reset(%{mod: mod, args: args} = propagator, opts \\ []) do
+    Map.put(propagator, :state, mod.reset(args, Map.get(propagator, :state), opts))
   end
 
   def filter(%{mod: mod, args: args} = propagator, opts \\ []) do
@@ -119,7 +124,7 @@ defmodule CPSolver.Propagator do
     reset? = Keyword.get(opts, :reset?, false)
 
     try do
-      state = (reset? && mod.reset(args, state)) || state
+      state = (reset? && mod.reset(args, state, opts)) || state
 
       case mod.filter(args, state, incoming_changes) do
         :fail ->
@@ -203,6 +208,14 @@ defmodule CPSolver.Propagator do
     bound_args =
       propagator.args
       |> arg_map(fn arg -> bind_to_variable(arg, indexed_variables, var_field) end)
+
+    Map.put(propagator, :args, bound_args)
+  end
+
+  def bind_to_variables(propagator, constraint_graph, var_field) do
+    bound_args =
+      propagator.args
+      |> arg_map(fn arg -> bind_to_variable(arg, constraint_graph, var_field) end)
 
     Map.put(propagator, :args, bound_args)
   end

@@ -107,9 +107,13 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Enum.empty?(Graph.neighbors(graph, propagator_vertex(propagator.id)))
   end
 
-  ## Remove variable and all propagators that are isolated points as a result of variable removal
+  ## Remove variable
   def remove_variable(graph, variable_id) do
     remove_vertex(graph, variable_vertex(variable_id))
+  end
+
+  def disconnect_variable(graph, variable_id) do
+    Graph.delete_edges(graph, Graph.edges(graph, variable_vertex(variable_id)))
   end
 
   ### Remove fixed variables and update propagators with variable domains.
@@ -117,10 +121,11 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   def update(graph, vars) do
     ## Remove fixed variables
     {g1, propagators, variable_map} =
-      Enum.reduce(vars, {graph, [], Map.new()}, fn %{domain: domain} = v,
+      Enum.reduce(vars, {graph, [], Map.new()}, fn %{domain: domain, id: var_id} = v,
                                                    {graph_acc, propagators_acc, variables_acc} ->
+        graph_acc = update_domain(graph_acc, var_id, domain)
         {if Domain.fixed?(domain) do
-           remove_variable(graph_acc, Interface.id(v))
+           disconnect_variable(graph_acc, var_id)
          else
            graph_acc
          end,
@@ -153,4 +158,16 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   defp get_propagate_on(variable) do
     Map.get(variable, :propagate_on) || Propagator.to_domain_events(:fixed)
   end
+
+  defp update_domain(
+      %Graph{vertex_labels: labels, vertex_identifier: identifier} = graph,
+      var_id,
+      domain
+    ) do
+  vertex = variable_vertex(var_id)
+
+
+  Map.put(graph, :vertex_labels, Map.put(labels, identifier.(vertex), [domain]))
+
+    end
 end

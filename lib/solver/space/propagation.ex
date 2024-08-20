@@ -77,7 +77,8 @@ defmodule CPSolver.Space.Propagation do
           Propagator.filter(p,
             store: store,
             reset?: opts[:reset?],
-            changes: Map.get(domain_changes, p_id)
+            changes: Map.get(domain_changes, p_id),
+            constraint_graph: graph
           )
 
         case res do
