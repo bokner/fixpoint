@@ -3,13 +3,11 @@ defmodule CPSolverTest.Constraint.Reified do
 
   describe "Reification" do
     alias CPSolver.Constraint.Reified.Full, as: Reified
-    alias CPSolver.Constraint.Reified.Half, as: HalfReified
     alias CPSolver.Constraint.{Equal, NotEqual, LessOrEqual}
     alias CPSolver.IntVariable
     alias CPSolver.BooleanVariable
     alias CPSolver.Variable.Interface
     alias CPSolver.Model
-    alias CPSolver.Constraint.Factory, as: ConstraintFactory
 
     ~c"""
     MiniZinc model (for verification):

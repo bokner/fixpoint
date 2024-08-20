@@ -6,12 +6,12 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   """
 
   @impl true
-  def reset(args, nil) do
+  def reset(args, nil, _opts) do
     {initial_unfixed_vars, initial_fixed_values} = initial_reduction(args)
     %{unfixed_vars: initial_unfixed_vars, fixed_values: initial_fixed_values}
   end
 
-  def reset(args, %{fixed_values: fixed_values, unfixed_vars: unfixed_vars} = _state) do
+  def reset(args, %{fixed_values: fixed_values, unfixed_vars: unfixed_vars} = _state, _opts) do
     {unfixed_vars, delta, total_fixed} =
       Enum.reduce(
         unfixed_vars,
