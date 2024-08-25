@@ -3,18 +3,19 @@ defmodule CPSolver.Propagator.Reified do
 
   alias CPSolver.BooleanVariable, as: BoolVar
   alias CPSolver.Propagator
+  alias CPSolver.Propagator.ConstraintGraph
 
   @moduledoc """
   The propagator for reification constraints.
 
   Full reification:
 
-   1. if b_var is fixed to 1, filter on all propagators;
-   2. if b_var is fixed to 0, filter on all "opposite" propagators (stop if any of these propagators is resolved);
-   3. if all propagators are resolved (i.e., entailed or passive), fix b to 1;
-   4. if any propagator fails, fix b to 0.
+   1. If b is fixed to 1, the propagator for the reification reduces to a propagator for C.
+   2. If b is fixed to 0, the propagator for the reification reduces to a propagator for opposite(C).
+   3. If a propagator for C would realize that the C would be entailed, the propagator for the reification fixes b to 1 and ceases to exist.
+   4. If a propagator for C would realize that the C would fail, the propagator for the reification fixes x b to 0 and ceases to exist.
 
-  Half-reification:
+   Half-reification:
 
   Rules 2 and 3 of full reification.
 
@@ -22,7 +23,7 @@ defmodule CPSolver.Propagator.Reified do
 
   Rules 1 and 4 of full reification.
   """
-  def new(propagators, b_var, mode) when mode in [:full, :half] do
+  def new(propagators, b_var, mode) when mode in [:full, :half, :inverse_half] do
     new([propagators, b_var, mode])
   end
 
@@ -37,8 +38,9 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   @impl true
-  def reset([propagators, b_var, _mode] = args, state, opts) do
-    state && state || %{active_propagators: bind_variables(propagators, Keyword.get(opts, :constraint_graph))}
+  def reset([propagators, _b_var, _mode] = _args, state, opts) do
+    (state && state) ||
+      %{active_propagators: update_domains(propagators, Keyword.get(opts, :constraint_graph))}
   end
 
   @impl true
@@ -52,48 +54,54 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   def filter(
-        [propagators, b_var, mode] = args,
+        [_propagators, b_var, mode] = _args,
         %{active_propagators: active_propagators} = _state,
         changes
       ) do
-        #Propagator.get_store_from_dict()
-        IO.inspect(b_var.store, label: :store)
-        IO.inspect(variables(args) |> Enum.map(fn var -> {var.name, Domain.to_list(domain(var))} end), label: :variables)
-        filter_impl(mode, b_var, active_propagators, changes)
+    filter_impl(mode, b_var, active_propagators, changes)
   end
 
   defp actions() do
-    %{:full => [
-      &propagate/2,
-      &propagate_negative/2,
-      &terminate_false/1,
-      &terminate_true/1],
+    %{
+      :full => [
+        &propagate/2,
+        &propagate_negative/2,
+        &terminate_false/1,
+        &terminate_true/1
+      ],
       :half => [nil, &propagate_negative/2, nil, &terminate_true/1],
-      :inverse => [&propagate/2, nil, &terminate_false/1, nil]
-
+      :inverse_half => [&propagate/2, nil, &terminate_false/1, nil]
     }
   end
 
-  defp bind_variables(propagators, constraint_graph) do
-    IO.inspect(constraint_graph, label: :constraint_graph)
-    propagators
-    |> Enum.map(fn p -> p end)
+  defp update_domains(propagators, constraint_graph) do
+    Enum.map(propagators, fn %{args: args} = p ->
+      updated_args =
+        Propagator.arg_map(args, fn arg ->
+          (Propagator.is_constant_arg(arg) && arg) ||
+            ConstraintGraph.get_variable(constraint_graph, Interface.id(arg))
+        end)
+
+      Map.put(p, :args, updated_args)
+    end)
   end
 
   ## Callbacks for reified
   defp propagate(propagators, incoming_changes) do
-    res = Enum.reduce_while(propagators, [], fn p, active_propagators_acc ->
-      IO.inspect(p.mod, label: :propagate)
-      case Propagator.filter(p, changes: incoming_changes) do
-        :fail -> {:halt, :fail}
-        %{active?: active?} ->
-          {:cont, active? && [p | active_propagators_acc] || active_propagators_acc}
-      end
-    end)
+    res =
+      Enum.reduce_while(propagators, [], fn p, active_propagators_acc ->
+        case Propagator.filter(p, changes: incoming_changes) do
+          :fail ->
+            {:halt, :fail}
+
+          %{active?: active?} ->
+            {:cont, (active? && [p | active_propagators_acc]) || active_propagators_acc}
+        end
+      end)
 
     cond do
       res == :fail -> :fail
-      #Enum.empty?(res) -> :passive
+      Enum.empty?(res) -> :passive
       true -> {:state, %{active_propagators: res}}
     end
   end
@@ -104,7 +112,6 @@ defmodule CPSolver.Propagator.Reified do
     |> propagate(changes)
   end
 
-
   defp terminate_true(b_var) do
     terminate_propagator(b_var, true)
   end
@@ -114,55 +121,66 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   defp terminate_propagator(b_var, bool) do
-    bool && BoolVar.set_true(b_var) || BoolVar.set_false(b_var)
+    (bool && fix(b_var, 1)) || fix(b_var, 0)
     :passive
   end
 
-
   defp filter_impl(mode, b_var, propagators, changes) do
-    #IO.inspect({self(), Enum.map(propagators, fn p -> Propagator.propagator_domain_values(p) end)}, label: :propagator_values)
-    [propagate_action, propagate_negative_action, fix_to_false_action, fix_to_true_action] = Map.get(actions(), mode)
+    [propagate_action, propagate_negative_action, fix_to_false_action, fix_to_true_action] =
+      Map.get(actions(), mode)
+
     cond do
       BoolVar.true?(b_var) ->
-        IO.inspect(label: :b_true)
-        (propagate_action && propagate_action.(propagators, changes) && active_state(propagators) || :passive)
+        propagate_action && propagate_action.(propagators, changes) && active_state(propagators)
+
       BoolVar.false?(b_var) ->
-        IO.inspect(label: :b_false)
-        (propagate_negative_action && propagate_negative_action.(propagators, changes) && active_state(propagators) || :passive)
+        propagate_negative_action && propagate_negative_action.(propagators, changes) &&
+          active_state(propagators)
+
       true ->
-        IO.inspect(label: :b_not_fixed)
         ## Control variable is not fixed
         case check_propagators(propagators, changes) do
-          :fail -> fix_to_false_action && fix_to_false_action.(b_var) || :passive
-          :resolved -> fix_to_true_action && fix_to_true_action.(b_var) || :passive
-          {:active, active_propagators} ->
+          :fail ->
+            fix_to_false_action && fix_to_false_action.(b_var) && active_state(propagators)
+
+          :entailed ->
+            fix_to_true_action && fix_to_true_action.(b_var) && active_state(propagators)
+
+          active_propagators ->
             active_state(active_propagators)
         end
-        end
+    end
   end
 
   defp initial_state([propagators, _b_var, _mode]) do
     %{active_propagators: propagators}
   end
 
-  defp check_propagators(propagators, incoming_changes) do
+  defp check_propagators(propagators, _incoming_changes) do
     propagators
-    |> Enum.reduce_while([],
+    |> Enum.reduce_while(
+      [],
       fn p, active_propagators_acc ->
-        case Propagator.filter(p, changes: incoming_changes, dry_run: true) |> IO.inspect(label: :check) do
-          :fail -> {:halt, :fail}
-          %{active?: active?} ->
-            {:cont, active? && [p | active_propagators_acc] || active_propagators_acc}
-        end
-      end)
-      |> case do
-        :fail -> :fail
-        active_propagators ->
-          Enum.empty?(active_propagators) && :resolved || {:active, active_propagators}
-        end
+        cond do
+          Propagator.failed?(p) ->
+            {:halt, :fail}
 
+          Propagator.entailed?(p) ->
+            {:cont, active_propagators_acc}
+
+          true ->
+            {:cont, [p | active_propagators_acc]}
+        end
+      end
+    )
+    |> case do
+      :fail ->
+        :fail
+
+      active_propagators ->
+        (Enum.empty?(active_propagators) && :entailed) || active_propagators
+    end
   end
-
 
   defp opposite_propagators(propagators) do
     Enum.map(propagators, fn p -> opposite(p) end)
@@ -179,21 +197,12 @@ defmodule CPSolver.Propagator.Reified do
     %{p | mod: Equal}
   end
 
-  defp opposite(%{mod: Less} = p) do
-    %{p | mod: LessOrEqual}
-    |> swap_args()
-  end
-
-  defp opposite(%{mod: LessOrEqual} = p) do
-    %{p | mod: Less}
-    |> swap_args()
+  defp opposite(%{mod: LessOrEqual, args: [x, y, offset]} = p) do
+    %{p | mod: Less, args: [y, x, -offset]}
   end
 
   defp active_state(propagators) do
-    {:state, %{active_propagators: propagators}}
+    {:state, %{active?: true, active_propagators: propagators}}
   end
 
-  defp swap_args(%{args: [x, y | rest]} = p) do
-    %{p | args: [y, x | rest]}
-  end
 end

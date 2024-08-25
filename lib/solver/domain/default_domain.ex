@@ -52,7 +52,7 @@ defmodule CPSolver.DefaultDomain do
   end
 
   def copy(values) when is_list(values) do
-    Enum.empty?(values) && fail() || Domain.new(values)
+    (Enum.empty?(values) && fail()) || Domain.new(values)
   end
 
   def copy(domain) do

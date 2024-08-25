@@ -4,7 +4,7 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
   describe "Propagator filtering" do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Propagator
-    alias CPSolver.Propagator.LessOrEqual
+    alias CPSolver.Propagator.{Less, LessOrEqual}
     import CPSolver.Test.Helpers
 
     test "filtering" do
@@ -70,6 +70,17 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       ## Cut domain of x so it does not intersect with domain of y
       Variable.remove(x_var, 2)
       assert :passive == LessOrEqual.filter([x_var, y_var], state)
+    end
+
+    test "Less" do
+      x = 1
+      y = 1
+
+      [x_var, y_var] = Enum.map([x, y], fn d -> Variable.new(d) end)
+
+      less_propagator = Propagator.new(Less, [x_var, y_var])
+
+      assert Propagator.filter(less_propagator) == :fail
     end
   end
 end

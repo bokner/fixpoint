@@ -33,11 +33,11 @@ defmodule CPSolver.Propagator.LessOrEqual do
   end
 
   @impl true
-  def resolved?([x, y, offset], _state) do
-    resolved?(x, y, offset)
+  def entailed?([x, y, offset], _state) do
+    entailed?(x, y, offset)
   end
 
-  defp resolved?(x, y, offset) do
+  defp entailed?(x, y, offset) do
     ## x <= y holds on the condition below
     max(x) <= plus(min(y), offset)
   end
@@ -49,6 +49,6 @@ defmodule CPSolver.Propagator.LessOrEqual do
   defp filter_impl(x, y, offset, %{active?: true} = _state) do
     removeAbove(x, plus(max(y), offset))
     removeBelow(y, plus(min(x), -offset))
-    {:state, %{active?: !resolved?(x, y, offset)}}
+    {:state, %{active?: !entailed?(x, y, offset)}}
   end
 end

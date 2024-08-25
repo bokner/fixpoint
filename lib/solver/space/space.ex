@@ -191,13 +191,12 @@ defmodule CPSolver.Space do
          %{
            propagators: propagators,
            constraint_graph: constraint_graph,
-           changes: changes,
-           store: store
+           changes: changes
          } =
            data
        ) do
     try do
-      case Propagation.run(constraint_graph, store, changes) do
+      case Propagation.run(constraint_graph, changes) do
         :fail ->
           handle_failure(data)
 
@@ -223,7 +222,7 @@ defmodule CPSolver.Space do
   end
 
   defp handle_solved(data) do
-    if checkpoint(data.propagators, data.store) do
+    if checkpoint(data.propagators, data.constraint_graph) do
       maybe_tighten_objective_bound(data[:objective])
 
       data
@@ -284,9 +283,9 @@ defmodule CPSolver.Space do
     Interface.update(variable, :domain, var_domain)
   end
 
-  def checkpoint(propagators, store) do
+  def checkpoint(propagators, constraint_graph) do
     Enum.reduce_while(propagators, true, fn p, acc ->
-      case Propagator.filter(p, store: store, reset?: true) do
+      case Propagator.filter(p, reset?: true, constraint_graph: constraint_graph) do
         :fail -> {:halt, false}
         _ -> {:cont, acc}
       end

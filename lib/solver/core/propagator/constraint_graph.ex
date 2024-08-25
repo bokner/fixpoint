@@ -57,19 +57,22 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     propagator
     |> Propagator.variables()
     |> Enum.reduce(graph, fn var, graph_acc ->
+      interface_var = Interface.variable(var)
+
       Graph.add_vertex(graph_acc, propagator_vertex)
-      |> Graph.add_edge(variable_vertex(Interface.id(var)), propagator_vertex,
-        label: %{propagate_on: get_propagate_on(var), arg_position: var.arg_position}
+      |> Graph.add_edge(variable_vertex(interface_var.id), propagator_vertex,
+        label: %{
+          propagate_on: get_propagate_on(var),
+          arg_position: var.arg_position,
+          variable_name: interface_var.name
+        }
       )
     end)
     |> Graph.label_vertex(propagator_vertex, propagator)
   end
 
   def get_propagator(%Graph{} = graph, {:propagator, _propagator_id} = vertex) do
-    case Graph.vertex_labels(graph, vertex) do
-      [] -> nil
-      [p] -> p
-    end
+    get_label(graph, vertex)
   end
 
   def get_propagator(graph, propagator_id) do
@@ -107,6 +110,14 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Enum.empty?(Graph.neighbors(graph, propagator_vertex(propagator.id)))
   end
 
+  def get_variable(%Graph{} = graph, {:variable, _variable_id} = vertex) do
+    get_label(graph, vertex)
+  end
+
+  def get_variable(graph, variable_id) do
+    get_variable(graph, variable_vertex(variable_id))
+  end
+
   ## Remove variable
   def remove_variable(graph, variable_id) do
     remove_vertex(graph, variable_vertex(variable_id))
@@ -116,29 +127,36 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Graph.delete_edges(graph, Graph.edges(graph, variable_vertex(variable_id)))
   end
 
-  ### Remove fixed variables and update propagators with variable domains.
+  ### This is called on creation of new space.
+  ###
+  ### Stop notifications from fixed variables and update propagators with variable domains.
   ### Returns updated graph and a list of propagators bound to variable domains
   def update(graph, vars) do
-    ## Remove fixed variables
     {g1, propagators, variable_map} =
-      Enum.reduce(vars, {graph, [], Map.new()}, fn %{domain: domain, id: var_id} = v,
-                                                   {graph_acc, propagators_acc, variables_acc} ->
-        graph_acc = update_domain(graph_acc, var_id, domain)
+      Enum.reduce(vars, {graph, MapSet.new(), Map.new()}, fn %{domain: domain, id: var_id} = v,
+                                                             {graph_acc, propagators_acc,
+                                                              variables_acc} ->
+        graph_acc = update_variable(graph_acc, var_id, v)
+
         {if Domain.fixed?(domain) do
+           ## Stop notifications from fixed variables
            disconnect_variable(graph_acc, var_id)
          else
            graph_acc
          end,
-         propagators_acc ++
-           Map.keys(
-             propagators_by_variable(graph_acc, Interface.id(v), fn _p_id, edge -> edge end)
-           ), Map.put(variables_acc, Interface.id(v), v)}
+         MapSet.union(
+           propagators_acc,
+           MapSet.new(
+             Map.keys(
+               propagators_by_variable(graph_acc, Interface.id(v), fn _p_id, edge -> edge end)
+             )
+           )
+         ), Map.put(variables_acc, Interface.id(v), v)}
       end)
 
     ## Update domains
     propagators
-    |> Enum.uniq()
-    |> List.foldr({g1, []}, fn p_id, {graph_acc, p_acc} ->
+    |> Enum.reduce({g1, []}, fn p_id, {graph_acc, p_acc} ->
       graph_acc
       |> get_propagator(p_id)
       |> Propagator.bind_to_variables(variable_map, :domain)
@@ -159,15 +177,20 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Map.get(variable, :propagate_on) || Propagator.to_domain_events(:fixed)
   end
 
-  defp update_domain(
-      %Graph{vertex_labels: labels, vertex_identifier: identifier} = graph,
-      var_id,
-      domain
-    ) do
-  vertex = variable_vertex(var_id)
-
-
-  Map.put(graph, :vertex_labels, Map.put(labels, identifier.(vertex), [domain]))
-
+  defp get_label(%Graph{} = graph, vertex) do
+    case Graph.vertex_labels(graph, vertex) do
+      [] -> nil
+      [p] -> p
     end
+  end
+
+  defp update_variable(
+         %Graph{vertex_labels: labels, vertex_identifier: identifier} = graph,
+         var_id,
+         variable
+       ) do
+    vertex = variable_vertex(var_id)
+
+    Map.put(graph, :vertex_labels, Map.put(labels, identifier.(vertex), [variable]))
+  end
 end

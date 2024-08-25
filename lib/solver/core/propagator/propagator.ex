@@ -8,7 +8,7 @@ defmodule CPSolver.Propagator do
               {:state, map()} | :stable | :fail | propagator_event()
   @callback filter(args :: list(), state :: map() | nil, changes :: map()) ::
               {:state, map()} | :stable | :fail | propagator_event()
-  @callback resolved?(Propagator.t(), state :: map() | nil) :: boolean()
+  @callback entailed?(Propagator.t(), state :: map() | nil) :: boolean()
   @callback failed?(Propagator.t(), state :: map() | nil) :: boolean()
 
   @callback variables(args :: list()) :: list()
@@ -19,7 +19,7 @@ defmodule CPSolver.Propagator do
   alias CPSolver.Variable.View
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.DefaultDomain, as: Domain
-  alias CPSolver.ConstraintStore
+  alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils.TupleArray
   alias CPSolver.Utils
 
@@ -56,9 +56,8 @@ defmodule CPSolver.Propagator do
         filter(args, propagator_state)
       end
 
-      def resolved?(args, propagator_state) do
-        !propagator_state[:active?] ||
-        Propagator.entailed?(args)
+      def entailed?(args, propagator_state) do
+        !propagator_state[:active?]
       end
 
       def failed?(args, _propagator_state) do
@@ -69,7 +68,14 @@ defmodule CPSolver.Propagator do
         Propagator.default_variables_impl(args)
       end
 
-      defoverridable arguments: 1, variables: 1, reset: 2, reset: 3, filter: 2, filter: 3, failed?: 2, resolved?: 2
+      defoverridable arguments: 1,
+                     variables: 1,
+                     reset: 2,
+                     reset: 3,
+                     filter: 2,
+                     filter: 3,
+                     failed?: 2,
+                     entailed?: 2
     end
   end
 
@@ -108,12 +114,16 @@ defmodule CPSolver.Propagator do
     Map.put(propagator, :state, mod.reset(args, Map.get(propagator, :state), opts))
   end
 
+  def dry_run(%{args: args} = propagator, opts \\ []) do
+    staged_propagator = %{propagator | args: copy_args(args)}
+    {staged_propagator, filter(staged_propagator, opts)}
+  end
+
   def filter(%{mod: mod, args: args} = propagator, opts \\ []) do
-    args = Keyword.get(opts, :dry_run, false) && copy_args(args) || args
     PropagatorVariable.reset_variable_ops()
-    store = Keyword.get(opts, :store)
     state = propagator[:state]
-    ConstraintStore.set_store(store)
+
+    # IO.inspect({self(), opts, label: :filter_opts})
 
     ## Propagation changes
     ## The propagation may reshedule the filtering and pass the changes that woke
@@ -144,19 +154,13 @@ defmodule CPSolver.Propagator do
       :fail ->
         :fail
     end
+
+    # |> tap(fn res -> IO.inspect({mod, res}, label: :"PROPAGATOR") end)
   end
 
   ## Check if propagator is entailed (i.e., all variables are fixed)
-  def entailed?(%{args: args} = _propagator) do
-    entailed?(args)
-  end
-
-  def entailed?(args) do
-    Enum.all?(args, fn arg -> Interface.fixed?(arg) end)
-  end
-
-  def resolved?(%{mod: mod, args: args} = propagator) do
-    mod.resolved?(args, propagator[:state])
+  def entailed?(%{mod: mod, args: args} = propagator) do
+    mod.entailed?(args, propagator[:state])
   end
 
   def failed?(%{mod: mod, args: args} = propagator) do
@@ -204,18 +208,22 @@ defmodule CPSolver.Propagator do
     get_filter_changes(result != :passive)
   end
 
-  def bind_to_variables(propagator, indexed_variables, var_field) do
-    bound_args =
-      propagator.args
-      |> arg_map(fn arg -> bind_to_variable(arg, indexed_variables, var_field) end)
-
-    Map.put(propagator, :args, bound_args)
+  def bind_to_variables(propagator, %Graph{} = constraint_graph, var_field) do
+    bind_to_variables_impl(
+      propagator,
+      fn var_id -> ConstraintGraph.get_variable(constraint_graph, var_id) end,
+      var_field
+    )
   end
 
-  def bind_to_variables(propagator, constraint_graph, var_field) do
+  def bind_to_variables(propagator, variable_map, var_field) when is_map(variable_map) do
+    bind_to_variables_impl(propagator, fn var_id -> Map.get(variable_map, var_id) end, var_field)
+  end
+
+  defp bind_to_variables_impl(propagator, getter_fun, var_field) do
     bound_args =
       propagator.args
-      |> arg_map(fn arg -> bind_to_variable(arg, constraint_graph, var_field) end)
+      |> arg_map(fn arg -> bind_to_variable(arg, getter_fun, var_field) end)
 
     Map.put(propagator, :args, bound_args)
   end
@@ -228,13 +236,14 @@ defmodule CPSolver.Propagator do
     Map.put(view, :variable, copy_variable(variable))
   end
 
-  defp bind_to_variable(%Variable{id: id} = var, indexed_variables, var_field) do
-    field_value = Map.get(indexed_variables, id) |> Map.get(var_field)
-    Map.put(var, var_field, field_value)
+  defp bind_to_variable(%Variable{id: id} = propagator_var, variable_getter_fun, var_field)
+       when is_function(variable_getter_fun, 1) do
+    source_var = variable_getter_fun.(id)
+    Map.put(propagator_var, var_field, Map.get(source_var, var_field))
   end
 
-  defp bind_to_variable(%View{variable: variable} = view, indexed_variables, var_field) do
-    bound_var = bind_to_variable(variable, indexed_variables, var_field)
+  defp bind_to_variable(%View{variable: variable} = view, variable_getter_fun, var_field) do
+    bound_var = bind_to_variable(variable, variable_getter_fun, var_field)
     Map.put(view, :variable, bound_var)
   end
 
@@ -283,14 +292,15 @@ defmodule CPSolver.Propagator do
   end
 
   def propagator_domain_values(%{args: args} = _p) do
-    arg_map(args, fn arg -> is_constant_arg(arg) && arg || {Interface.variable(arg).name, Utils.domain_values(arg)} end)
+    arg_map(args, fn arg ->
+      (is_constant_arg(arg) && arg) || {Interface.variable(arg).name, Utils.domain_values(arg)}
+    end)
   end
 
   defp copy_args(args) do
     arg_map(args, fn arg ->
-      is_constant_arg(arg) && arg
-      || copy_variable(arg)
+      (is_constant_arg(arg) && arg) ||
+        copy_variable(arg)
     end)
   end
-
 end

@@ -1,5 +1,4 @@
 defmodule CPSolver.Utils do
-
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
 
@@ -40,5 +39,4 @@ defmodule CPSolver.Utils do
     |> Interface.domain()
     |> Domain.to_list()
   end
-
 end
