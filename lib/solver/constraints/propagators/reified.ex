@@ -96,6 +96,9 @@ defmodule CPSolver.Propagator.Reified do
 
           %{active?: active?} ->
             {:cont, (active? && [p | active_propagators_acc]) || active_propagators_acc}
+
+          :stable ->
+            {:cont, [p | active_propagators_acc]}
         end
       end)
 
@@ -204,5 +207,4 @@ defmodule CPSolver.Propagator.Reified do
   defp active_state(propagators) do
     {:state, %{active?: true, active_propagators: propagators}}
   end
-
 end
