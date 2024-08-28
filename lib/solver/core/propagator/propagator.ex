@@ -57,7 +57,7 @@ defmodule CPSolver.Propagator do
       end
 
       def entailed?(args, propagator_state) do
-        !propagator_state[:active?]
+        false
       end
 
       def failed?(args, _propagator_state) do

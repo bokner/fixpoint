@@ -190,7 +190,7 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   ## Opposite propagators
-  alias CPSolver.Propagator.{Equal, NotEqual, Less, LessOrEqual}
+  alias CPSolver.Propagator.{Equal, NotEqual, Less, LessOrEqual, Absolute, AbsoluteNotEqual}
 
   defp opposite(%{mod: Equal} = p) do
     %{p | mod: NotEqual}
@@ -202,6 +202,10 @@ defmodule CPSolver.Propagator.Reified do
 
   defp opposite(%{mod: LessOrEqual, args: [x, y, offset]} = p) do
     %{p | mod: Less, args: [y, x, -offset]}
+  end
+
+  defp opposite(%{mod: Absolute} = p) do
+      %{p | mod: AbsoluteNotEqual}
   end
 
   defp active_state(propagators) do

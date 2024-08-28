@@ -3,12 +3,12 @@ defmodule CPSolverTest.Constraint.Reified do
 
   describe "Reification" do
     alias CPSolver.Constraint.{Reified, HalfReified, InverseHalfReified}
-    alias CPSolver.Constraint.{Equal, NotEqual, LessOrEqual, Less}
+    alias CPSolver.Constraint.{Equal, NotEqual, LessOrEqual, Less, Absolute}
     alias CPSolver.IntVariable
     alias CPSolver.BooleanVariable
     alias CPSolver.Model
 
-    test "equivalence: x<=y <-> b" do
+    test "equivalence: (x `relation` y) <-> b" do
       ~c"""
       MiniZinc model (for verification):
       var 0..1: x;
@@ -32,7 +32,7 @@ defmodule CPSolverTest.Constraint.Reified do
       x_domain = 0..1
       y_domain = 0..1
 
-      for p <- [LessOrEqual, Less, Equal, NotEqual] do
+      for p <- [LessOrEqual, Less, Equal, NotEqual, Absolute] do
         model1 = make_model(x_domain, y_domain, p, Reified)
         {:ok, res} = CPSolver.solve_sync(model1)
         assert res.statistics.solution_count == num_sols(p, Reified)
@@ -49,7 +49,7 @@ defmodule CPSolverTest.Constraint.Reified do
       end
     end
 
-    test "implication (half-reification): x<=y -> b" do
+    test "implication (half-reification): (x `relation` y) -> b" do
       ~c"""
       Minizinc model:
       var 0..1: x;
@@ -63,7 +63,7 @@ defmodule CPSolverTest.Constraint.Reified do
       x_domain = 0..1
       y_domain = 0..1
 
-      for p <- [LessOrEqual, Less, Equal, NotEqual] do
+      for p <- [LessOrEqual, Less, Equal, NotEqual, Absolute] do
         model = make_model(x_domain, y_domain, p, HalfReified)
         {:ok, res} = CPSolver.solve_sync(model)
         assert res.statistics.solution_count == num_sols(p, HalfReified)
@@ -71,7 +71,7 @@ defmodule CPSolverTest.Constraint.Reified do
       end
     end
 
-    test "inverse implication (inverse half-reification): x<=y <- b" do
+    test "inverse implication (inverse half-reification): (x `relation` y) <- b" do
       ~c"""
       Minizinc model:
       var 0..1: x;
@@ -85,11 +85,27 @@ defmodule CPSolverTest.Constraint.Reified do
       x_domain = 0..1
       y_domain = 0..1
 
-      for p <- [LessOrEqual, Less, Equal, NotEqual] do
+      for p <- [LessOrEqual, Less, Equal, NotEqual, Absolute] do
         model = make_model(x_domain, y_domain, p, InverseHalfReified)
         {:ok, res} = CPSolver.solve_sync(model)
         assert res.statistics.solution_count == num_sols(p, InverseHalfReified)
         assert Enum.all?(res.solutions, fn s -> check_solution(s, p, InverseHalfReified) end)
+      end
+    end
+
+    test "Absolute, reified (both negatives and positives in domains)" do
+      x_domain = -1..1
+      y_domain = -1..1
+      for {mode, expected_num_sols} <- [
+        #{Reified, 9},
+        {HalfReified, 15},
+        #{InverseHalfReified, 12}
+      ] 
+        do
+        model = make_model(x_domain, y_domain, Absolute, mode)
+        {:ok, res} = CPSolver.solve_sync(model)
+        assert Enum.all?(res.solutions, fn s -> check_solution(s, Absolute, mode) end)
+        assert res.statistics.solution_count == expected_num_sols
       end
     end
 
@@ -111,9 +127,9 @@ defmodule CPSolverTest.Constraint.Reified do
       checker = Map.get(constraint_data(), constraint_impl)[:check_fun]
 
       case reification_mod do
-        Reified -> b == 0 || (checker.(x, y) && b == 1)
-        HalfReified -> b == 1 || !checker.(x, y)
-        InverseHalfReified -> b == 0 || checker.(x, y)
+        Reified -> checker.(x, y) && b == 1 || b == 0
+        HalfReified -> !checker.(x, y) || b == 1
+        InverseHalfReified -> checker.(x, y) || b == 0
       end
     end
 
@@ -138,7 +154,12 @@ defmodule CPSolverTest.Constraint.Reified do
         NotEqual => %{
           check_fun: fn x, y -> x != y end,
           num_sols: %{Reified => 4, HalfReified => 6, InverseHalfReified => 6}
+        },
+        Absolute => %{
+          check_fun: fn x, y -> abs(x) == y end,
+          num_sols: %{Reified => 4, HalfReified => 6, InverseHalfReified => 6}
         }
+
       }
     end
   end

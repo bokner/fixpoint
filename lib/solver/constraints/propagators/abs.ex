@@ -25,6 +25,30 @@ defmodule CPSolver.Propagator.Absolute do
     {:state, %{}}
   end
 
+  @impl true
+  def failed?([x, y], _state) do
+    max_y = max(y)
+    max(y) < 0 || (
+      abs_min_x = abs(min(x))
+      abs_max_x = abs(max(x))
+      min_x = min(abs_min_x, abs_max_x)
+      max_x = max(abs_min_x, abs_max_x)
+
+
+      min_y = max(0, min(y))
+
+      min_x > max_y || max_x < min_y
+    )
+
+  end
+
+  @impl true
+  def entailed?([x, y], _state) do
+    ## x and y have to be fixed...
+    ## y = |x|
+    fixed?(x) && fixed?(y) && abs(min(x)) == min(y)
+  end
+
   def filter_impl(x, y, changes) do
     ## x and y have 0 and 1 indices in the list of args
     x_idx = 0
@@ -76,4 +100,57 @@ defmodule CPSolver.Propagator.Absolute do
   defp fix_abs(x, value) do
     Enum.each(domain(x) |> Domain.to_list(), fn val -> abs(val) != value && remove(x, val) end)
   end
+end
+
+defmodule CPSolver.Propagator.AbsoluteNotEqual do
+  use CPSolver.Propagator
+
+  def new(x, y) do
+    new([x, y])
+  end
+
+  @impl true
+  defdelegate variables(args), to: CPSolver.Propagator.Absolute
+
+  @impl true
+  def filter([x, y]) do
+    filter_impl(x, y)
+  end
+
+
+  def filter_impl(x, c) when is_integer(c) do
+    remove(x, c)
+    remove(x, -c)
+    :passive
+  end
+
+  def filter_impl(x, y) do
+    cond do
+      fixed?(x) ->
+        remove(y, abs(min(x)))
+        :passive
+
+      fixed?(y) ->
+        y_val = min(y)
+        remove(x, y_val)
+        remove(x, -y_val)
+        :passive
+
+      true ->
+        :stable
+    end
+  end
+
+  @impl true
+  def failed?([x, y], _state) do
+    fixed?(x) && fixed?(y) && abs(min(x)) == min(y)
+  end
+
+  @impl true
+  def entailed?([x, y], _state) do
+    ## |x| != y holds on the condition below
+    max(y) < 0 ||
+    (fixed?(x) && fixed?(y) && abs(min(x)) != min(y))
+  end
+
 end
