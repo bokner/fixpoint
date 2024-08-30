@@ -123,8 +123,6 @@ defmodule CPSolver.Propagator do
     PropagatorVariable.reset_variable_ops()
     state = propagator[:state]
 
-    # IO.inspect({self(), opts, label: :filter_opts})
-
     ## Propagation changes
     ## The propagation may reshedule the filtering and pass the changes that woke
     ## the propagator.
@@ -135,6 +133,7 @@ defmodule CPSolver.Propagator do
 
     try do
       state = (reset? && mod.reset(args, state, opts)) || state
+
 
       case mod.filter(args, state, incoming_changes) do
         :fail ->
@@ -155,7 +154,13 @@ defmodule CPSolver.Propagator do
         :fail
     end
 
-    # |> tap(fn res -> IO.inspect({mod, res}, label: :"PROPAGATOR") end)
+    |> tap(fn result ->
+      case Keyword.get(opts, :debug) do
+        debug_fun when is_function(debug_fun) ->
+          debug_fun.(propagator, Keyword.drop(opts, [:debug]), result)
+        nil -> nil
+      end
+    end)
   end
 
   ## Check if propagator is entailed (i.e., all variables are fixed)
@@ -291,7 +296,7 @@ defmodule CPSolver.Propagator do
     args
   end
 
-  def propagator_domain_values(%{args: args} = _p) do
+  def domain_values(%{args: args} = _p) do
     arg_map(args, fn arg ->
       (is_constant_arg(arg) && arg) || {Interface.variable(arg).name, Utils.domain_values(arg)}
     end)

@@ -20,36 +20,42 @@ defmodule CPSolver.Propagator.Absolute do
   end
 
   @impl true
-  def filter([x, y], state, changes) do
-    (state && filter_impl(x, y, changes)) || initial_reduction(x, y)
-    {:state, %{}}
+  def filter([x, y] = args, state, changes) do
+    (state && map_size(changes) > 0 || initial_reduction(x, y)) && filter_impl(x, y, changes)
+    cond do
+      failed?(args) -> throw(:fail)
+      entailed?(args) -> :passive
+      true ->
+        {:state, %{active: true}}
+    end
   end
 
   @impl true
-  def failed?([x, y], _state) do
+  def failed?([x, y], _state \\ nil) do
     max_y = max(y)
     max(y) < 0 || (
-      abs_min_x = abs(min(x))
-      abs_max_x = abs(max(x))
-      min_x = min(abs_min_x, abs_max_x)
-      max_x = max(abs_min_x, abs_max_x)
-
+      {abs_min_x, abs_max_x} =
+        Enum.min_max_by(domain(x) |> Domain.to_list(), fn val -> abs(val) end)
+        |> then(fn {min_val, max_val} -> {abs(min_val), abs(max_val)} end)
 
       min_y = max(0, min(y))
 
-      min_x > max_y || max_x < min_y
+      abs_min_x > max_y || abs_max_x < min_y
     )
 
   end
 
   @impl true
-  def entailed?([x, y], _state) do
+  def entailed?([x, y], _state \\ nil) do
     ## x and y have to be fixed...
     ## y = |x|
     fixed?(x) && fixed?(y) && abs(min(x)) == min(y)
   end
 
+
   def filter_impl(x, y, changes) do
+    IO.inspect(%{x: {id(x), domain(x) |> Domain.to_list()}, y: {id(y), domain(y) |> Domain.to_list()}, changes: changes })
+
     ## x and y have 0 and 1 indices in the list of args
     x_idx = 0
     y_idx = 1
@@ -104,13 +110,14 @@ end
 
 defmodule CPSolver.Propagator.AbsoluteNotEqual do
   use CPSolver.Propagator
+  alias CPSolver.Propagator.Absolute
 
   def new(x, y) do
     new([x, y])
   end
 
   @impl true
-  defdelegate variables(args), to: CPSolver.Propagator.Absolute
+  defdelegate variables(args), to: Absolute
 
   @impl true
   def filter([x, y]) do
@@ -137,20 +144,18 @@ defmodule CPSolver.Propagator.AbsoluteNotEqual do
         :passive
 
       true ->
-        :stable
+        {:state, %{active: true}}
     end
   end
 
   @impl true
-  def failed?([x, y], _state) do
-    fixed?(x) && fixed?(y) && abs(min(x)) == min(y)
+  def failed?(args, state) do
+    Absolute.entailed?(args, state)
   end
 
   @impl true
-  def entailed?([x, y], _state) do
-    ## |x| != y holds on the condition below
-    max(y) < 0 ||
-    (fixed?(x) && fixed?(y) && abs(min(x)) != min(y))
+  def entailed?(args, state) do
+    Absolute.failed?(args, state)
   end
 
 end
