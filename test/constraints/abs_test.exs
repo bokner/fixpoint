@@ -29,6 +29,15 @@ defmodule CPSolverTest.Constraint.Absolute do
 
     end
 
+    test "inconsistency" do
+      x = Variable.new(0, name: "x")
+      y = Variable.new(1, name: "y")
+
+      model = Model.new([x, y], [Absolute.new(x, y)])
+      {:ok, res} = CPSolver.solve_sync(model)
+      assert res.status == :unsatisfiable
+    end
+
     test "factory" do
       x = Variable.new(-2..2, name: "x")
 

@@ -97,10 +97,10 @@ defmodule CPSolverTest.Constraint.Reified do
       x_domain = -1..1
       y_domain = -1..1
       for {mode, expected_num_sols} <- [
-        #{Reified, 9},
+        {Reified, 9},
         {HalfReified, 15},
-        #{InverseHalfReified, 12}
-      ] 
+        {InverseHalfReified, 12}
+      ]
         do
         model = make_model(x_domain, y_domain, Absolute, mode)
         {:ok, res} = CPSolver.solve_sync(model)

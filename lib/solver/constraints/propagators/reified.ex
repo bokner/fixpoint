@@ -3,7 +3,6 @@ defmodule CPSolver.Propagator.Reified do
 
   alias CPSolver.BooleanVariable, as: BoolVar
   alias CPSolver.Propagator
-  alias CPSolver.Propagator.ConstraintGraph
 
   @moduledoc """
   The propagator for reification constraints.
@@ -38,12 +37,6 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   @impl true
-  def reset([propagators, _b_var, _mode] = _args, state, opts) do
-    (state && state) ||
-      %{active_propagators: update_domains(propagators, Keyword.get(opts, :constraint_graph))}
-  end
-
-  @impl true
   def filter(args) do
     filter(args, initial_state(args), %{})
   end
@@ -61,6 +54,13 @@ defmodule CPSolver.Propagator.Reified do
     filter_impl(mode, b_var, active_propagators, changes)
   end
 
+  @impl true
+  def bind(%{args: [propagators, b_var, mode] = _args} = propagator, source, var_field) do
+    bound_propagators = Enum.map(propagators, fn p -> Propagator.bind(p, source, var_field) end)
+    Map.put(propagator, :args, [bound_propagators, Propagator.bind_to_variable(b_var, source, var_field), mode])
+    |> Map.put(:state, %{active_propagators: bound_propagators})
+  end
+
   defp actions() do
     %{
       :full => [
@@ -72,18 +72,6 @@ defmodule CPSolver.Propagator.Reified do
       :half => [nil, &propagate_negative/2, nil, &terminate_true/1],
       :inverse_half => [&propagate/2, nil, &terminate_false/1, nil]
     }
-  end
-
-  defp update_domains(propagators, constraint_graph) do
-    Enum.map(propagators, fn %{args: args} = p ->
-      updated_args =
-        Propagator.arg_map(args, fn arg ->
-          (Propagator.is_constant_arg(arg) && arg) ||
-            ConstraintGraph.get_variable(constraint_graph, Interface.id(arg))
-        end)
-
-      Map.put(p, :args, updated_args)
-    end)
   end
 
   ## Callbacks for reified
@@ -211,4 +199,5 @@ defmodule CPSolver.Propagator.Reified do
   defp active_state(propagators) do
     {:state, %{active?: true, active_propagators: propagators}}
   end
+
 end

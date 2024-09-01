@@ -54,8 +54,6 @@ defmodule CPSolver.Propagator.Absolute do
 
 
   def filter_impl(x, y, changes) do
-    IO.inspect(%{x: {id(x), domain(x) |> Domain.to_list()}, y: {id(y), domain(y) |> Domain.to_list()}, changes: changes })
-
     ## x and y have 0 and 1 indices in the list of args
     x_idx = 0
     y_idx = 1
