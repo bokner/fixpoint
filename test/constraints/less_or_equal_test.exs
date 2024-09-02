@@ -2,7 +2,7 @@ defmodule CPSolverTest.Constraint.LessOrEqual do
   use ExUnit.Case, async: false
 
   describe "LessOrEqual" do
-    alias CPSolver.Constraint.LessOrEqual
+    alias CPSolver.Constraint.{Less, LessOrEqual}
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Constraint
     alias CPSolver.Model
@@ -25,6 +25,15 @@ defmodule CPSolverTest.Constraint.LessOrEqual do
       {:ok, res} = CPSolver.solve_sync(model)
       assert length(res.solutions) == 3
       assert Enum.all?(res.solutions, fn [x_val, _] -> x_val <= upper_bound end)
+    end
+
+    test "Less" do
+      x = Variable.new(1)
+      y = Variable.new(1)
+      less_constraint = Less.new(x, y)
+      model = Model.new([x, y], [less_constraint])
+      {:ok, res} = CPSolver.solve_sync(model)
+      assert res.status == :unsatisfiable
     end
   end
 end

@@ -37,7 +37,7 @@ defmodule CpSolverTest.Objective do
     end
 
     test "Propagation and tightening" do
-      {:ok, [objective_variable], store} =
+      {:ok, [objective_variable], _store} =
         create_store([Variable.new(1..10)])
 
       min_objective =
@@ -45,7 +45,7 @@ defmodule CpSolverTest.Objective do
         Objective.minimize(objective_variable)
 
       assert %{changes: nil, active?: true, state: nil} ==
-               Propagator.filter(min_propagator, store: store)
+               Propagator.filter(min_propagator)
 
       ## Tighten the bound (this will set the bound to objective_variable.max() - 1)
       Objective.tighten(min_objective)

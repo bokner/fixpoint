@@ -17,10 +17,10 @@ defmodule CPSolverTest.Propagator.Sum do
           Variable.new(d, name: name)
         end)
 
-      {:ok, bound_vars, store} = create_store([y | x])
+      {:ok, bound_vars, _store} = create_store([y | x])
       [y_var | x_vars] = bound_vars
 
-      Propagator.filter(Sum.new(y_var, x_vars), store: store)
+      Propagator.filter(Sum.new(y_var, x_vars))
 
       assert 1 == min(y_var)
       assert 15 == max(y_var)
@@ -34,7 +34,7 @@ defmodule CPSolverTest.Propagator.Sum do
           Variable.new(d, name: name)
         end)
 
-      {:ok, bound_vars, store} = create_store([y | x])
+      {:ok, bound_vars, _store} = create_store([y | x])
 
       [y_var | x_vars] = bound_vars
 
@@ -42,7 +42,7 @@ defmodule CPSolverTest.Propagator.Sum do
 
       sum_propagator = Sum.new(y_var, x_vars)
 
-      Propagator.filter(sum_propagator, store: store)
+      Propagator.filter(sum_propagator)
 
       assert -3 == min(x1_var)
       assert 0 == min(y_var)
@@ -57,14 +57,14 @@ defmodule CPSolverTest.Propagator.Sum do
           Variable.new(d, name: name)
         end)
 
-      {:ok, bound_vars, store} = create_store([y | x])
+      {:ok, bound_vars, _store} = create_store([y | x])
       [y_var | x_vars] = bound_vars
 
       [x1_var, _x2_var, x3_var] = x_vars
 
       sum_propagator = Sum.new(y_var, x_vars)
 
-      Propagator.filter(sum_propagator, store: store)
+      Propagator.filter(sum_propagator)
 
       assert 4 == max(x1_var)
       assert 3 == min(x1_var)
@@ -77,12 +77,12 @@ defmodule CPSolverTest.Propagator.Sum do
       x1 = Variable.new(0..4, name: "x1")
       x2 = Variable.new(0..5, name: "x2")
 
-      {:ok, bound_vars, store} =
+      {:ok, bound_vars, _store} =
         create_store([y, x1, x2])
 
       [y_var, x1_var, x2_var] = bound_vars
 
-      assert :fail == Propagator.filter(Sum.new(y_var, [x1_var, x2_var]), store: store)
+      assert :fail == Propagator.filter(Sum.new(y_var, [x1_var, x2_var]))
     end
 
     test "when summands are views" do

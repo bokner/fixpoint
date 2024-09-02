@@ -11,8 +11,8 @@ defmodule CPSolverTest.SpacePropagation do
 
   test "Propagation on stable space" do
     %{
-      propagators: propagators,
-      variables: [x, y, z] = variables,
+      propagators: _propagators,
+      variables: [x, y, z] = _variables,
       constraint_graph: graph,
       store: store
     } = stable_setup()

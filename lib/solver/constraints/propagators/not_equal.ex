@@ -42,4 +42,16 @@ defmodule CPSolver.Propagator.NotEqual do
         :stable
     end
   end
+
+  @impl true
+  def failed?([x, y, offset], _state) do
+    fixed?(x) && fixed?(y) && min(x) == plus(min(y), offset)
+  end
+
+  @impl true
+  def entailed?([x, y, offset], _state) do
+    ## x != y holds on the condition below
+    fixed?(x) && fixed?(y) && min(x) != plus(min(y), offset)
+  end
+
 end

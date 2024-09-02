@@ -1,4 +1,7 @@
 defmodule CPSolver.Utils do
+  alias CPSolver.Variable.Interface
+  alias CPSolver.DefaultDomain, as: Domain
+
   def on_primary_node?(arg) when is_reference(arg) or is_pid(arg) or is_port(arg) do
     Node.self() == node(arg)
   end
@@ -29,5 +32,11 @@ defmodule CPSolver.Utils do
     for i <- h, j <- cartesian(t) do
       [i | j]
     end
+  end
+
+  def domain_values(variable_or_view) do
+    variable_or_view
+    |> Interface.domain()
+    |> Domain.to_list()
   end
 end

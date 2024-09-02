@@ -5,13 +5,13 @@ defmodule CPSolver.Space.Propagation do
 
   require Logger
 
-  def run(constraint_graph, store, changes \\ %{})
+  def run(constraint_graph, changes \\ %{})
 
-  def run(%Graph{} = constraint_graph, store, changes) do
+  def run(%Graph{} = constraint_graph, changes) do
     constraint_graph
     |> get_propagators()
     |> then(fn propagators ->
-      run_impl(propagators, constraint_graph, store, changes, reset?: true)
+      run_impl(propagators, constraint_graph, propagator_changes(constraint_graph, changes), reset?: true)
       |> finalize()
     end)
   end
@@ -29,26 +29,26 @@ defmodule CPSolver.Space.Propagation do
     end)
   end
 
-  defp run_impl(propagators, constraint_graph, store, domain_changes, opts) do
-    case propagate(propagators, constraint_graph, store, domain_changes, opts) do
+  defp run_impl(propagators, constraint_graph, domain_changes, opts) do
+    case propagate(propagators, constraint_graph, domain_changes, opts) do
       :fail ->
         :fail
 
       {scheduled_propagators, reduced_graph, new_domain_changes} ->
         (MapSet.size(scheduled_propagators) == 0 && reduced_graph) ||
-          run_impl(scheduled_propagators, reduced_graph, store, new_domain_changes, reset?: false)
+          run_impl(scheduled_propagators, reduced_graph, new_domain_changes, reset?: false)
     end
   end
 
-  def propagate(propagators, graph, store) do
-    propagate(propagators, graph, store, [])
+  def propagate(propagators, graph) do
+    propagate(propagators, graph, [])
   end
 
-  def propagate(propagators, graph, store, opts) do
-    propagate(propagators, graph, store, Map.new(), opts)
+  def propagate(propagators, graph, opts) do
+    propagate(propagators, graph, Map.new(), opts)
   end
 
-  @spec propagate(map(), Graph.t(), map(), map(), Keyword.t()) ::
+  @spec propagate(map(), Graph.t(), map(), Keyword.t()) ::
           :fail | {map(), Graph.t(), map()}
   @doc """
   A single pass of propagation.
@@ -56,18 +56,18 @@ defmodule CPSolver.Space.Propagation do
   Side effect: modifies the constraint graph.
   The graph will be modified on every individual Propagator.filter/1, if the latter results in any domain changes.
   """
-  def propagate(propagators, graph, store, domain_changes, opts) when is_list(propagators) do
+  def propagate(propagators, graph, domain_changes, opts) when is_list(propagators) do
     propagators
     |> Map.new(fn p -> {p.id, p} end)
-    |> propagate(graph, store, domain_changes, opts)
+    |> propagate(graph, domain_changes, opts)
   end
 
-  def propagate(%MapSet{} = propagator_ids, graph, store, domain_changes, opts) do
+  def propagate(%MapSet{} = propagator_ids, graph, propagator_changes, opts) do
     Map.new(propagator_ids, fn p_id -> {p_id, ConstraintGraph.get_propagator(graph, p_id)} end)
-    |> propagate(graph, store, domain_changes, opts)
+    |> propagate(graph, propagator_changes, opts)
   end
 
-  def propagate(propagators, graph, store, domain_changes, opts) when is_map(propagators) do
+  def propagate(propagators, graph, propagator_changes, opts) when is_map(propagators) do
     propagators
     |> reorder()
     |> Enum.reduce_while(
@@ -75,9 +75,9 @@ defmodule CPSolver.Space.Propagation do
       fn {p_id, p}, {scheduled_acc, g_acc, changes_acc} = _acc ->
         res =
           Propagator.filter(p,
-            store: store,
             reset?: opts[:reset?],
-            changes: Map.get(domain_changes, p_id)
+            changes: Map.get(propagator_changes, p_id),
+            constraint_graph: graph
           )
 
         case res do
@@ -177,6 +177,15 @@ defmodule CPSolver.Space.Propagation do
   ##
   defp reorder(propagators) do
     propagators
+  end
+
+  defp propagator_changes(%Graph{} = graph, domain_changes) when is_map(domain_changes) do
+    Enum.reduce(domain_changes, Map.new(),
+      fn {var_id, domain_change} = change, changes_acc ->
+        graph
+        |> ConstraintGraph.get_propagator_ids(var_id, domain_change)
+        |> propagator_changes(change, changes_acc)
+      end)
   end
 
   defp propagator_changes(propagator_ids, {_var_id, domain_change} = _change, changes_acc) do

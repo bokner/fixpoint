@@ -269,7 +269,7 @@ defmodule CPSolver do
       Enum.reduce(constraints, [], fn constraint, acc ->
         acc ++
           Enum.map(Constraint.constraint_to_propagators(constraint), fn p ->
-            Propagator.bind_to_variables(p, indexed_variables, :index)
+            Propagator.bind(p, indexed_variables, :index)
           end)
       end)
 

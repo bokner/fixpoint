@@ -172,7 +172,7 @@ timeout = 180_000
     search: {:input_order, :indomain_random},
     stop_on: {:max_solutions, 1},
     timeout: timeout,
-    space_threads: 4
+    space_threads: 2
   )
 
 if res.status == :unsatisfiable do
@@ -447,7 +447,7 @@ search_strategy = {:input_order, :indomain_max}
 
 {:ok, res} =
   CPSolver.solve_sync(model,
-    space_threads: 4,
+    space_threads: 8,
     timeout: 1_000,
     search: search_strategy
   )
