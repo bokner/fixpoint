@@ -59,9 +59,9 @@ defmodule CPSolver.MixProject do
       # These are the default files included in the package
       files: ~w(lib src test data .formatter.exs mix.exs README* LICENSE*
                 ),
-      exclude_patterns: ["lib/examples/hakank/*.ex", "scripts/**", "**/._exs"],
+      exclude_patterns: ["misc/**", "scripts/**", "**/._exs"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/bokner/cpsolver"}
+      links: %{"GitHub" => "https://github.com/bokner/fixpoint"}
     ]
   end
 end
