@@ -182,6 +182,11 @@ defmodule CPSolver.Propagator do
     mod.failed?(args, propagator[:state])
   end
 
+  ## Check if propagator is entailed (i.e., all variables are fixed)
+  def entailed?(%{args: args} = _propagator) do
+    Enum.all?(args, fn arg -> Interface.fixed?(arg) end)
+  end
+
   ## How propagator events map to domain events
   def to_domain_events(:domain_change) do
     [:domain_change | to_domain_events(:bound_change)]
