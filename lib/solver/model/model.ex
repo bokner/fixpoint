@@ -20,7 +20,7 @@ defmodule CPSolver.Model do
 
     %__MODULE__{
       variables: all_variables,
-      constraints: constraints,
+      constraints: constraints |> List.flatten(),
       objective: objective,
       id: Keyword.get(opts, :id, make_ref()),
       name: opts[:name],
@@ -58,5 +58,6 @@ defmodule CPSolver.Model do
     constraints
     |> Enum.map(&Constraint.extract_variables/1)
     |> List.flatten()
+    |> Enum.uniq_by(fn var -> Map.get(var, :id) end)
   end
 end

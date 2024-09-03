@@ -7,7 +7,7 @@ defmodule CPSolver.Constraint.Reified do
   """
   use CPSolver.Constraint
   alias CPSolver.Propagator.Reified, as: ReifPropagator
-
+  
   def new(constraint, b) do
     new([constraint, b])
   end

@@ -163,4 +163,48 @@ defmodule CPSolverTest.Constraint.Reified do
       }
     end
   end
+
+  describe "Factory (implication, equivalence, inverse implication)" do
+    alias CPSolver.Constraint.Factory
+    alias CPSolver.IntVariable
+    alias CPSolver.Model
+    alias CPSolver.Constraint.{LessOrEqual}
+
+    test "equivalence" do
+      model = build_model(1..2, 1..2, 1..2, LessOrEqual, :equiv)
+      {:ok, res} = CPSolver.solve_sync(model)
+      assert res.statistics.solution_count == 4
+      assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
+        ((x <= y) && (y <= z))
+      end)
+    end
+
+    test "implication" do
+      model = build_model(1..2, 1..2, 1..2, LessOrEqual, :impl)
+      {:ok, res} = CPSolver.solve_sync(model)
+      assert res.statistics.solution_count == 6
+      assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
+        ((x > y) || (y <= z))
+      end)
+    end
+
+    test "inverse implication" do
+      model = build_model(1..2, 1..2, 1..2, LessOrEqual, :inverse_impl)
+      {:ok, res} = CPSolver.solve_sync(model)
+      assert res.statistics.solution_count == 6
+      assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
+        ((x <= y) || (y > z))
+      end)
+
+    end
+
+    defp build_model(x_domain, y_domain, z_domain, constraint, kind) do
+      x_var = IntVariable.new(x_domain, name: "x")
+      y_var = IntVariable.new(y_domain, name: "y")
+      z_var = IntVariable.new(z_domain, name: "z")
+      Model.new([x_var, y_var, z_var],
+        apply(Factory, kind, [constraint.new([x_var, y_var]), constraint.new([y_var, z_var])]))
+
+    end
+  end
 end

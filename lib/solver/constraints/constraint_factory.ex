@@ -1,7 +1,8 @@
 defmodule CPSolver.Constraint.Factory do
-  alias CPSolver.Constraint.{Sum, Element, Element2D, Modulo, Absolute}
+  alias CPSolver.Constraint.{Sum, Element, Element2D, Modulo, Absolute, LessOrEqual, Equal, Reified}
   alias CPSolver.Propagator.Modulo, as: ModuloPropagator
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.BooleanVariable
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
   import CPSolver.Variable.View.Factory
@@ -70,6 +71,33 @@ defmodule CPSolver.Constraint.Factory do
     abs_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
     result(abs_var, Absolute.new(x, abs_var))
   end
+
+  defp compose(constraint1, constraint2, relation) do
+    b1 = BooleanVariable.new()
+    b2 = BooleanVariable.new()
+    reif_c1 = Reified.new([constraint1, b1])
+    reif_c2 = Reified.new([constraint2, b2])
+    [reif_c1, reif_c2, relation.new([b1, b2])]
+  end
+
+  ## Implication, equivalence, inverse implication.
+  ## These function produce the list of constraints:
+  ## - 2 reified constraints for constraint1 and constraint2
+  ## - relational constraint (LessOrEqual for implications, Equal for equivalence)
+  ## over control variables induced by reified constraints.
+  ##
+  def impl(constraint1, constraint2) do
+    compose(constraint1, constraint2, LessOrEqual)
+  end
+
+  def equiv(constraint1, constraint2) do
+    compose(constraint1, constraint2, Equal)
+  end
+
+  def inverse_impl(constraint1, constraint2) do
+    impl(constraint2, constraint1)
+  end
+
 
   defp result(derived_variable, constraint) do
     {derived_variable, constraint}
