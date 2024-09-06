@@ -472,9 +472,22 @@ defmodule CPSolver.BitVectorDomain do
     end
   end
 
-  defp bit_count(n) do
+  def bit_count_iter(n) do
     for <<bit::1 <- :binary.encode_unsigned(n)>>, reduce: 0 do
       acc -> acc + bit
     end
+  end
+
+  def bit_count(0) do
+    0
+  end
+  
+  def bit_count(n) do
+    n = (n &&& 0x5555555555555555) + ((n >>> 1) &&& 0x5555555555555555)
+    n = (n &&& 0x3333333333333333) + ((n >>> 2) &&& 0x3333333333333333)
+    n = (n &&& 0x0F0F0F0F0F0F0F0F) + ((n >>> 4) &&& 0x0F0F0F0F0F0F0F0F)
+    n = (n &&& 0x00FF00FF00FF00FF) + ((n >>> 8) &&& 0x00FF00FF00FF00FF)
+    n = (n &&& 0x0000FFFF0000FFFF) + ((n >>> 16) &&& 0x0000FFFF0000FFFF)
+    (n &&& 0x00000000FFFFFFFF) + ((n >>> 32) &&& 0x00000000FFFFFFFF)
   end
 end
