@@ -67,11 +67,11 @@ defmodule CPSolverTest.Variable.View do
       assert -10 == View.min(view1)
 
       ## Remove below
-      assert Domain.to_list(View.domain(view1)) == [-10, -9, -8, -7, -6, -4]
+      assert View.domain(view1) |> Enum.sort() == [-10, -9, -8, -7, -6, -4]
       ## Same as for removeAbove, :max_change reflects the domain change for the variable,
       ## and not the view.
       assert :max_change == View.removeBelow(view1, -7)
-      assert Domain.to_list(View.domain(view1)) == [-7, -6, -4]
+      assert Domain.to_list(View.domain(view1)) |> Enum.sort() == [-7, -6, -4]
       assert :fixed == View.removeBelow(view1, -4)
       assert -4 == View.min(view1)
 
