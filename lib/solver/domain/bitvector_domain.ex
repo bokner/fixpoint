@@ -2,6 +2,7 @@ defmodule CPSolver.BitVectorDomain do
   import Bitwise
 
   @failure_value (1 <<< 64) - 1
+  @max64_value (1 <<< 64)
 
   def new([]) do
     fail()
@@ -58,11 +59,31 @@ defmodule CPSolver.BitVectorDomain do
     to_list(domain, mapper_fun)
   end
 
-  def to_list({bit_vector, offset} = _domain, mapper_fun \\ &Function.identity/1) do
-    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+  def to_list({{:bit_vector, ref} = bit_vector, offset} = domain, mapper_fun \\ &Function.identity/1) do
+    %{
+      min_addr: %{block: current_min_block, offset: _min_offset},
+      max_addr: %{block: current_max_block, offset: _max_offset}
+    } = get_bound_addrs(bit_vector)
 
-    Enum.reduce(min_value..max_value, [], fn i, acc ->
-      (contains?(bit_vector, i, min_value, max_value) && [mapper_fun.(i - offset) | acc]) || acc
+    mapped_lb = mapper_fun.(min(domain))
+    mapped_ub = mapper_fun.(max(domain))
+
+    ## Note: this will only work for monotonic mapper functions.
+    ## We don't have non-monotonic mappers for the moment.
+    ##
+    ## Adjust bounds
+    {lb, ub} = mapped_lb <= mapped_ub && {mapped_lb, mapped_ub} || {mapped_ub, mapped_lb}
+    #IO.inspect({lb, ub}, label: :bounds)
+
+    Enum.reduce(current_min_block..current_max_block, [], fn idx, acc ->
+      n = :atomics.get(ref, idx)
+
+      if n == 0 do
+        acc
+      else
+        delta = bit_positions(n, fn val -> {lb, ub, mapper_fun.(val + 64 * (idx - 1) - offset)} end)
+          acc ++ delta
+      end
     end)
   end
 
@@ -472,9 +493,41 @@ defmodule CPSolver.BitVectorDomain do
     end
   end
 
-  defp bit_count(n) do
+  def bit_count_iter(n) do
     for <<bit::1 <- :binary.encode_unsigned(n)>>, reduce: 0 do
       acc -> acc + bit
     end
   end
+
+  def bit_count(0) do
+    0
+  end
+
+  def bit_count(n) do
+    n = (n &&& 0x5555555555555555) + ((n >>> 1) &&& 0x5555555555555555)
+    n = (n &&& 0x3333333333333333) + ((n >>> 2) &&& 0x3333333333333333)
+    n = (n &&& 0x0F0F0F0F0F0F0F0F) + ((n >>> 4) &&& 0x0F0F0F0F0F0F0F0F)
+    n = (n &&& 0x00FF00FF00FF00FF) + ((n >>> 8) &&& 0x00FF00FF00FF00FF)
+    n = (n &&& 0x0000FFFF0000FFFF) + ((n >>> 16) &&& 0x0000FFFF0000FFFF)
+    (n &&& 0x00000000FFFFFFFF) + ((n >>> 32) &&& 0x00000000FFFFFFFF)
+  end
+
+  def bit_positions(n, mapper) do
+    bit_positions(n, 1, 0, mapper, [])
+  end
+
+  def bit_positions(_n, @max64_value, _iteration, _mapper, positions) do
+    positions
+  end
+
+  def bit_positions(n, shift, iteration, mapper, positions) do
+    acc = (n &&& shift) > 0 &&
+    (
+      {lb, ub, new_value} = mapper.(iteration)
+      new_value >= lb && new_value <= ub &&
+    [new_value | positions] || positions)
+    || positions
+    bit_positions(n, shift <<< 1, iteration + 1, mapper, acc)
+  end
+
 end
