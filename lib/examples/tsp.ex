@@ -143,7 +143,7 @@ defmodule CPSolver.Examples.TSP do
     Enum.max_by(circuit_vars, fn %{index: idx} = var ->
       dom = Interface.domain(var) |> Domain.to_list()
 
-      (length(dom) < 2 && 0) ||
+      (MapSet.size(dom) < 2 && 0) ||
         dom
         |> Enum.map(fn value ->
           TupleArray.at(distances, [idx - 1, value])
@@ -153,7 +153,6 @@ defmodule CPSolver.Examples.TSP do
     end)
   end
 
-  # end
 
   ## solution -> sequence of visits
   def to_route(solution, %{extra: %{n: n}} = _model) do

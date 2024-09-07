@@ -73,16 +73,14 @@ defmodule CPSolver.BitVectorDomain do
     ##
     ## Adjust bounds
     {lb, ub} = mapped_lb <= mapped_ub && {mapped_lb, mapped_ub} || {mapped_ub, mapped_lb}
-    #IO.inspect({lb, ub}, label: :bounds)
 
-    Enum.reduce(current_min_block..current_max_block, [], fn idx, acc ->
+    Enum.reduce(current_min_block..current_max_block, MapSet.new(), fn idx, acc ->
       n = :atomics.get(ref, idx)
 
       if n == 0 do
         acc
       else
-        delta = bit_positions(n, fn val -> {lb, ub, mapper_fun.(val + 64 * (idx - 1) - offset)} end)
-          acc ++ delta
+        MapSet.union(acc, bit_positions(n, fn val -> {lb, ub, mapper_fun.(val + 64 * (idx - 1) - offset)} end))
       end
     end)
   end
@@ -513,7 +511,7 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   def bit_positions(n, mapper) do
-    bit_positions(n, 1, 0, mapper, [])
+    bit_positions(n, 1, 0, mapper, MapSet.new())
   end
 
   def bit_positions(_n, @max64_value, _iteration, _mapper, positions) do
@@ -525,7 +523,7 @@ defmodule CPSolver.BitVectorDomain do
     (
       {lb, ub, new_value} = mapper.(iteration)
       new_value >= lb && new_value <= ub &&
-    [new_value | positions] || positions)
+    MapSet.put(positions, new_value) || positions)
     || positions
     bit_positions(n, shift <<< 1, iteration + 1, mapper, acc)
   end

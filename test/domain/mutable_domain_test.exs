@@ -218,7 +218,7 @@ defmodule CPSolverTest.MutableDomain do
     end
 
     defp assert_domain(domain, values) do
-      assert Domain.to_list(domain) |> Enum.sort() == Enum.sort(values)
+      assert Domain.to_list(domain) |> Enum.sort() == values |> Enum.sort()
       assert Domain.size(domain) == length(values)
       assert Domain.min(domain) == Enum.min(values)
       assert Domain.max(domain) == Enum.max(values)
