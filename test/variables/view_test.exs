@@ -67,11 +67,11 @@ defmodule CPSolverTest.Variable.View do
       assert -10 == View.min(view1)
 
       ## Remove below
-      assert Domain.to_list(View.domain(view1)) == [-10, -9, -8, -7, -6, -4]
+      assert Domain.to_list(View.domain(view1)) == MapSet.new([-10, -9, -8, -7, -6, -4])
       ## Same as for removeAbove, :max_change reflects the domain change for the variable,
       ## and not the view.
       assert :max_change == View.removeBelow(view1, -7)
-      assert Domain.to_list(View.domain(view1)) == [-7, -6, -4]
+      assert Domain.to_list(View.domain(view1)) == MapSet.new([-7, -6, -4])
       assert :fixed == View.removeBelow(view1, -4)
       assert -4 == View.min(view1)
 
@@ -170,7 +170,9 @@ defmodule CPSolverTest.Variable.View do
   end
 
   defp compare_domains(d1, d2, map_fun) do
-    Enum.zip(Domain.to_list(d1) |> Enum.sort(:desc), Domain.to_list(d2) |> Enum.sort(:asc))
+    Enum.zip(
+      Domain.to_list(d1) |> MapSet.to_list() |> Enum.sort(:desc),
+      Domain.to_list(d2) |> MapSet.to_list() |> Enum.sort(:asc))
     |> Enum.all?(fn {val1, val2} -> val2 == map_fun.(val1) end)
   end
 end
