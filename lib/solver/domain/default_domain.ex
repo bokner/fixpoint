@@ -36,11 +36,11 @@ defmodule CPSolver.DefaultDomain do
   end
 
   def to_list(arg) when is_integer(arg) do
-    [arg]
+    MapSet.new([arg])
   end
 
   def to_list(arg) when is_list(arg) do
-    arg
+    MapSet.new(arg)
   end
 
   def to_list(%MapSet{} = arg) do

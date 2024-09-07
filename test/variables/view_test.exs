@@ -171,8 +171,8 @@ defmodule CPSolverTest.Variable.View do
 
   defp compare_domains(d1, d2, map_fun) do
     Enum.zip(
-      Domain.to_list(d1) |> MapSet.to_list() |> Enum.sort(:desc),
-      Domain.to_list(d2) |> MapSet.to_list() |> Enum.sort(:asc))
+      Domain.to_list(d1) |> Enum.sort(:desc),
+      Domain.to_list(d2) |> Enum.sort(:asc))
     |> Enum.all?(fn {val1, val2} -> val2 == map_fun.(val1) end)
   end
 end
