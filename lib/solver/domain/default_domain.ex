@@ -43,6 +43,10 @@ defmodule CPSolver.DefaultDomain do
     arg
   end
 
+  def to_list(%MapSet{} = arg) do
+    arg
+  end
+
   def to_list(domain) do
     Domain.to_list(domain)
   end
