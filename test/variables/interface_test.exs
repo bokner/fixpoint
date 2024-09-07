@@ -70,12 +70,12 @@ defmodule CPSolverTest.Variable.Interface do
 
       ## Fix and Fixed?
       ##
-      assert Interface.domain(var1) |> Domain.to_list() |> Enum.sort() == [2, 3, 4, 5]
+      assert Interface.domain(var1) |> Domain.to_list() == MapSet.new([2, 3, 4, 5])
       assert :fixed == Interface.fix(var1, 2)
       assert Interface.fixed?(var1)
       assert :fail == catch_throw(Interface.fix(var1, 1))
 
-      assert Interface.domain(view2) |> MapSet.to_list() == [-5, -4, -3, -2]
+      assert Interface.domain(view2) == MapSet.new([-5, -4, -3, -2])
       assert :fixed == Interface.fix(view2, -2)
       assert Interface.fixed?(view2)
       assert :fail == catch_throw(Interface.fix(view2, 1))

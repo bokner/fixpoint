@@ -239,7 +239,7 @@ defmodule CPSolverTest.MutableDomain do
       assert Domain.min(1) == 1
       assert Domain.max(1) == 1
 
-      assert Domain.to_list(1) == [1]
+      assert Domain.to_list(1) == MapSet.new([1])
       assert Domain.map(3, fn x -> 2 * x end) == [6]
       assert Domain.copy(1) == 1
 
