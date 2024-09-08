@@ -2,7 +2,7 @@ defmodule CPSolverTest.Constraint.Element do
   use ExUnit.Case, async: false
 
   describe "Element" do
-    alias CPSolver.Constraint.{Element, Element2D}
+    alias CPSolver.Constraint.{Element, Element2D, ElementVar}
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.DefaultDomain, as: Domain
     alias CPSolver.Model
@@ -38,6 +38,17 @@ defmodule CPSolverTest.Constraint.Element do
       {:ok, result} = CPSolver.solve_sync(model)
       refute Enum.empty?(result.solutions)
       assert_element2d(result.solutions, t)
+    end
+
+    test "`element with variable array" do
+      x_var = Variable.new(-3..10, name: "x")
+      y_var = Variable.new(-20..40, name: "y")
+
+      array_var = Enum.map(Enum.with_index([9, 8, 7, 5, 6], 1), fn {val, idx} -> Variable.new(val, name: "T#{idx}") end)
+
+      element_constraint = ElementVar.new(array_var, x_var, y_var)
+      model = Model.new([x_var, y_var | array_var], [element_constraint])
+      {:ok, res} = CPSolver.solve_sync(model)
     end
 
     test "`element` factory function" do

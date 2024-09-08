@@ -11,11 +11,13 @@ defmodule CPSolver.Propagator.ElementVar do
   end
 
   @impl true
-  def bind(%{args: args} = propagator, source, var_field) do
-    args
-    |> List.flatten()
-    |> Enum.map(fn var -> Propagator.bind_to_variable(var, source, var_field) end)
-    |> then(fn bound_args -> Map.put(propagator, :args, bound_args) end)
+  def bind(%{args: [var_array, var_index, var_value] = _args} = propagator, source, var_field) do
+    bound_args =
+      [Enum.map(var_array, fn var -> Propagator.bind_to_variable(var, source, var_field) end),
+      Propagator.bind_to_variable(var_index, source, var_field),
+      Propagator.bind_to_variable(var_index, source, var_value)
+    ]
+    Map.put(propagator, :args, bound_args)
   end
 
   @impl true

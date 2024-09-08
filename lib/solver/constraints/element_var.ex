@@ -10,7 +10,7 @@ defmodule CPSolver.Constraint.ElementVar do
   alias CPSolver.IntVariable, as: Variable
 
   @spec new(
-          [[Variable.variable_or_view()]],
+          [Variable.variable_or_view()],
           Variable.variable_or_view(),
           Variable.variable_or_view()
         ) :: Constraint.t()
@@ -25,6 +25,6 @@ defmodule CPSolver.Constraint.ElementVar do
 
   @impl true
   def arguments([array, x, y]) when is_list(array) do
-    Enum.map(array, &Variable.to_variable/1) ++ [Variable.to_variable(x), Variable.to_variable(y)]
+     [Enum.map(array, &Variable.to_variable/1), Variable.to_variable(x), Variable.to_variable(y)]
   end
 end
