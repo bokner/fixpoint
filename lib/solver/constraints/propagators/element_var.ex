@@ -15,7 +15,7 @@ defmodule CPSolver.Propagator.ElementVar do
     bound_args =
       [Enum.map(var_array, fn var -> Propagator.bind_to_variable(var, source, var_field) end),
       Propagator.bind_to_variable(var_index, source, var_field),
-      Propagator.bind_to_variable(var_index, source, var_value)
+      Propagator.bind_to_variable(var_value, source, var_field)
     ]
     Map.put(propagator, :args, bound_args)
   end
@@ -70,13 +70,18 @@ defmodule CPSolver.Propagator.ElementVar do
     ## present in their domains, then the corresponding index has to be removed.
     value_domain = domain(var_value) |> Domain.to_list()
     index_domain = domain(var_index) |> Domain.to_list()
-    total_value_intersection = for idx <- index_domain, reduce: %{} do
-      intersection_acc ->
-      v_el_domain = domain(Enum.at(var_array, idx)) |> Domain.to_list()
-      intersection = MapSet.intersection(value_domain, v_el_domain)
-      MapSet.size(intersection) == 0 && remove(var_index, idx) && intersection_acc
-      || MapSet.union(intersection, intersection_acc)
-    end
+    total_value_intersection = Enum.reduce(index_domain, MapSet.new(), fn idx, intersection_acc ->
+      case Enum.at(var_array, idx) do
+        nil ->
+          IO.inspect("Unexpected: no element at #{idx}")
+          throw(:unexpected_no_element)
+        elem_var ->
+          elem_var_domain = domain(elem_var) |> Domain.to_list()
+          intersection = MapSet.intersection(value_domain, elem_var_domain)
+          MapSet.size(intersection) == 0 && remove(var_index, idx) && intersection_acc
+          || MapSet.union(intersection, intersection_acc)
+        end
+    end)
 
     ## Step 2
     ## `total_value_intersection` has domain values from D(var_value)
