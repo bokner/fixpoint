@@ -153,7 +153,6 @@ defmodule CPSolver.Examples.TSP do
     end)
   end
 
-
   ## solution -> sequence of visits
   def to_route(solution, %{extra: %{n: n}} = _model) do
     circuit = Enum.take(solution, n)

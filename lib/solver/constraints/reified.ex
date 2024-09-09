@@ -7,7 +7,7 @@ defmodule CPSolver.Constraint.Reified do
   """
   use CPSolver.Constraint
   alias CPSolver.Propagator.Reified, as: ReifPropagator
-  
+
   def new(constraint, b) do
     new([constraint, b])
   end
@@ -20,7 +20,6 @@ defmodule CPSolver.Constraint.Reified do
   def reified_propagator(constraint, b, mode) when mode in [:full, :half, :inverse_half] do
     ReifPropagator.new(Constraint.constraint_to_propagators(constraint), b, mode)
   end
-
 end
 
 defmodule CPSolver.Constraint.HalfReified do
@@ -41,7 +40,6 @@ defmodule CPSolver.Constraint.HalfReified do
   def propagators([constraint, b]) do
     [Reified.reified_propagator(constraint, b, :half)]
   end
-
 end
 
 defmodule CPSolver.Constraint.InverseHalfReified do
@@ -62,5 +60,4 @@ defmodule CPSolver.Constraint.InverseHalfReified do
   def propagators([constraint, b]) do
     [Reified.reified_propagator(constraint, b, :inverse_half)]
   end
-
 end

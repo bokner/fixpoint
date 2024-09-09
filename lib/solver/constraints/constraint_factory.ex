@@ -1,5 +1,15 @@
 defmodule CPSolver.Constraint.Factory do
-  alias CPSolver.Constraint.{Sum, Element, Element2D, Modulo, Absolute, LessOrEqual, Equal, Reified}
+  alias CPSolver.Constraint.{
+    Sum,
+    Element,
+    Element2D,
+    Modulo,
+    Absolute,
+    LessOrEqual,
+    Equal,
+    Reified
+  }
+
   alias CPSolver.Propagator.Modulo, as: ModuloPropagator
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.BooleanVariable
@@ -97,7 +107,6 @@ defmodule CPSolver.Constraint.Factory do
   def inverse_impl(constraint1, constraint2) do
     impl(constraint2, constraint1)
   end
-
 
   defp result(derived_variable, constraint) do
     {derived_variable, constraint}

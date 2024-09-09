@@ -21,10 +21,15 @@ defmodule CPSolver.Propagator.Absolute do
 
   @impl true
   def filter([x, y] = args, state, changes) do
-    (state && map_size(changes) > 0 || initial_reduction(x, y)) && filter_impl(x, y, changes)
+    ((state && map_size(changes) > 0) || initial_reduction(x, y)) && filter_impl(x, y, changes)
+
     cond do
-      failed?(args) -> throw(:fail)
-      entailed?(args) -> :passive
+      failed?(args) ->
+        throw(:fail)
+
+      entailed?(args) ->
+        :passive
+
       true ->
         {:state, %{active: true}}
     end
@@ -33,16 +38,17 @@ defmodule CPSolver.Propagator.Absolute do
   @impl true
   def failed?([x, y], _state \\ nil) do
     max_y = max(y)
-    max(y) < 0 || (
-      {abs_min_x, abs_max_x} =
-        Enum.min_max_by(domain(x) |> Domain.to_list(), fn val -> abs(val) end)
-        |> then(fn {min_val, max_val} -> {abs(min_val), abs(max_val)} end)
 
-      min_y = max(0, min(y))
+    max(y) < 0 ||
+      (
+        {abs_min_x, abs_max_x} =
+          Enum.min_max_by(domain(x) |> Domain.to_list(), fn val -> abs(val) end)
+          |> then(fn {min_val, max_val} -> {abs(min_val), abs(max_val)} end)
 
-      abs_min_x > max_y || abs_max_x < min_y
-    )
+        min_y = max(0, min(y))
 
+        abs_min_x > max_y || abs_max_x < min_y
+      )
   end
 
   @impl true
@@ -51,7 +57,6 @@ defmodule CPSolver.Propagator.Absolute do
     ## y = |x|
     fixed?(x) && fixed?(y) && abs(min(x)) == min(y)
   end
-
 
   def filter_impl(x, y, changes) do
     ## x and y have 0 and 1 indices in the list of args
@@ -122,7 +127,6 @@ defmodule CPSolver.Propagator.AbsoluteNotEqual do
     filter_impl(x, y)
   end
 
-
   def filter_impl(x, c) when is_integer(c) do
     remove(x, c)
     remove(x, -c)
@@ -155,5 +159,4 @@ defmodule CPSolver.Propagator.AbsoluteNotEqual do
   def entailed?(args, state) do
     Absolute.failed?(args, state)
   end
-
 end

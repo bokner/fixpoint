@@ -53,5 +53,4 @@ defmodule CPSolver.Propagator.NotEqual do
     ## x != y holds on the condition below
     fixed?(x) && fixed?(y) && min(x) != plus(min(y), offset)
   end
-
 end

@@ -2,7 +2,7 @@ defmodule CPSolver.BitVectorDomain do
   import Bitwise
 
   @failure_value (1 <<< 64) - 1
-  @max64_value (1 <<< 64)
+  @max64_value 1 <<< 64
 
   def new([]) do
     fail()
@@ -59,7 +59,10 @@ defmodule CPSolver.BitVectorDomain do
     to_list(domain, mapper_fun)
   end
 
-  def to_list({{:bit_vector, ref} = bit_vector, offset} = domain, mapper_fun \\ &Function.identity/1) do
+  def to_list(
+        {{:bit_vector, ref} = bit_vector, offset} = domain,
+        mapper_fun \\ &Function.identity/1
+      ) do
     %{
       min_addr: %{block: current_min_block, offset: _min_offset},
       max_addr: %{block: current_max_block, offset: _max_offset}
@@ -72,7 +75,7 @@ defmodule CPSolver.BitVectorDomain do
     ## We don't have non-monotonic mappers for the moment.
     ##
     ## Adjust bounds
-    {lb, ub} = mapped_lb <= mapped_ub && {mapped_lb, mapped_ub} || {mapped_ub, mapped_lb}
+    {lb, ub} = (mapped_lb <= mapped_ub && {mapped_lb, mapped_ub}) || {mapped_ub, mapped_lb}
 
     Enum.reduce(current_min_block..current_max_block, MapSet.new(), fn idx, acc ->
       n = :atomics.get(ref, idx)
@@ -80,7 +83,10 @@ defmodule CPSolver.BitVectorDomain do
       if n == 0 do
         acc
       else
-        MapSet.union(acc, bit_positions(n, fn val -> {lb, ub, mapper_fun.(val + 64 * (idx - 1) - offset)} end))
+        MapSet.union(
+          acc,
+          bit_positions(n, fn val -> {lb, ub, mapper_fun.(val + 64 * (idx - 1) - offset)} end)
+        )
       end
     end)
   end
@@ -502,12 +508,12 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   def bit_count(n) do
-    n = (n &&& 0x5555555555555555) + ((n >>> 1) &&& 0x5555555555555555)
-    n = (n &&& 0x3333333333333333) + ((n >>> 2) &&& 0x3333333333333333)
-    n = (n &&& 0x0F0F0F0F0F0F0F0F) + ((n >>> 4) &&& 0x0F0F0F0F0F0F0F0F)
-    n = (n &&& 0x00FF00FF00FF00FF) + ((n >>> 8) &&& 0x00FF00FF00FF00FF)
-    n = (n &&& 0x0000FFFF0000FFFF) + ((n >>> 16) &&& 0x0000FFFF0000FFFF)
-    (n &&& 0x00000000FFFFFFFF) + ((n >>> 32) &&& 0x00000000FFFFFFFF)
+    n = (n &&& 0x5555555555555555) + (n >>> 1 &&& 0x5555555555555555)
+    n = (n &&& 0x3333333333333333) + (n >>> 2 &&& 0x3333333333333333)
+    n = (n &&& 0x0F0F0F0F0F0F0F0F) + (n >>> 4 &&& 0x0F0F0F0F0F0F0F0F)
+    n = (n &&& 0x00FF00FF00FF00FF) + (n >>> 8 &&& 0x00FF00FF00FF00FF)
+    n = (n &&& 0x0000FFFF0000FFFF) + (n >>> 16 &&& 0x0000FFFF0000FFFF)
+    (n &&& 0x00000000FFFFFFFF) + (n >>> 32 &&& 0x00000000FFFFFFFF)
   end
 
   def bit_positions(n, mapper) do
@@ -519,13 +525,16 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   def bit_positions(n, shift, iteration, mapper, positions) do
-    acc = (n &&& shift) > 0 &&
-    (
-      {lb, ub, new_value} = mapper.(iteration)
-      new_value >= lb && new_value <= ub &&
-    MapSet.put(positions, new_value) || positions)
-    || positions
+    acc =
+      ((n &&& shift) > 0 &&
+         (
+           {lb, ub, new_value} = mapper.(iteration)
+
+           (new_value >= lb && new_value <= ub &&
+              MapSet.put(positions, new_value)) || positions
+         )) ||
+        positions
+
     bit_positions(n, shift <<< 1, iteration + 1, mapper, acc)
   end
-
 end

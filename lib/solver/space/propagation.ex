@@ -11,7 +11,9 @@ defmodule CPSolver.Space.Propagation do
     constraint_graph
     |> get_propagators()
     |> then(fn propagators ->
-      run_impl(propagators, constraint_graph, propagator_changes(constraint_graph, changes), reset?: true)
+      run_impl(propagators, constraint_graph, propagator_changes(constraint_graph, changes),
+        reset?: true
+      )
       |> finalize()
     end)
   end
@@ -180,12 +182,11 @@ defmodule CPSolver.Space.Propagation do
   end
 
   defp propagator_changes(%Graph{} = graph, domain_changes) when is_map(domain_changes) do
-    Enum.reduce(domain_changes, Map.new(),
-      fn {var_id, domain_change} = change, changes_acc ->
-        graph
-        |> ConstraintGraph.get_propagator_ids(var_id, domain_change)
-        |> propagator_changes(change, changes_acc)
-      end)
+    Enum.reduce(domain_changes, Map.new(), fn {var_id, domain_change} = change, changes_acc ->
+      graph
+      |> ConstraintGraph.get_propagator_ids(var_id, domain_change)
+      |> propagator_changes(change, changes_acc)
+    end)
   end
 
   defp propagator_changes(propagator_ids, {_var_id, domain_change} = _change, changes_acc) do
