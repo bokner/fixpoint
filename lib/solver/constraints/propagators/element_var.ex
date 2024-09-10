@@ -40,7 +40,6 @@ defmodule CPSolver.Propagator.ElementVar do
   defp initial_state([var_array, var_index, var_value]) do
     initial_reduction(var_array, var_index, var_value)
     {:state, %{}}
-    # build_state(array2d, row_index, col_index, value, num_rows, num_cols)
   end
 
   defp initial_reduction(var_array, var_index, _var_value) do

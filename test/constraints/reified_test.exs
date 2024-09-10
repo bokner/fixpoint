@@ -96,12 +96,12 @@ defmodule CPSolverTest.Constraint.Reified do
     test "Absolute, reified (both negatives and positives in domains)" do
       x_domain = -1..1
       y_domain = -1..1
+
       for {mode, expected_num_sols} <- [
-        {Reified, 9},
-        {HalfReified, 15},
-        {InverseHalfReified, 12}
-      ]
-        do
+            {Reified, 9},
+            {HalfReified, 15},
+            {InverseHalfReified, 12}
+          ] do
         model = make_model(x_domain, y_domain, Absolute, mode)
         {:ok, res} = CPSolver.solve_sync(model)
         assert Enum.all?(res.solutions, fn s -> check_solution(s, Absolute, mode) end)
@@ -127,7 +127,7 @@ defmodule CPSolverTest.Constraint.Reified do
       checker = Map.get(constraint_data(), constraint_impl)[:check_fun]
 
       case reification_mod do
-        Reified -> checker.(x, y) && b == 1 || b == 0
+        Reified -> (checker.(x, y) && b == 1) || b == 0
         HalfReified -> !checker.(x, y) || b == 1
         InverseHalfReified -> checker.(x, y) || b == 0
       end
@@ -159,7 +159,6 @@ defmodule CPSolverTest.Constraint.Reified do
           check_fun: fn x, y -> abs(x) == y end,
           num_sols: %{Reified => 4, HalfReified => 6, InverseHalfReified => 6}
         }
-
       }
     end
   end
@@ -174,37 +173,56 @@ defmodule CPSolverTest.Constraint.Reified do
       model = build_model(1..2, 1..2, 1..2, LessOrEqual, :equiv)
       {:ok, res} = CPSolver.solve_sync(model)
       assert res.statistics.solution_count == 4
+
       assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
-        ((x <= y) && (y <= z))
-      end)
+               x <= y && y <= z
+             end)
     end
 
     test "implication" do
       model = build_model(1..2, 1..2, 1..2, LessOrEqual, :impl)
       {:ok, res} = CPSolver.solve_sync(model)
       assert res.statistics.solution_count == 6
+
       assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
-        ((x > y) || (y <= z))
-      end)
+               x > y || y <= z
+             end)
     end
 
     test "inverse implication" do
       model = build_model(1..2, 1..2, 1..2, LessOrEqual, :inverse_impl)
       {:ok, res} = CPSolver.solve_sync(model)
       assert res.statistics.solution_count == 6
-      assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
-        ((x <= y) || (y > z))
-      end)
 
+      assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
+               x <= y || y > z
+             end)
+    end
+
+    test "Failing" do
+      alias CPSolver.IntVariable, as: Variable
+      alias CPSolver.Constraint.Less
+      var1 = Variable.new(1..3)
+      var2 = Variable.new(4..6)
+      var3 = Variable.new(1)
+      var4 = Variable.new(2)
+
+      impl_model = Factory.impl(Less.new([var3, var1]), Less.new([var4, var2]))
+      model = Model.new([] ++ impl_model.derived_variables, impl_model.constraints)
+      {:ok, res} = CPSolver.solve_sync(model)
     end
 
     defp build_model(x_domain, y_domain, z_domain, constraint, kind) do
       x_var = IntVariable.new(x_domain, name: "x")
       y_var = IntVariable.new(y_domain, name: "y")
       z_var = IntVariable.new(z_domain, name: "z")
-      Model.new([x_var, y_var, z_var],
-        apply(Factory, kind, [constraint.new([x_var, y_var]), constraint.new([y_var, z_var])]))
 
+      %{constraints: constraints, derived_variables: tmp_vars} = apply(Factory, kind, [constraint.new([x_var, y_var]), constraint.new([y_var, z_var])])
+      Model.new(
+        [x_var, y_var, z_var] ++ tmp_vars,
+        constraints
+
+      )
     end
   end
 end

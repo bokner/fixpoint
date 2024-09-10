@@ -87,7 +87,7 @@ defmodule CPSolver.Constraint.Factory do
     b2 = BooleanVariable.new()
     reif_c1 = Reified.new([constraint1, b1])
     reif_c2 = Reified.new([constraint2, b2])
-    [reif_c1, reif_c2, relation.new([b1, b2])]
+    %{constraints: [reif_c1, reif_c2, relation.new([b1, b2])], derived_variables: [b1, b2]}
   end
 
   ## Implication, equivalence, inverse implication.

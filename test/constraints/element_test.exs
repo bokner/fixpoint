@@ -101,33 +101,42 @@ defmodule CPSolverTest.Constraint.Element do
     test "inconsistency (index domain outside of index set of the array)" do
       index_var = Variable.new(6..10, name: "index")
       value_var = Variable.new(-20..40, name: "value")
-      array_var = Enum.map(Enum.with_index([9, 8, 7, 5, 6], 1), fn {val, idx} -> Variable.new(val, name: "T#{idx}") end)
+
+      array_var =
+        Enum.map(Enum.with_index([9, 8, 7, 5, 6], 1), fn {val, idx} ->
+          Variable.new(val, name: "T#{idx}")
+        end)
 
       element_constraint = ElementVar.new(array_var, index_var, value_var)
       model = Model.new([index_var, value_var | array_var], [element_constraint])
       {:ok, res} = CPSolver.solve_sync(model)
 
       assert res.status == :unsatisfiable
-
     end
 
     test "`element with fixed values in variable array" do
       index_var = Variable.new(-3..10, name: "index")
       value_var = Variable.new(-20..40, name: "value")
 
-      array_var = Enum.map(Enum.with_index([9, 8, 7, 5, 6], 1), fn {val, idx} -> Variable.new(val, name: "T#{idx}") end)
+      array_var =
+        Enum.map(Enum.with_index([9, 8, 7, 5, 6], 1), fn {val, idx} ->
+          Variable.new(val, name: "T#{idx}")
+        end)
 
       element_constraint = ElementVar.new(array_var, index_var, value_var)
       model = Model.new([index_var, value_var | array_var], [element_constraint])
       {:ok, res} = CPSolver.solve_sync(model)
 
       assert res.statistics.solution_count == 5
-      assert Enum.all?(res.solutions, fn [idx, val | array_vals] -> Enum.at(array_vals, idx) == val end)
+
+      assert Enum.all?(res.solutions, fn [idx, val | array_vals] ->
+               Enum.at(array_vals, idx) == val
+             end)
     end
 
     test "element with non-fixed domains in the array" do
       index_var = Variable.new(-5..2, name: "idx")
-      value_var = Variable.new(-2..2, name:  "value")
+      value_var = Variable.new(-2..2, name: "value")
       array_var = Enum.map(0..4, fn idx -> Variable.new(-1..1, name: "A#{idx}") end)
       element_constraint = ElementVar.new(array_var, index_var, value_var)
       model = Model.new([index_var, value_var | array_var], [element_constraint])
@@ -142,32 +151,34 @@ defmodule CPSolverTest.Constraint.Element do
       """
 
       assert res.statistics.solution_count == 729
-      assert Enum.all?(res.solutions, fn [idx, val | array_vals] -> Enum.at(array_vals, idx) == val end)
 
-
+      assert Enum.all?(res.solutions, fn [idx, val | array_vals] ->
+               Enum.at(array_vals, idx) == val
+             end)
     end
 
     test "enumerated index" do
-        index_var = Variable.new([-5, 0, 2], name: "idx")
-        value_var = Variable.new(-2..2, name:  "value")
-        array_var = Enum.map(0..4, fn idx -> Variable.new(-1..1, name: "A#{idx}") end)
-        element_constraint = ElementVar.new(array_var, index_var, value_var)
-        model = Model.new([index_var, value_var | array_var], [element_constraint])
-        {:ok, res} = CPSolver.solve_sync(model)
+      index_var = Variable.new([-5, 0, 2], name: "idx")
+      value_var = Variable.new(-2..2, name: "value")
+      array_var = Enum.map(0..4, fn idx -> Variable.new(-1..1, name: "A#{idx}") end)
+      element_constraint = ElementVar.new(array_var, index_var, value_var)
+      model = Model.new([index_var, value_var | array_var], [element_constraint])
+      {:ok, res} = CPSolver.solve_sync(model)
 
-        ~S"""
-        Verified by MiniZinc model:
-        var {-5, 0, 2}: idx;
-        var -10..10: value;
-        array[0..4] of var -1..1: arr;
+      ~S"""
+      Verified by MiniZinc model:
+      var {-5, 0, 2}: idx;
+      var -10..10: value;
+      array[0..4] of var -1..1: arr;
 
-        constraint arr[idx] = value;
-        """
-        
-        assert res.statistics.solution_count == 486
-        assert Enum.all?(res.solutions, fn [idx, val | array_vals] -> Enum.at(array_vals, idx) == val end)
+      constraint arr[idx] = value;
+      """
 
+      assert res.statistics.solution_count == 486
+
+      assert Enum.all?(res.solutions, fn [idx, val | array_vals] ->
+               Enum.at(array_vals, idx) == val
+             end)
     end
-
   end
 end
