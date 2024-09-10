@@ -199,17 +199,36 @@ defmodule CPSolverTest.Constraint.Reified do
              end)
     end
 
-    test "Failing" do
+    test "ignoring temporary variables" do
       alias CPSolver.IntVariable, as: Variable
       alias CPSolver.Constraint.Less
-      var1 = Variable.new(1..3)
-      var2 = Variable.new(4..6)
-      var3 = Variable.new(1)
-      var4 = Variable.new(2)
+      x = Variable.new(1..3, name: "x")
+      y = Variable.new(4..6, name: "y")
+      c1 = 1
+      c2 = 5
 
-      impl_model = Factory.impl(Less.new([var3, var1]), Less.new([var4, var2]))
-      model = Model.new([] ++ impl_model.derived_variables, impl_model.constraints)
+      ~S"""
+      Minizinc:
+      var 1..3: x;
+      var 4..6: y;
+
+      constraint (1 < x) -> (5 < y);
+      """
+
+      impl_model = Factory.impl(Less.new(c1, x), Less.new(c2, y))
+      model = Model.new([], impl_model.constraints)
       {:ok, res} = CPSolver.solve_sync(model)
+      assert res.statistics.solution_count == 5
+      ## Positions of variables can be arbitrary, if omitted in the model description
+      x_pos = Enum.find_index(res.variables, fn name -> name  == "x" end)
+      y_pos = Enum.find_index(res.variables, fn name -> name  == "y" end)
+      assert Enum.all?(res.solutions, fn solution ->
+        x = Enum.at(solution, x_pos)
+        y = Enum.at(solution, y_pos)
+        x >= 1 || y > 5
+      end)
+
+
     end
 
     defp build_model(x_domain, y_domain, z_domain, constraint, kind) do
@@ -217,12 +236,12 @@ defmodule CPSolverTest.Constraint.Reified do
       y_var = IntVariable.new(y_domain, name: "y")
       z_var = IntVariable.new(z_domain, name: "z")
 
-      %{constraints: constraints, derived_variables: tmp_vars} = apply(Factory, kind, [constraint.new([x_var, y_var]), constraint.new([y_var, z_var])])
-      Model.new(
-        [x_var, y_var, z_var] ++ tmp_vars,
-        constraints
-
-      )
+      %{constraints: constraints, derived_variables: tmp_vars} =
+        apply(Factory, kind, [constraint.new([x_var, y_var]), constraint.new([y_var, z_var])])
+          Model.new(
+          [x_var, y_var, z_var] ++ tmp_vars,
+          constraints
+        )
     end
   end
 end

@@ -42,10 +42,15 @@ defmodule CPSolver.Constraint do
     Enum.map(propagators, fn p -> Propagator.filter(p) end)
   end
 
-  def extract_variables({_mod, args}) do
-    Enum.flat_map(args, fn arg ->
-      var = Interface.variable(arg)
-      (var && [var]) || []
+  def extract_variables(constraint) do
+    constraint
+    |> constraint_to_propagators()
+    |> Enum.map(fn p ->
+      p
+      |> Propagator.variables()
+      |> Enum.map(fn var -> Interface.variable(var) end)
     end)
+    |> List.flatten()
+    |> Enum.uniq()
   end
 end
