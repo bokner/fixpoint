@@ -18,8 +18,7 @@ defmodule CPSolver.Constraint.Factory do
   import CPSolver.Variable.View.Factory
 
   def element(array, x, opts \\ []) do
-    domain = array
-    y = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
+    y = Variable.new(array, name: Keyword.get(opts, :name, make_ref()))
     result(y, ElementVar.new(array, x, y))
   end
 
