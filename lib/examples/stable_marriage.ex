@@ -81,9 +81,12 @@ defmodule CPSolver.Examples.StableMarriage do
     {:ok, res} = CPSolver.solve_sync(model(instance), opts)
 
     res.solutions
-    |> hd
-    |> then(fn solution -> Enum.zip(res.variables, solution) end)
-    |> print(instance_dimension(instances() |> Map.get(instance)))
+    |> Enum.each(fn solution ->
+      Enum.zip(res.variables, solution)
+      |> print(instance_dimension(instances()|>
+      Map.get(instance)))
+    end)
+
 
     {:ok, res}
   end
@@ -130,8 +133,6 @@ defmodule CPSolver.Examples.StableMarriage do
       end
       |> List.flatten
 
-    #pref_constraints = []
-    #pref_vars = []
     Model.new(wife ++ husband,
     bijections ++ pref_constraints ++ [AllDifferent.new(husband), AllDifferent.new(wife)] )
 
@@ -142,12 +143,11 @@ defmodule CPSolver.Examples.StableMarriage do
   end
 
   def print(solution, n) do
+    IO.puts("\n")
       solution
-      |> Enum.take(2*n)
-      |> Enum.split(n)
-      |> then(fn {w_arr, h_arr} ->
-          Enum.zip(w_arr, h_arr) end)
-      |> Enum.each(fn {{_, w}, {_, h}} -> IO.puts("\u2640:#{w} #{IO.ANSI.red}\u26ad#{IO.ANSI.reset} #{h}:\u2642") end)
+      |> Enum.take(n)
+      |> Enum.with_index(0)
+      |> Enum.each(fn {{_wife_name, h}, w} -> IO.puts("\u2640:#{w+1} #{IO.ANSI.red}\u26ad#{IO.ANSI.reset} #{h+1}:\u2642") end)
   end
 
   def check_solution(solution, instance) do

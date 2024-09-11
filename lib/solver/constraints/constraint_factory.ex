@@ -18,7 +18,12 @@ defmodule CPSolver.Constraint.Factory do
   import CPSolver.Variable.View.Factory
 
   def element(array, x, opts \\ []) do
-    y = Variable.new(array, name: Keyword.get(opts, :name, make_ref()))
+    y_domain = Enum.reduce(array,
+      MapSet.new(), fn el, acc ->
+        Interface.domain(el) |> Domain.to_list() |> MapSet.union(acc)
+      end)
+      |> MapSet.to_list()
+    y = Variable.new(y_domain, name: Keyword.get(opts, :name, make_ref()))
     result(y, ElementVar.new(array, x, y))
   end
 
