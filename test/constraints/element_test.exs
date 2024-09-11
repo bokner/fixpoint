@@ -83,7 +83,7 @@ defmodule CPSolverTest.Constraint.Element do
     ## Placeholder will be eliminated in upcoming versions.
     ##
     defp assert_element(solutions, t) do
-      assert Enum.all?(solutions, fn [y_value, z_value, _placeholder] ->
+      assert Enum.all?(solutions, fn [y_value, z_value | _placeholder] ->
                Enum.at(t, y_value) == z_value
              end)
     end
@@ -118,13 +118,13 @@ defmodule CPSolverTest.Constraint.Element do
       index_var = Variable.new(-3..10, name: "index")
       value_var = Variable.new(-20..40, name: "value")
 
-      array_var =
-        Enum.map(Enum.with_index([9, 8, 7, 5, 6], 1), fn {val, idx} ->
-          Variable.new(val, name: "T#{idx}")
-        end)
+      array_values = [9, 8, 7, 5, 6]
+      #  Enum.map(Enum.with_index([9, 8, 7, 5, 6], 1), fn {val, idx} ->
+      #    Variable.new(val, name: "T#{idx}")
+      #  end)
 
-      element_constraint = ElementVar.new(array_var, index_var, value_var)
-      model = Model.new([index_var, value_var | array_var], [element_constraint])
+      element_constraint = ElementVar.new(array_values, index_var, value_var)
+      model = Model.new([index_var, value_var | array_values], [element_constraint])
       {:ok, res} = CPSolver.solve_sync(model)
 
       assert res.statistics.solution_count == 5

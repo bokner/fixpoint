@@ -5,7 +5,7 @@ defmodule CPSolver.Examples.StableMarriage do
   """
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
-  alias CPSolver.Constraint.{ElementVar, Element2D, Less, LessOrEqual}
+  alias CPSolver.Constraint.{ElementVar, Less}
   alias CPSolver.Constraint.Factory, as: ConstraintFactory
   alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
 
@@ -78,14 +78,14 @@ defmodule CPSolver.Examples.StableMarriage do
   end
 
   def solve(instance, opts \\ []) do
-    [:ok, res] = CPSolver.solve_sync(model(instance), opts)
+    {:ok, res} = CPSolver.solve_sync(model(instance), opts)
 
     res.solutions
     |> hd
     |> then(fn solution -> Enum.zip(res.variables, solution) end)
-    |> print()
+    |> print(instance_dimension(instances() |> Map.get(instance)))
 
-    [:ok, res]
+    {:ok, res}
   end
 
   def model(instance) do
@@ -104,8 +104,8 @@ defmodule CPSolver.Examples.StableMarriage do
       ElementVar.new(wife, Enum.at(husband, w), w)
     end
 
-    {pref_constraints, pref_vars} = for w <- range, h <- range, reduce: {[], []} do
-      {constraints_acc, vars_acc} ->
+    pref_constraints = for w <- range, h <- range, reduce: [] do
+      constraints_acc ->
       #rankMen[h,w] < rankMen[h, wife[h]] ->
       #  rankWomen[w,husband[w]] < rankWomen[w, h]
       ## /\
@@ -123,18 +123,17 @@ defmodule CPSolver.Examples.StableMarriage do
         Less.new([rankMen_h_w, rankMen_h_w_var]),
         Less.new([rankWomen_w_h_var, rankWomen_w_h]))
 
-      {constraints_acc ++
+      constraints_acc ++
         impl_submodel.constraints ++
-        [elementRankMen, elementRankWomen],
-        vars_acc ++
-        impl_submodel.derived_variables ++
-        [Variable.new(rankMen_h_w), rankMen_h_w_var, Variable.new(rankWomen_w_h), rankWomen_w_h_var]}
+        [elementRankMen, elementRankWomen]
+
       end
+      |> List.flatten
 
     #pref_constraints = []
     #pref_vars = []
-    Model.new((wife ++ husband) |> List.flatten(),
-    (bijections ++ pref_constraints) |> List.flatten())
+    Model.new(wife ++ husband,
+    bijections ++ pref_constraints ++ [AllDifferent.new(husband), AllDifferent.new(wife)] )
 
   end
 
@@ -142,7 +141,55 @@ defmodule CPSolver.Examples.StableMarriage do
     Map.get(data, :rankWomen) |> length
   end
 
-  def print(solution) do
-    :todo
+  def print(solution, n) do
+      solution
+      |> Enum.take(2*n)
+      |> Enum.split(n)
+      |> then(fn {w_arr, h_arr} ->
+          Enum.zip(w_arr, h_arr) end)
+      |> Enum.each(fn {{_, w}, {_, h}} -> IO.puts("\u2640:#{w} #{IO.ANSI.red}\u26ad#{IO.ANSI.reset} #{h}:\u2642") end)
+  end
+
+  def check_solution(solution, instance) do
+    data = instances()[instance]
+    women_prefs = Map.get(data, :rankWomen)
+    men_prefs = Map.get(data, :rankMen)
+    n = instance_dimension(data)
+
+    {women_assignments, men_assignments} = solution
+    |> Enum.take(2*n)
+    |> Enum.split(n)
+
+    ~S"""
+      for w in women:
+          for m in [men w would prefer over current_partner(w)]:
+              if m prefers w to current_partner(m) return false
+
+      return true
+    """
+    Enum.all?(0..n-1, fn w ->
+      w_prefs = Enum.at(women_prefs, w)
+      current_partner = Enum.at(women_assignments, w)
+      ## Walk over preferences until either the male partner prefers w to current female,
+      ## (which breaks stability),
+      ## or the current partner is the best choice.
+      #
+      Enum.reduce_while(0..n-1, true,
+        fn candidate, _acc ->
+
+            if current_partner == Enum.at(w_prefs, candidate) do
+               {:halt, true}
+            else
+
+              candidate_current_partner = Enum.at(men_assignments, candidate)
+              candidate_prefs = Enum.at(men_prefs, candidate)
+              ## Candidate prefers current partner to w
+              Enum.find_index(candidate_prefs, fn x -> x == w end) >
+                Enum.find_index(candidate_prefs, fn x -> x == candidate_current_partner end) && {:cont, true}
+                || {:halt, false}
+            end
+    end)
+    end)
+
   end
 end

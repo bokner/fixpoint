@@ -15,7 +15,7 @@ defmodule CPSolver.Constraint.ElementVar do
           Variable.variable_or_view()
         ) :: Constraint.t()
   def new(array, x, y) do
-    new([array, x, y])
+    new(arguments([array, x, y]))
   end
 
   @impl true

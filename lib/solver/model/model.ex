@@ -1,6 +1,6 @@
 defmodule CPSolver.Model do
   alias CPSolver.Constraint
-  alias CPSolver.Variable
+  alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
   alias CPSolver.Objective
 
@@ -29,7 +29,12 @@ defmodule CPSolver.Model do
   end
 
   def init_model(variables, constraints, objective) do
-    variable_map = Map.new(variables, fn v -> {Interface.id(v), Interface.variable(v)} end)
+    safe_variables = Enum.map(variables, fn v ->
+      is_integer(v) && Variable.new(v) || v
+    end)
+
+    variable_map = Map.new(safe_variables, fn v ->
+      {Interface.id(v), Interface.variable(v)} end)
 
     ## Additional variables may come from constraint definitions
     ## (example: LessOrEqual constraint, where the second argument is a constant value).
@@ -39,7 +44,7 @@ defmodule CPSolver.Model do
       |> extract_variables_from_constraints()
       |> Enum.reject(fn c_var -> Map.has_key?(variable_map, c_var.id) end)
 
-    (variables ++ additional_variables)
+    (safe_variables ++ additional_variables)
     |> Enum.with_index(1)
     |> Enum.map_reduce(objective, fn {var, idx}, obj_acc ->
       {

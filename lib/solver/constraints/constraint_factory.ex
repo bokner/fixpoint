@@ -1,7 +1,7 @@
 defmodule CPSolver.Constraint.Factory do
   alias CPSolver.Constraint.{
     Sum,
-    Element,
+    ElementVar,
     Element2D,
     Modulo,
     Absolute,
@@ -20,7 +20,7 @@ defmodule CPSolver.Constraint.Factory do
   def element(array, x, opts \\ []) do
     domain = array
     y = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
-    result(y, Element.new(array, x, y))
+    result(y, ElementVar.new(array, x, y))
   end
 
   def element2d(array2d, x, y, opts \\ []) do
