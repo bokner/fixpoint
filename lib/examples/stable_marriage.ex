@@ -1,6 +1,7 @@
 defmodule CPSolver.Examples.StableMarriage do
   @doc """
-    Stable marriage problem
+    Stable marriage problem.
+    https://en.wikipedia.org/wiki/Stable_marriage_problem.
 
   """
   alias CPSolver.IntVariable, as: Variable
@@ -109,11 +110,6 @@ defmodule CPSolver.Examples.StableMarriage do
 
     pref_constraints = for w <- range, h <- range, reduce: [] do
       constraints_acc ->
-      #rankMen[h,w] < rankMen[h, wife[h]] ->
-      #  rankWomen[w,husband[w]] < rankWomen[w, h]
-      ## /\
-      ## rankWomen[w,h] < rankWomen[w,husband[w]] ->
-      ## rankMen[h,wife[h]] < rankMen[h,w]
       rankMen_h = Map.get(data, :rankMen) |> Enum.at(h)
       rankMen_h_w = rankMen_h |> Enum.at(w)
       {rankMen_h_w_var, elementRankMen} = ConstraintFactory.element(rankMen_h, Enum.at(wife, h))
@@ -150,45 +146,43 @@ defmodule CPSolver.Examples.StableMarriage do
       |> Enum.each(fn {{_wife_name, h}, w} -> IO.puts("\u2640:#{w+1} #{IO.ANSI.red}\u26ad#{IO.ANSI.reset} #{h+1}:\u2642") end)
   end
 
-  def check_solution(solution, instance) do
-    data = instances()[instance]
-    women_prefs = Map.get(data, :rankWomen)
-    men_prefs = Map.get(data, :rankMen)
-    n = instance_dimension(data)
-
-    {women_assignments, men_assignments} = solution
-    |> Enum.take(2*n)
-    |> Enum.split(n)
-
-    ~S"""
+  @doc """
+    Pseudocode for checking stability
+    (https://stackoverflow.com/questions/58439880/algorithm-to-verify-stable-matching)
+    
       for w in women:
           for m in [men w would prefer over current_partner(w)]:
               if m prefers w to current_partner(m) return false
 
       return true
-    """
-    Enum.all?(0..n-1, fn w ->
-      w_prefs = Enum.at(women_prefs, w)
-      current_partner = Enum.at(women_assignments, w)
-      ## Walk over preferences until either the male partner prefers w to current female,
-      ## (which breaks stability),
-      ## or the current partner is the best choice.
-      #
-      Enum.reduce_while(0..n-1, true,
-        fn candidate, _acc ->
+  """
+  def check_solution(solution, instance) do
+    data = instances()[instance]
+    women_prefs = Map.get(data, :rankWomen)
+    men_prefs = Map.get(data, :rankMen)
+    n = instance_dimension(data)
+    {women_assignments, men_assignments} = Enum.take(solution, 2*n) |> Enum.split(n)
+    men_lookup = Enum.with_index(men_assignments, 0) |> Map.new(fn {partner, idx} -> {idx, partner} end)
 
-            if current_partner == Enum.at(w_prefs, candidate) do
-               {:halt, true}
-            else
+    women_assignments
+    |> Enum.with_index(0)
+    |> Enum.take(1)
+    |> Enum.all?(fn {current_partner, w} ->
+      w_prefs = Enum.at(women_prefs, w) |> Enum.map(fn p -> p - 1 end)
+      current_partner_rank = Enum.find_index(w_prefs, fn p -> p == current_partner end)
+      ## Walk over candidates with higher ranks.
+      ## If any of candidates prefers w over his current partner, stability doesn't hold
+      Enum.take(w_prefs, current_partner_rank)
+      |> Enum.all?(fn candidate ->
+        candidate_prefs = Enum.at(men_prefs, candidate) |> Enum.map(fn p -> p - 1 end)
+        candidate_current_partner = Map.get(men_lookup, candidate)
+        candidate_current_partner_rank = Enum.find_index(candidate_prefs, fn p -> p == candidate_current_partner end)
+        candidate_w_rank = Enum.find_index(candidate_prefs, fn p -> p == w end)
+        ## Candidate prefers current partner to w
+        candidate_w_rank < candidate_current_partner_rank
+      end)
 
-              candidate_current_partner = Enum.at(men_assignments, candidate)
-              candidate_prefs = Enum.at(men_prefs, candidate)
-              ## Candidate prefers current partner to w
-              Enum.find_index(candidate_prefs, fn x -> x == w end) >
-                Enum.find_index(candidate_prefs, fn x -> x == candidate_current_partner end) && {:cont, true}
-                || {:halt, false}
-            end
-    end)
+
     end)
 
   end
