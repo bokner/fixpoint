@@ -26,7 +26,6 @@ defmodule CPSolverTest.Constraint.Absolute do
       {:ok, res} = CPSolver.solve_sync(model)
       assert res.statistics.solution_count == 5
       assert check_solutions(res)
-
     end
 
     test "inconsistency" do

@@ -117,7 +117,8 @@ defmodule CPSolver.Propagator.Element2D do
     Graph.delete_vertex(graph, vertex)
   end
 
-  defp remove_vertex(graph, {signature, _value} = vertex) when signature in [:row_index, :col_index] do
+  defp remove_vertex(graph, {signature, _value} = vertex)
+       when signature in [:row_index, :col_index] do
     graph
     |> Graph.delete_vertex(vertex)
     ## We delete all edges related to this vertex (that is, labelled {:signature, value})

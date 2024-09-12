@@ -107,13 +107,11 @@ defmodule CPSolver.Propagator do
   end
 
   def variables(%{mod: mod, args: args} = _propagator) do
-    args
+    mod_variables = mod.variables(Enum.to_list(args))
+
+    mod_variables
     |> Enum.with_index()
-    |> Enum.map(fn {arg, idx} ->
-      (is_constant_arg(arg) && arg) ||
-        Map.put(arg, :arg_position, idx)
-    end)
-    |> mod.variables()
+    |> Enum.map(fn {var, idx} -> Map.put(var, :arg_position, idx) end)
   end
 
   def reset(%{mod: mod, args: args} = propagator, opts \\ []) do
@@ -144,7 +142,6 @@ defmodule CPSolver.Propagator do
     try do
       state = (reset? && mod.reset(args, state, opts)) || state
 
-
       case mod.filter(args, state, incoming_changes) do
         :fail ->
           :fail
@@ -163,12 +160,13 @@ defmodule CPSolver.Propagator do
       :fail ->
         :fail
     end
-
     |> tap(fn result ->
       case Keyword.get(opts, :debug) do
         debug_fun when is_function(debug_fun) ->
           debug_fun.(propagator, Keyword.drop(opts, [:debug]), result)
-        nil -> nil
+
+        nil ->
+          nil
       end
     end)
   end

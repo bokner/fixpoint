@@ -1,5 +1,15 @@
 defmodule CPSolver.Constraint.Factory do
-  alias CPSolver.Constraint.{Sum, Element, Element2D, Modulo, Absolute, LessOrEqual, Equal, Reified}
+  alias CPSolver.Constraint.{
+    Sum,
+    ElementVar,
+    Element2D,
+    Modulo,
+    Absolute,
+    LessOrEqual,
+    Equal,
+    Reified
+  }
+
   alias CPSolver.Propagator.Modulo, as: ModuloPropagator
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.BooleanVariable
@@ -8,9 +18,13 @@ defmodule CPSolver.Constraint.Factory do
   import CPSolver.Variable.View.Factory
 
   def element(array, x, opts \\ []) do
-    domain = array
-    y = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
-    result(y, Element.new(array, x, y))
+    y_domain = Enum.reduce(array,
+      MapSet.new(), fn el, acc ->
+        Interface.domain(el) |> Domain.to_list() |> MapSet.union(acc)
+      end)
+      |> MapSet.to_list()
+    y = Variable.new(y_domain, name: Keyword.get(opts, :name, make_ref()))
+    result(y, ElementVar.new(array, x, y))
   end
 
   def element2d(array2d, x, y, opts \\ []) do
@@ -77,7 +91,7 @@ defmodule CPSolver.Constraint.Factory do
     b2 = BooleanVariable.new()
     reif_c1 = Reified.new([constraint1, b1])
     reif_c2 = Reified.new([constraint2, b2])
-    [reif_c1, reif_c2, relation.new([b1, b2])]
+    %{constraints: [reif_c1, reif_c2, relation.new([b1, b2])], derived_variables: [b1, b2]}
   end
 
   ## Implication, equivalence, inverse implication.
@@ -97,7 +111,6 @@ defmodule CPSolver.Constraint.Factory do
   def inverse_impl(constraint1, constraint2) do
     impl(constraint2, constraint1)
   end
-
 
   defp result(derived_variable, constraint) do
     {derived_variable, constraint}

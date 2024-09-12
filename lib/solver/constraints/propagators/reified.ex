@@ -57,7 +57,12 @@ defmodule CPSolver.Propagator.Reified do
   @impl true
   def bind(%{args: [propagators, b_var, mode] = _args} = propagator, source, var_field) do
     bound_propagators = Enum.map(propagators, fn p -> Propagator.bind(p, source, var_field) end)
-    Map.put(propagator, :args, [bound_propagators, Propagator.bind_to_variable(b_var, source, var_field), mode])
+
+    Map.put(propagator, :args, [
+      bound_propagators,
+      Propagator.bind_to_variable(b_var, source, var_field),
+      mode
+    ])
     |> Map.put(:state, %{active_propagators: bound_propagators})
   end
 
@@ -193,11 +198,10 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   defp opposite(%{mod: Absolute} = p) do
-      %{p | mod: AbsoluteNotEqual}
+    %{p | mod: AbsoluteNotEqual}
   end
 
   defp active_state(propagators) do
     {:state, %{active?: true, active_propagators: propagators}}
   end
-
 end
