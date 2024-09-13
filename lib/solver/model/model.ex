@@ -16,11 +16,12 @@ defmodule CPSolver.Model do
         }
 
   def new(variables, constraints, opts \\ []) do
+    constraints = normalize_constraints(constraints)
     {all_variables, objective} = init_model(variables, constraints, opts[:objective])
 
     %__MODULE__{
       variables: all_variables,
-      constraints: constraints |> List.flatten(),
+      constraints: constraints,
       objective: objective,
       id: Keyword.get(opts, :id, make_ref()),
       name: opts[:name],
@@ -64,5 +65,15 @@ defmodule CPSolver.Model do
     |> Enum.map(&Constraint.extract_variables/1)
     |> List.flatten()
     |> Enum.uniq_by(fn var -> Map.get(var, :id) end)
+  end
+
+  ~S"""
+    Transform list of constraints of different types
+    into the list of plain constraints.
+    For now just flatten (but maybe more in the future
+    for factory-constructed constraints etc.)
+  """
+  defp normalize_constraints(constraints) do
+    List.flatten(constraints)
   end
 end
