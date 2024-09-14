@@ -14,10 +14,6 @@ defmodule CPSolver.Propagator.Absolute do
     |> Enum.map(fn var -> set_propagate_on(var, :bound_change) end)
   end
 
-  @impl true
-  def filter(args) do
-    filter(args, nil)
-  end
 
   @impl true
   def filter([x, y] = args, state, changes) do
@@ -123,7 +119,7 @@ defmodule CPSolver.Propagator.AbsoluteNotEqual do
   defdelegate variables(args), to: Absolute
 
   @impl true
-  def filter([x, y]) do
+  def filter([x, y], _state, _changes) do
     filter_impl(x, y)
   end
 

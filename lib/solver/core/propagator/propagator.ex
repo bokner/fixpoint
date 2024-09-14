@@ -4,10 +4,7 @@ defmodule CPSolver.Propagator do
   @callback reset(args :: list(), state :: map()) :: map() | nil
   @callback reset(args :: list(), state :: map(), opts :: Keyword.t()) :: map() | nil
   @callback bind(Propagator.t(), source :: any(), variable_field :: atom()) :: Propagator.t()
-  @callback filter(args :: list()) :: {:state, map()} | :stable | :fail | propagator_event()
-  @callback filter(args :: list(), state :: map() | nil) ::
-              {:state, map()} | :stable | :fail | propagator_event()
-  @callback filter(args :: list(), state :: map() | nil, changes :: map()) ::
+  @callback filter(args :: list(), state :: map(), changes :: map()) ::
               {:state, map()} | :stable | :fail | propagator_event()
   @callback entailed?(Propagator.t(), state :: map() | nil) :: boolean()
   @callback failed?(Propagator.t(), state :: map() | nil) :: boolean()
@@ -53,14 +50,6 @@ defmodule CPSolver.Propagator do
         Map.put(propagator, :args, Propagator.bind_to_variables(args, source, var_field))
       end
 
-      def filter(args, _propagator_state) do
-        filter(args)
-      end
-
-      def filter(args, propagator_state, _incoming_changes) do
-        filter(args, propagator_state)
-      end
-
       def entailed?(args, propagator_state) do
         false
       end
@@ -78,8 +67,6 @@ defmodule CPSolver.Propagator do
                      reset: 2,
                      reset: 3,
                      bind: 3,
-                     filter: 2,
-                     filter: 3,
                      failed?: 2,
                      entailed?: 2
     end

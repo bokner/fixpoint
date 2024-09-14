@@ -61,11 +61,6 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, nil)
-  end
-
-  @impl true
   def filter(all_vars, state, changes) do
     {unfixed_vars, fixed_values} =
       if state do

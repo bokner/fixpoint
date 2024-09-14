@@ -37,16 +37,11 @@ defmodule CPSolver.Propagator.Sum do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, initial_state(args))
+  def filter(all_vars, nil, changes) do
+    filter(all_vars, initial_state(all_vars), changes)
   end
 
-  def filter(args, nil) do
-    filter(args, initial_state(args))
-  end
-
-  @impl true
-  def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_ids: unfixed_ids} = _state) do
+  def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_ids: unfixed_ids} = _state, _changes) do
     {unfixed_vars, updated_unfixed_ids, new_sum} = update_unfixed(all_vars, unfixed_ids)
     updated_sum = sum_fixed + new_sum
     {sum_min, sum_max} = sum_min_max(updated_sum, unfixed_vars)

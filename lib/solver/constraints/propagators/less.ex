@@ -6,8 +6,6 @@ defmodule CPSolver.Propagator.Less do
   # end
 
   defdelegate variables(args), to: LessOrEqual
-  defdelegate filter(args), to: LessOrEqual
-  defdelegate filter(args, state), to: LessOrEqual
 
   def filter(args, state, changes) do
     LessOrEqual.filter(le_args(args), state, changes)

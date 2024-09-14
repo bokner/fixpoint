@@ -13,11 +13,11 @@ defmodule CPSolver.Propagator.NotEqual do
   end
 
   @impl true
-  def filter([x, y]) do
-    filter([x, y, 0])
+  def filter([x, y], state, changes) do
+    filter([x, y, 0], state, changes)
   end
 
-  def filter([x, y, offset]) do
+  def filter([x, y, offset], _state, _changes) do
     filter_impl(x, y, offset)
   end
 

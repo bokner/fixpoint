@@ -15,7 +15,7 @@ defmodule CPSolver.Constraint.Factory do
   alias CPSolver.BooleanVariable
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
-  import CPSolver.Variable.View.Factory
+  alias CPSolver.Variable.View.Factory, as: ViewFactory
 
   def element(array, x, opts \\ []) do
     y_domain = Enum.reduce(array,
@@ -31,6 +31,19 @@ defmodule CPSolver.Constraint.Factory do
     domain = array2d |> List.flatten()
     z = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
     result(z, Element2D.new([array2d, x, y, z]))
+  end
+
+  def element2d_var(array2d, x, y, opts \\ []) do
+    num_rows = length(array2d)
+    num_cols = length(hd(array2d))
+    Interface.removeBelow(x, 0)
+    Interface.removeAbove(x, num_rows - 1)
+    Interface.removeBelow(y, 0)
+    Interface.removeAbove(y, num_cols - 1)
+
+    {flat_idx_var, sum_constraint} = add(ViewFactory.mul(x, num_cols), y, domain: 0..num_rows * num_cols - 1)
+    {z, element_constraint} = element(List.flatten(array2d), flat_idx_var, opts)
+    {z, [sum_constraint, element_constraint]}
   end
 
   def sum(vars, opts \\ []) do
@@ -58,7 +71,7 @@ defmodule CPSolver.Constraint.Factory do
   end
 
   def subtract(var1, var2, opts \\ []) do
-    add(var1, linear(var2, -1, 0), opts)
+    add(var1, ViewFactory.linear(var2, -1, 0), opts)
   end
 
   def mod(x, y, opts \\ []) do

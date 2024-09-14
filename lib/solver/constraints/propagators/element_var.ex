@@ -33,13 +33,8 @@ defmodule CPSolver.Propagator.ElementVar do
       ]
   end
 
-  defp initial_state([[], _var_index, _var_value]) do
+  defp initial_reduction([], _var_index, _var_value) do
     throw(:fail)
-  end
-
-  defp initial_state([var_array, var_index, var_value]) do
-    initial_reduction(var_array, var_index, var_value)
-    {:state, %{}}
   end
 
   defp initial_reduction(var_array, var_index, _var_value) do
@@ -50,18 +45,10 @@ defmodule CPSolver.Propagator.ElementVar do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, initial_state(args))
-  end
-
-  def filter(args, nil) do
-    filter(args, initial_state(args))
-  end
-
-  @impl true
-  def filter([var_array, var_index, var_value] = _args, state) do
+  def filter([var_array, var_index, var_value] = _args, state, _changes) do
+    state || initial_reduction(var_array, var_index, var_value)
     filter_impl(var_array, var_index, var_value)
-    state
+    {:state, %{}}
   end
 
   defp filter_impl(var_array, var_index, var_value) do

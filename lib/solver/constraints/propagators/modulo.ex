@@ -17,10 +17,6 @@ defmodule CPSolver.Propagator.Modulo do
     |> Enum.map(fn var -> set_propagate_on(var, :bound_change) end)
   end
 
-  @impl true
-  def filter(args) do
-    filter(args, initial_state(args))
-  end
 
   @impl true
   def filter(args, nil, changes) do

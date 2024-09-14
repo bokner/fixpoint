@@ -136,17 +136,11 @@ defmodule CPSolver.Propagator.Element2D do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, initial_state(args))
+  def filter(args, state, changes) do
+    filter_impl(args, state && state || initial_state(args), changes)
   end
 
-  def filter(args, nil) do
-    filter(args, initial_state(args))
-  end
-
-  @impl true
-
-  def filter(args, state) do
+  def filter_impl(args, state, _changes) do
     case filter_impl(args, state) do
       :passive ->
         :passive

@@ -16,16 +16,11 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, initial_state(args))
+  def filter(all_vars, nil, changes) do
+    filter(all_vars, initial_state(all_vars), changes)
   end
 
-  @impl true
-  def filter(args, nil) do
-    filter(args)
-  end
-
-  def filter(all_vars, state) do
+  def filter(all_vars, state, _changes) do
     case update_domain_graph(all_vars, state) do
       :complete ->
         :passive

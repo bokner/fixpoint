@@ -37,11 +37,6 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, initial_state(args), %{})
-  end
-
-  @impl true
   def filter(args, nil, changes) do
     filter(args, initial_state(args), changes)
   end
