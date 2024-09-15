@@ -34,7 +34,7 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
 
       {:ok, bound_vars, _store} = create_store(variables)
       ## The propagator will fail on one of the variables
-      assert catch_throw(LessOrEqual.filter(bound_vars)) == :fail
+      assert Propagator.filter(LessOrEqual.new(bound_vars)) == :fail
     end
 
     test "offset" do
@@ -45,7 +45,7 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       [x_var, y_var] = bound_vars
       # (x <= y + 5)
       offset = 5
-      LessOrEqual.filter([x_var, y_var, offset])
+      Propagator.filter(LessOrEqual.new([x_var, y_var, offset]))
       ## The domain of (y+5) variable is -5..5
       assert 0 == Variable.min(x_var)
       assert 5 == Variable.max(x_var)
@@ -61,15 +61,15 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       {:ok, bound_vars, _store} = create_store(variables)
       [x_var, y_var] = bound_vars
 
-      refute :passive == LessOrEqual.filter([x_var, y_var])
+      refute %{active: false}  == Propagator.filter(LessOrEqual.new([x_var, y_var]))
 
       ## Cut domain of x so it intersects with domain of y in exactly one point
       Variable.removeAbove(x_var, 2)
-      {:state, state} = LessOrEqual.filter([x_var, y_var])
-      refute state.active?
+      result = Propagator.filter(LessOrEqual.new([x_var, y_var]))
+      refute result.active?
       ## Cut domain of x so it does not intersect with domain of y
       Variable.remove(x_var, 2)
-      assert :passive == LessOrEqual.filter([x_var, y_var], state)
+      assert %{active?: false} = Propagator.filter(LessOrEqual.new([x_var, y_var]))
     end
 
     test "Less" do

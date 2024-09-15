@@ -89,7 +89,7 @@ defmodule CPSolverTest.Constraint.Element do
     end
 
     defp assert_element2d(solutions, t) do
-      assert Enum.all?(solutions, fn [x, y, z] ->
+      assert Enum.all?(solutions, fn [x, y, z | _rest] ->
                Enum.at(t, x) |> Enum.at(y) == z
              end)
     end
