@@ -10,12 +10,17 @@ defmodule CPSolver.Propagator.ElementVar do
     new([var_array, var_index, var_value])
   end
 
+  @impl true
+  def arguments([var_array, var_index, var_value]) do
+    [Arrays.new(var_array, implementation: Aja.Vector), var_index, var_value]
+  end
+
 
   @impl true
   def bind(%{args: [var_array, var_index, var_value] = _args} = propagator, source, var_field) do
     bound_args =
       [
-        Enum.map(var_array, fn var -> Propagator.bind_to_variable(var, source, var_field) end),
+        Arrays.map(var_array, fn var -> Propagator.bind_to_variable(var, source, var_field) end),
         Propagator.bind_to_variable(var_index, source, var_field),
         Propagator.bind_to_variable(var_value, source, var_field)
       ]
@@ -42,13 +47,13 @@ defmodule CPSolver.Propagator.ElementVar do
     # var_index is an index in array2d,
     # so we trim D(var_index) to the size of array (0-based).
     removeBelow(var_index, 0)
-    removeAbove(var_index, length(var_array) - 1)
+    removeAbove(var_index, Arrays.size(var_array) - 1)
     reduction(var_array, var_index, var_value, state, changes)
   end
 
   @impl true
   def filter([var_array, var_index, var_value] = _args, state, changes) do
-    new_state = state || %{var_index_position: length(var_array)}
+    new_state = state || %{var_index_position: Arrays.size(var_array)}
     res = state && filter_impl(var_array, var_index, var_value, new_state, changes)
     || initial_reduction(var_array, var_index, var_value, new_state, changes)
 
@@ -75,7 +80,7 @@ defmodule CPSolver.Propagator.ElementVar do
 
     total_value_intersection =
       Enum.reduce(index_domain, MapSet.new(), fn idx, intersection_acc ->
-          case Enum.at(var_array, idx) do
+          case Arrays.get(var_array, idx) do
           nil ->
             IO.inspect("Unexpected: no element at #{idx}")
             throw(:unexpected_no_element)
