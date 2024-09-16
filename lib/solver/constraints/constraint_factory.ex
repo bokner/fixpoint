@@ -66,6 +66,18 @@ defmodule CPSolver.Constraint.Factory do
     result(sum_var, Sum.new(sum_var, vars))
   end
 
+  def count(array, y, c) do
+    {b_vars, reif_propagators} = for a <- array, reduce: {[], []} do
+      {vars_acc, propagators_acc} ->
+      b = BooleanVariable.new()
+      equal_p = Reified.new([Equal.new(a, y), b])
+      {[b | vars_acc], [equal_p | propagators_acc]}
+    end
+    Interface.removeBelow(c, 0)
+    Interface.removeAbove(c, length(array))
+    [Sum.new(c, b_vars) | reif_propagators]
+  end
+
   def add(var1, var2, opts \\ []) do
     sum([var1, var2], opts)
   end
