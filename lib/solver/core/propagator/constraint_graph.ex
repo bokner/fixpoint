@@ -6,7 +6,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   """
   alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
-  alias CPSolver.DefaultDomain, as: Domain
 
   @spec create([Propagator.t()]) :: Graph.t()
   def create(propagators) when is_list(propagators) do
@@ -133,12 +132,12 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   ### Returns updated graph and a list of propagators bound to variable domains
   def update(graph, vars) do
     {g1, propagators, variable_map} =
-      Enum.reduce(vars, {graph, MapSet.new(), Map.new()}, fn %{domain: domain, id: var_id} = v,
+      Enum.reduce(vars, {graph, MapSet.new(), Map.new()}, fn %{id: var_id} = v,
                                                              {graph_acc, propagators_acc,
                                                               variables_acc} ->
         graph_acc = update_variable(graph_acc, var_id, v)
 
-        {if Domain.fixed?(domain) do
+        {if Interface.fixed?(v) do
            ## Stop notifications from fixed variables
            disconnect_variable(graph_acc, var_id)
          else

@@ -159,7 +159,7 @@ defmodule CPSolver.Space.Propagation do
   end
 
   defp maybe_remove_variable(graph, var_id, :fixed) do
-    ConstraintGraph.remove_variable(graph, var_id)
+    ConstraintGraph.disconnect_variable(graph, var_id)
   end
 
   defp maybe_remove_variable(graph, _var_id, _domain_change) do
