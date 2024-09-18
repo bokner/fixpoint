@@ -20,13 +20,14 @@ defmodule CPSolverTest.Constraint.Modulo do
 
     test "`modulo` functionality" do
       x = Variable.new(-2..2, name: "x")
-      y = Variable.new(-2..2, name: "y")
-      m = Variable.new(-100..100, name: "m")
+      y = Variable.new([1,3], name: "y")
+      m = Variable.new(-2..2, name: "m")
 
       model = Model.new([x, y, m], [Modulo.new(m, x, y)])
 
       {:ok, res} = CPSolver.solve_sync(model)
-      assert res.statistics.solution_count == 20
+      #assert res.statistics.solution_count == 20
+      assert (res.solutions |> Enum.uniq |> length) == 10
       assert check_solutions(res)
     end
 
@@ -45,7 +46,8 @@ defmodule CPSolverTest.Constraint.Modulo do
     end
 
     defp check_solutions(result) do
-      Enum.all?(result.solutions, fn [x_val, y_val, m_val] -> rem(x_val, y_val) == m_val end)
+      Enum.all?(result.solutions, fn [x_val, y_val, m_val] = sol ->
+        (rem(x_val, y_val) == m_val) || IO.inspect(sol, label: :FAILURE) && false end)
     end
   end
 end

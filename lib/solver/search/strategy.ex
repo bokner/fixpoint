@@ -46,7 +46,7 @@ defmodule CPSolver.Search.Strategy do
     variables
     |> Enum.reject(fn v -> Interface.fixed?(v) end)
     |> then(fn
-      [] -> throw(all_vars_fixed_exception())
+      [] -> nil
       unfixed_vars -> variable_choice.(unfixed_vars)
     end)
   end

@@ -137,12 +137,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
                                                               variables_acc} ->
         graph_acc = update_variable(graph_acc, var_id, v)
 
-        {if Interface.fixed?(v) do
-           ## Stop notifications from fixed variables
-           disconnect_variable(graph_acc, var_id)
-         else
-           graph_acc
-         end,
+        {graph_acc,
          MapSet.union(
            propagators_acc,
            MapSet.new(

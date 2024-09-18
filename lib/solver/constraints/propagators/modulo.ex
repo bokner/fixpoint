@@ -41,14 +41,18 @@ defmodule CPSolver.Propagator.Modulo do
     end
   end
 
-  defp update_fixed(_args, fixed_flags, changes) do
+  defp update_fixed(args, fixed_flags, changes) do
+
     Enum.reduce(changes, fixed_flags, fn
       {idx, :fixed}, flags_acc ->
+        #IO.inspect(%{fixed_flags: fixed_flags, changes: changes})
         List.replace_at(flags_acc, idx, true)
+        #|> IO.inspect(label: :after)
 
-      {_idx, _bound_change}, flags_acc ->
-        flags_acc
+      {idx, _bound_change}, flags_acc ->
+        fixed?(Enum.at(args, idx)) && List.replace_at(flags_acc, idx, true) || flags_acc
     end)
+
   end
 
   def filter_impl([m, x, y] = _args, @x_y_fixed) do

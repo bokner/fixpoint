@@ -347,9 +347,12 @@ defmodule CPSolver.Space do
           constraint_graph: _graph
         } = data
       ) do
+
+    case Search.branch(variables, opts[:search]) do
+      [] -> handle_solved(data)
+      branches ->
     ## The search strategy branches off the existing variables.
     ## Each branch is a list of variables to use by a child space
-    branches = Search.branch(variables, opts[:search])
 
     Enum.take_while(branches, fn {branch_variables, constraint} ->
       !CPSolver.complete?(shared(data)) &&
@@ -361,6 +364,7 @@ defmodule CPSolver.Space do
     end)
 
     shutdown(data, :distribute)
+  end
   end
 
   defp shutdown(data, reason) do
