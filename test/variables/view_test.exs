@@ -5,6 +5,7 @@ defmodule CPSolverTest.Variable.View do
 
   describe "Views" do
     alias CPSolver.IntVariable, as: Variable
+    alias CPSolver.BooleanVariable
     alias CPSolver.Variable.View
     alias CPSolver.Variable.Interface
     import CPSolver.Variable.View.Factory
@@ -120,6 +121,27 @@ defmodule CPSolverTest.Variable.View do
 
       assert :fixed == View.fix(view2, 50)
       assert View.fixed?(view1) && View.fixed?(view3) && Variable.fixed?(source_var)
+    end
+
+    test "'not' view" do
+      bool_var1 = BooleanVariable.new()
+      bool_var2 = BooleanVariable.new()
+      {:ok, _, _store} =
+        create_store([bool_var1, bool_var2])
+
+      not_view1 = negation(bool_var1)
+      not_view2 = negation(bool_var2)
+
+      refute Interface.fixed?(not_view1)
+      refute Interface.fixed?(not_view2)
+
+      Interface.fix(bool_var1, 1)
+      assert Interface.fixed?(not_view1)
+      assert Interface.min(not_view1) == 0
+
+      Interface.fix(bool_var2, 0)
+      assert Interface.fixed?(not_view2)
+      assert Interface.min(not_view2) == 1
     end
 
     test "chained views" do
