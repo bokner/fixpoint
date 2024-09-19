@@ -142,4 +142,8 @@ defmodule CPSolver.Variable.View.Factory do
              is_integer(offset) do
     new(var, coefficient, offset)
   end
+
+  def negation(var) do
+    linear(var, -1, 1)
+  end
 end
