@@ -30,6 +30,25 @@ defmodule CPSolverTest.Constraint.Or do
       assert result.status == :unsatisfiable
     end
 
+    test "peformance" do
+      n = 1000
+      bool_vars = Enum.map(1..n, fn i -> BooleanVariable.new(name: "b#{i}") end)
+      or_constraint = Or.new(bool_vars)
+
+      model = Model.new(bool_vars, [or_constraint])
+
+      {:ok, res} =
+        CPSolver.solve_sync(model,
+          stop_on: {:max_solutions, 1},
+          search: {:first_fail, :indomain_max},
+          space_threads: 1
+        )
+
+      assert res.statistics.solution_count >= 1
+      ## Arbitrary elapsed time, the main point it shouldn't be too big
+      assert res.statistics.elapsed_time < 250_000
+    end
+
     defp assert_or(solutions, array_len) do
       assert Enum.all?(solutions, fn solution ->
                arr = Enum.take(solution, array_len)

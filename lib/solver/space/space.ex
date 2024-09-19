@@ -225,12 +225,8 @@ defmodule CPSolver.Space do
     if checkpoint(data.propagators, data.constraint_graph) do
       maybe_tighten_objective_bound(data[:objective])
 
-      data
-      |> solutions()
-      |> Enum.each(fn
-        solution ->
-          Solution.run_handler(solution, data.opts[:solution_handler])
-      end)
+      ## Generate solutions and run them through solution handler.
+      solutions(data)
 
       shutdown(data, :solved)
     else
@@ -244,17 +240,23 @@ defmodule CPSolver.Space do
     shutdown(data, :error)
   end
 
-  defp solutions(%{variables: variables} = _data) do
-    Enum.map(variables, fn var ->
-      Interface.domain(var) |> Domain.to_list()
-    end)
-    |> Utils.cartesian()
-    |> Enum.map(fn values ->
-      Enum.reduce(values, {0, Map.new()}, fn val, {idx_acc, map_acc} ->
-        {idx_acc + 1, Map.put(map_acc, Arrays.get(variables, idx_acc).name, val)}
+  defp solutions(%{variables: variables} = data) do
+    try do
+      Enum.map(variables, fn var ->
+        Interface.domain(var) |> Domain.to_list()
       end)
-      |> elem(1)
-    end)
+      |> Utils.lazy_cartesian(fn values ->
+        Enum.reduce(values, {0, Map.new()}, fn val, {idx_acc, map_acc} ->
+          {idx_acc + 1, Map.put(map_acc, Arrays.get(variables, idx_acc).name, val)}
+        end)
+        |> elem(1)
+        |> Solution.run_handler(data.opts[:solution_handler])
+        ## Stop producing solutions if the solving is complete
+        |> tap(fn _ -> CPSolver.complete?(shared(data)) && throw(:complete) end)
+      end)
+    catch
+      :complete -> :complete
+    end
   end
 
   defp maybe_tighten_objective_bound(nil) do
