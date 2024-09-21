@@ -51,14 +51,18 @@ defmodule CPSolver.Examples.SatSolver do
 
   def check_solution(solution, clauses) do
     ## Transform the solution into the form compatible with clause representation.
-    clause_compatible_solution = Enum.reduce(Enum.with_index(solution, 1), MapSet.new(),
-      fn {bool, idx}, acc ->
-        set_val = (bool == 0 && -idx || idx)
-        MapSet.put(acc, set_val)
-      end)
+    cnf_solution = to_cnf(solution)
 
     Enum.all?(clauses, fn clause ->
-      Enum.any?(clause, fn literal -> literal in clause_compatible_solution end)
+      Enum.any?(clause, fn literal -> literal in cnf_solution end)
+    end)
+  end
+
+  def to_cnf(solution) do
+    Enum.reduce(Enum.with_index(solution, 1), MapSet.new(),
+    fn {bool, idx}, acc ->
+      set_val = (bool == 0 && -idx || idx)
+      MapSet.put(acc, set_val)
     end)
   end
 

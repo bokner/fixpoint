@@ -45,6 +45,15 @@ defmodule CPSolverTest.Examples.SatSolver do
     assert_satisfiable(clauses)
   end
 
+  test "voting (https://github.com/bitwalker/picosat_elixir/blob/main/README.md#example)" do
+    assert MapSet.new([-2, 1, 3]) == SatSolver.solve([
+      [1, 2, -3],
+      [2, 3],
+      [-2],
+      [-1, 3]
+    ]) |> SatSolver.to_cnf()
+  end
+
   defp assert_satisfiable(clauses) do
     solution = SatSolver.solve(clauses)
     assert SatSolver.check_solution(solution, clauses)
