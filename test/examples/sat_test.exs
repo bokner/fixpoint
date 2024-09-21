@@ -60,6 +60,6 @@ defmodule CPSolverTest.Examples.SatSolver do
   end
 
   defp assert_unsatisfiable(clauses) do
-    refute SatSolver.solve(clauses)
+    assert :unsatisfiable == SatSolver.solve(clauses)
   end
 end
