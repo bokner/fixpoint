@@ -25,6 +25,7 @@ defmodule CPSolver.Constraint do
   end
 
   def new(constraint_impl, args) do
+    Enum.empty?(args) && throw({constraint_impl, :no_args}) ||
     {constraint_impl, args}
   end
 
