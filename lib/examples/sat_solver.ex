@@ -22,20 +22,36 @@ defmodule CPSolver.Examples.SatSolver do
   [[1], [2], [3]]
   ```
   """
-  def solve(clauses) do
+  def solve(clauses, opts \\ []) do
     model = model(clauses)
 
+    default_opts =
+      [
+      search: {:first_fail, :indomain_max},
+      stop_on: {:max_solutions, 1}
+      ]
     {:ok, res} =
       CPSolver.solve_sync(model,
-        search: {:first_fail, :indomain_max},
-        stop_on: {:max_solutions, 1}
+        Keyword.merge(default_opts, opts)
       )
 
-    res.status != :unsatisfiable && hd(res.solutions) |> sort_by_variables(res.variables)
+    cond do
+      res.status == :unsatisfiable -> :unsatisfiable
+      Enum.empty?(res.solutions) -> :unknown
+      true ->
+
+        List.first(res.solutions) |> sort_by_variables(res.variables)
+    end
 
   end
 
-  def model(clauses) do
+  def model(dimacs_instance) when is_atom(dimacs_instance) do
+    dimacs_instance
+    |> clauses()
+    |> model()
+  end
+
+  def model(clauses) when is_list(clauses) do
     {vars, constraints} =
       Enum.reduce(clauses, {Map.new(), []}, fn clause, {vars_acc, constraints_acc} ->
         {clause_vars, new_vars_acc} = build_clause(clause, vars_acc)
@@ -47,6 +63,23 @@ defmodule CPSolver.Examples.SatSolver do
       |> Enum.sort_by(fn var -> Interface.variable(var).name end)
 
     Model.new(final_vars, constraints)
+  end
+
+  ## We assume it's a 3-SAT instance
+  def clauses(dimacs_instance) do
+    dimacs_instances()
+    |> Map.get(dimacs_instance)
+    |> File.read!()
+    |> String.split("\n")
+    |> Enum.flat_map(
+      fn line ->
+        case String.split(line, " ", trim: true) do
+          [x1, x2, x3, _0] = _clause when x1 not in ["p", "c"] ->
+            [Enum.map([x1, x2, x3], fn x -> String.to_integer(x) end)]
+          _other ->
+            []
+        end
+      end)
   end
 
   def check_solution(solution, clauses) do
@@ -102,7 +135,14 @@ defmodule CPSolver.Examples.SatSolver do
 
   defp sort_by_variables(solution, variables) do
     Enum.zip(solution, variables)
-    |> Enum.sort_by(fn {_val, var_name} -> var_name end)
+    |> Enum.sort_by(fn {_val, var_name} -> String.to_integer(var_name) end)
     |> Enum.map(fn {val, _var_name} -> val end)
+  end
+
+  def dimacs_instances() do
+    %{
+      sat50_218: "data/sat/uf50-01.cnf",
+      unsat50_218: "data/sat/uuf50-01.cnf",
+    }
   end
 end
