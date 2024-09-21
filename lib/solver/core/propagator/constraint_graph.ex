@@ -6,6 +6,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   """
   alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
+  alias CPSolver.DefaultDomain, as: Domain
 
   @spec create([Propagator.t()]) :: Graph.t()
   def create(propagators) when is_list(propagators) do
@@ -59,13 +60,15 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       interface_var = Interface.variable(var)
 
       Graph.add_vertex(graph_acc, propagator_vertex)
-      |> Graph.add_edge(variable_vertex(interface_var.id), propagator_vertex,
+      |> then(fn graph ->
+        Interface.domain(interface_var) |> Domain.fixed?() && graph ||
+        Graph.add_edge(graph, variable_vertex(interface_var.id), propagator_vertex,
         label: %{
           propagate_on: get_propagate_on(var),
           arg_position: var.arg_position,
           variable_name: interface_var.name
         }
-      )
+      ) end)
     end)
     |> Graph.label_vertex(propagator_vertex, propagator)
   end
