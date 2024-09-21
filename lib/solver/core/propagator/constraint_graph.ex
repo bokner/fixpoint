@@ -138,11 +138,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
       Enum.reduce(vars, {graph, MapSet.new(), Map.new()}, fn %{id: var_id} = v,
                                                              {graph_acc, propagators_acc,
                                                               variables_acc} ->
-        graph_acc = update_variable(graph_acc, var_id, v)
-
         {if Interface.fixed?(v) do
            ## Stop notifications from fixed variables
            disconnect_variable(graph_acc, var_id)
+           #graph_acc
          else
            graph_acc
          end,
@@ -186,7 +185,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end
   end
 
-  defp update_variable(
+  def update_variable(
          %Graph{vertex_labels: labels, vertex_identifier: identifier} = graph,
          var_id,
          variable
