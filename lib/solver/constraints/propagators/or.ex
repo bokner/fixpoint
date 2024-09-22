@@ -42,6 +42,7 @@ defmodule CPSolver.Propagator.Or do
         {:cont, unfixed_acc}
       end
     end)
+    |> finalize(all_vars)
   end
 
   def filter(all_vars, %{unfixed: unfixed} = _state, changes) do
@@ -56,14 +57,7 @@ defmodule CPSolver.Propagator.Or do
         {:cont, unfixed_acc}
       end
     end)
-    |> case do
-      :resolved ->
-        :passive
-
-      unfixed ->
-        (MapSet.size(unfixed) == 0 && fail()) ||
-          {:state, %{unfixed: unfixed}}
-    end
+    |> finalize(all_vars)
   end
 
   defp initial_reduction(all_vars) do
@@ -80,6 +74,24 @@ defmodule CPSolver.Propagator.Or do
         {:cont, MapSet.put(candidates_acc, var_idx)}
       end
     end)
+  end
+
+  defp finalize(filtering_result, all_vars) do
+    case filtering_result do
+      :resolved ->
+        :passive
+
+      unfixed ->
+        case MapSet.size(unfixed) do
+          0 -> fail()
+          1 ->
+            last_var_idx = MapSet.to_list(unfixed) |> List.first()
+            fix(Arrays.get(all_vars, last_var_idx), 1)
+            :passive
+          _more ->
+          {:state, %{unfixed: unfixed}}
+        end
+    end
   end
 
   defp fail() do

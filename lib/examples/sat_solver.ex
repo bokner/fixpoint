@@ -5,6 +5,8 @@ defmodule CPSolver.Examples.SatSolver do
   alias CPSolver.Variable.Interface
   import CPSolver.Variable.View.Factory
 
+  require Logger
+
   @moduledoc """
   This module solves SAT problems represented in CNF form.
   It's a list of lists of integers, where a positive integer `i` represents a boolean variable mapped to `i`,
@@ -23,6 +25,7 @@ defmodule CPSolver.Examples.SatSolver do
   ```
   """
   def solve(clauses, opts \\ []) do
+    Keyword.get(opts, :print) && Logger.configure(level: :notice)
     model = model(clauses)
 
     default_opts =
@@ -39,9 +42,10 @@ defmodule CPSolver.Examples.SatSolver do
       res.status == :unsatisfiable -> :unsatisfiable
       Enum.empty?(res.solutions) -> :unknown
       true ->
-
         List.first(res.solutions) |> sort_by_variables(res.variables)
     end
+    |> tap(fn _ -> Logger.notice(inspect(res, pretty: true)) end)
+
 
   end
 
@@ -82,7 +86,13 @@ defmodule CPSolver.Examples.SatSolver do
       end)
   end
 
-  def check_solution(solution, clauses) do
+  def check_solution(solution, dimacs_instance) when is_atom(dimacs_instance) do
+    dimacs_instance
+    |> clauses()
+    |> then(fn clauses -> check_solution(solution, clauses) end)
+  end
+
+  def check_solution(solution, clauses) when is_list(clauses) do
     ## Transform the solution into the form compatible with clause representation.
     cnf_solution = to_cnf(solution)
 
