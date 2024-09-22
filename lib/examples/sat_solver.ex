@@ -130,7 +130,6 @@ defmodule CPSolver.Examples.SatSolver do
 
   ## Creates a literal variable
   defp create_variable(var_id, nil) when is_integer(var_id) do
-    ## No literal variable of opposite sign
     var = BooleanVariable.new(name: "#{abs(var_id)}")
     (var_id > 0 && var) || negation(var)
   end
@@ -153,6 +152,8 @@ defmodule CPSolver.Examples.SatSolver do
     %{
       sat50_218: "data/sat/uf50-01.cnf",
       unsat50_218: "data/sat/uuf50-01.cnf",
+      sat100_403: "data/sat/uf100-01.cnf",
+      unsat100_403: "data/sat/uuf100-01.cnf"
     }
   end
 end
