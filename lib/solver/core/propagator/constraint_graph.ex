@@ -43,8 +43,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
-  defp get_propagator_data(edge, domain_change, propagator) do
-    %{arg_position: edge.arg_position, domain_change: domain_change, propagator: propagator}
+  defp get_propagator_data(_edge, domain_change, propagator) do
+    %{
+      domain_change: domain_change, propagator: propagator}
   end
 
   def has_variable?(graph, variable_id) do
@@ -65,7 +66,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         Graph.add_edge(graph, variable_vertex(interface_var.id), propagator_vertex,
         label: %{
           propagate_on: get_propagate_on(var),
-          arg_position: var.arg_position,
           variable_name: interface_var.name
         }
       ) end)

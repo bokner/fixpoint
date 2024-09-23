@@ -205,19 +205,17 @@ defmodule CPSolver.Space.Propagation do
     end)
   end
 
-  defp propagator_changes(propagator_ids, {_var_id, domain_change} = _change, changes_acc) do
+  defp propagator_changes(propagator_ids, {var_id, domain_change} = _change, changes_acc) do
     Enum.reduce(
       propagator_ids,
       changes_acc,
-      fn {p_id, p_data}, acc ->
-        arg_position = p_data.arg_position
-
-        Map.update(acc, p_id, Map.new(%{arg_position => domain_change}), fn var_map ->
-          current_var_change = Map.get(var_map, arg_position)
+      fn {p_id, _p_data}, acc ->
+        Map.update(acc, p_id, Map.new(%{var_id => domain_change}), fn var_map ->
+          current_var_change = Map.get(var_map, var_id)
 
           Map.put(
             var_map,
-            arg_position,
+            var_id,
             stronger_domain_change(current_var_change, domain_change)
           )
         end)

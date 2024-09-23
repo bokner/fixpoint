@@ -91,7 +91,14 @@ defmodule CPSolver.Propagator do
       id: id,
       name: name,
       mod: mod,
-      args: args
+      args: args,
+      state: nil,
+      variable_positions:
+        mod.variables(Enum.to_list(args))
+        |> Enum.with_index(0)
+        |> Map.new(fn {var, pos} ->
+          {Interface.id(var), pos}
+        end)
     }
   end
 
@@ -116,14 +123,26 @@ defmodule CPSolver.Propagator do
     {staged_propagator, filter(staged_propagator, opts)}
   end
 
-  def filter(%{mod: mod, args: args} = propagator, opts \\ []) do
+  def filter(%{mod: mod, args: args, variable_positions: positions_map} = propagator, opts \\ []) do
     PropagatorVariable.reset_variable_ops()
     state = propagator[:state]
 
     ## Propagation changes
     ## The propagation may reshedule the filtering and pass the changes that woke
     ## the propagator.
-    incoming_changes = Keyword.get(opts, :changes) || %{}
+    incoming_changes =
+      case Keyword.get(opts, :changes) do
+        nil ->
+          %{}
+
+        var_changes ->
+          Enum.reduce(var_changes, Map.new(), fn {var_id, domain_change}, positional_changes_acc ->
+            position = is_integer(var_id) && var_id || Map.get(positions_map, var_id)
+            position && Map.put(positional_changes_acc, position, domain_change)
+            || positional_changes_acc
+          end)
+      end
+
     ## We will reset the state if required.
     ## Reset will be forced when the space starts propagation.
     reset? = Keyword.get(opts, :reset?, false)
@@ -144,13 +163,7 @@ defmodule CPSolver.Propagator do
     catch
       :error, error ->
         {:filter_error, {mod, error}}
-        |> tap(fn _ -> Logger.error(
-          %{mod: mod,
-            error: error,
-            stacktrace: __STACKTRACE__
-          }
-
-          ) end)
+        |> tap(fn _ -> Logger.error(%{mod: mod, error: error, stacktrace: __STACKTRACE__}) end)
 
       :fail ->
         :fail
