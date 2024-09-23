@@ -189,7 +189,6 @@ defmodule CPSolver.Space do
 
   defp propagate(
          %{
-           propagators: propagators,
            constraint_graph: constraint_graph,
            changes: changes
          } =
@@ -207,7 +206,7 @@ defmodule CPSolver.Space do
           Map.put(
             data,
             :constraint_graph,
-            remove_entailed_propagators(reduced_constraint_graph, propagators)
+            reduced_constraint_graph
           )
           |> handle_stable()
       end
@@ -294,16 +293,6 @@ defmodule CPSolver.Space do
     end)
   end
 
-  def remove_entailed_propagators(graph, propagators) do
-    Enum.reduce(propagators, graph, fn p, g ->
-      p_vertex = ConstraintGraph.propagator_vertex(p.id)
-
-      case Graph.neighbors(g, p_vertex) do
-        [] -> ConstraintGraph.remove_propagator(g, p.id)
-        _connected_vars -> g
-      end
-    end)
-  end
 
   # defp add_branch_constraint(constraint_graph, nil) do
   #  constraint_graph

@@ -21,6 +21,8 @@ defmodule CPSolver.Propagator do
   alias CPSolver.Utils.TupleArray
   alias CPSolver.Utils
 
+  require Logger
+
   defmacro __using__(_) do
     quote do
       alias CPSolver.Propagator
@@ -142,7 +144,7 @@ defmodule CPSolver.Propagator do
     catch
       :error, error ->
         {:filter_error, {mod, error}}
-        |> IO.inspect(__STACKTRACE__)
+        |> Logger.error(__STACKTRACE__)
 
       :fail ->
         :fail

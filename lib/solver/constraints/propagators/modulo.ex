@@ -35,21 +35,22 @@ defmodule CPSolver.Propagator.Modulo do
 
   ## This (no changes) will happen when the propagator doesn't receive changes
   ## (either because it was first to run or there were no changes)
-  defp update_fixed(args, fixed_flags, changes) when map_size(changes) == 0 do
+  defp update_fixed(args, fixed_flags, _changes) #when map_size(changes) == 0
+  do
     for idx <- 0..2 do
       Enum.at(fixed_flags, idx) || fixed?(Enum.at(args, idx))
     end
   end
 
-  defp update_fixed(_args, fixed_flags, changes) do
-    Enum.reduce(changes, fixed_flags, fn
-      {idx, :fixed}, flags_acc ->
-        List.replace_at(flags_acc, idx, true)
+  # defp update_fixed(_args, fixed_flags, changes) do
+  #   Enum.reduce(changes, fixed_flags, fn
+  #     {idx, :fixed}, flags_acc ->
+  #       List.replace_at(flags_acc, idx, true)
 
-      {_idx, _bound_change}, flags_acc ->
-        flags_acc
-    end)
-  end
+  #     {_idx, _bound_change}, flags_acc ->
+  #       flags_acc
+  #   end)
+  # end
 
   def filter_impl([m, x, y] = _args, @x_y_fixed) do
     fix(m, rem(min(x), min(y)))

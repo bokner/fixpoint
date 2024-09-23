@@ -89,6 +89,7 @@ defmodule CPSolver.Propagator.Absolute do
               removeAbove(x, y_max)
               removeBelow(x, -y_max)
           end
+        {_idx, _change} -> :ignore
       end
     )
 

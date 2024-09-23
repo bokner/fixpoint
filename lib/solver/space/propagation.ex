@@ -14,7 +14,7 @@ defmodule CPSolver.Space.Propagation do
       run_impl(propagators, constraint_graph, propagator_changes(constraint_graph, changes),
         reset?: true
       )
-      |> finalize()
+      |> finalize(changes)
     end)
   end
 
@@ -145,16 +145,24 @@ defmodule CPSolver.Space.Propagation do
     (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
   end
 
-  defp finalize(:fail) do
+  defp finalize(:fail, _changes) do
     :fail
   end
 
   ## At this point, the space is either solved or stable.
-  defp finalize(%Graph{} = residual_graph) do
+  defp finalize(%Graph{} = residual_graph, changes) do
     if Enum.empty?(Graph.edges(residual_graph)) do
       :solved
     else
-      {:stable, residual_graph}
+      residual_graph
+      |> remove_fixed_variables(changes)
+      |> then(fn g ->
+        if Enum.empty?(Graph.edges(g)) do
+          :solved
+        else
+          {:stable, g}
+        end
+      end)
     end
   end
 
@@ -168,6 +176,14 @@ defmodule CPSolver.Space.Propagation do
 
   defp unschedule(scheduled_propagators, p_id) do
     MapSet.delete(scheduled_propagators, p_id)
+  end
+
+  defp remove_fixed_variables(graph, changes) do
+    Enum.reduce(changes, graph, fn {var_id, domain_change}, g_acc ->
+      domain_change == :fixed &&
+        ConstraintGraph.disconnect_variable(g_acc, var_id)
+        || g_acc
+    end)
   end
 
   ## TODO: possible reordering strategy
