@@ -1,6 +1,6 @@
 tsp_15.txt - 291 (opt)
 tsp_17.txt - 2085 (opt)
-tsp_26.txt - 961
-tsp_61.txt 357 (LNS, minicp),  342 (fixpoint)
+tsp_26.txt - 941
+tsp_61.txt 357 (LNS, minicp),  348 (fixpoint)
 tsp_81.txt 401 (LNS, minicp),  412 (fixpoint)
 tsp_101.txt 482 (LNS, minicp), 501 (fixpoint)

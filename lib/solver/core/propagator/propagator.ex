@@ -144,7 +144,13 @@ defmodule CPSolver.Propagator do
     catch
       :error, error ->
         {:filter_error, {mod, error}}
-        |> Logger.error(__STACKTRACE__)
+        |> tap(fn _ -> Logger.error(
+          %{mod: mod,
+            error: error,
+            stacktrace: __STACKTRACE__
+          }
+
+          ) end)
 
       :fail ->
         :fail
