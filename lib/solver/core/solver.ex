@@ -114,8 +114,14 @@ defmodule CPSolver do
     (objective_value && {:optimal, objective: objective_value}) || :all_solutions
   end
 
-  defp status(%{active_node_count: active_nodes}, objective_value, true) when active_nodes > 0 do
-    (objective_value && {:satisfied, objective: objective_value}) || :satisfied
+  defp status(
+         %{active_node_count: active_nodes, solution_count: solution_count},
+         objective_value,
+         true
+       )
+       when active_nodes > 0 do
+    (objective_value && {:satisfied, objective: objective_value}) ||
+      (solution_count > 0 && :satisfied) || :unknown
   end
 
   defp status(
