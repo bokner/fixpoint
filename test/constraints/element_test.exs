@@ -194,30 +194,37 @@ defmodule CPSolverTest.Constraint.Element do
     constraint arr2d[x, y] = z;
     """
 
-    arr2d = for i <- 1..2 do
-      for j <- 1..2 do
-        Variable.new(0..3, name: "arr(#{i},#{j})")
+    arr2d =
+      for i <- 1..2 do
+        for j <- 1..2 do
+          Variable.new(0..3, name: "arr(#{i},#{j})")
+        end
       end
-    end
 
     x = Variable.new(0..4, name: "x")
     y = Variable.new(0..2, name: "y")
     z = Variable.new(1..10, name: "z")
-    model = Model.new([x, y, z, arr2d] |> List.flatten(), ConstraintFactory.element2d_var(arr2d, x, y, z))
+
+    model =
+      Model.new(
+        [x, y, z, arr2d] |> List.flatten(),
+        ConstraintFactory.element2d_var(arr2d, x, y, z)
+      )
 
     {:ok, res} = CPSolver.solve_sync(model)
     assert res.statistics.solution_count == 768
 
     assert_element2d_var(res.solutions, length(arr2d), length(hd(arr2d)))
-
   end
 
   defp assert_element2d_var(solutions, row_num, col_num) do
-    assert Enum.all?(solutions,
-    fn solution ->
-    [x, y, z | rest] = solution
-    arr_solution = Enum.take(rest, row_num * col_num)
-    Enum.at(arr_solution, x * col_num + y) == z
-    end)
+    assert Enum.all?(
+             solutions,
+             fn solution ->
+               [x, y, z | rest] = solution
+               arr_solution = Enum.take(rest, row_num * col_num)
+               Enum.at(arr_solution, x * col_num + y) == z
+             end
+           )
   end
 end
