@@ -22,9 +22,11 @@ Proof of concept. Not suitable for use in production. Significant API changes an
 - `sum`, `modulo`
 - `element`, `element2d`
 - `circuit`
+- `OR`
 
 ## Features
-- views (linear combinations of variables in constraints)  
+- views (linear combinations of variables in constraints)
+- partial support for reified constraints  
 - solving constraint satisfaction (CSP) and constrained optimization (COP) problems
 - parallel search
 - pluggable search strategies
@@ -333,6 +335,12 @@ Constraint Optimization Problem - assign facilities to locations so the cost of 
 
 https://en.wikipedia.org/wiki/Travelling_salesman_problem
 
+#### [SAT Solver](lib/examples/sat_solver.ex)
+
+#### [Stable Marriage problem](lib/examples/stable_marriage)
+
+https://en.wikipedia.org/wiki/Stable_marriage_problem
+ 
 #### [`xkcd` comic](livebooks/xkcd_np.livemd)
 
 Two combinatorial problems from https://xkcd.com/287/
