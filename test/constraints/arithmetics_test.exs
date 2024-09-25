@@ -28,7 +28,7 @@ defmodule CPSolverTest.Constraint.Arithmetics do
       x_domain = 1..10
       c = 3
       x = Variable.new(x_domain, name: "x")
-      model = Model.new([x], [Equal.new(ViewFactory.add(x, c), 10)])
+      model = Model.new([x], [Equal.new(ViewFactory.inc(x, c), 10)])
       {:ok, res} = CPSolver.solve_sync(model)
 
       assert length(res.solutions) == 1
@@ -44,8 +44,8 @@ defmodule CPSolverTest.Constraint.Arithmetics do
 
       {_sum_var, constraint} =
         case constraint_kind do
-          :add_variable -> ConstraintFactory.add(x, y, name: "add_x_y")
-          :subtract_variable -> ConstraintFactory.subtract(x, y, name: "subtract_x_y")
+          :add_variable -> ConstraintFactory.add(x, y)
+          :subtract_variable -> ConstraintFactory.subtract(x, y)
         end
 
       model = Model.new([x, y], [constraint])

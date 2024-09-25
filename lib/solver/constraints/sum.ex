@@ -26,7 +26,7 @@ defmodule CPSolver.Constraint.Sum do
     ## Adjust sum (variable or constant)
     y_arg =
       (is_integer(y) && Variable.new(y - constant)) ||
-        Factory.add(y, -constant)
+        Factory.inc(y, -constant)
 
     [SumPropagator.new(y_arg, vars)]
   end

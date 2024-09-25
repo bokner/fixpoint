@@ -15,18 +15,19 @@ defmodule CPSolver.Constraint.Factory do
   alias CPSolver.BooleanVariable
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
-  alias CPSolver.Variable.View.Factory, as: ViewFactory
+  import CPSolver.Variable.View.Factory
 
   def element(array, x, y) do
     ElementVar.new(array, x, y)
   end
 
   def element(array, x) do
-    y_domain = Enum.reduce(array,
-      MapSet.new(), fn el, acc ->
+    y_domain =
+      Enum.reduce(array, MapSet.new(), fn el, acc ->
         Interface.domain(el) |> Domain.to_list() |> MapSet.union(acc)
       end)
       |> MapSet.to_list()
+
     y = Variable.new(y_domain)
     result(y, element(array, x, y))
   end
@@ -49,85 +50,89 @@ defmodule CPSolver.Constraint.Factory do
     Interface.removeBelow(y, 0)
     Interface.removeAbove(y, num_cols - 1)
 
-    {flat_idx_var, sum_constraint} = add(ViewFactory.mul(x, num_cols), y, domain: 0..num_rows * num_cols - 1)
+    {flat_idx_var, sum_constraint} = add(mul(x, num_cols), y)
+    Interface.removeBelow(flat_idx_var, 0)
+    Interface.removeAbove(flat_idx_var, num_rows * num_cols - 1)
     element_constraint = element(List.flatten(array2d), flat_idx_var, z)
     [sum_constraint, element_constraint]
   end
 
   def element2d_var(array2d, x, y) do
-    domain = Enum.reduce(array2d |> List.flatten(), MapSet.new(),
-      fn el, acc ->
+    domain =
+      Enum.reduce(array2d |> List.flatten(), MapSet.new(), fn el, acc ->
         Interface.domain(el)
         |> Domain.to_list()
         |> MapSet.union(acc)
-      end) |> MapSet.to_list()
+      end)
+      |> MapSet.to_list()
+
     z = Variable.new(domain)
     result(z, element2d_var(array2d, x, y, z))
   end
 
-  def sum(vars, opts \\ []) do
-    domain =
-      case opts[:domain] do
-        nil ->
-          {domain_min, domain_max} =
-            Enum.reduce(vars, {0, 0}, fn var, {min_acc, max_acc} ->
-              domain = Interface.domain(var) |> Domain.to_list()
-              {min_acc + Enum.min(domain), max_acc + Enum.max(domain)}
-            end)
+  def sum(vars, sum_var) do
+    Sum.new(sum_var, vars)
+  end
 
-          domain_min..domain_max
+  def sum(vars) do
+    {domain_min, domain_max} =
+      Enum.reduce(vars, {0, 0}, fn var, {min_acc, max_acc} ->
+        domain = Interface.domain(var) |> Domain.to_list()
+        {min_acc + Enum.min(domain), max_acc + Enum.max(domain)}
+      end)
 
-        d ->
-          d
-      end
+    domain = domain_min..domain_max
 
-    sum_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
+    sum_var = Variable.new(domain)
     result(sum_var, Sum.new(sum_var, vars))
   end
 
   def count(array, y, c) do
-    {b_vars, reif_propagators} = for a <- array, reduce: {[], []} do
-      {vars_acc, propagators_acc} ->
-      b = BooleanVariable.new()
-      equal_p = Reified.new([Equal.new(a, y), b])
-      {[b | vars_acc], [equal_p | propagators_acc]}
-    end
+    {b_vars, reif_propagators} =
+      for a <- array, reduce: {[], []} do
+        {vars_acc, propagators_acc} ->
+          b = BooleanVariable.new()
+          equal_p = Reified.new([Equal.new(a, y), b])
+          {[b | vars_acc], [equal_p | propagators_acc]}
+      end
+
     Interface.removeBelow(c, 0)
     Interface.removeAbove(c, length(array))
     [Sum.new(c, b_vars) | reif_propagators]
   end
 
-  def add(var1, var2, opts \\ []) do
-    sum([var1, var2], opts)
+  def add(var1, var2) do
+    sum([var1, var2])
   end
 
-  def subtract(var1, var2, opts \\ []) do
-    add(var1, ViewFactory.linear(var2, -1, 0), opts)
+  def subtract(var1, var2) do
+    add(var1, linear(var2, -1, 0))
   end
 
-  def mod(x, y, opts \\ []) do
-    domain =
-      Keyword.get(opts, :domain) ||
-        (
+  def mod(x, y) do
           {lb, ub} = ModuloPropagator.mod_bounds(x, y)
-          lb..ub
-        )
+          domain =
+            lb..ub
 
-    mod_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
+    mod_var = Variable.new(domain)
     result(mod_var, Modulo.new(mod_var, x, y))
   end
 
-  def absolute(x, opts \\ []) do
-    domain =
-      Keyword.get(opts, :domain) ||
-        (
-          abs_min = abs(Interface.min(x))
-          abs_max = abs(Interface.max(x))
-          0..max(abs_min, abs_max)
-        )
+  def mod(mod_var, x, y) do
+    Modulo.new(mod_var, x, y)
+  end
 
-    abs_var = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
+  def absolute(x) do
+    abs_min = abs(Interface.min(x))
+    abs_max = abs(Interface.max(x))
+    domain = 0..max(abs_min, abs_max)
+
+    abs_var = Variable.new(domain)
     result(abs_var, Absolute.new(x, abs_var))
+  end
+
+  def absolute(x, abs_var) do
+    Absolute.new(x, abs_var)
   end
 
   defp compose(constraint1, constraint2, relation) do

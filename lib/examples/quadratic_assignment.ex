@@ -19,6 +19,7 @@ defmodule CPSolver.Examples.QAP do
 
   """
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Variable.Interface
   alias CPSolver.Model
   alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
   alias CPSolver.Objective
@@ -37,7 +38,7 @@ defmodule CPSolver.Examples.QAP do
         [
           search: search(model),
           solution_handler: solution_handler(model),
-          max_search_threads: 12,
+          space_threads: 8,
           timeout: :timer.minutes(5)
         ],
         opts
@@ -83,7 +84,7 @@ defmodule CPSolver.Examples.QAP do
           end
       end
 
-    {total_cost, sum_constraint} = sum(weighted_distances, name: "total_cost")
+    {total_cost, sum_constraint} = sum(weighted_distances)
 
     Model.new(
       assignments,
@@ -92,7 +93,7 @@ defmodule CPSolver.Examples.QAP do
         sum_constraint
       ] ++ element2d_constraints,
       objective: Objective.minimize(total_cost),
-      extra: %{n: n, distances: distances, weights: weights}
+      extra: %{n: n, distances: distances, weights: weights, total_cost_var_id: Interface.id(total_cost)}
     )
   end
 
@@ -113,8 +114,8 @@ defmodule CPSolver.Examples.QAP do
     fn solution ->
       solution
       |> Enum.at(model.extra.n)
-      |> tap(fn total_cost_tuple ->
-        ans_str = inspect(total_cost_tuple)
+      |> tap(fn {_ref, total} ->
+        ans_str = inspect({"total", total})
 
         (check_solution(
            Enum.map(solution, fn {_, val} -> val end),

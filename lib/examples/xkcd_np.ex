@@ -25,7 +25,7 @@ defmodule CPSolver.Examples.XKCD.NP do
         mul(Variable.new(0..div(total, price), name: name), price)
       end)
 
-    {_total_price_var, sum_constraint} = sum(quantities, domain: total, name: :total)
+    sum_constraint = sum(quantities, total)
 
     Model.new(quantities, [sum_constraint], extra: %{appetizers: appetizers, total: total})
   end

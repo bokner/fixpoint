@@ -18,7 +18,8 @@ defmodule CPSolverTest.Examples.QAP do
       [2, 1, 4, 0]
     ]
 
-    {:ok, results} = CPSolver.solve_sync(QAP.model(distances, weights))
+    qap_model = QAP.model(distances, weights)
+    {:ok, results} = CPSolver.solve_sync(qap_model)
 
     assert Enum.all?(results.solutions, fn solution ->
              QAP.check_solution(solution, distances, weights)
@@ -27,7 +28,7 @@ defmodule CPSolverTest.Examples.QAP do
     optimal_solution = List.last(results.solutions)
 
     objective_variable_index =
-      Enum.find_index(results.variables, fn name -> name == "total_cost" end)
+      Enum.find_index(results.variables, fn name -> name == qap_model.extra.total_cost_var_id end)
 
     assert results.objective == Enum.at(optimal_solution, objective_variable_index)
   end

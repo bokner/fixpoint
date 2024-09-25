@@ -38,7 +38,7 @@ defmodule CPSolverTest.Constraint.Absolute do
     end
 
     test "factory" do
-      x = Variable.new(-2..2, name: "x")
+      x = Variable.new(-2..2)
 
       {abs_var, abs_constraint} = ConstraintFactory.absolute(x)
 

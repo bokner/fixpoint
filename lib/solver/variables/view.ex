@@ -129,7 +129,7 @@ defmodule CPSolver.Variable.View.Factory do
     linear(var, coefficient, 0)
   end
 
-  def add(var, c) when is_integer(c) do
+  def inc(var, c) when is_integer(c) do
     linear(var, 1, c)
   end
 

@@ -126,11 +126,10 @@ defmodule XKCD.NP.Appetizers do
       Enum.zip(quantities, appetizers)
       |> Enum.map(fn {q_var, {_name, price}} -> mul(q_var, price) end)
 
-    total_price = Variable.new(total, name: "total_price")
 
     Model.new(
       quantities,
-      [Sum.new(total_price, priced_quantities)]
+      [Sum.new(total, priced_quantities)]
     )
   end
 
@@ -138,7 +137,7 @@ defmodule XKCD.NP.Appetizers do
     (Enum.map_join(solver_results.solutions, "\n OR \n", fn sol ->
        sol
        |> Enum.zip(solver_results.variables)
-       |> Enum.reject(fn {q, _name} -> q == 0 end)
+       |> Enum.reject(fn {q, name} -> q == 0 || is_reference(name) end)
        |> Enum.map_join(", ", fn {q, name} ->
          IO.ANSI.red() <> "#{name} : #{IO.ANSI.blue()}#{q}"
        end)

@@ -33,7 +33,7 @@ defmodule CPSolver.Examples.TSP do
         [
           search: search(model),
           solution_handler: solution_handler(model),
-          max_search_threads: 12,
+          space_threads: 8,
           timeout: :timer.minutes(5)
         ],
         opts
@@ -67,7 +67,7 @@ defmodule CPSolver.Examples.TSP do
       end)
       |> Enum.unzip()
 
-    {total_distance, sum_constraint} = sum(dist_succ, name: "total_distance")
+    {total_distance, sum_constraint} = sum(dist_succ)
 
     Model.new(
       successors,
@@ -124,8 +124,8 @@ defmodule CPSolver.Examples.TSP do
     fn solution ->
       solution
       |> Enum.at(model.extra.n)
-      |> tap(fn total_cost_tuple ->
-        ans_str = inspect(total_cost_tuple)
+      |> tap(fn {_ref, total} ->
+        ans_str = inspect({"total", total})
 
         (check_solution(
            Enum.map(solution, fn {_, val} -> val end),
