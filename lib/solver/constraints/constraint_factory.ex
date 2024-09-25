@@ -17,23 +17,31 @@ defmodule CPSolver.Constraint.Factory do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Variable.View.Factory, as: ViewFactory
 
-  def element(array, x, opts \\ []) do
+  def element(array, x, y) do
+    ElementVar.new(array, x, y)
+  end
+
+  def element(array, x) do
     y_domain = Enum.reduce(array,
       MapSet.new(), fn el, acc ->
         Interface.domain(el) |> Domain.to_list() |> MapSet.union(acc)
       end)
       |> MapSet.to_list()
-    y = Variable.new(y_domain, name: Keyword.get(opts, :name, make_ref()))
-    result(y, ElementVar.new(array, x, y))
+    y = Variable.new(y_domain)
+    result(y, element(array, x, y))
   end
 
-  def element2d(array2d, x, y, opts \\ []) do
+  def element2d(array2d, x, y) do
     domain = array2d |> List.flatten()
-    z = Variable.new(domain, name: Keyword.get(opts, :name, make_ref()))
-    result(z, Element2D.new([array2d, x, y, z]))
+    z = Variable.new(domain)
+    result(z, element2d(array2d, x, y, z))
   end
 
-  def element2d_var(array2d, x, y, opts \\ []) do
+  def element2d(array2d, x, y, z) do
+    Element2D.new([array2d, x, y, z])
+  end
+
+  def element2d_var(array2d, x, y, z) do
     num_rows = length(array2d)
     num_cols = length(hd(array2d))
     Interface.removeBelow(x, 0)
@@ -42,8 +50,19 @@ defmodule CPSolver.Constraint.Factory do
     Interface.removeAbove(y, num_cols - 1)
 
     {flat_idx_var, sum_constraint} = add(ViewFactory.mul(x, num_cols), y, domain: 0..num_rows * num_cols - 1)
-    {z, element_constraint} = element(List.flatten(array2d), flat_idx_var, opts)
-    {z, [sum_constraint, element_constraint]}
+    element_constraint = element(List.flatten(array2d), flat_idx_var, z)
+    [sum_constraint, element_constraint]
+  end
+
+  def element2d_var(array2d, x, y) do
+    domain = Enum.reduce(array2d |> List.flatten(), MapSet.new(),
+      fn el, acc ->
+        Interface.domain(el)
+        |> Domain.to_list()
+        |> MapSet.union(acc)
+      end) |> MapSet.to_list()
+    z = Variable.new(domain)
+    result(z, element2d_var(array2d, x, y, z))
   end
 
   def sum(vars, opts \\ []) do

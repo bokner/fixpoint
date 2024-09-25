@@ -181,4 +181,43 @@ defmodule CPSolverTest.Constraint.Element do
              end)
     end
   end
+
+  test "variable 2d array" do
+    ~S"""
+    MiniZinc:
+
+    array[1..2, 1..2] of var 0..3: arr2d;
+    var 0..4: x;
+    var 0..2: y;
+    var 1..10: z;
+
+    constraint arr2d[x, y] = z;
+    """
+
+    arr2d = for i <- 1..2 do
+      for j <- 1..2 do
+        Variable.new(0..3, name: "arr(#{i},#{j})")
+      end
+    end
+
+    x = Variable.new(0..4, name: "x")
+    y = Variable.new(0..2, name: "y")
+    z = Variable.new(1..10, name: "z")
+    model = Model.new([x, y, z, arr2d] |> List.flatten(), ConstraintFactory.element2d_var(arr2d, x, y, z))
+
+    {:ok, res} = CPSolver.solve_sync(model)
+    assert res.statistics.solution_count == 768
+
+    assert_element2d_var(res.solutions, length(arr2d), length(hd(arr2d)))
+
+  end
+
+  defp assert_element2d_var(solutions, row_num, col_num) do
+    assert Enum.all?(solutions,
+    fn solution ->
+    [x, y, z | rest] = solution
+    arr_solution = Enum.take(rest, row_num * col_num)
+    Enum.at(arr_solution, x * col_num + y) == z
+    end)
+  end
 end
