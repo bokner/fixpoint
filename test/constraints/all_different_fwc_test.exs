@@ -11,7 +11,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.FWC do
     test "all fixed" do
       variables = Enum.map(1..5, fn i -> IntVariable.new(i) end)
       model = Model.new(variables, [Constraint.new(AllDifferentFWC, variables)])
-      {:ok, result} = CPSolver.solve_sync(model, timeout: 100)
+      {:ok, result} = CPSolver.solve_sync(model)
 
       assert hd(result.solutions) == [1, 2, 3, 4, 5]
       assert result.statistics.solution_count == 1
