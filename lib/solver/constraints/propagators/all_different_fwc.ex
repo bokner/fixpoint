@@ -17,67 +17,49 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
 
   @impl true
   def filter(all_vars, state, changes) do
-   {unfixed_set, fixed_values} =
-      if state do
-        fixed_values = fixed_values(changes, all_vars)
-        {MapSet.difference(state[:unfixed], MapSet.new(Map.keys(changes))), fixed_values}
-      else
-        initial_split(all_vars, changes)
+      new_fixed = Map.keys(changes) |> MapSet.new()
+      unresolved = (state && state[:unresolved] || MapSet.new(0..Arrays.size(all_vars) - 1))
+      |> MapSet.difference(new_fixed)
+
+      new_fixed_values = fixed_values(all_vars, new_fixed)
+
+      case fwc(all_vars, unresolved, new_fixed_values) do
+        false -> :passive
+        unfixed_updated_set -> {:state, %{unresolved: unfixed_updated_set}}
       end
-      #initial_reduction(all_vars, fixed_values)
-    case fwc(all_vars, unfixed_set, fixed_values) do
-      nil -> :passive
-      unfixed_updated_set -> {:state, %{unfixed: unfixed_updated_set}}
-    end
   end
 
-  defp initial_split(all_vars, changes) do
-    {_, unfixed_set, fixed_values} = Enum.reduce(all_vars, {0, MapSet.new(), MapSet.new(Map.keys(changes))},
-    fn var, {idx, unfixed_set_acc, fixed_set_acc} ->
-      (remove_all(var, fixed_set_acc) == :fixed || fixed?(var)) && {idx + 1, unfixed_set_acc, MapSet.put(fixed_set_acc, min(var))}
-      || {idx + 1, MapSet.put(unfixed_set_acc, idx), fixed_set_acc}
-
-    end)
-    {unfixed_set, fixed_values}
-  end
-
-  defp fixed_values(changes, arg_vars) do
-
-    Enum.reduce(changes, MapSet.new(), fn {var_idx, :fixed}, acc ->
-      MapSet.put(acc, min(Propagator.arg_at(arg_vars, var_idx)))
+  defp fixed_values(vars, fixed) do
+    Enum.reduce(fixed, MapSet.new(), fn idx, values_acc ->
+      val = Propagator.arg_at(vars, idx) |> min()
+      val in values_acc && fail() || MapSet.put(values_acc, val)
     end)
   end
 
+  defp fwc(vars, unfixed_set, fixed_values) do
+    {updated_unfixed, _fixed_vals} = remove_values(vars, unfixed_set, fixed_values)
+    MapSet.size(updated_unfixed) > 0 && updated_unfixed
+
+  end
 
   ## unfixed_set - set of indices for yet unfixed variables
   ## fixed_values - the set of fixed values we will use to reduce unfixed set.
-  defp fwc(vars, unfixed_set, fixed_values) do
-    {reduced_unfixed, step_fixed, _total_fixed} =
-    Enum.reduce(unfixed_set, {MapSet.new(), MapSet.new(), fixed_values},
-      fn unfixed_idx, {reduced_unfixed_acc, step_fixed_acc, total_fixed_acc} ->
-        var = Propagator.arg_at(vars, unfixed_idx)
-        if remove_all(var, total_fixed_acc) == :fixed || fixed?(var) do
-          ## New fixed variable, add to fixed values
+  defp remove_values(vars, unfixed_set, fixed_values) do
+    for idx <- unfixed_set, reduce: {MapSet.new(), fixed_values} do
+      {still_unfixed_acc, fixed_vals_acc} ->
+        var = Propagator.arg_at(vars, idx)
+        if remove_all(var, fixed_vals_acc) == :fixed || fixed?(var) do
           new_fixed_value = min(var)
-          {reduced_unfixed_acc,
-            MapSet.put(total_fixed_acc, new_fixed_value),
-            MapSet.put(total_fixed_acc, new_fixed_value)
-          }
-        else
-          ## Still unfixed, add to unfixed set
-          {MapSet.put(reduced_unfixed_acc, unfixed_idx),
-            step_fixed_acc,
-            total_fixed_acc
-          }
-        end
-      end)
+          new_fixed_value in fixed_values && fail()
 
-    cond do
-      MapSet.size(reduced_unfixed) == 0 -> nil
-      MapSet.size(step_fixed) == 0 -> reduced_unfixed
-      true ->
-        fwc(vars, reduced_unfixed, step_fixed)
-      end
+          fixed_vals_acc = MapSet.put(fixed_vals_acc, new_fixed_value)
+          {unfixed_here, fixed_here} = remove_values(vars, still_unfixed_acc, MapSet.new([new_fixed_value]))
+          {unfixed_here, MapSet.union(fixed_here, fixed_vals_acc)}
+        else
+          ## Variable is still unfixed, keep it
+          {MapSet.put(still_unfixed_acc, idx), fixed_vals_acc}
+        end
+    end
   end
 
   defp remove_all(var, values) do
@@ -85,6 +67,10 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
       remove(var, val) == :fixed && {:halt, :fixed}
       || {:cont, acc}
     end)
+  end
+
+  defp fail() do
+    throw(:fail)
   end
 
 
