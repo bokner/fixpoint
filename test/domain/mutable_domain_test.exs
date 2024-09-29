@@ -1,8 +1,8 @@
 defmodule CPSolverTest.MutableDomain do
   use ExUnit.Case
 
-  describe "Default domain" do
-    alias CPSolver.BitVectorDomain.V2, as: Domain
+  describe "Mutable domain" do
+    alias CPSolver.BitVectorDomain, as: Domain
 
     test "creates domain from integer range and list" do
       assert catch_throw(Domain.new([])) == :fail
@@ -157,6 +157,55 @@ defmodule CPSolverTest.MutableDomain do
       assert_domain(domain, values1)
     end
 
+    @tag :slow
+    test "Concurrent removal of values (threads remove distinct values)" do
+      ##
+      values = 1..100_000
+      domain = Domain.new(values)
+
+      Task.async_stream(
+        values,
+        fn val ->
+          try do
+            Domain.remove(domain, val)
+          catch
+            _ ->
+              :ok
+          end
+        end,
+        max_concurrency: 8
+      )
+      |> Enum.to_list()
+
+      assert Domain.failed?(domain)
+    end
+
+    test "Concurrent removal of values (multiple threads remove shared values)" do
+      ##
+      n_values = 3
+      values = 1..n_values
+      domain = Domain.new(values)
+
+      Task.async_stream(
+        1..2,
+        fn _thread_id ->
+          try do
+            ## Keep one random value, remove the rest
+            Enum.each(Enum.take(values, n_values - 1), fn val ->
+              Domain.remove(domain, val)
+            end)
+          catch
+            _ ->
+              :failed
+          end
+        end,
+        max_concurrency: 8
+      )
+      |> Enum.to_list()
+
+      assert Domain.fixed?(domain)
+    end
+
     defp build_domain(data) do
       ref = :atomics.new(length(data.raw.content), [{:signed, false}])
 
@@ -164,12 +213,12 @@ defmodule CPSolverTest.MutableDomain do
         :atomics.put(ref, idx, val)
       end)
 
-      bit_vector = {:bit_vector, data.raw.offset, ref}
+      bit_vector = {:bit_vector, ref}
       _domain = {bit_vector, data.raw.offset}
     end
 
     defp assert_domain(domain, values) do
-      assert Domain.to_list(domain) == values
+      assert Domain.to_list(domain) |> Enum.sort() == values |> Enum.sort()
       assert Domain.size(domain) == length(values)
       assert Domain.min(domain) == Enum.min(values)
       assert Domain.max(domain) == Enum.max(values)
@@ -190,7 +239,7 @@ defmodule CPSolverTest.MutableDomain do
       assert Domain.min(1) == 1
       assert Domain.max(1) == 1
 
-      assert Domain.to_list(1) == [1]
+      assert Domain.to_list(1) == MapSet.new([1])
       assert Domain.map(3, fn x -> 2 * x end) == [6]
       assert Domain.copy(1) == 1
 

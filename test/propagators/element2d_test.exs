@@ -2,11 +2,11 @@ defmodule CPSolverTest.Propagator.Element2D do
   use ExUnit.Case
 
   describe "Propagator filtering" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Variable.Interface
     alias CPSolver.Propagator
     alias CPSolver.Propagator.Element2D
+    import CPSolver.Test.Helpers
 
     test "filtering" do
       x = -2..40
@@ -22,7 +22,8 @@ defmodule CPSolverTest.Propagator.Element2D do
 
       variables = Enum.map([x, y, z], fn d -> Variable.new(d) end)
 
-      {:ok, [x_var, y_var, z_var] = _bound_vars, _store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = create_store(variables)
+      [x_var, y_var, z_var] = bound_vars
 
       propagator = Element2D.new(t, x_var, y_var, z_var)
 
@@ -75,7 +76,8 @@ defmodule CPSolverTest.Propagator.Element2D do
 
       variables = Enum.map([x, y, z], fn d -> Variable.new(d) end)
 
-      {:ok, [x_var, y_var, z_var], _store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = create_store(variables)
+      [x_var, y_var, z_var] = bound_vars
       ## The propagator will fail.
       ## D(x) = 1..2 implies filtering to {1} (because T is 2x2, and it's a 0-based index)
       ## This leaves only the second row for the values of z, which is inconsistent with D(z).
@@ -97,7 +99,8 @@ defmodule CPSolverTest.Propagator.Element2D do
 
       variables = Enum.map([x, y, z], fn d -> Variable.new(d) end)
 
-      {:ok, [x_var, y_var, z_var] = _bound_vars, _store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = create_store(variables)
+      [x_var, y_var, z_var] = bound_vars
 
       propagator = Element2D.new(t, x_var, y_var, z_var)
 

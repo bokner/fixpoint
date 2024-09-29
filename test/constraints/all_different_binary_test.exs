@@ -3,7 +3,7 @@ defmodule CPSolverTest.Constraint.AllDifferent do
 
   describe "AllDifferent" do
     alias CPSolver.Propagator.NotEqual, as: PropagatorNotEqual
-    alias CPSolver.Constraint.AllDifferent
+    alias CPSolver.Constraint.AllDifferent.Binary, as: AllDifferent
     alias CPSolver.IntVariable
     alias CPSolver.Constraint
     alias CPSolver.Model

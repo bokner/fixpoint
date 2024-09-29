@@ -5,7 +5,7 @@ defmodule CPSolver.Shared do
 
   def init_shared_data(opts) do
     distributed = Keyword.get(opts, :distributed, false)
-    max_space_threads = Keyword.get(opts, :max_space_threads)
+    space_threads = Keyword.get(opts, :space_threads)
 
     %{
       caller: self(),
@@ -19,7 +19,7 @@ defmodule CPSolver.Shared do
       active_nodes:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
       complete_flag: init_complete_flag(),
-      space_thread_counters: init_space_thread_counters(max_space_threads),
+      space_thread_counters: init_space_thread_counters(space_threads),
       times: init_times(),
       distributed: distributed
     }
@@ -86,11 +86,11 @@ defmodule CPSolver.Shared do
   ## The value is 2-element (:counters) array
   ## First element is a thread counter, 2nd is the max number of
   ## space processes allowed to run simultaneously on a given node.
-  defp init_space_thread_counters(max_space_threads, nodes \\ [Node.self() | Node.list()]) do
+  defp init_space_thread_counters(space_threads, nodes \\ [Node.self() | Node.list()]) do
     Map.new(nodes, fn node ->
       ref = :counters.new(2, [:atomics])
       :counters.put(ref, 1, 0)
-      :counters.put(ref, 2, max_space_threads)
+      :counters.put(ref, 2, space_threads)
       {node, ref}
     end)
     |> then(fn node_thread_counters ->

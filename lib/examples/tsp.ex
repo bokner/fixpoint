@@ -18,8 +18,12 @@ defmodule CPSolver.Examples.TSP do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Search.VariableSelector.FirstFail
   import CPSolver.Constraint.Factory
+  alias CPSolver.Utils.TupleArray
 
   require Logger
+
+  @checkmark_symbol "\u2713"
+  @failure_symbol "\u1D350"
 
   def run(instance, opts \\ []) do
     model = model(instance)
@@ -29,7 +33,7 @@ defmodule CPSolver.Examples.TSP do
         [
           search: search(model),
           solution_handler: solution_handler(model),
-          max_search_threads: 12,
+          space_threads: 8,
           timeout: :timer.minutes(5)
         ],
         opts
@@ -63,7 +67,7 @@ defmodule CPSolver.Examples.TSP do
       end)
       |> Enum.unzip()
 
-    {total_distance, sum_constraint} = sum(dist_succ, name: "total_distance")
+    {total_distance, sum_constraint} = sum(dist_succ)
 
     Model.new(
       successors,
@@ -94,12 +98,14 @@ defmodule CPSolver.Examples.TSP do
   end
 
   def search(%{extra: %{distances: distances, n: n}} = _model) do
+    tuple_matrix = TupleArray.new(distances)
+
     choose_value_fun = fn %{index: idx} = var ->
       domain = Interface.domain(var)
       d_values = Domain.to_list(domain)
 
       (idx in 1..n &&
-         Enum.min_by(d_values, fn dom_idx -> Enum.at(distances, idx - 1) |> Enum.at(dom_idx) end)) ||
+         Enum.min_by(d_values, fn dom_idx -> TupleArray.at(tuple_matrix, [idx - 1, dom_idx]) end)) ||
         Enum.random(d_values)
     end
 
@@ -107,7 +113,7 @@ defmodule CPSolver.Examples.TSP do
       {circuit_vars, rest_vars} = Enum.split_with(variables, fn v -> v.index <= n end)
 
       (circuit_vars == [] && FirstFail.select_variable(rest_vars)) ||
-        difference_between_closest_distances(circuit_vars, distances)
+        difference_between_closest_distances(circuit_vars, tuple_matrix)
     end
 
     {choose_variable_fun, choose_value_fun}
@@ -118,14 +124,15 @@ defmodule CPSolver.Examples.TSP do
     fn solution ->
       solution
       |> Enum.at(model.extra.n)
-      |> tap(fn total_cost_tuple ->
-        ans_str = inspect(total_cost_tuple)
+      |> tap(fn {_ref, total} ->
+        ans_str = inspect({"total", total})
 
         (check_solution(
            Enum.map(solution, fn {_, val} -> val end),
            model
          ) &&
-           Logger.warning(ans_str)) || Logger.error(ans_str <> ": wrong -((")
+           Logger.warning("#{@checkmark_symbol} #{ans_str}")) ||
+          Logger.error("#{@failure_symbol} #{ans_str}" <> ": wrong -((")
       end)
     end
   end
@@ -136,17 +143,15 @@ defmodule CPSolver.Examples.TSP do
     Enum.max_by(circuit_vars, fn %{index: idx} = var ->
       dom = Interface.domain(var) |> Domain.to_list()
 
-      (length(dom) < 2 && 0) ||
+      (MapSet.size(dom) < 2 && 0) ||
         dom
         |> Enum.map(fn value ->
-          Enum.at(distances, idx - 1) |> Enum.at(value)
+          TupleArray.at(distances, [idx - 1, value])
         end)
         |> Enum.sort(:desc)
         |> then(fn dists -> abs(Enum.at(dists, 1) - hd(dists)) end)
     end)
   end
-
-  # end
 
   ## solution -> sequence of visits
   def to_route(solution, %{extra: %{n: n}} = _model) do

@@ -13,24 +13,44 @@ defmodule CPSolver.Propagator.NotEqual do
   end
 
   @impl true
-  def filter([x, y]) do
-    filter([x, y, 0])
+  def filter([x, y], state, changes) do
+    filter([x, y, 0], state, changes)
   end
 
-  def filter([x, y, offset]) do
+  def filter([x, y, offset], _state, _changes) do
     filter_impl(x, y, offset)
   end
 
-  def filter_impl(x, y, offset \\ 0) do
+  def filter_impl(x, y, offset \\ 0)
+
+  def filter_impl(x, c, offset) when is_integer(c) do
+    remove(x, c + offset)
+    :passive
+  end
+
+  def filter_impl(x, y, offset) do
     cond do
       fixed?(x) ->
         remove(y, plus(min(x), -offset))
+        :passive
 
       fixed?(y) ->
         remove(x, plus(min(y), offset))
+        :passive
 
       true ->
         :stable
     end
+  end
+
+  @impl true
+  def failed?([x, y, offset], _state) do
+    fixed?(x) && fixed?(y) && min(x) == plus(min(y), offset)
+  end
+
+  @impl true
+  def entailed?([x, y, offset], _state) do
+    ## x != y holds on the condition below
+    fixed?(x) && fixed?(y) && min(x) != plus(min(y), offset)
   end
 end

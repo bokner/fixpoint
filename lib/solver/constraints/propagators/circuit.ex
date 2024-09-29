@@ -11,16 +11,16 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, initial_state(args))
+  def arguments(args) do
+    Arrays.new(args, implementation: Aja.Vector)
   end
 
   @impl true
-  def filter(args, nil) do
-    filter(args)
+  def filter(all_vars, nil, changes) do
+    filter(all_vars, initial_state(all_vars), changes)
   end
 
-  def filter(all_vars, state) do
+  def filter(all_vars, state, _changes) do
     case update_domain_graph(all_vars, state) do
       :complete ->
         :passive
@@ -31,13 +31,13 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp initial_state(args) do
-    l = length(args)
+    l = Arrays.size(args)
 
     {circuit, unfixed_vertices, domain_graph} =
       args
       |> Enum.with_index()
       |> Enum.reduce(
-        {List.duplicate(nil, l), [], Graph.new()},
+        {Arrays.new(List.duplicate(nil, l), implementation: Aja.Vector), [], Graph.new()},
         fn {var, idx}, {circuit_acc, unfixed_acc, graph_acc} ->
           initial_reduction(var, idx, l)
           fixed? = fixed?(var)
@@ -57,7 +57,7 @@ defmodule CPSolver.Propagator.Circuit do
 
     %{
       domain_graph: domain_graph,
-      circuit: Enum.reverse(circuit),
+      circuit: Enum.reverse(circuit) |> Arrays.new(implementation: Aja.Vector),
       unfixed_vertices: unfixed_vertices
     }
   end
@@ -92,14 +92,14 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp reduce_graph(vars, graph, circuit, [vertex | rest], remaining_unfixed) do
-    var = Enum.at(vars, vertex)
+    var = Arrays.get(vars, vertex)
 
     if fixed?(var) do
       succ = min(var)
       {updated_graph, in_neighbours} = fix_vertex(graph, vertex, succ)
 
       ## As the successor is assigned to vertex, no other neighbours of successor can have it in their domains
-      Enum.each(in_neighbours, fn in_n_vertex -> remove(Enum.at(vars, in_n_vertex), succ) end)
+      Enum.each(in_neighbours, fn in_n_vertex -> remove(Arrays.get(vars, in_n_vertex), succ) end)
 
       reduce_graph(
         vars,
@@ -153,7 +153,7 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   def check_circuit(partial_circuit, start_at) do
-    check_circuit(partial_circuit, start_at, Enum.at(partial_circuit, start_at), 1)
+    check_circuit(partial_circuit, start_at, Arrays.get(partial_circuit, start_at), 1)
   end
 
   defp check_circuit(_partial_circuit, _started_at, nil, _step) do
@@ -162,11 +162,16 @@ defmodule CPSolver.Propagator.Circuit do
 
   defp check_circuit(partial_circuit, started_at, currently_at, step)
        when started_at == currently_at do
-    step == length(partial_circuit)
+    step == Arrays.size(partial_circuit)
   end
 
   defp check_circuit(partial_circuit, started_at, currently_at, step) do
-    check_circuit(partial_circuit, started_at, Enum.at(partial_circuit, currently_at), step + 1)
+    check_circuit(
+      partial_circuit,
+      started_at,
+      Arrays.get(partial_circuit, currently_at),
+      step + 1
+    )
   end
 
   defp check_graph(%Graph{} = graph, _fixed_vertices) do
@@ -174,7 +179,7 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp update_circuit(circuit, idx, value) do
-    List.replace_at(circuit, idx, value)
+    Arrays.replace(circuit, idx, value)
     |> tap(fn partial_circuit -> check_circuit(partial_circuit, idx) || fail() end)
   end
 

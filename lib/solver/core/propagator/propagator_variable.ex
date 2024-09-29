@@ -3,6 +3,7 @@ defmodule CPSolver.Propagator.Variable do
   alias CPSolver.Variable.View
   alias CPSolver.Variable.Interface.ThrowIfFails, as: Interface
   alias CPSolver.Propagator
+  import CPSolver.Common
 
   @propagator_events Propagator.propagator_events()
   @domain_events CPSolver.Common.domain_events()
@@ -66,9 +67,14 @@ defmodule CPSolver.Propagator.Variable do
   defp save_op(var, domain_change) when domain_change in @domain_events do
     current_changes = ((changes = get_variable_ops()) && changes) || Map.new()
 
+    {_, updated_changes} =
+      Map.get_and_update(current_changes, Interface.id(var), fn current_var_change ->
+        {current_var_change, stronger_domain_change(current_var_change, domain_change)}
+      end)
+
     Process.put(
       @variable_op_results_key,
-      Map.put(current_changes, Interface.id(var), domain_change)
+      updated_changes
     )
   end
 

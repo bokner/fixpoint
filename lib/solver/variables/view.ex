@@ -1,4 +1,8 @@
 defmodule CPSolver.Variable.View do
+  @moduledoc """
+  View is a variable with attached `mapper` function.
+  `mapper` is a bijection of the domain of original variable to the domain of the view
+  """
   alias CPSolver.Variable
   alias CPSolver.DefaultDomain, as: Domain
   alias __MODULE__, as: View
@@ -15,15 +19,23 @@ defmodule CPSolver.Variable.View do
     returns nil if there is no mapping.
   """
   @spec new(Variable.t(), neg_integer() | pos_integer(), integer()) :: View.t()
-  def new(variable, a, b) do
-    mapper_fun = fn
+  def new(variable, a, b) when is_struct(variable, Variable) do
+    %View{variable: variable, mapper: make_mapper_fun(a, b)}
+  end
+
+  def new(%{mapper: mapper} = view, a, b) when is_struct(view, View) do
+    Map.put(view, :mapper, chained_mapper(a, b, mapper))
+  end
+
+  defp make_mapper_fun(a, b) do
+    fn
       ## Given value from variable domain, returns mapped value from view domain
       value when is_integer(value) ->
         a * value + b
 
       ## Given value from view domain, returns mapped value from variable domain,
       ## or nil, if no mapping exists.
-      {value, :reverse} when is_integer(value) ->
+      {value, :inverse} when is_integer(value) ->
         (rem(value - b, a) == 0 && div(value - b, a)) || nil
 
       ## (Used by removeAbove and removeBelow operations)
@@ -44,9 +56,16 @@ defmodule CPSolver.Variable.View do
       ## Used by min and max to decide if the operation has to be flipped
       :flip? ->
         a < 0
-    end
 
-    %View{variable: variable, mapper: mapper_fun}
+      :get_params ->
+        {a, b}
+    end
+  end
+
+  defp chained_mapper(a, b, mapper)
+       when is_integer(a) and is_integer(b) and is_function(mapper) do
+    {current_a, current_b} = mapper.(:get_params)
+    make_mapper_fun(a * current_a, a * current_b + b)
   end
 
   def domain(%{mapper: mapper_fun, variable: variable} = _view) do
@@ -73,17 +92,17 @@ defmodule CPSolver.Variable.View do
   end
 
   def contains?(%{mapper: mapper_fun, variable: variable} = _view, value) do
-    source_value = mapper_fun.({value, :reverse})
+    source_value = mapper_fun.({value, :inverse})
     source_value && Variable.contains?(variable, source_value)
   end
 
   def remove(%{mapper: mapper_fun, variable: variable} = _view, value) do
-    source_value = mapper_fun.({value, :reverse})
+    source_value = mapper_fun.({value, :inverse})
     (source_value && Variable.remove(variable, source_value)) || :no_change
   end
 
   def fix(%{mapper: mapper_fun, variable: variable} = _view, value) do
-    source_value = mapper_fun.({value, :reverse})
+    source_value = mapper_fun.({value, :inverse})
     (source_value && Variable.fix(variable, source_value)) || :fail
   end
 
@@ -100,24 +119,31 @@ end
 
 defmodule CPSolver.Variable.View.Factory do
   import CPSolver.Variable.View
-  alias CPSolver.Variable
   alias CPSolver.IntVariable
 
-  def minus(%Variable{} = var) do
+  def minus(var) do
     mul(var, -1)
   end
 
-  def mul(%Variable{} = var, coefficient) do
+  def mul(var, coefficient) do
     linear(var, coefficient, 0)
+  end
+
+  def inc(var, c) when is_integer(c) do
+    linear(var, 1, c)
   end
 
   def linear(_var, 0, offset) do
     IntVariable.new(offset)
   end
 
-  def linear(%Variable{} = var, coefficient, offset)
+  def linear(var, coefficient, offset)
       when is_integer(coefficient) and
              is_integer(offset) do
     new(var, coefficient, offset)
+  end
+
+  def negation(var) do
+    linear(var, -1, 1)
   end
 end

@@ -27,7 +27,7 @@ defmodule CPSolver do
 
     shared_data =
       Shared.init_shared_data(
-        max_space_threads: opts[:max_space_threads],
+        space_threads: opts[:space_threads],
         distributed: opts[:distributed]
       )
       |> Map.put(:sync_mode, opts[:sync_mode])
@@ -105,7 +105,8 @@ defmodule CPSolver do
     status(statistics(solver), objective_value(solver), complete?(solver))
   end
 
-  defp status(%{active_node_count: 0, solution_count: 0}, _objective_value, true) do
+  defp status(%{active_node_count: active_node_count, solution_count: 0}, _objective_value, true)
+       when active_node_count <= 1 do
     :unsatisfiable
   end
 
@@ -113,8 +114,14 @@ defmodule CPSolver do
     (objective_value && {:optimal, objective: objective_value}) || :all_solutions
   end
 
-  defp status(%{active_node_count: active_nodes}, objective_value, true) when active_nodes > 0 do
-    (objective_value && {:satisfied, objective: objective_value}) || :satisfied
+  defp status(
+         %{active_node_count: active_nodes, solution_count: solution_count},
+         objective_value,
+         true
+       )
+       when active_nodes > 0 do
+    (objective_value && {:satisfied, objective: objective_value}) ||
+      (solution_count > 0 && :satisfied) || :unknown
   end
 
   defp status(
@@ -268,7 +275,7 @@ defmodule CPSolver do
       Enum.reduce(constraints, [], fn constraint, acc ->
         acc ++
           Enum.map(Constraint.constraint_to_propagators(constraint), fn p ->
-            Propagator.bind_to_variables(p, indexed_variables, :index)
+            Propagator.bind(p, indexed_variables, :index)
           end)
       end)
 

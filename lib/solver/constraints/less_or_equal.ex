@@ -17,4 +17,13 @@ defmodule CPSolver.Constraint.LessOrEqual do
   def propagators(args) do
     [LessOrEqualPropagator.new(args)]
   end
+
+  @impl true
+  def arguments([x, y]) do
+    arguments([x, y, 0])
+  end
+
+  def arguments([x, y, offset]) do
+    [Variable.to_variable(x), Variable.to_variable(y), offset]
+  end
 end

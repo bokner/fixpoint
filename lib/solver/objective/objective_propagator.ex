@@ -12,7 +12,7 @@ defmodule CPSolver.Objective.Propagator do
   end
 
   @impl true
-  def filter([x, bound_handle | _]) do
+  def filter([x, bound_handle | _], _state, _changes) do
     removeAbove(x, Objective.get_bound(bound_handle))
   end
 end

@@ -2,12 +2,12 @@ defmodule CPSolverTest.Variable.Interface do
   use ExUnit.Case
 
   describe "Views" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.DefaultDomain, as: Domain
     alias CPSolver.Variable.Interface
 
     import CPSolver.Variable.View.Factory
+    import CPSolver.Test.Helpers
 
     test "view vs variable" do
       v1_values = 1..10
@@ -15,8 +15,10 @@ defmodule CPSolverTest.Variable.Interface do
       values = [v1_values, v2_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, [var1, _var2] = bound_vars, _store} =
-        ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} =
+        create_store(variables)
+
+      [var1, _var2] = bound_vars
 
       [view1, view2] = Enum.map(bound_vars, fn var -> minus(var) end)
 
@@ -68,12 +70,12 @@ defmodule CPSolverTest.Variable.Interface do
 
       ## Fix and Fixed?
       ##
-      assert Interface.domain(var1) |> Domain.to_list() |> Enum.sort() == [2, 3, 4, 5]
+      assert Interface.domain(var1) |> Domain.to_list() == MapSet.new([2, 3, 4, 5])
       assert :fixed == Interface.fix(var1, 2)
       assert Interface.fixed?(var1)
       assert :fail == catch_throw(Interface.fix(var1, 1))
 
-      assert Interface.domain(view2) == [-5, -4, -3, -2]
+      assert Interface.domain(view2) == MapSet.new([-5, -4, -3, -2])
       assert :fixed == Interface.fix(view2, -2)
       assert Interface.fixed?(view2)
       assert :fail == catch_throw(Interface.fix(view2, 1))

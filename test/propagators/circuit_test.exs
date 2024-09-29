@@ -44,7 +44,7 @@ defmodule CPSolverTest.Propagator.Circuit do
     test "filtering" do
       domains = [0..2, 0..2, 0..2]
       propagator = make_propagator(domains)
-      [x0, x1, x2] = propagator.args
+      [x0, x1, x2] = Arrays.to_list(propagator.args)
       res1 = Propagator.filter(propagator)
 
       assert_initial_reduction(propagator)
@@ -80,7 +80,7 @@ defmodule CPSolverTest.Propagator.Circuit do
   end
 
   defp assert_initial_reduction(propagator) do
-    n = length(propagator.args)
+    n = Arrays.size(propagator.args)
 
     assert Enum.all?(
              Enum.with_index(propagator.args),

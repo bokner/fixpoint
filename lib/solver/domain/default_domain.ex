@@ -1,5 +1,5 @@
 defmodule CPSolver.DefaultDomain do
-  alias CPSolver.BitVectorDomain.V2, as: Domain
+  alias CPSolver.BitVectorDomain, as: Domain
 
   defdelegate new(values), to: Domain
 
@@ -36,10 +36,14 @@ defmodule CPSolver.DefaultDomain do
   end
 
   def to_list(arg) when is_integer(arg) do
-    [arg]
+    MapSet.new([arg])
   end
 
   def to_list(arg) when is_list(arg) do
+    MapSet.new(arg)
+  end
+
+  def to_list(%MapSet{} = arg) do
     arg
   end
 
@@ -51,8 +55,12 @@ defmodule CPSolver.DefaultDomain do
     fixed
   end
 
+  def copy(values) when is_list(values) do
+    (Enum.empty?(values) && fail()) || Domain.new(values)
+  end
+
   def copy(domain) do
-    Domain.copy(domain)
+    (fixed?(domain) && min(domain)) || Domain.copy(domain)
   end
 
   def size(fixed) when is_integer(fixed) do
@@ -65,6 +73,10 @@ defmodule CPSolver.DefaultDomain do
 
   def fixed?(fixed) when is_integer(fixed) do
     true
+  end
+
+  def fixed?(values) when is_list(values) do
+    length(values) == 1
   end
 
   def fixed?(domain) do

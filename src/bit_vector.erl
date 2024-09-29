@@ -10,11 +10,11 @@ new(Size) ->
     atomics:put(Atomics, Words + 1, 0), %% Set 'min_max' to lowest possible
 
 
-    {?MODULE, Size, Atomics}.
+    {?MODULE, Atomics}.
 
     
 
-get({?MODULE, _Size, Aref}, Bix) ->
+get({?MODULE, Aref}, Bix) ->
     Wix = (Bix div 64) + 1,
     Mask = (1 bsl (Bix rem 64)),    
     case atomics:get(Aref, Wix) band Mask of
@@ -22,20 +22,21 @@ get({?MODULE, _Size, Aref}, Bix) ->
         Mask -> 1
     end.
 
-set({?MODULE, _Size, Aref}, Bix) ->
+set({?MODULE, Aref}, Bix) ->
     Mask = (1 bsl (Bix rem 64)),    
     update(Aref, Bix, fun(Word) -> Word bor Mask end).
 
-clear({?MODULE, _Size, Aref}, Bix) ->
+clear({?MODULE, Aref}, Bix) ->
     Mask = bnot (1 bsl (Bix rem 64)),
     update(Aref, Bix, fun(Word) -> Word band Mask end).
 
-flip({?MODULE, _Size, Aref}, Bix) ->
+flip({?MODULE, Aref}, Bix) ->
     Mask = (1 bsl (Bix rem 64)),
     update(Aref, Bix, fun(Word) -> Word bxor Mask end).
 
-print({?MODULE, Size, _Aref} = BV) ->
-    print(BV, Size-1).
+print({?MODULE, Aref} = BV) ->
+    #{size := Size} = atomics:info(Aref),
+    print(BV, Size).
 print(BV, 0) ->
     io:format("~B~n",[get(BV, 0)]);
 print(BV, Slot) ->
@@ -47,10 +48,9 @@ update(Aref, Bix, Fun) ->
     update_loop(Aref, Wix, Fun, atomics:get(Aref, Wix)).
 
 update_loop(Aref, Wix, Fun, Current) ->
-    atomics:put(Aref, Wix, Fun(Current)).
-    % case atomics:compare_exchange(Aref, Wix, Expected, Fun(Expected)) of
-    %    ok ->
-    %        ok;
-    %    Was ->
-    %        update_loop(Aref, Wix, Fun, Was)
-    % end.
+    case atomics:compare_exchange(Aref, Wix, Current, Fun(Current)) of
+       ok ->
+           ok;
+       Was ->
+           update_loop(Aref, Wix, Fun, Was)
+    end.

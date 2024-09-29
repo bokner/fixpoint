@@ -4,11 +4,12 @@ defmodule CPSolverTest.Variable.View do
   alias CPSolver.DefaultDomain, as: Domain
 
   describe "Views" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
+    alias CPSolver.BooleanVariable
     alias CPSolver.Variable.View
     alias CPSolver.Variable.Interface
     import CPSolver.Variable.View.Factory
+    import CPSolver.Test.Helpers
 
     test "'minus' view" do
       v1_values = 1..10
@@ -18,9 +19,10 @@ defmodule CPSolverTest.Variable.View do
       values = [v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, [source_var, var2, _var3, _var4] = bound_vars, _store} =
-        ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} =
+        create_store(variables)
 
+      [source_var, var2, _var3, _var4] = bound_vars
       views = [view1, view2, view3, view4] = Enum.map(bound_vars, fn var -> minus(var) end)
       ## Domains of variables that back up views do not change
       assert Variable.min(source_var) == 1
@@ -66,11 +68,11 @@ defmodule CPSolverTest.Variable.View do
       assert -10 == View.min(view1)
 
       ## Remove below
-      assert Domain.to_list(View.domain(view1)) == [-10, -9, -8, -7, -6, -4]
+      assert Domain.to_list(View.domain(view1)) == MapSet.new([-10, -9, -8, -7, -6, -4])
       ## Same as for removeAbove, :max_change reflects the domain change for the variable,
       ## and not the view.
       assert :max_change == View.removeBelow(view1, -7)
-      assert Domain.to_list(View.domain(view1)) == [-7, -6, -4]
+      assert Domain.to_list(View.domain(view1)) == MapSet.new([-7, -6, -4])
       assert :fixed == View.removeBelow(view1, -4)
       assert -4 == View.min(view1)
 
@@ -84,8 +86,8 @@ defmodule CPSolverTest.Variable.View do
     test "'mul' view" do
       domain = 1..10
 
-      {:ok, [source_var] = _bound_vars, _store} =
-        ConstraintStore.create_store([Variable.new(domain)])
+      {:ok, [source_var], _store} =
+        create_store([Variable.new(domain)])
 
       view1 = mul(source_var, 1)
       view2 = mul(source_var, 10)
@@ -121,9 +123,44 @@ defmodule CPSolverTest.Variable.View do
       assert View.fixed?(view1) && View.fixed?(view3) && Variable.fixed?(source_var)
     end
 
+    test "'not' view" do
+      bool_var1 = BooleanVariable.new()
+      bool_var2 = BooleanVariable.new()
+      {:ok, _, _store} =
+        create_store([bool_var1, bool_var2])
+
+      not_view1 = negation(bool_var1)
+      not_view2 = negation(bool_var2)
+
+      refute Interface.fixed?(not_view1)
+      refute Interface.fixed?(not_view2)
+
+      Interface.fix(bool_var1, 1)
+      assert Interface.fixed?(not_view1)
+      assert Interface.min(not_view1) == 0
+
+      Interface.fix(bool_var2, 0)
+      assert Interface.fixed?(not_view2)
+      assert Interface.min(not_view2) == 1
+    end
+
+    test "chained views" do
+      domain = 1..10
+
+      {:ok, [source_var], _store} =
+        create_store([Variable.new(domain)])
+
+      view1 = minus(source_var)
+      view2 = minus(view1)
+      view3 = mul(view2, 10)
+
+      assert Interface.min(source_var) == Interface.min(view2)
+      assert Interface.min(source_var) * 10 == Interface.min(view3)
+    end
+
     test "remove value that falls in the hole" do
-      {:ok, [x] = _bound_vars, _store} =
-        ConstraintStore.create_store([Variable.new(0..5, name: "x")])
+      {:ok, [x], _store} =
+        create_store([Variable.new(0..5, name: "x")])
 
       y_plus = mul(x, 20)
       y_minus = mul(x, -20)
@@ -155,7 +192,10 @@ defmodule CPSolverTest.Variable.View do
   end
 
   defp compare_domains(d1, d2, map_fun) do
-    Enum.zip(Domain.to_list(d1) |> Enum.sort(:desc), Domain.to_list(d2) |> Enum.sort(:asc))
+    Enum.zip(
+      Domain.to_list(d1) |> Enum.sort(:desc),
+      Domain.to_list(d2) |> Enum.sort(:asc)
+    )
     |> Enum.all?(fn {val1, val2} -> val2 == map_fun.(val1) end)
   end
 end

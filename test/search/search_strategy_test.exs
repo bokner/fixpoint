@@ -2,10 +2,10 @@ defmodule CPSolverTest.Search.FirstFail do
   use ExUnit.Case
 
   describe "First-fail search strategy" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.DefaultDomain, as: Domain
     alias CPSolver.Search.Strategy, as: SearchStrategy
+    import CPSolver.Test.Helpers
 
     test ":first_fail and :indomain_min" do
       v0_values = 0..0
@@ -17,7 +17,7 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = create_store(variables)
 
       # first_fail chooses unfixed variable
       selected_variable = SearchStrategy.select_variable(bound_vars, :first_fail)
@@ -25,7 +25,7 @@ defmodule CPSolverTest.Search.FirstFail do
       assert selected_variable.id == v2_var.id
 
       # indomain_min splits domain of selected variable into min and the rest of the domain
-      {:ok, [min_value_partition, no_min_partition]} =
+      {:ok, [{min_value_partition, _equal_constraint}, {no_min_partition, _not_equal_constraint}]} =
         SearchStrategy.partition(selected_variable, :indomain_min)
 
       min_value = Domain.min(min_value_partition)
@@ -43,7 +43,7 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, _bound_vars, _store} = ConstraintStore.create_store(variables)
+      {:ok, _bound_vars, _store} = create_store(variables)
 
       assert catch_throw(SearchStrategy.select_variable(variables, :first_fail)) ==
                SearchStrategy.all_vars_fixed_exception()
@@ -59,21 +59,24 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables)
+      {:ok, bound_vars, _store} = create_store(variables)
 
       [b_left, b_right] =
         branches = SearchStrategy.branch(bound_vars, {:first_fail, :indomain_min})
 
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars
-      assert Enum.all?(branches, fn branch -> length(branch) == length(variables) end)
+      assert Enum.all?(branches, fn {branch, _constraint} ->
+               length(branch) == length(variables)
+             end)
+
       ## Left branch contains v2 variable fixed at 0
-      assert Enum.at(b_left, 2)
+      assert Enum.at(b_left |> elem(0), 2)
              |> Map.get(:domain)
              |> then(fn domain -> Domain.size(domain) == 1 && Domain.min(domain) == 0 end)
 
       ## Right branch contains v2 variable with 0 removed
-      refute Enum.at(b_right, 2) |> Map.get(:domain) |> Domain.contains?(0)
+      refute Enum.at(b_right |> elem(0), 2) |> Map.get(:domain) |> Domain.contains?(0)
     end
   end
 end

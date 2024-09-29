@@ -5,7 +5,7 @@ defmodule CPSolverTest.Shared do
 
   test "space thread checkins/checkouts" do
     max_threads = 3
-    shared = Shared.init_shared_data(max_space_threads: max_threads)
+    shared = Shared.init_shared_data(space_threads: max_threads)
     ## No threads were checked out
     refute Shared.checkin_space_thread(shared)
     assert Enum.all?(1..max_threads, fn _ -> Shared.checkout_space_thread(shared) end)

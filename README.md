@@ -16,15 +16,17 @@ Proof of concept. Not suitable for use in production. Significant API changes an
 
 ## Implemented constraints
 
-- `not_equal`
-- `less_or_equal`
+- `equal`, `not_equal`, `less_or_equal`
+- `absolute`
 - `all_different`
-- `sum`
+- `sum`, `modulo`
 - `element`, `element2d`
 - `circuit`
+- `OR`
 
 ## Features
-- views (linear combinations of variables in constraints)  
+- views (linear combinations of variables in constraints)
+- partial support for reified constraints  
 - solving constraint satisfaction (CSP) and constrained optimization (COP) problems
 - parallel search
 - pluggable search strategies
@@ -36,7 +38,7 @@ The package can be installed by adding `fixpoint` to your list of dependencies i
 ```elixir
 def deps do
   [
-    {:fixpoint, "~> 0.8.4"}
+    {:fixpoint, "~> 0.8.28"}
   ]
 end
 ```
@@ -194,7 +196,7 @@ Available options:
   
   [Search strategy](#search). 
 
-- max_space_threads: integer()
+- space_threads: integer()
 
   Defines the number of processes for parallel search. Defaults to 8.
 
@@ -333,7 +335,15 @@ Constraint Optimization Problem - assign facilities to locations so the cost of 
 
 https://en.wikipedia.org/wiki/Travelling_salesman_problem
 
+#### [SAT Solver](lib/examples/sat_solver.ex)
+
+#### [Stable Marriage problem](lib/examples/stable_marriage)
+
+https://en.wikipedia.org/wiki/Stable_marriage_problem
+ 
 #### [`xkcd` comic](livebooks/xkcd_np.livemd)
 
 Two combinatorial problems from https://xkcd.com/287/
+
+#### [Fixpoint models created by Håkan Kjellerstrand](http://hakank.org/elixir/) 
 

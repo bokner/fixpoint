@@ -11,11 +11,13 @@ defmodule CPSolver.Space do
   alias CPSolver.Search.Strategy, as: Search
   alias CPSolver.Solution, as: Solution
   alias CPSolver.Propagator.ConstraintGraph
+  alias CPSolver.Propagator
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
 
   alias CPSolver.Shared
   alias CPSolver.Distributed
+  alias CPSolver.Utils
 
   require Logger
 
@@ -26,7 +28,7 @@ defmodule CPSolver.Space do
       store_impl: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
       search: Search.default_strategy(),
-      max_space_threads: 8,
+      space_threads: :erlang.system_info(:logical_processors),
       postpone: false,
       distributed: false
     ]
@@ -150,7 +152,10 @@ defmodule CPSolver.Space do
         space: self()
       )
 
-    {constraint_graph, bound_propagators} = ConstraintGraph.update(graph, space_variables)
+    {constraint_graph, bound_propagators} =
+      graph
+      # |> apply_branch_constraint(space_opts[:branch_constraint])
+      |> ConstraintGraph.update(space_variables)
 
     space_data =
       data
@@ -160,6 +165,7 @@ defmodule CPSolver.Space do
       |> Map.put(:constraint_graph, constraint_graph)
       |> Map.put(:objective, update_objective(space_opts[:objective], space_variables))
       |> Map.put(:propagators, bound_propagators)
+      |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
 
     (space_opts[:postpone] &&
        {:ok, space_data}) || {:ok, space_data, {:continue, :propagate}}
@@ -183,25 +189,30 @@ defmodule CPSolver.Space do
 
   defp propagate(
          %{
-           propagators: propagators,
            constraint_graph: constraint_graph,
-           store: store
+           changes: changes
          } =
            data
        ) do
-    case Propagation.run(propagators, constraint_graph, store) do
-      :fail ->
-        handle_failure(data)
+    try do
+      case Propagation.run(constraint_graph, changes) do
+        :fail ->
+          handle_failure(data)
 
-      :solved ->
-        handle_solved(data)
+        :solved ->
+          handle_solved(data)
 
-      {:stable, reduced_constraint_graph} ->
-        %{
-          data
-          | constraint_graph: reduced_constraint_graph
-        }
-        |> handle_stable()
+        {:stable, reduced_constraint_graph} ->
+          Map.put(
+            data,
+            :constraint_graph,
+            reduced_constraint_graph
+          )
+          |> handle_stable()
+      end
+    catch
+      {:error, error} ->
+        handle_error(error, data)
     end
   end
 
@@ -210,26 +221,41 @@ defmodule CPSolver.Space do
   end
 
   defp handle_solved(data) do
-    data
-    |> solution()
-    |> then(fn
-      :fail ->
-        shutdown(data, :fail)
+    if checkpoint(data.propagators, data.constraint_graph) do
+      maybe_tighten_objective_bound(data[:objective])
 
-      solution ->
-        maybe_tighten_objective_bound(data[:objective])
-        Solution.run_handler(solution, data.opts[:solution_handler])
-        shutdown(data, :solved)
-    end)
+      ## Generate solutions and run them through solution handler.
+      solutions(data)
+
+      shutdown(data, :solved)
+    else
+      handle_failure(data)
+    end
   end
 
-  defp solution(%{variables: variables, store: store} = _data) do
-    Enum.reduce_while(variables, Map.new(), fn var, acc ->
-      case ConstraintStore.get(store, var, :min) do
-        :fail -> {:halt, :fail}
-        val -> {:cont, Map.put(acc, var.name, val)}
-      end
-    end)
+  defp handle_error(exception, data) do
+    Logger.error(inspect(exception))
+    Shared.set_complete(shared(data))
+    shutdown(data, :error)
+  end
+
+  defp solutions(%{variables: variables} = data) do
+    try do
+      Enum.map(variables, fn var ->
+        Interface.domain(var) |> Domain.to_list()
+      end)
+      |> Utils.lazy_cartesian(fn values ->
+        Enum.reduce(values, {0, Map.new()}, fn val, {idx_acc, map_acc} ->
+          {idx_acc + 1, Map.put(map_acc, Arrays.get(variables, idx_acc).name, val)}
+        end)
+        |> elem(1)
+        |> Solution.run_handler(data.opts[:solution_handler])
+        ## Stop producing solutions if the solving is complete
+        |> tap(fn _ -> CPSolver.complete?(shared(data)) && throw(:complete) end)
+      end)
+    catch
+      :complete -> :complete
+    end
   end
 
   defp maybe_tighten_objective_bound(nil) do
@@ -245,14 +271,56 @@ defmodule CPSolver.Space do
   end
 
   defp update_objective(%{variable: variable} = objective, variables) do
-    var_domain =
-      Enum.at(variables, Interface.variable(variable).index - 1)
-      |> Interface.domain()
-
-    updated_var = Interface.update(variable, :domain, var_domain)
+    updated_var = update_domain(variable, variables)
     Map.put(objective, :variable, updated_var)
     # objective
   end
+
+  defp update_domain(variable, space_variables) do
+    var_domain =
+      Arrays.get(space_variables, Interface.variable(variable).index - 1)
+      |> Interface.domain()
+
+    Interface.update(variable, :domain, var_domain)
+  end
+
+  def checkpoint(propagators, constraint_graph) do
+    Enum.reduce_while(propagators, true, fn p, acc ->
+      case Propagator.filter(p, reset?: true, constraint_graph: constraint_graph) do
+        :fail -> {:halt, false}
+        _ -> {:cont, acc}
+      end
+    end)
+  end
+
+
+  # defp add_branch_constraint(constraint_graph, nil) do
+  #  constraint_graph
+  # end
+
+  # defp add_branch_constraint(constraint_graph, _constraint) do
+  # []
+  # constraint
+  # |> Constraint.constraint_to_propagators()
+  # |> IO.inspect()
+  # |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
+  # constraint_graph
+  # |> tap(fn  -> constraint.() end)
+  # end
+
+  # defp add_branch_constraint(constraint_graph, nil) do
+  #   constraint_graph
+  # end
+
+  # defp add_branch_constraint(constraint_graph, _constraint) do
+  # []
+  # constraint
+  # |> Constraint.constraint_to_propagators()
+  # |> IO.inspect()
+  # |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
+  # constraint_graph
+  # |> tap(fn  -> constraint.() end)
+  # end
 
   defp handle_stable(data) do
     try do
@@ -266,16 +334,21 @@ defmodule CPSolver.Space do
   def distribute(
         %{
           opts: opts,
-          variables: variables
+          variables: variables,
+          constraint_graph: _graph
         } = data
       ) do
     ## The search strategy branches off the existing variables.
     ## Each branch is a list of variables to use by a child space
     branches = Search.branch(variables, opts[:search])
 
-    Enum.take_while(branches, fn variable_copies ->
+    Enum.take_while(branches, fn {branch_variables, constraint} ->
       !CPSolver.complete?(shared(data)) &&
-        spawn_space(data |> Map.put(:variables, variable_copies))
+        spawn_space(
+          data
+          |> Map.put(:variables, branch_variables)
+          |> put_in([:opts, :branch_constraint], constraint)
+        )
     end)
 
     shutdown(data, :distribute)

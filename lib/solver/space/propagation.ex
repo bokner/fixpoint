@@ -1,79 +1,118 @@
 defmodule CPSolver.Space.Propagation do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Propagator
+  import CPSolver.Common
 
-  def run(propagators, constraint_graph, store) when is_list(propagators) do
-    propagators
-    |> run_impl(constraint_graph, store)
-    |> finalize(propagators, store)
+  require Logger
+
+  def run(constraint_graph, changes \\ %{})
+
+  def run(%Graph{} = constraint_graph, changes) do
+    constraint_graph
+    |> get_propagators()
+    |> then(fn propagators ->
+      run_impl(propagators, constraint_graph, propagator_changes(constraint_graph, changes),
+        reset?: true
+      )
+      |> finalize(changes)
+    end)
   end
 
-  defp run_impl(propagators, constraint_graph, store) do
-    case propagate(propagators, constraint_graph, store) do
+  defp get_propagators(constraint_graph) do
+    constraint_graph
+    |> Graph.vertices()
+    ## Get %{id => propagator} map
+    |> Enum.flat_map(fn
+      {:propagator, p_id} ->
+        [ConstraintGraph.get_propagator(constraint_graph, p_id)]
+
+      _ ->
+        []
+    end)
+  end
+
+  defp run_impl(propagators, constraint_graph, domain_changes, opts) do
+    case propagate(propagators, constraint_graph, domain_changes, opts) do
       :fail ->
         :fail
 
-      {scheduled_propagators, reduced_graph} ->
+      {scheduled_propagators, reduced_graph, new_domain_changes} ->
         (MapSet.size(scheduled_propagators) == 0 && reduced_graph) ||
-          run_impl(scheduled_propagators, reduced_graph, store)
+          run_impl(scheduled_propagators, reduced_graph, new_domain_changes, reset?: false)
     end
   end
 
-  @spec propagate(map(), Graph.t(), map()) ::
-          :fail | {map(), Graph.t()} | {:changes, map()}
+  def propagate(propagators, graph) do
+    propagate(propagators, graph, [])
+  end
+
+  def propagate(propagators, graph, opts) do
+    propagate(propagators, graph, Map.new(), opts)
+  end
+
+  @spec propagate(map(), Graph.t(), map(), Keyword.t()) ::
+          :fail | {map(), Graph.t(), map()}
   @doc """
   A single pass of propagation.
   Produces the list (up to implementation) of propagators scheduled for the next pass.
   Side effect: modifies the constraint graph.
   The graph will be modified on every individual Propagator.filter/1, if the latter results in any domain changes.
   """
-
-  def propagate(propagators, graph, store) when is_list(propagators) do
+  def propagate(propagators, graph, domain_changes, opts) when is_list(propagators) do
     propagators
     |> Map.new(fn p -> {p.id, p} end)
-    |> propagate(graph, store)
+    |> propagate(graph, domain_changes, opts)
   end
 
-  def propagate(%MapSet{} = propagator_ids, graph, store) do
+  def propagate(%MapSet{} = propagator_ids, graph, propagator_changes, opts) do
     Map.new(propagator_ids, fn p_id -> {p_id, ConstraintGraph.get_propagator(graph, p_id)} end)
-    |> propagate(graph, store)
+    |> propagate(graph, propagator_changes, opts)
   end
 
-  def propagate(propagators, graph, store) when is_map(propagators) do
+  def propagate(propagators, graph, propagator_changes, opts) when is_map(propagators) do
     propagators
     |> reorder()
-    |> Task.async_stream(
-      fn {p_id, p} ->
-        {p_id, Propagator.filter(p, store: store)}
-      end,
-      ## TODO: make it an option
-      ##
-      max_concurrency: 1
-    )
-    |> Enum.reduce_while({MapSet.new(), graph}, fn {:ok, {p_id, res}}, {scheduled, g} = _acc ->
-      case res do
-        :fail ->
-          {:halt, :fail}
+    |> Enum.reduce_while(
+      {MapSet.new(), graph, Map.new()},
+      fn {p_id, p}, {scheduled_acc, g_acc, changes_acc} = _acc ->
+        res =
+          Propagator.filter(p,
+            reset?: opts[:reset?],
+            changes: Map.get(propagator_changes, p_id),
+            constraint_graph: graph
+          )
 
-        :stable ->
-          {:cont, {unschedule(scheduled, p_id), g}}
+        case res do
+          {:filter_error, error} ->
+            throw({:error, {:filter_error, error}})
 
-        %{changes: nil, active?: active?} ->
-          {:cont, {unschedule(scheduled, p_id), maybe_remove_propagator(g, p_id, active?)}}
+          :fail ->
+            {:halt, :fail}
 
-        %{changes: changes} = filtering_results ->
-          case update_propagator(g, p_id, filtering_results) do
-            :fail ->
-              {:halt, :fail}
+          :stable ->
+            {:cont, {unschedule(scheduled_acc, p_id), g_acc, changes_acc}}
 
-            updated_graph ->
-              {updated_graph, scheduled_by_propagator} =
-                schedule_by_propagator(changes, updated_graph)
+          %{changes: no_changes, active?: active?} when no_changes in [nil, %{}] ->
+            {:cont,
+             {unschedule(scheduled_acc, p_id), maybe_remove_propagator(g_acc, p_id, active?),
+              changes_acc}}
 
-              {:cont, {reschedule(scheduled, p_id, scheduled_by_propagator), updated_graph}}
-          end
+          %{changes: new_changes, active?: active?, state: state} ->
+            {updated_graph, updated_scheduled, updated_changes} =
+              update_schedule(
+                scheduled_acc,
+                changes_acc,
+                new_changes,
+                maybe_remove_propagator(g_acc, p_id, active?)
+              )
+
+            {:cont,
+             {updated_scheduled |> unschedule(p_id),
+              ConstraintGraph.update_propagator(updated_graph, p_id, Map.put(p, :state, state)),
+              updated_changes}}
+        end
       end
-    end)
+    )
   end
 
   ## Note: we do not reschedule a propagator that was the source of domain changes,
@@ -81,90 +120,54 @@ defmodule CPSolver.Space.Propagation do
   ## We will probably introduce the option to be used in propagator implementations
   ## to signify that the propagator is not idempotent.
   ##
-  defp reschedule(current_schedule, p_id, scheduled_by_propagator) do
-    current_schedule
-    |> MapSet.union(scheduled_by_propagator)
-    |> unschedule(p_id)
+  defp update_schedule(current_schedule, current_changes, new_domain_changes, graph) do
+    {updated_graph, scheduled_propagators, cumulative_domain_changes} =
+      new_domain_changes
+      |> Enum.reduce(
+        {graph, current_schedule, current_changes},
+        fn {var_id, domain_change} = change, {g_acc, propagators_acc, changes_acc} ->
+          propagator_ids =
+            ConstraintGraph.get_propagator_ids(g_acc, var_id, domain_change)
+
+          {maybe_remove_variable(g_acc, var_id, domain_change),
+           MapSet.union(
+             propagators_acc,
+             MapSet.new(Map.keys(propagator_ids))
+           ), propagator_changes(propagator_ids, change, changes_acc)}
+        end
+      )
+
+    {updated_graph, scheduled_propagators, cumulative_domain_changes}
   end
 
-  ## Returns set of propagator ids scheduled as a result of domain changes.
-  defp schedule_by_propagator(domain_changes, graph) do
-    {updated_graph, scheduled_propagators} =
-      domain_changes
-      |> Enum.reduce({graph, MapSet.new()}, fn {var_id, domain_change}, {g, propagators} ->
-        {maybe_remove_variable(g, var_id, domain_change),
-         MapSet.union(
-           propagators,
-           MapSet.new(ConstraintGraph.get_propagator_ids(g, var_id, domain_change))
-         )}
-      end)
-
-    {updated_graph, scheduled_propagators}
+  ## Remove passive propagator
+  defp maybe_remove_propagator(graph, propagator_id, active?) do
+    (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
   end
 
-  defp maybe_remove_propagator(graph, _propagator_id, _active?) do
-    ## TODO: reintroduce removing passive propagators
-    ## There is a bigger problem as to what to do with unfixed variables
-    ## when no active propagators left.
-    # (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
-    graph
-  end
-
-  ## Update propagator
-  ## Do not update if passive
-  defp update_propagator(graph, _propagator_id, %{active?: false} = _filtering_results) do
-    graph
-  end
-
-  defp update_propagator(graph, propagator_id, %{changes: changes, active?: true, state: state}) do
-    case ConstraintGraph.get_propagator(graph, propagator_id) do
-      nil ->
-        graph
-
-      p ->
-        Map.put(p, :state, state)
-        |> Propagator.update(changes)
-        |> then(fn updated_propagator ->
-          ConstraintGraph.update_propagator(graph, propagator_id, updated_propagator)
-        end)
-    end
-  end
-
-  defp finalize(:fail, _propagators, _store) do
+  defp finalize(:fail, _changes) do
     :fail
   end
 
   ## At this point, the space is either solved or stable.
-  defp finalize(%Graph{} = residual_graph, propagators, store) do
+  defp finalize(%Graph{} = residual_graph, changes) do
     if Enum.empty?(Graph.edges(residual_graph)) do
-      (checkpoint(propagators, store) && :solved) || :fail
+      :solved
     else
-      {:stable, remove_entailed_propagators(residual_graph, propagators)}
+      residual_graph
+      |> remove_fixed_variables(changes)
+      |> then(fn g ->
+        if Enum.empty?(Graph.edges(g)) do
+          :solved
+        else
+          {:stable, g}
+        end
+      end)
     end
   end
 
-  defp checkpoint(propagators, store) do
-    Enum.reduce_while(propagators, true, fn p, acc ->
-      case Propagator.filter(p, store: store) do
-        :fail -> {:halt, false}
-        _ -> {:cont, acc}
-      end
-    end)
-  end
-
-  defp remove_entailed_propagators(graph, propagators) do
-    Enum.reduce(propagators, graph, fn p, g ->
-      p_vertex = ConstraintGraph.propagator_vertex(p.id)
-
-      case Graph.neighbors(g, p_vertex) do
-        [] -> ConstraintGraph.remove_propagator(g, p.id)
-        _connected_vars -> g
-      end
-    end)
-  end
-
   defp maybe_remove_variable(graph, var_id, :fixed) do
-    ConstraintGraph.remove_variable(graph, var_id)
+    ConstraintGraph.disconnect_variable(graph, var_id)
   end
 
   defp maybe_remove_variable(graph, _var_id, _domain_change) do
@@ -175,13 +178,48 @@ defmodule CPSolver.Space.Propagation do
     MapSet.delete(scheduled_propagators, p_id)
   end
 
+  defp remove_fixed_variables(graph, changes) do
+    Enum.reduce(changes, graph, fn {var_id, domain_change}, g_acc ->
+      domain_change == :fixed &&
+        ConstraintGraph.disconnect_variable(g_acc, var_id)
+        || g_acc
+    end)
+  end
+
   ## TODO: possible reordering strategy
   ## for the next pass.
-  ## Ideas: put to-be-entailed propagators first,
+  ## Ideas:
+  ## - Put to-be-entailed propagators first,
   ## so if they fail, it'd be early.
-  ## In general, arrange by the number of fixed variables?
+  ## - (extension of ^^) Order by the number of fixed variables
   ##
   defp reorder(propagators) do
     propagators
+  end
+
+  defp propagator_changes(%Graph{} = graph, domain_changes) when is_map(domain_changes) do
+    Enum.reduce(domain_changes, Map.new(), fn {var_id, domain_change} = change, changes_acc ->
+      graph
+      |> ConstraintGraph.get_propagator_ids(var_id, domain_change)
+      |> propagator_changes(change, changes_acc)
+    end)
+  end
+
+  defp propagator_changes(propagator_ids, {var_id, domain_change} = _change, changes_acc) do
+    Enum.reduce(
+      propagator_ids,
+      changes_acc,
+      fn {p_id, _p_data}, acc ->
+        Map.update(acc, p_id, Map.new(%{var_id => domain_change}), fn var_map ->
+          current_var_change = Map.get(var_map, var_id)
+
+          Map.put(
+            var_map,
+            var_id,
+            stronger_domain_change(current_var_change, domain_change)
+          )
+        end)
+      end
+    )
   end
 end

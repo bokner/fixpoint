@@ -7,6 +7,14 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
     alias CPSolver.Variable.Interface
     alias CPSolver.Propagator
     alias CPSolver.Propagator.AllDifferent.FWC
+    import CPSolver.Test.Helpers
+
+    test "unsatisfiable" do
+      x = Enum.map([2, 1, 1, 3], fn val -> Variable.new(val) end)
+      {:ok, x_vars, _store} = ConstraintStore.create_store(x)
+      fwc_propagator = FWC.new(x_vars)
+      assert :fail == Propagator.filter(fwc_propagator)
+    end
 
     test "maintains the list of unfixed variables" do
       x =
@@ -14,7 +22,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
           Variable.new(d, name: name)
         end)
 
-      {:ok, x_vars, _store} = ConstraintStore.create_store(x)
+      {:ok, x_vars, _store} = create_store(x)
 
       [x1_var, x2_var, x3_var, _x4_var, _x5_var] = x_vars
 
@@ -23,23 +31,20 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
       fwc_propagator = FWC.new(x_vars)
       filtering_results = Propagator.filter(fwc_propagator)
 
-      %{unfixed_vars: unfixed_vars} = filtering_results.state
-      ## x1, x2 and x3 should be in unfixed_vars list
-      assert length(unfixed_vars) == 3
-
+      # IO.inspect(filtering_results)
       ## The values of fixed variables (namely, 4 and 5) have been removed from unfixed variables
       assert Enum.all?([x1_var, x2_var, x3_var], fn var -> Interface.max(var) == 3 end)
 
       ## Fixing one of the variables will remove the value it's fixed to from other variables
       :fixed = Interface.fix(x1_var, 3)
 
+      ## Emulate changes that would come from the propagation process.
+      ## x1 is at position 0 in the propagator arguments
+      changes = %{0 => :fixed}
+
       fwc_propagator_step2 = Map.put(fwc_propagator, :state, filtering_results.state)
-      filtering_results2 = Propagator.filter(fwc_propagator_step2)
-
-      %{unfixed_vars: updated_unfixed_vars} = filtering_results2.state
-
-      ## x1 had been fixed, and so is now removed from unfixed vars
-      assert length(updated_unfixed_vars) == 2
+      _filtering_results2 = Propagator.filter(fwc_propagator_step2, changes: changes)
+      # IO.inspect(filtering_results2)
 
       assert Interface.min(x2_var) == 1 && Interface.max(x2_var) == 2
       assert Interface.min(x3_var) == 0 && Interface.max(x3_var) == 2
@@ -55,7 +60,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
           Variable.new(d, name: name)
         end)
 
-      {:ok, x_vars, _store} = ConstraintStore.create_store(x)
+      {:ok, x_vars, _store} = create_store(x)
 
       fwc_propagator = FWC.new(x_vars)
       %{changes: changes} = Propagator.filter(fwc_propagator)

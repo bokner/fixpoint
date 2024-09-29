@@ -8,18 +8,26 @@ defmodule CPSolverTest.Constraint.AllDifferent.FWC do
     alias CPSolver.Model
     import CPSolver.Variable.View.Factory
 
+    test "all fixed" do
+      variables = Enum.map(1..5, fn i -> IntVariable.new(i) end)
+      model = Model.new(variables, [Constraint.new(AllDifferentFWC, variables)])
+      {:ok, result} = CPSolver.solve_sync(model)
+
+      assert hd(result.solutions) == [1, 2, 3, 4, 5]
+      assert result.statistics.solution_count == 1
+    end
+
     test "produces all possible permutations" do
       domain = 1..3
       variables = Enum.map(1..3, fn _ -> IntVariable.new(domain) end)
 
       model = Model.new(variables, [Constraint.new(AllDifferentFWC, variables)])
 
-      {:ok, solver} = CPSolver.solve(model)
+      {:ok, result} = CPSolver.solve_sync(model, timeout: 100)
 
-      Process.sleep(100)
-      assert CPSolver.statistics(solver).solution_count == 6
+      assert result.statistics.solution_count == 6
 
-      assert CPSolver.solutions(solver) |> Enum.sort() == [
+      assert result.solutions |> Enum.sort() == [
                [1, 2, 3],
                [1, 3, 2],
                [2, 1, 3],
@@ -27,6 +35,24 @@ defmodule CPSolverTest.Constraint.AllDifferent.FWC do
                [3, 1, 2],
                [3, 2, 1]
              ]
+    end
+
+    test "unsatisfiable (duplicates)" do
+      variables = Enum.map(1..3, fn _ -> IntVariable.new(1) end)
+      model = Model.new(variables, [Constraint.new(AllDifferentFWC, variables)])
+
+      {:ok, result} = CPSolver.solve_sync(model, timeout: 1000)
+
+      assert result.status == :unsatisfiable
+    end
+
+    test "unsatisfiable(pigeonhole)" do
+      variables = Enum.map(1..4, fn _ -> IntVariable.new(1..3) end)
+      model = Model.new(variables, [Constraint.new(AllDifferentFWC, variables)])
+
+      {:ok, result} = CPSolver.solve_sync(model)
+
+      assert result.status == :unsatisfiable
     end
 
     test "views in variable list" do

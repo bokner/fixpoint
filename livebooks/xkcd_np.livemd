@@ -2,8 +2,7 @@
 
 ```elixir
 Mix.install([
-  {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
-  # :fixpoint,
+  :fixpoint,
   {:kino, "~> 0.10.0"}
 ])
 
@@ -127,11 +126,10 @@ defmodule XKCD.NP.Appetizers do
       Enum.zip(quantities, appetizers)
       |> Enum.map(fn {q_var, {_name, price}} -> mul(q_var, price) end)
 
-    total_price = Variable.new(total, name: "total_price")
 
     Model.new(
       quantities,
-      [Sum.new(total_price, priced_quantities)]
+      [Sum.new(total, priced_quantities)]
     )
   end
 
@@ -139,7 +137,7 @@ defmodule XKCD.NP.Appetizers do
     (Enum.map_join(solver_results.solutions, "\n OR \n", fn sol ->
        sol
        |> Enum.zip(solver_results.variables)
-       |> Enum.reject(fn {q, _name} -> q == 0 end)
+       |> Enum.reject(fn {q, name} -> q == 0 || is_reference(name) end)
        |> Enum.map_join(", ", fn {q, name} ->
          IO.ANSI.red() <> "#{name} : #{IO.ANSI.blue()}#{q}"
        end)
@@ -177,12 +175,12 @@ import ServingTablesHelpers
 
 tables = ["Table1", "Table2", "Table3", "Table4", "Table5", "Table6", "Table7"]
 
-table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {8, 6}, {11, 2}]
-# [{2, 2}, {2, 10}, {4, 6}, {6, 12}, {8, 4}, {8, 8}, {12, 4}, {12, 8}]
+table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {8, 4}, {11, 5}]
+
 distances = distances_from_coordinates(table_coordinates)
 
 model = TSP.model(distances)
-{:ok, result} = CPSolver.solve_sync(model, search: TSP.search(model))
+{:ok, result} = CPSolver.solve_sync(model, search: TSP.search(model), space_threads: 8)
 
 optimal_solution = result.solutions |> List.last()
 
@@ -192,6 +190,9 @@ visualize_route(optimal_route, distances, tables, table_coordinates)
 ```
 
 ```elixir
-{result.objective, result.statistics.elapsed_time, result.solutions, optimal_solution}
-# TSP.check_solution(optimal_solution, model)
+result.solutions
+```
+
+```elixir
+{result.statistics.elapsed_time, optimal_route}
 ```

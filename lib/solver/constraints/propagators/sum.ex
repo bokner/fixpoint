@@ -11,6 +11,11 @@ defmodule CPSolver.Propagator.Sum do
     new([minus(y) | x])
   end
 
+  @impl true
+  def arguments(args) do
+    Arrays.new(args, implementation: Aja.Vector)
+  end
+
   defp initial_state(args) do
     {sum_fixed, unfixed_vars} =
       args
@@ -32,16 +37,11 @@ defmodule CPSolver.Propagator.Sum do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, initial_state(args))
+  def filter(all_vars, nil, changes) do
+    filter(all_vars, initial_state(all_vars), changes)
   end
 
-  def filter(args, nil) do
-    filter(args, initial_state(args))
-  end
-
-  @impl true
-  def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_ids: unfixed_ids} = _state) do
+  def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_ids: unfixed_ids} = _state, _changes) do
     {unfixed_vars, updated_unfixed_ids, new_sum} = update_unfixed(all_vars, unfixed_ids)
     updated_sum = sum_fixed + new_sum
     {sum_min, sum_max} = sum_min_max(updated_sum, unfixed_vars)
@@ -54,7 +54,7 @@ defmodule CPSolver.Propagator.Sum do
 
   defp update_unfixed(all_vars, unfixed_ids) do
     Enum.reduce(unfixed_ids, {[], unfixed_ids, 0}, fn pos, {unfixed_acc, ids_acc, sum_acc} ->
-      var = Enum.at(all_vars, pos)
+      var = Arrays.get(all_vars, pos)
 
       (fixed?(var) && {unfixed_acc, MapSet.delete(ids_acc, pos), sum_acc + min(var)}) ||
         {[var | unfixed_acc], ids_acc, sum_acc}

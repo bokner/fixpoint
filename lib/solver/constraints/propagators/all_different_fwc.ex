@@ -5,8 +5,9 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   The forward-checking propagator for AllDifferent constraint.
   """
 
-  defp initial_state(args) do
-    %{unfixed_vars: Enum.to_list(0..(length(args) - 1))}
+  @impl true
+  def arguments(args) do
+    Arrays.new(args, implementation: Aja.Vector)
   end
 
   @impl true
@@ -15,59 +16,89 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, initial_state(args))
-  end
+  def filter(all_vars, state, changes) do
+    new_fixed = Map.keys(changes) |> MapSet.new()
 
-  def filter(args, nil) do
-    filter(args, initial_state(args))
-  end
+    {unresolved, fixed} =
+      (state &&
+         {state[:unresolved] |> MapSet.difference(new_fixed), fixed_values(all_vars, new_fixed)}) ||
+        initial_split(all_vars)
 
-  @impl true
-  def filter(all_vars, %{unfixed_vars: unfixed_vars} = _state) do
-    updated_unfixed_vars = filter_impl(all_vars, unfixed_vars)
-    {:state, %{unfixed_vars: updated_unfixed_vars}}
-  end
-
-  defp filter_impl(all_vars, unfixed_vars) do
-    fwc(all_vars, unfixed_vars, MapSet.new(), [], false)
-  end
-
-  ## The list of unfixed variables exhausted, and there were no fixed values.
-  ## We stop here
-  defp fwc(_all_vars, [], _fixed_values, unfixed_ids, false) do
-    unfixed_ids
-  end
-
-  ## The list of unfixed variables exhausted, and some new fixed values showed up.
-  ## We go through unfixed ids we have collected during previous stage again
-
-  defp fwc(all_vars, [], fixed_values, ids_to_revisit, true) do
-    fwc(all_vars, ids_to_revisit, fixed_values, [], false)
-  end
-
-  ## There is still some (previously) unfixed values to check
-  defp fwc(all_vars, [idx | rest], fixed_values, ids_to_revisit, changed?) do
-    var = Enum.at(all_vars, idx)
-    remove_all(var, fixed_values)
-
-    if fixed?(var) do
-      ## Variable is fixed or was fixed as a result of removing all fixed values
-      fwc(all_vars, rest, MapSet.put(fixed_values, min(var)), ids_to_revisit, true)
-    else
-      ## Still not fixed, put it to 'revisit' list
-      fwc(all_vars, rest, fixed_values, [idx | ids_to_revisit], changed?)
+    case fwc(all_vars, unresolved, fixed) do
+      false -> :passive
+      unfixed_updated_set -> {:state, %{unresolved: unfixed_updated_set}}
     end
   end
 
-  ## Remove values from the domain of variable
-  defp remove_all(variable, values) do
-    Enum.map(
-      values,
-      fn value ->
-        remove(variable, value)
+  defp fixed_values(vars, fixed) do
+    Enum.reduce(fixed, MapSet.new(), fn idx, values_acc ->
+      val = Propagator.arg_at(vars, idx) |> min()
+      (val in values_acc && fail()) || MapSet.put(values_acc, val)
+    end)
+  end
+
+  defp initial_split(vars) do
+    Enum.reduce(0..(Arrays.size(vars) - 1), {MapSet.new(), MapSet.new()}, fn idx,
+                                                                             {unfixed_acc,
+                                                                              fixed_vals_acc} ->
+      var = Propagator.arg_at(vars, idx)
+
+      if fixed?(var) do
+        val = min(var)
+        (val in fixed_vals_acc && fail()) || {unfixed_acc, MapSet.put(fixed_vals_acc, val)}
+      else
+        {MapSet.put(unfixed_acc, idx), fixed_vals_acc}
       end
-    )
-    |> Enum.any?(fn res -> res == :fixed end)
+    end)
+  end
+
+  defp fwc(vars, unfixed_set, fixed_values) do
+    {updated_unfixed, _fixed_vals} = remove_values(vars, unfixed_set, fixed_values)
+    MapSet.size(updated_unfixed) > 1 && updated_unfixed
+  end
+
+  ## unfixed_set - set of indices for yet unfixed variables
+  ## fixed_values - the set of fixed values we will use to reduce unfixed set.
+  defp remove_values(vars, unfixed_set, fixed_values) do
+    for idx <- unfixed_set, reduce: {MapSet.new(), fixed_values} do
+      {still_unfixed_acc, fixed_vals_acc} ->
+        var = Propagator.arg_at(vars, idx)
+
+        case remove_all(var, fixed_vals_acc) do
+          false ->
+            ## Variable is still unfixed, keep it
+            {MapSet.put(still_unfixed_acc, idx), fixed_vals_acc}
+
+          new_fixed_value ->
+            fixed_vals_acc = MapSet.put(fixed_vals_acc, new_fixed_value)
+
+            {unfixed_here, fixed_here} =
+              remove_values(vars, still_unfixed_acc, MapSet.new([new_fixed_value]))
+
+            {unfixed_here, MapSet.union(fixed_here, fixed_vals_acc)}
+        end
+    end
+  end
+
+  defp remove_all(var, values) do
+    Enum.reduce_while(values, false, fn val, acc ->
+      if remove(var, val) == :fixed do
+        {:halt, :fixed}
+      else
+        {:cont, acc}
+      end
+    end)
+    |> case do
+      false ->
+        fixed?(var) && min(var)
+
+      :fixed ->
+        min(var)
+    end
+    |> then(fn new_min -> new_min && ((new_min in values && fail()) || new_min) end)
+  end
+
+  defp fail() do
+    throw(:fail)
   end
 end

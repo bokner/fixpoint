@@ -2,10 +2,10 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
   use ExUnit.Case
 
   describe "Propagator filtering" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Propagator
-    alias CPSolver.Propagator.LessOrEqual
+    alias CPSolver.Propagator.{Less, LessOrEqual}
+    import CPSolver.Test.Helpers
 
     test "filtering" do
       ## Both vars are unfixed
@@ -13,8 +13,10 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       y = -5..5
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, [x_var, y_var] = bound_vars, _store} = ConstraintStore.create_store(variables)
-      %{changes: changes} = Propagator.filter(LessOrEqual.new(bound_vars))
+      {:ok, bound_vars, _store} = create_store(variables)
+      vars = [x_var, y_var] = bound_vars
+
+      %{changes: changes} = Propagator.filter(LessOrEqual.new(vars))
       assert Map.get(changes, x_var.id) == :max_change
       assert Map.get(changes, y_var.id) == :min_change
       assert 0 == Variable.min(x_var)
@@ -30,20 +32,20 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       ## Inconsistency: no solution to x <= y
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = ConstraintStore.create_store(variables, space: nil)
+      {:ok, bound_vars, _store} = create_store(variables)
       ## The propagator will fail on one of the variables
-      assert catch_throw(LessOrEqual.filter(bound_vars)) == :fail
+      assert Propagator.filter(LessOrEqual.new(bound_vars)) == :fail
     end
 
     test "offset" do
       x = 0..10
       y = -10..0
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-      {:ok, [x_var, y_var], _store} = ConstraintStore.create_store(variables)
-
+      {:ok, bound_vars, _store} = create_store(variables)
+      [x_var, y_var] = bound_vars
       # (x <= y + 5)
       offset = 5
-      LessOrEqual.filter([x_var, y_var, offset])
+      Propagator.filter(LessOrEqual.new([x_var, y_var, offset]))
       ## The domain of (y+5) variable is -5..5
       assert 0 == Variable.min(x_var)
       assert 5 == Variable.max(x_var)
@@ -56,16 +58,29 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       y = 2..4
 
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-      {:ok, [x_var, y_var], _store} = ConstraintStore.create_store(variables)
-      refute :passive == LessOrEqual.filter([x_var, y_var])
+      {:ok, bound_vars, _store} = create_store(variables)
+      [x_var, y_var] = bound_vars
+
+      refute %{active: false}  == Propagator.filter(LessOrEqual.new([x_var, y_var]))
 
       ## Cut domain of x so it intersects with domain of y in exactly one point
       Variable.removeAbove(x_var, 2)
-      {:state, state} = LessOrEqual.filter([x_var, y_var])
-      refute state.active?
+      result = Propagator.filter(LessOrEqual.new([x_var, y_var]))
+      refute result.active?
       ## Cut domain of x so it does not intersect with domain of y
       Variable.remove(x_var, 2)
-      assert :passive == LessOrEqual.filter([x_var, y_var], state)
+      assert %{active?: false} = Propagator.filter(LessOrEqual.new([x_var, y_var]))
+    end
+
+    test "Less" do
+      x = 1
+      y = 1
+
+      [x_var, y_var] = Enum.map([x, y], fn d -> Variable.new(d) end)
+
+      less_propagator = Propagator.new(Less, [x_var, y_var])
+
+      assert Propagator.filter(less_propagator) == :fail
     end
   end
 end

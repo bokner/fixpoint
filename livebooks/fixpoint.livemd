@@ -2,9 +2,9 @@
 
 ```elixir
 Mix.install([
-  # {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
-  :fixpoint,
-  {:kino, "~> 0.10.0"}
+  {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
+  # :fixpoint,
+  :kino
 ])
 
 Logger.configure(level: :notice)
@@ -162,28 +162,43 @@ To make it more concrete, we will solve some combinatorial problems using ***Fix
 ```elixir
 alias CPSolver.Examples.Queens
 n = 8
+timeout = 180_000
 
 {:ok, res} =
-  CPSolver.solve_sync(Queens.model(n),
-    search: {:first_fail, :indomain_random},
+  CPSolver.solve_sync(
+    Queens.model(n,
+      symmetry: :half_symmetry
+    ),
+    search: {:input_order, :indomain_random},
     stop_on: {:max_solutions, 1},
-    timeout: 60_000
+    timeout: timeout,
+    space_threads: 4
   )
-
-IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
 
 if res.status == :unsatisfiable do
   IO.puts(IO.ANSI.red() <> "There is no solution for n = #{n}!" <> IO.ANSI.reset())
 else
-  solution = hd(res.solutions)
+  solution = List.first(res.solutions)
 
-  IO.puts(
-    (Queens.check_solution(solution) &&
-       IO.ANSI.green() <>
-         "Solution is correct!") || IO.ANSI.red() <> "Solution is wrong!" <> IO.ANSI.reset()
-  )
+  if solution do
+    IO.puts(
+      ((Queens.check_solution(solution) &&
+          IO.ANSI.green() <>
+            "Solution is correct!") || IO.ANSI.red() <> "Solution is wrong!") <> IO.ANSI.reset()
+    )
 
-  RenderHTML.render_nqueens(solution)
+    IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
+  else
+    IO.puts("No solution was found within #{timeout} \u33b3")
+  end
+
+  view_limit = 20
+
+  if n <= view_limit do
+    RenderHTML.render_nqueens(solution)
+  else
+    IO.puts("Chess board will only be shown for n <= #{view_limit}")
+  end
 end
 ```
 
@@ -197,7 +212,8 @@ The instance below is taken from http://www.tellmehowto.net/sudoku/veryhardsudok
 
 ```elixir
 alias CPSolver.Examples.Sudoku
-hard_puzzle = Sudoku.puzzles().hard9x9
+puzzles = Sudoku.puzzles()
+hard_puzzle = puzzles.hard9x9
 RenderHTML.render_sudoku(hard_puzzle)
 ```
 
@@ -206,7 +222,7 @@ RenderHTML.render_sudoku(hard_puzzle)
 ```elixir
 {:ok, res} =
   CPSolver.solve_sync(Sudoku.model(hard_puzzle),
-    max_space_threads: 12,
+    space_threads: 8,
     stop_on: {:max_solutions, 1},
     search: {:first_fail, :indomain_random}
   )
@@ -312,8 +328,7 @@ So the encoding of the rules does not require any programming except wiring rule
 
 ```elixir
 alias CPSolver.Examples.Reindeers
-{:ok, res} = CPSolver.solve_sync(Reindeers.model())
-IO.puts("Solved in #{div(res.statistics.elapsed_time, 1000)} \u33b3")
+{:ok, res} = Reindeers.solve()
 ```
 
 ## SEND + MORE = MONEY
@@ -397,8 +412,6 @@ sorted_by_value = Enum.sort_by(items, fn {_name, _weight, value} -> value end, :
     {[n | n_acc], [w | w_acc], [v | v_acc]}
   end)
 
-model = Knapsack.model(values, weights, capacity)
-
 :ok
 ```
 
@@ -429,11 +442,12 @@ first before deciding not to.
 Overall, our search strategy translates to "pack the items with higher values first".
 
 ```elixir
+model = Knapsack.model(values, weights, capacity)
 search_strategy = {:input_order, :indomain_max}
 
 {:ok, res} =
   CPSolver.solve_sync(model,
-    max_space_threads: 8,
+    space_threads: 8,
     timeout: 1_000,
     search: search_strategy
   )
@@ -466,6 +480,8 @@ IO.puts("Total weight: #{IO.ANSI.red()}#{total_weight}/#{capacity}#{IO.ANSI.rese
 IO.puts("Solved in: #{div(res.statistics.elapsed_time, 1000)} \u33b3")
 ```
 
+## Benchmarking (local)
+
 ```elixir
 IEx.Helpers.c("scripts/sudoku_benchmark.exs")
 ```
@@ -477,8 +493,12 @@ alias CPSolver.Examples.Sudoku
 res =
   SudokuBenchmark.run("data/sudoku/hardest", 100, 12, 30_000)
   |> Enum.map(fn s ->
-    !(s.solutions |> List.first() |> then(fn sol -> sol && Sudoku.check_solution(sol) end)) &&
-      Logger.error("Wrong solution!")
+    s.solutions
+    |> List.first()
+    |> tap(fn sol ->
+      (sol && Sudoku.check_solution(sol) && Logger.notice("OK")) ||
+        Logger.error("Wrong solution!")
+    end)
 
     s.statistics.elapsed_time
   end)
