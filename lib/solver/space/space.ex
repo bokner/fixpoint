@@ -286,7 +286,7 @@ defmodule CPSolver.Space do
 
   def checkpoint(propagators, constraint_graph) do
     Enum.reduce_while(propagators, true, fn p, acc ->
-      case Propagator.filter(p, reset?: true, constraint_graph: constraint_graph) do
+      case Propagator.filter(p, reset: false, constraint_graph: constraint_graph) do
         :fail -> {:halt, false}
         _ -> {:cont, acc}
       end
