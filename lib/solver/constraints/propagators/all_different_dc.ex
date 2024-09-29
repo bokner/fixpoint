@@ -19,7 +19,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
             {
               ## Fail if the value is already in matching
-              (MapSet.has_key?(matching_acc, val) && fail()) || MapSet.put(matching_acc, val),
+              (MapSet.member?(matching_acc, val) && fail()) || MapSet.put(matching_acc, val),
               Graph.add_edge(graph_acc, idx, val),
               unfixed_acc
             }
@@ -47,20 +47,16 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   @impl true
-  def filter(args) do
-    filter(args, initial_state(args))
-  end
-
-  def filter(args, nil) do
-    filter(args, initial_state(args))
+  def filter(args, nil, changes) do
+    filter(args, initial_state(args), changes)
   end
 
   @impl true
-  def filter(all_vars, %{unfixed_ids: []} = _state) do
+  def filter(all_vars, %{unfixed_ids: []} = _state, _changes) do
     :passive
   end
 
-  def filter(all_vars, %{unfixed_ids: unfixed_ids} = _state) do
+  def filter(all_vars, %{unfixed_ids: unfixed_ids} = _state, _changes) do
     updated_unfixed_vars = filter_impl(all_vars, unfixed_ids)
     {:state, %{unfixed_ids: updated_unfixed_vars}}
   end

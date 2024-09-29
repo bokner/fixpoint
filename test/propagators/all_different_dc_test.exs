@@ -2,10 +2,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC do
   use ExUnit.Case
 
   describe "Propagator filtering" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
-    alias CPSolver.Variable.Interface
-    alias CPSolver.Propagator
     alias CPSolver.Propagator.AllDifferent.DC
 
     test "cascading filtering" do
