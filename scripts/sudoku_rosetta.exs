@@ -11,11 +11,11 @@ defmodule SudokuRosetta do
   def task(knowns) do
     IO.puts("start")
     start = start(knowns)
-    display(start)
-    IO.puts("solved")
+    #display(start)
+    #IO.puts("solved")
     solved = solve(start)
-    display(solved)
-    IO.puts("")
+    #display(solved)
+    IO.puts("Solved")
   end
 
   defp bt(grid), do: bt_reject(is_not_allowed(grid), grid)
@@ -176,7 +176,7 @@ simple = [
   {{9, 9}, 5}
 ]
 
-Sudoku.task(simple)
+SudokuRosetta.task(simple)
 
 difficult = [
   {{6, 2}, 3},
@@ -198,4 +198,4 @@ difficult = [
   {{9, 9}, 9}
 ]
 
-Sudoku.task(difficult)
+:timer.tc(fn -> SudokuRosetta.task(difficult) end)
