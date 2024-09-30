@@ -4,6 +4,20 @@ defmodule CPSolver.Search.VariableSelector.FirstFail do
 
   @impl true
   def select_variable(variables) do
-    Enum.min_by(variables, fn var -> Interface.size(var) end)
+    get_minimals(variables)
+    |> List.first()
+  end
+
+  def get_minimals(variables) do
+    List.foldr(variables, {[], nil}, fn var, {vars, current_min} = acc ->
+      domain_size = Interface.size(var)
+      cond do
+        is_nil(current_min) || domain_size < current_min -> {[var], domain_size}
+        domain_size > current_min -> acc
+        domain_size == current_min -> {[var | vars], domain_size}
+      end
+    end)
+    |> elem(0)
+
   end
 end
