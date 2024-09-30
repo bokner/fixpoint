@@ -1,8 +1,7 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable.Interface
-  alias CPSolver.Search.VariableSelector.FirstFail
+  alias CPSolver.Search.VariableSelector.{FirstFail, MostConstrained}
   alias CPSolver.DefaultDomain, as: Domain
-  # alias CPSolver.Constraint.{Equal, NotEqual}
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random}
 
@@ -24,6 +23,10 @@ defmodule CPSolver.Search.Strategy do
       Enum.sort_by(variables, fn %{index: idx} -> idx end)
       |> List.first()
     end
+  end
+
+  def shortcut(:most_constrained) do
+    &MostConstrained.select_variable/2
   end
 
   def shortcut(:indomain_min) do
@@ -60,10 +63,26 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def branch(variables, {variable_choice, partition_strategy}) do
-    branch(variables, variable_choice, partition_strategy)
+    branch(variables, variable_choice, partition_strategy, %{})
   end
 
-  def branch(variables, variable_choice, partition_strategy) do
+  def branch(variables, {variable_choice, partition_strategy}, data) do
+    branch(variables, variable_choice, partition_strategy, data)
+  end
+
+  def branch(variables, variable_choice, partition_strategy, data \\ %{})
+
+  def branch(variables, variable_choice, partition_strategy, data) when is_atom(variable_choice) do
+    branch(variables, shortcut(variable_choice), partition_strategy, data)
+  end
+
+  def branch(variables, variable_choice, partition_strategy, data) when is_function(variable_choice, 2) do
+    variable_choice_arity1 = fn variables -> variable_choice.(variables, data) end
+    branch(variables, variable_choice_arity1, partition_strategy, data)
+  end
+
+  def branch(variables, variable_choice, partition_strategy, _data) when is_function(variable_choice, 1)
+  do
     case select_variable(variables, variable_choice) do
       nil ->
         []

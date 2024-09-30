@@ -61,7 +61,7 @@ defmodule CPSolverTest.Examples.SatSolver do
   end
 
   defp assert_satisfiable(clauses) do
-    solution = SatSolver.solve(clauses)
+    solution = SatSolver.solve(clauses, search: {:most_constrained, :indomain_max})
     assert SatSolver.check_solution(solution, clauses)
   end
 
