@@ -32,7 +32,7 @@ defmodule CPSolver.Examples.SatSolver do
     default_opts =
       [
       search: {
-        Strategy.most_constrained(&List.first/1), :indomain_max},
+        Strategy.most_constrained(&Enum.random/1), :indomain_max},
       stop_on: {:max_solutions, 1}
       ]
     {:ok, res} =

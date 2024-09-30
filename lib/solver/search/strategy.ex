@@ -41,8 +41,14 @@ defmodule CPSolver.Search.Strategy do
     Random
   end
 
-  def most_constrained(break_even_fun \\ first_fail()) do
+  def most_constrained(break_even_fun \\ first_fail())
+
+  def most_constrained(break_even_fun) when is_function(break_even_fun) do
     fn vars, data -> MostConstrained.select_variable(vars, data, break_even_fun) end
+  end
+
+  def most_constrained(shortcut) when is_atom(shortcut) do
+    most_constrained(shortcut(shortcut))
   end
 
   def first_fail(break_even_fun \\ &List.first/1)
