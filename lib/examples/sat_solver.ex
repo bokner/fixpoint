@@ -5,6 +5,7 @@ defmodule CPSolver.Examples.SatSolver do
   alias CPSolver.Variable.Interface
   import CPSolver.Variable.View.Factory
 
+  alias CPSolver.Search.Strategy
   require Logger
 
   @moduledoc """
@@ -30,7 +31,8 @@ defmodule CPSolver.Examples.SatSolver do
 
     default_opts =
       [
-      search: {:first_fail, :indomain_max},
+      search: {
+        Strategy.most_constrained(&List.first/1), :indomain_max},
       stop_on: {:max_solutions, 1}
       ]
     {:ok, res} =
