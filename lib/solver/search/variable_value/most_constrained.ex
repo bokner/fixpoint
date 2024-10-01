@@ -5,6 +5,11 @@ defmodule CPSolver.Search.VariableSelector.MostConstrained do
 
   def select_variable(variables, space_data, break_even_fun \\ &FirstFail.select_variable/1) do
     ## Pick out all variables with maximal degrees
+    get_maximals(variables, space_data)
+    |> break_even_fun.()
+  end
+
+  def get_maximals(variables, space_data) do
     List.foldr(variables, {[], -1}, fn var, {vars, current_max} = acc ->
       graph = space_data[:constraint_graph]
       var_id = Interface.id(var)
@@ -17,7 +22,6 @@ defmodule CPSolver.Search.VariableSelector.MostConstrained do
       end
     end)
     |> elem(0)
-    |> break_even_fun.()
   end
 
 end

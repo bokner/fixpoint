@@ -41,10 +41,17 @@ defmodule CPSolver.Search.Strategy do
     Random
   end
 
-  def most_constrained(break_even_fun \\ first_fail())
+  def most_constrained(break_even_fun \\ &List.first/1)
+  def most_constrained(break_even_fun) when is_function(break_even_fun, 1) do
+    most_constrained(fn vars, _data -> break_even_fun.(vars) end)
+  end
 
-  def most_constrained(break_even_fun) when is_function(break_even_fun) do
-    fn vars, data -> MostConstrained.select_variable(vars, data, break_even_fun) end
+  def most_constrained(break_even_fun) when is_function(break_even_fun, 2) do
+    fn vars, data ->
+      vars
+      |> MostConstrained.get_maximals(data)
+      |> break_even_fun.(data)
+    end
   end
 
   def most_constrained(shortcut) when is_atom(shortcut) do
