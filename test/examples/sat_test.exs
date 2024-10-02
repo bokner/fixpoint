@@ -61,11 +61,11 @@ defmodule CPSolverTest.Examples.SatSolver do
   end
 
   defp assert_satisfiable(clauses) do
-    solution = SatSolver.solve(clauses, search: {&Enum.random/1, :indomain_max})
+    solution = SatSolver.solve(clauses)
     assert SatSolver.check_solution(solution, clauses)
   end
 
   defp assert_unsatisfiable(clauses) do
-    assert :unsatisfiable == SatSolver.solve(clauses, search: {&List.first/1, :indomain_max})
+    assert :unsatisfiable == SatSolver.solve(clauses)
   end
 end
