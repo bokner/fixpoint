@@ -8,6 +8,10 @@ defmodule CPSolver.Search.VariableSelector.FirstFail do
     |> break_even_fun.()
   end
 
+  def candidates(variables, _data) do
+    get_minimals(variables)
+  end
+
   def get_minimals(variables) do
     List.foldr(variables, {[], nil}, fn var, {vars, current_min} = acc ->
       domain_size = Interface.size(var)
@@ -19,7 +23,7 @@ defmodule CPSolver.Search.VariableSelector.FirstFail do
     end)
     |> elem(0)
   end
-  
+
 
 
 end

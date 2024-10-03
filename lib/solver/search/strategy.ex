@@ -45,18 +45,24 @@ defmodule CPSolver.Search.Strategy do
     Random
   end
 
-  def most_constrained(break_even_fun \\ &List.first/1)
-
-  def most_constrained(break_even_fun) when is_function(break_even_fun, 1) do
-    most_constrained(fn vars, _data -> break_even_fun.(vars) end)
+  def break_even(strategy_impl, break_even_fun) when is_function(break_even_fun, 1) do
+    break_even(strategy_impl, fn vars, _data -> break_even_fun.(vars) end)
   end
 
-  def most_constrained(break_even_fun) when is_function(break_even_fun, 2) do
+  def break_even(strategy_impl, break_even_fun) when is_function(break_even_fun, 2) do
     fn vars, data ->
       vars
-      |> MostConstrained.get_maximals(data)
+      |> strategy_impl.candidates(data)
       |> break_even_fun.(data)
     end
+  end
+
+
+
+  def most_constrained(break_even_fun \\ &List.first/1)
+
+  def most_constrained(break_even_fun) when is_function(break_even_fun) do
+    break_even(MostConstrained, break_even_fun)
   end
 
   def most_constrained(shortcut) when is_atom(shortcut) do
@@ -65,16 +71,8 @@ defmodule CPSolver.Search.Strategy do
 
   def first_fail(break_even_fun \\ &List.first/1)
 
-  def first_fail(break_even_fun) when is_function(break_even_fun, 1) do
-    first_fail(fn vars, _data -> break_even_fun.(vars) end)
-  end
-
-  def first_fail(break_even_fun) when is_function(break_even_fun, 2) do
-    fn vars, data ->
-      vars
-      |> FirstFail.get_minimals()
-      |> break_even_fun.(data)
-    end
+  def first_fail(break_even_fun) when is_function(break_even_fun) do
+    break_even(FirstFail, break_even_fun)
   end
 
   def first_fail(shortcut) when is_atom(shortcut) do
@@ -84,9 +82,7 @@ defmodule CPSolver.Search.Strategy do
   def dom_deg(break_even_fun \\ &List.first/1)
 
   def dom_deg(break_even_fun) when is_function(break_even_fun) do
-    fn vars, data ->
-      DomDeg.select_variable(vars, data, break_even_fun)
-    end
+    break_even(DomDeg, break_even_fun)
   end
 
   def dom_deg(shortcut) when is_atom(shortcut) do

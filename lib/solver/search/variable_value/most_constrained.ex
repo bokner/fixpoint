@@ -9,7 +9,11 @@ defmodule CPSolver.Search.VariableSelector.MostConstrained do
     |> break_even_fun.()
   end
 
-  def get_maximals(variables, space_data) do
+  def candidates(variables, space_data) do
+    get_maximals(variables, space_data)
+  end
+
+  defp get_maximals(variables, space_data) do
     List.foldr(variables, {[], -1}, fn var, {vars, current_max} = acc ->
       graph = space_data[:constraint_graph]
       var_id = Interface.id(var)
