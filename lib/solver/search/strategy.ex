@@ -1,6 +1,6 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable.Interface
-  alias CPSolver.Search.VariableSelector.{FirstFail, MostConstrained}
+  alias CPSolver.Search.VariableSelector.{FirstFail, MostConstrained, DomDeg}
   alias CPSolver.DefaultDomain, as: Domain
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random}
@@ -29,6 +29,10 @@ defmodule CPSolver.Search.Strategy do
     &MostConstrained.select_variable/2
   end
 
+  def shortcut(:dom_deg) do
+    &DomDeg.select_variable/2
+  end
+
   def shortcut(:indomain_min) do
     Min
   end
@@ -42,6 +46,7 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def most_constrained(break_even_fun \\ &List.first/1)
+
   def most_constrained(break_even_fun) when is_function(break_even_fun, 1) do
     most_constrained(fn vars, _data -> break_even_fun.(vars) end)
   end
@@ -74,6 +79,18 @@ defmodule CPSolver.Search.Strategy do
 
   def first_fail(shortcut) when is_atom(shortcut) do
     first_fail(shortcut(shortcut))
+  end
+
+  def dom_deg(break_even_fun \\ &List.first/1)
+
+  def dom_deg(break_even_fun) when is_function(break_even_fun) do
+    fn vars, data ->
+      DomDeg.select_variable(vars, data, break_even_fun)
+    end
+  end
+
+  def dom_deg(shortcut) when is_atom(shortcut) do
+    dom_deg(shortcut(shortcut))
   end
 
   def select_variable(variables, variable_choice) when is_atom(variable_choice) do
