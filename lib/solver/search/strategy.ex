@@ -59,7 +59,7 @@ defmodule CPSolver.Search.Strategy do
 
 
 
-  def most_constrained(break_even_fun \\ &List.first/1)
+  def most_constrained(break_even_fun \\ &Enum.random/1)
 
   def most_constrained(break_even_fun) when is_function(break_even_fun) do
     break_even(MostConstrained, break_even_fun)
@@ -69,7 +69,7 @@ defmodule CPSolver.Search.Strategy do
     most_constrained(shortcut(shortcut))
   end
 
-  def first_fail(break_even_fun \\ &List.first/1)
+  def first_fail(break_even_fun \\ &Enum.random/1)
 
   def first_fail(break_even_fun) when is_function(break_even_fun) do
     break_even(FirstFail, break_even_fun)
@@ -79,7 +79,7 @@ defmodule CPSolver.Search.Strategy do
     first_fail(shortcut(shortcut))
   end
 
-  def dom_deg(break_even_fun \\ &List.first/1)
+  def dom_deg(break_even_fun \\ &Enum.random/1)
 
   def dom_deg(break_even_fun) when is_function(break_even_fun) do
     break_even(DomDeg, break_even_fun)
