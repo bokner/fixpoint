@@ -16,8 +16,12 @@ defmodule SudokuBenchmark do
             space_threads: space_threads,
             timeout: timeout,
             search: {
-              #fn (vars, data) -> MostConstrained.select_variable(vars, data, &FirstFail.select_variable/1) end,
+              Strategy.mixed([
             Strategy.most_constrained(Strategy.first_fail(&Enum.random/1)),
+            Strategy.first_fail(Strategy.most_constrained(&Enum.random/1)),
+            Strategy.dom_deg(&Enum.random/1),
+            #Strategy.most_completed(&Enum.random/1)
+            ]),
             :indomain_random}
           )
 

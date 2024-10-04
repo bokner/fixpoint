@@ -31,7 +31,7 @@ defmodule CPSolver.Examples.QAP do
 
   @checkmark_symbol "\u2713"
   @failure_symbol "\u1D350"
-  
+
   def run(instance, opts \\ []) do
     model = model(instance)
 
@@ -41,7 +41,7 @@ defmodule CPSolver.Examples.QAP do
           search: search(model),
           solution_handler: solution_handler(model),
           space_threads: 8,
-          timeout: :timer.minutes(5)
+          timeout: :timer.seconds(30)
         ],
         opts
       )
@@ -108,8 +108,9 @@ defmodule CPSolver.Examples.QAP do
       )
 
     {
-      :dom_deg,
-       :indomain_min}
+      :most_constrained,
+       :indomain_min
+      }
   end
 
   def solution_handler(model) do

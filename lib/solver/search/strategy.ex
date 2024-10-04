@@ -1,6 +1,6 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable.Interface
-  alias CPSolver.Search.VariableSelector.{FirstFail, MostConstrained, DomDeg}
+  alias CPSolver.Search.VariableSelector.{FirstFail, MostConstrained, MostCompleted, DomDeg}
   alias CPSolver.DefaultDomain, as: Domain
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random}
@@ -27,6 +27,10 @@ defmodule CPSolver.Search.Strategy do
 
   def shortcut(:most_constrained) do
     &MostConstrained.select_variable/2
+  end
+
+  def shortcut(:most_completed) do
+    &MostCompleted.select_variable/2
   end
 
   def shortcut(:dom_deg) do
@@ -57,7 +61,18 @@ defmodule CPSolver.Search.Strategy do
     end
   end
 
+  defp strategy_fun(strategy) when is_atom(strategy) do
+    shortcut(strategy)
+  end
 
+  defp strategy_fun(strategy) when is_function(strategy) do
+    strategy
+  end
+
+  def mixed(strategies) do
+      Enum.random(strategies)
+      |> strategy_fun()
+  end
 
   def most_constrained(break_even_fun \\ &Enum.random/1)
 
@@ -67,6 +82,16 @@ defmodule CPSolver.Search.Strategy do
 
   def most_constrained(shortcut) when is_atom(shortcut) do
     most_constrained(shortcut(shortcut))
+  end
+
+  def most_completed(break_even_fun \\ &Enum.random/1)
+
+  def most_completed(break_even_fun) when is_function(break_even_fun) do
+    break_even(MostCompleted, break_even_fun)
+  end
+
+  def most_completed(shortcut) when is_atom(shortcut) do
+    most_completed(shortcut(shortcut))
   end
 
   def first_fail(break_even_fun \\ &Enum.random/1)
