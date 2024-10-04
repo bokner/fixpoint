@@ -60,6 +60,12 @@ defmodule CPSolverTest.Examples.SatSolver do
     assert_unsatisfiable(:unsat50_218)
   end
 
+  @tag :slow
+  test "2 bigger instances (100 vars, 403 clauses) from Dimacs" do
+    assert_satisfiable(:sat100_403)
+    assert_unsatisfiable(:unsat100_403)
+  end
+
   defp assert_satisfiable(clauses) do
     solution = SatSolver.solve(clauses)
     assert SatSolver.check_solution(solution, clauses)

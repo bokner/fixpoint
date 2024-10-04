@@ -7,7 +7,6 @@ defmodule CPSolver do
   alias CPSolver.Space
   alias CPSolver.Constraint
   alias CPSolver.Solution
-  alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
 
   alias CPSolver.Shared
@@ -272,11 +271,8 @@ defmodule CPSolver do
       |> Map.new(fn {v, idx} -> {Interface.id(v), Map.put(Interface.variable(v), :index, idx)} end)
 
     bound_propagators =
-      Enum.reduce(constraints, [], fn constraint, acc ->
-        acc ++
-          Enum.map(Constraint.constraint_to_propagators(constraint), fn p ->
-            Propagator.bind(p, indexed_variables, :index)
-          end)
+      Enum.flat_map(constraints, fn constraint ->
+          Constraint.constraint_to_propagators(constraint)
       end)
 
     {Map.values(indexed_variables) |> Enum.sort_by(fn v -> Interface.variable(v).index end),

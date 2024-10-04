@@ -23,12 +23,14 @@ defmodule CPSolver.Examples.QAP do
   alias CPSolver.Model
   alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
   alias CPSolver.Objective
-  alias CPSolver.Search.VariableSelector.FirstFail
   import CPSolver.Constraint.Factory
 
   import CPSolver.Variable.View.Factory
 
   require Logger
+
+  @checkmark_symbol "\u2713"
+  @failure_symbol "\u1D350"
 
   def run(instance, opts \\ []) do
     model = model(instance)
@@ -39,7 +41,7 @@ defmodule CPSolver.Examples.QAP do
           search: search(model),
           solution_handler: solution_handler(model),
           space_threads: 8,
-          timeout: :timer.minutes(5)
+          timeout: :timer.seconds(30)
         ],
         opts
       )
@@ -98,16 +100,17 @@ defmodule CPSolver.Examples.QAP do
   end
 
   def search(model) do
-    location_var_names =
+    _location_var_names =
       Enum.take(model.variables, model.extra.n)
       |> Enum.reduce(
         MapSet.new(),
         fn v, acc -> MapSet.put(acc, v.name) end
       )
 
-    {fn variables ->
-       variable_choice(variables, location_var_names)
-     end, :indomain_min}
+    {
+      :most_constrained,
+       :indomain_min
+      }
   end
 
   def solution_handler(model) do
@@ -122,17 +125,11 @@ defmodule CPSolver.Examples.QAP do
            model.extra.distances,
            model.extra.weights
          ) &&
-           Logger.warning(ans_str)) || Logger.error(ans_str <> ": wrong -((")
-      end)
+         Logger.warning("#{@checkmark_symbol} #{ans_str}")) ||
+         Logger.error("#{@failure_symbol} #{ans_str}" <> ": wrong -((")      end)
     end
   end
 
-  defp variable_choice(variables, location_var_names) do
-    {location_vars, rest} =
-      Enum.split_with(variables, fn var -> var.name in location_var_names end)
-
-    (Enum.empty?(location_vars) && FirstFail.select_variable(rest)) || List.first(location_vars)
-  end
 
   def check_solution(solution, distances, weights) do
     n = length(distances)

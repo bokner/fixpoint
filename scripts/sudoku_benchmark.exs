@@ -1,6 +1,7 @@
 defmodule SudokuBenchmark do
   alias CPSolver.Examples.Sudoku
-
+  alias CPSolver.Search.VariableSelector.{MostConstrained, FirstFail}
+  alias CPSolver.Search.Strategy
   require Logger
 
   def run(instance_file, n, space_threads, timeout) do
@@ -14,7 +15,14 @@ defmodule SudokuBenchmark do
             stop_on: {:max_solutions, 1},
             space_threads: space_threads,
             timeout: timeout,
-            search: {:first_fail, :indomain_random}
+            search: {
+              Strategy.mixed([
+            Strategy.most_constrained(Strategy.first_fail(&Enum.random/1)),
+            Strategy.first_fail(Strategy.most_constrained(&Enum.random/1)),
+            Strategy.dom_deg(&Enum.random/1),
+            #Strategy.most_completed(&Enum.random/1)
+            ]),
+            :indomain_random}
           )
 
         res

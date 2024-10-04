@@ -31,13 +31,9 @@ defmodule CPSolverTest.Examples.TSP do
   end
 
   test "15 cities, optimality" do
-    model = TSP.model("data/tsp/tsp_15.txt")
-
-    {:ok, result} =
-      CPSolver.solve_sync(model,
-        timeout: 5_000,
-        space_threads: 8
-      )
+    tsp_instance = "data/tsp/tsp_15.txt"
+    model = TSP.model(tsp_instance)
+    {:ok, result} = TSP.run(tsp_instance)
 
     assert Enum.all?(result.solutions, fn sol -> TSP.check_solution(sol, model) end)
     assert result.status == {:optimal, [objective: 291]}

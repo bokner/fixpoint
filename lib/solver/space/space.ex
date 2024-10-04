@@ -286,7 +286,7 @@ defmodule CPSolver.Space do
 
   def checkpoint(propagators, constraint_graph) do
     Enum.reduce_while(propagators, true, fn p, acc ->
-      case Propagator.filter(p, reset?: true, constraint_graph: constraint_graph) do
+      case Propagator.filter(p, reset: false, constraint_graph: constraint_graph) do
         :fail -> {:halt, false}
         _ -> {:cont, acc}
       end
@@ -340,7 +340,7 @@ defmodule CPSolver.Space do
       ) do
     ## The search strategy branches off the existing variables.
     ## Each branch is a list of variables to use by a child space
-    branches = Search.branch(variables, opts[:search])
+    branches = Search.branch(variables, opts[:search], data)
 
     Enum.take_while(branches, fn {branch_variables, constraint} ->
       !CPSolver.complete?(shared(data)) &&

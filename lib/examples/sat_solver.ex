@@ -30,7 +30,14 @@ defmodule CPSolver.Examples.SatSolver do
 
     default_opts =
       [
-      search: {:first_fail, :indomain_max},
+      search: {
+        :most_completed,
+        #Strategy.most_completed(&Enum.random/1),
+        # fn _vars, space_data ->
+        #   most_completed_propagators_selection(space_data[:constraint_graph])
+        #   |> Enum.random()
+        # end,
+        :indomain_max},
       stop_on: {:max_solutions, 1}
       ]
     {:ok, res} =
@@ -156,4 +163,5 @@ defmodule CPSolver.Examples.SatSolver do
       unsat100_403: "data/sat/uuf100-01.cnf"
     }
   end
+
 end

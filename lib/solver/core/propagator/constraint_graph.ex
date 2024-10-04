@@ -109,6 +109,15 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     {:propagator, propagator_id}
   end
 
+  def variable_degree(%Graph{} = graph, variable_id) do
+    Graph.out_degree(graph, variable_vertex(variable_id))
+  end
+
+  def propagator_degree(%Graph{} = graph, propagator_id) do
+    Graph.in_degree(graph, propagator_vertex(propagator_id))
+  end
+
+
   def remove_propagator(graph, propagator_id) do
     remove_vertex(graph, propagator_vertex(propagator_id))
   end
