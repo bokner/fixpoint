@@ -6,7 +6,7 @@ defmodule CPSolver.Algorithms.Kuhn do
 
   @doc """
   Given the bipartite graph, a list of vertices int the left partition,
-  and (optional) initial matching %{right_side_vertex => left_side_vertex},
+  and (optional) partial matching %{right_side_vertex => left_side_vertex},
   find maximum matching
   """
   @spec run(Graph.t(), [any()], map()) :: map()

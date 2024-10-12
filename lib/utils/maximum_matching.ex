@@ -6,17 +6,7 @@ defmodule CPSolver.Utils.MaximumMatching do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Common
 
-  @doc """
-  `partial_matching` is a var_id => value map.
-  if no matching, `value` equals to nil
-  """
-  def kuhn(%Graph{} = domain_graph, partial_matching) do
-    kuhn(domain_graph, partial_matching, MapSet.new())
-  end
-
-  defp kuhn(domain_graph, partial_matching, used) do
-  end
-
+  
   @spec build_flow_network([Common.variable_or_view()]) :: Graph.t()
   def build_flow_network(variables) do
     Enum.reduce(variables, {Graph.new(), 0}, fn var, {graph_acc, idx_acc} ->
