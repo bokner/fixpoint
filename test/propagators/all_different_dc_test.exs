@@ -1,15 +1,16 @@
 defmodule CPSolverTest.Propagator.AllDifferent.DC do
   use ExUnit.Case
 
-  describe "Propagator filtering" do
-    alias CPSolver.ConstraintStore
-    alias CPSolver.IntVariable, as: Variable
-    alias CPSolver.Variable.Interface
-    alias CPSolver.Propagator
-    alias CPSolver.Propagator.AllDifferent.DC
+  alias CPSolver.ConstraintStore
+  alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Variable.Interface
+  alias CPSolver.Propagator
+  alias CPSolver.Propagator.AllDifferent.DC
 
-    test "initial reduction" do
+  describe "Initial filtering" do
+    test "reduction" do
       domains = [1..2, 1, 2..6, 2..6]
+
       vars =
         Enum.map(domains, fn d -> Variable.new(d) end)
 
@@ -50,8 +51,19 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC do
 
       ## Consequent filtering does not result in more changes and/or failures
       ## TODO!
-      #%{changes: nil} = Propagator.filter(dc_propagator)
-      #assert Enum.all?(x_vars, &Interface.fixed?/1)
+      # %{changes: nil} = Propagator.filter(dc_propagator)
+      # assert Enum.all?(x_vars, &Interface.fixed?/1)
+    end
+
+    test "inconsistency (pigeonhole)" do
+      domains = List.duplicate(1..3, 4)
+
+      vars =
+        Enum.map(domains, fn d -> Variable.new(d) end)
+
+      {:ok, bound_vars, _store} = CPSolver.ConstraintStore.create_store(vars)
+      dc_propagator = DC.new(bound_vars)
+      assert Propagator.filter(dc_propagator) == :fail
     end
   end
 end
