@@ -7,6 +7,15 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   The domain-consistent propagator for AllDifferent constraint,
   based on bipartite maximum matching.
   """
+  @impl true
+  def arguments(args) do
+    Arrays.new(args, implementation: Aja.Vector)
+  end
+
+  @impl true
+  def variables(args) do
+    Enum.map(args, fn x_el -> set_propagate_on(x_el, :domain_change) end)
+  end
 
   @impl true
   def filter(all_vars, state, changes) do
@@ -105,10 +114,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     Enum.reduce(sccs, graph, fn component, graph_acc ->
       component_set = MapSet.new(component)
       Enum.reduce(component_set, graph_acc,
-        fn {:variable, id} = _vertex, graph_acc2 ->
+        fn {:variable, _id} = _vertex, graph_acc2 ->
           graph_acc2
           :sink, graph_acc2 -> graph_acc2
-          {:value, value} = value_vertex, graph_acc2 ->
+          {:value, _value} = value_vertex, graph_acc2 ->
             remove_value_from_other_components(graph_acc2, component_set, value_vertex, vars)
     end)
   end)
@@ -124,7 +133,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
         graph_acc
        else
          remove(Propagator.arg_at(vars, id), value)
-         |> IO.inspect(label: :remove)
          Graph.delete_edge(graph_acc, value_vertex, variable_vertex)
        end
        ## Ignore to-sink edges
@@ -142,11 +150,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     end)
   end
 
-  @impl true
-  def variables(args) do
-    Enum.map(args, fn x_el -> set_propagate_on(x_el, :domain_change) end)
-  end
-
   defp fail() do
     throw(:fail)
   end
@@ -157,7 +160,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     vars =
       Enum.map(Enum.with_index(domains, 1), fn {d, idx} -> Variable.new(d, name: "x#{idx}") end)
 
-    {:ok, vars, store} = CPSolver.ConstraintStore.create_store(vars)
+    {:ok, vars, _store} = CPSolver.ConstraintStore.create_store(vars)
 
     initial_state(vars)
     |> tap(fn _ -> IO.inspect(Enum.map(vars, fn var -> {var.name, Interface.domain(var) |> Domain.to_list()} end)) end)
