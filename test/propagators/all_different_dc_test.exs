@@ -42,17 +42,14 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC do
       {:ok, x_vars, _store} = ConstraintStore.create_store(x)
 
       dc_propagator = DC.new(x_vars)
-      %{changes: changes} = Propagator.filter(dc_propagator)
-
-      ## x1 was already fixed; the filtering fixes the rest
+      %{changes: changes, active?: active?} = Propagator.filter(dc_propagator)
+      ## The propagators is no more active
+      refute active?
       assert map_size(changes) == Arrays.size(x_vars) - 1
       assert Enum.all?(Map.values(changes), fn change -> change == :fixed end)
+      ## All variables are now fixed
       assert Enum.all?(x_vars, &Interface.fixed?/1)
 
-      ## Consequent filtering does not result in more changes and/or failures
-      ## TODO!
-      # %{changes: nil} = Propagator.filter(dc_propagator)
-      # assert Enum.all?(x_vars, &Interface.fixed?/1)
     end
 
     test "inconsistency (pigeonhole)" do
