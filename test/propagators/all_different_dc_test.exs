@@ -16,7 +16,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC do
 
       {:ok, bound_vars, _store} = CPSolver.ConstraintStore.create_store(vars)
       dc_propagator = DC.new(bound_vars)
-      %{changes: changes} = Propagator.filter(dc_propagator)
+      %{changes: changes, active?: active?} = Propagator.filter(dc_propagator)
 
       x0 = Arrays.get(bound_vars, 0)
       x2 = Arrays.get(bound_vars, 2)
@@ -29,6 +29,8 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC do
       assert changes[x0.id] == :fixed
       assert changes[x2.id] == :min_change
       assert changes[x3.id] == :min_change
+      ## The propagator is active
+      assert active?
     end
 
     test "cascading filtering" do
@@ -43,7 +45,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC do
 
       dc_propagator = DC.new(x_vars)
       %{changes: changes, active?: active?} = Propagator.filter(dc_propagator)
-      ## The propagators is no more active
+      ## The propagators is passive
       refute active?
       assert map_size(changes) == Arrays.size(x_vars) - 1
       assert Enum.all?(Map.values(changes), fn change -> change == :fixed end)

@@ -28,7 +28,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   defp filter_impl(all_vars, state, changes) do
-    :todo
+    initial_state(all_vars)
   end
 
   def initial_state(vars) do
@@ -60,16 +60,19 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
         var_ids_acc = [var_vertex | var_ids_acc]
         ## If the variable fixed, it's already in matching.
         ## We do not have to add it to the value graph.
-        if fixed?(var) do
-          {graph_acc, var_ids_acc, Map.put(partial_matching_acc, {:value, min(var)}, var_vertex)}
+        partial_matching_acc = if fixed?(var) do
+          Map.put(partial_matching_acc, {:value, min(var)}, var_vertex)
         else
-          domain = domain(var) |> Domain.to_list()
-
-          {Enum.reduce(domain, graph_acc, fn d, graph_acc2 ->
-             Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
-           end), var_ids_acc, partial_matching_acc}
+          partial_matching_acc
         end
-      end
+
+        domain = domain(var) |> Domain.to_list()
+
+        graph_acc = Enum.reduce(domain, graph_acc, fn d, graph_acc2 ->
+             Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
+           end)
+           {graph_acc, var_ids_acc, partial_matching_acc}
+        end
     )
   end
 
@@ -97,11 +100,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
           var when var == v2 ->
             Graph.delete_edge(residual_graph_acc, v1, v2)
             |> Graph.add_edge(v2, v1)
+            |> Graph.add_edge(v1, :sink)
 
           _var ->
-            ## The value is matched, but the edge is not in matching -
-            ## connect value vertex to the sink
-            Graph.add_edge(residual_graph_acc, v1, :sink)
+            ## For values in the domain, but not in matching, keep value -> variable edge
+            residual_graph_acc
         end
       end
     )
