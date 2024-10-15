@@ -27,8 +27,43 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       {:state, new_state}
   end
 
-  defp filter_impl(all_vars, state, changes) do
-    initial_state(all_vars)
+  defp filter_impl(
+         all_vars,
+         %{
+           sccs: sccs,
+           matching: matching
+         } = state,
+         changes
+       ) do
+    ## Apply changes to affected SCCs
+    trigger_vars =
+      Map.keys(changes) |> Enum.map(fn var_id -> {:variable, var_id} end) |> MapSet.new()
+
+    Enum.reduce(sccs, sccs, fn component, sccs_acc ->
+      component_triggers = MapSet.intersection(trigger_vars, component)
+      MapSet.size(component_triggers) == 0 && sccs_acc ||
+      MapSet.union(sccs_acc, apply_triggers(all_vars, component, component_triggers, matching))
+      |> MapSet.delete(component)
+    end)
+  end
+
+  defp apply_triggers(all_vars, component, triggers, matching) do
+    ## We will mostly do what initial reduction does, but on a (lesser) subset of variables
+    ## that is represented by a component.
+    ## The difference is that we'll only run maximum matching
+    ## if any of the trigger variables doesn't have the value associated with the matching edge.
+
+    ## TODO: indexing of component variables?
+    ## (i.e., preserve position of component variable in the all_vars list)
+    component_variables = component_variables(component, all_vars)
+    {value_graph, variable_vertices, partial_matching} = build_value_graph(component_variables, component)
+    reduction(component_variables, value_graph, variable_vertices, partial_matching)
+
+  end
+
+  ## Pick out variables that match component's var ids
+  defp component_variables(component, vars) do
+    Enum.map(component, fn var_id -> Propagator.arg_at(vars, var_id) end)
   end
 
   def initial_state(vars) do
@@ -39,40 +74,39 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   def reduction(vars, value_graph, variable_vertices, partial_matching) do
     maximum_matching = compute_maximum_matching(value_graph, variable_vertices, partial_matching)
 
-    {residual_graph, sccs} =
+    {_residual_graph, sccs} =
       build_residual_graph(value_graph, maximum_matching)
       |> reduce_residual_graph(vars)
 
     (Enum.empty?(sccs) && :resolved) ||
       %{
-        sccs: sccs,
-        matching: maximum_matching,
-        residual_graph: residual_graph
+        sccs: sccs
       }
   end
 
-  def build_value_graph(vars) do
+  def build_value_graph(vars, indices \\ nil) do
     Enum.reduce(
-      Enum.with_index(vars),
+      Enum.zip(vars, indices || (0..Arrays.size(vars) - 1)),
       {Graph.new(), [], Map.new()},
       fn {var, idx}, {graph_acc, var_ids_acc, partial_matching_acc} ->
         var_vertex = {:variable, idx}
         var_ids_acc = [var_vertex | var_ids_acc]
-        ## If the variable fixed, it's already in matching.
-        ## We do not have to add it to the value graph.
-        partial_matching_acc = if fixed?(var) do
-          Map.put(partial_matching_acc, {:value, min(var)}, var_vertex)
-        else
-          partial_matching_acc
-        end
+        partial_matching_acc =
+          if fixed?(var) do
+            Map.put(partial_matching_acc, {:value, min(var)}, var_vertex)
+          else
+            partial_matching_acc
+          end
 
         domain = domain(var) |> Domain.to_list()
 
-        graph_acc = Enum.reduce(domain, graph_acc, fn d, graph_acc2 ->
-             Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
-           end)
-           {graph_acc, var_ids_acc, partial_matching_acc}
-        end
+        graph_acc =
+          Enum.reduce(domain, graph_acc, fn d, graph_acc2 ->
+            Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
+          end)
+
+        {graph_acc, var_ids_acc, partial_matching_acc}
+      end
     )
   end
 
@@ -174,9 +208,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
         acc
 
       component, acc ->
-        ## Turn non-empty SCC to the set to speed up the lookups
-        ## in consequent filtering calls
-        [MapSet.new(component) | acc]
+        ## Turn non-singleton SCC to the set to speed up the lookups
+        ## in consequent filtering calls.
+        ## Drop 'value' vertices from SCC.
+        [Enum.reduce(component, MapSet.new(), fn {:variable, var_id} = var_vertex, component_acc ->
+          MapSet.put(component_acc, var_id)
+          _non_var_vertex, map_acc -> map_acc
+
+        end) | acc]
     end)
   end
 
