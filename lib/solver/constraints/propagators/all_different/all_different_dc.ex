@@ -62,7 +62,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     ## (i.e., preserve position of component variable in the all_vars list)
     component_variable_map = component_variables(component, all_vars)
     {value_graph, variable_vertices, partial_matching} = build_value_graph(component_variable_map)
-    {_residual_graph, sccs} = reduction(all_vars, value_graph, variable_vertices, partial_matching)
+    {_residual_graph, sccs, _matching} = reduction(all_vars, value_graph, variable_vertices, partial_matching)
     sccs
   end
 
@@ -73,7 +73,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
   def initial_state(vars) do
     {value_graph, variable_vertices, partial_matching} = build_value_graph(vars)
-    {_residual_graph, sccs} = reduction(vars, value_graph, variable_vertices, partial_matching)
+    {_residual_graph, sccs, _matching} = reduction(vars, value_graph, variable_vertices, partial_matching)
     final_state(sccs)
   end
 
@@ -87,10 +87,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   def reduction(vars, value_graph, variable_vertices, partial_matching) do
     maximum_matching = compute_maximum_matching(value_graph, variable_vertices, partial_matching)
 
-    {_residual_graph, _sccs} =
+    {residual_graph, sccs} =
       build_residual_graph(value_graph, maximum_matching)
       |> reduce_residual_graph(vars)
 
+    {residual_graph, sccs, maximum_matching}
 
   end
 
