@@ -108,8 +108,9 @@ defmodule CPSolver.Examples.QAP do
       )
 
     {
-      :most_constrained,
-       :indomain_min
+      #Strategy.mixed([:most_constrained, :dom_deg, :first_fail]),
+        :dom_deg,
+        :indomain_max
       }
   end
 

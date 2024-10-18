@@ -40,10 +40,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     trigger_vars =
        Map.keys(changes) |> MapSet.new()
 
-     Enum.reduce(sccs, [], fn component, sccs_acc ->
+     Enum.reduce(sccs, [], fn %{component: component} = component_rec, sccs_acc ->
        component_triggers = MapSet.intersection(trigger_vars, component)
        if MapSet.size(component_triggers) == 0 do
-         [component | sccs_acc]
+         [component_rec | sccs_acc]
        else
          apply_triggers(all_vars, component, component_triggers) ++ sccs_acc
        end
@@ -62,7 +62,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     ## (i.e., preserve position of component variable in the all_vars list)
     component_variable_map = component_variables(component, all_vars)
     {value_graph, variable_vertices, partial_matching} = build_value_graph(component_variable_map)
-    {_residual_graph, sccs, _matching} = reduction(all_vars, value_graph, variable_vertices, partial_matching)
+    {_residual_graph, sccs} = reduction(all_vars, value_graph, variable_vertices, partial_matching)
     sccs
   end
 
@@ -73,7 +73,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
   def initial_state(vars) do
     {value_graph, variable_vertices, partial_matching} = build_value_graph(vars)
-    {_residual_graph, sccs, _matching} = reduction(vars, value_graph, variable_vertices, partial_matching)
+    {_residual_graph, sccs} = reduction(vars, value_graph, variable_vertices, partial_matching)
     final_state(sccs)
   end
 
@@ -91,7 +91,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       build_residual_graph(value_graph, maximum_matching)
       |> reduce_residual_graph(vars)
 
-    {residual_graph, sccs, maximum_matching}
+    {residual_graph, localize_matching(sccs, maximum_matching)}
 
   end
 
@@ -165,6 +165,30 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   defp reduce_residual_graph(graph, vars) do
     sccs = Graph.strong_components(graph)
     {remove_cross_edges(graph, sccs, vars), postprocess_sccs(sccs)}
+  end
+
+  ## Move parts of matching to where SCCs they belong to are
+  defp localize_matching(sccs, matching) do
+    ## Matching is value => var_id map
+    ## We want to reverse it, so we can do a lookup by var_id later on
+    matching_map = Enum.reduce(matching, Map.new(), fn {{:value, value}, {:variable, var_id}}, map_acc ->
+      Map.put(map_acc, var_id, value)
+    end)
+    ## Build records with list of variable ids and atached matching for SCCs
+    Enum.reduce(sccs, [], fn component, acc ->
+      if MapSet.size(component) == 0 do
+        acc
+      else
+        m = Enum.reduce(component, Map.new(), fn var_id, matching_acc ->
+          case Map.get(matching_map, var_id) do
+            nil -> matching_acc
+            value -> Map.put(matching_acc, var_id, value)
+          end
+        end)
+        [%{matching: m, component: component} | acc]
+      end
+
+    end)
   end
 
   defp remove_cross_edges(graph, [_single_component] = _sccs, _vars) do
@@ -249,11 +273,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
     {:ok, vars, _store} = CPSolver.ConstraintStore.create_store(vars)
 
-    initial_state(vars)
-    |> tap(fn _ ->
-      IO.inspect(
-        Enum.map(vars, fn var -> {var.name, Interface.domain(var) |> Domain.to_list()} end)
-      )
-    end)
+    #build_value_graph(vars)
+    # |> tap(fn _ ->
+    #   IO.inspect(
+    #     Enum.map(vars, fn var -> {var.name, Interface.domain(var) |> Domain.to_list()} end)
+    #   )
+    # end)
   end
 end
