@@ -8,7 +8,7 @@ defmodule CPSolver.Examples.StableMarriage do
   alias CPSolver.Model
   alias CPSolver.Constraint.{ElementVar, Less}
   alias CPSolver.Constraint.Factory, as: ConstraintFactory
-  alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
+  alias CPSolver.Constraint.AllDifferent.DC, as: AllDifferent
 
   def instances() do
     %{
@@ -149,7 +149,7 @@ defmodule CPSolver.Examples.StableMarriage do
   @doc """
     Pseudocode for checking stability
     (https://stackoverflow.com/questions/58439880/algorithm-to-verify-stable-matching)
-    
+
       for w in women:
           for m in [men w would prefer over current_partner(w)]:
               if m prefers w to current_partner(m) return false
