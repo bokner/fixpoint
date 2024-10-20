@@ -21,7 +21,7 @@ defmodule CPSolver.Examples.QAP do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
   alias CPSolver.Model
-  alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
+  alias CPSolver.Constraint.AllDifferent.DC, as: AllDifferent
   alias CPSolver.Objective
   import CPSolver.Constraint.Factory
 
@@ -108,8 +108,9 @@ defmodule CPSolver.Examples.QAP do
       )
 
     {
-      :most_constrained,
-       :indomain_min
+      #Strategy.mixed([:most_constrained, :dom_deg, :first_fail]),
+        :dom_deg,
+        :indomain_max
       }
   end
 

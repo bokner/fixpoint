@@ -1,6 +1,6 @@
 defmodule CPSolver.Examples.Sudoku do
   alias CPSolver.Constraint
-  alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
+  alias CPSolver.Constraint.AllDifferent.DC, as: AllDifferent
   alias CPSolver.IntVariable
   alias CPSolver.Model
 
@@ -32,9 +32,7 @@ defmodule CPSolver.Examples.Sudoku do
   # | 9 . 8 | . 1 . | . . . |
   # +-------+-------+-------+
 
-  ## puzzle9x9 =
-  #
-  ## We use AllDifferent constraint here.
+  ## We use AllDifferent constraint to solve Sudoku.
   ##
 
   def puzzles() do

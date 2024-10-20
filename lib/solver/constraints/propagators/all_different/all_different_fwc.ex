@@ -53,8 +53,13 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   defp fwc(vars, unfixed_set, fixed_values) do
-    {updated_unfixed, _fixed_vals} = remove_values(vars, unfixed_set, fixed_values)
-    MapSet.size(updated_unfixed) > 1 && updated_unfixed
+    {updated_unfixed, updated_fixed_vals} = remove_values(vars, unfixed_set, fixed_values)
+
+      fv_diff = MapSet.difference(updated_fixed_vals, fixed_values)
+      (MapSet.size(fv_diff) > 0 && MapSet.size(updated_unfixed) > 1) &&
+       fwc(vars, updated_unfixed, fv_diff) ||
+       updated_unfixed
+
   end
 
   ## unfixed_set - set of indices for yet unfixed variables
