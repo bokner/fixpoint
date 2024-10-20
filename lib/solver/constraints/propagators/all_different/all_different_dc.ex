@@ -45,30 +45,43 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
        if MapSet.size(component_triggers) == 0 do
          [component_rec | sccs_acc]
        else
-         apply_triggers(all_vars, component, component_triggers) ++ sccs_acc
+         apply_triggers(all_vars, component_rec, component_triggers) ++ sccs_acc
        end
      end)
     |> final_state()
   end
 
-  defp apply_triggers(all_vars, component, _trigger) do
+  defp apply_triggers(all_vars, component_rec, _trigger) do
     ## We will mostly do what initial reduction does, but on a (lesser) subset of variables
     ## that is represented by a component.
     ## TODO:
     ## The difference is that we'll only run maximum matching
     ## if any of the trigger variables doesn't have the value associated with the matching edge.
 
-    ## TODO: indexing of component variables?
-    ## (i.e., preserve position of component variable in the all_vars list)
-    component_variable_map = component_variables(component, all_vars)
+    {component_variable_map, repair_matching?} = component_variables(component_rec, all_vars)
     {value_graph, variable_vertices, partial_matching} = build_value_graph(component_variable_map)
-    {_residual_graph, sccs} = reduction(all_vars, value_graph, variable_vertices, partial_matching)
+
+    ## If matching hasn't changed, reuse;
+    ## otherwise, start with partial matching built from fixed variables.
+    matching = repair_matching? && partial_matching || component_rec[:matching]
+
+    {_residual_graph, sccs} = reduction(all_vars, value_graph, variable_vertices, matching,
+      repair_matching?)
     sccs
   end
 
-  ## Pick out variables that match component's var ids
-  defp component_variables(component, vars) do
-    Map.new(component, fn var_id -> {var_id, Propagator.arg_at(vars, var_id)} end)
+  ## Pick out variables that match component's var ids;
+  ## Also flags if ther is any existing matching that no longer it value in the domain of variables they previously matched.
+  defp component_variables(%{matching: matching} = _component_rec, vars) do
+    Enum.reduce(matching, {Map.new(), false},
+      fn {{:value, matching_value}, {:variable, var_id}}, {map_acc, matching_acc} ->
+        var = Propagator.arg_at(vars, var_id)
+        {Map.put(map_acc, var_id, var),
+        ## If match is still there, reuse it (will be in partial matching for the next step)
+
+        matching_acc || !contains?(var, matching_value)
+      }
+  end)
   end
 
   def initial_state(vars) do
@@ -84,8 +97,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     }
   end
 
-  def reduction(vars, value_graph, variable_vertices, partial_matching) do
-    maximum_matching = compute_maximum_matching(value_graph, variable_vertices, partial_matching)
+  def reduction(vars, value_graph, variable_vertices, partial_matching, repair_matching? \\ true) do
+    maximum_matching = repair_matching? &&
+      compute_maximum_matching(value_graph, variable_vertices, partial_matching)
+      || partial_matching
 
     {residual_graph, sccs} =
       build_residual_graph(value_graph, maximum_matching)
@@ -182,7 +197,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
         m = Enum.reduce(component, Map.new(), fn var_id, matching_acc ->
           case Map.get(matching_map, var_id) do
             nil -> matching_acc
-            value -> Map.put(matching_acc, var_id, value)
+            value ->
+              ## We keep matching in the original form so we can reuse it
+              ## in in the consequent iterations
+              Map.put(matching_acc, {:value, value}, {:variable, var_id})
           end
         end)
         [%{matching: m, component: component} | acc]
@@ -273,7 +291,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
     {:ok, vars, _store} = CPSolver.ConstraintStore.create_store(vars)
 
-    #build_value_graph(vars)
+    build_value_graph(vars)
     # |> tap(fn _ ->
     #   IO.inspect(
     #     Enum.map(vars, fn var -> {var.name, Interface.domain(var) |> Domain.to_list()} end)
