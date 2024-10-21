@@ -45,13 +45,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
        if MapSet.size(component_triggers) == 0 do
          [component_rec | sccs_acc]
        else
-         apply_triggers(all_vars, component_rec, component_triggers) ++ sccs_acc
+         update_component(all_vars, component_rec) ++ sccs_acc
        end
      end)
     |> final_state()
   end
 
-  defp apply_triggers(all_vars, component_rec, _trigger) do
+  defp update_component(all_vars, %{value_graph: value_graph, component: component} = component_rec) do
     ## We will mostly do what initial reduction does, but on a (lesser) subset of variables
     ## that is represented by a component.
     ## TODO:
@@ -59,19 +59,20 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     ## if any of the trigger variables doesn't have the value associated with the matching edge.
 
     {component_variable_map, repair_matching?} = component_variables(component_rec, all_vars)
-    {value_graph, variable_vertices, partial_matching} = build_value_graph(component_variable_map)
+    value_graph = update_value_graph(component_variable_map, value_graph)
 
     ## If matching hasn't changed, reuse;
     ## otherwise, start with partial matching built from fixed variables.
-    matching = repair_matching? && partial_matching || component_rec[:matching]
+    matching = repair_matching? && %{} || component_rec[:matching]
 
-    {_residual_graph, sccs} = reduction(all_vars, value_graph, variable_vertices, matching,
+    {_residual_graph, sccs} = reduction(all_vars, value_graph, Enum.map(component, fn var_id -> {:variable, var_id} end), matching,
       repair_matching?)
     sccs
   end
 
   ## Pick out variables that match component's var ids;
-  ## Also flags if ther is any existing matching that no longer it value in the domain of variables they previously matched.
+  ## Also flags if there is any element in matching
+  ## that does not have it's value in the domain of variable it previously matched.
   defp component_variables(%{matching: matching} = _component_rec, vars) do
     Enum.reduce(matching, {Map.new(), false},
       fn {{:value, matching_value}, {:variable, var_id}}, {map_acc, matching_acc} ->
@@ -106,7 +107,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       build_residual_graph(value_graph, maximum_matching)
       |> reduce_residual_graph(vars)
 
-    {residual_graph, localize_matching(sccs, maximum_matching)}
+    {residual_graph, localize_state(sccs, value_graph, maximum_matching)}
 
   end
 
@@ -143,6 +144,29 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     )
   end
 
+  defp update_value_graph(variable_map, value_graph) do
+    Enum.reduce(variable_map, value_graph, fn {var_id, var}, graph_acc ->
+      variable_vertex = {:variable, var_id}
+      if Graph.in_degree(value_graph, variable_vertex) > size(var) do
+        ## There are some edges to delete
+        Enum.reduce(Graph.in_edges(graph_acc, variable_vertex), graph_acc,
+          fn %{v1: {:value, val}} = edge, g_acc2 ->
+            contains?(var, val) && g_acc2 || Graph.delete_edge(g_acc2, edge.v1, edge.v2)
+        end)
+      else
+        graph_acc
+      end
+    end)
+    # Enum.reduce(triggers, value_graph, fn var_id, graph_acc ->
+    #    var = Map.get(variable_map, var_id)
+    #    var_vertex = {:variable, var_id}
+    #    graph_values = Graph.in_neighbors(graph_acc, var_vertex)
+    #    Enum.reduce(graph_values, graph_acc, fn {:value, val} = val_vertex, graph_acc2 ->
+    #      contains?(var, val) && graph_acc2 || Graph.delete_edge(graph_acc2, val_vertex, var_vertex)
+    #    end)
+    # end)
+  end
+
   def compute_maximum_matching(value_graph, variable_ids, partial_matching) do
     Kuhn.run(value_graph, variable_ids, partial_matching)
     |> tap(fn matching -> map_size(matching) < length(variable_ids) && fail() end)
@@ -177,13 +201,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     )
   end
 
-  defp reduce_residual_graph(graph, vars) do
-    sccs = Graph.strong_components(graph)
-    {remove_cross_edges(graph, sccs, vars), postprocess_sccs(sccs)}
+  defp reduce_residual_graph(residual_graph, vars) do
+    sccs = Graph.strong_components(residual_graph)
+    residual_graph = remove_cross_edges(residual_graph, sccs, vars)
+    {residual_graph, postprocess_sccs(sccs)}
   end
 
   ## Move parts of matching to where SCCs they belong to are
-  defp localize_matching(sccs, matching) do
+  defp localize_state(sccs, value_graph, matching) do
     ## Matching is value => var_id map
     ## We want to reverse it, so we can do a lookup by var_id later on
     matching_map = Enum.reduce(matching, Map.new(), fn {{:value, value}, {:variable, var_id}}, map_acc ->
@@ -194,47 +219,55 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       if MapSet.size(component) == 0 do
         acc
       else
-        m = Enum.reduce(component, Map.new(), fn var_id, matching_acc ->
+        {m, v_graph} = Enum.reduce(component, {Map.new(), Graph.new()}, fn var_id, {matching_acc, value_graph_acc} = acc ->
           case Map.get(matching_map, var_id) do
-            nil -> matching_acc
+            nil -> acc
             value ->
+              variable_vertex = {:variable, var_id}
+              value_vertices = Graph.in_neighbors(value_graph, variable_vertex)
+              #IO.inspect(value_vertices, label: :value_vertices)
               ## We keep matching in the original form so we can reuse it
               ## in in the consequent iterations
-              Map.put(matching_acc, {:value, value}, {:variable, var_id})
+              {Map.put(matching_acc, {:value, value}, variable_vertex),
+                    Enum.reduce(value_vertices, value_graph_acc,
+                    fn value_vertex, graph_acc2 ->
+                      Graph.add_edge(graph_acc2, value_vertex, variable_vertex)
+                    end)
+              }
           end
         end)
-        [%{matching: m, component: component} | acc]
+        [%{matching: m, component: component, value_graph: v_graph} | acc]
       end
 
     end)
   end
 
-  defp remove_cross_edges(graph, [_single_component] = _sccs, _vars) do
-    graph
+  defp remove_cross_edges(residual_graph, [_single_component] = _sccs, _vars) do
+    residual_graph
   end
 
-  defp remove_cross_edges(graph, sccs, vars) do
+  defp remove_cross_edges(residual_graph, sccs, vars) do
     vertices_to_sccs = map_vertices_to_sccs(sccs)
     ## Remove edges that have vertices in different SCCs
-    graph
+    residual_graph
     |> Graph.edges()
     |> Enum.reduce(
-      graph,
+      residual_graph,
       fn
-        %{v1: {:value, value} = v1, v2: v2} = _edge, graph_acc ->
+        %{v1: {:value, value} = v1, v2: v2} = _edge, residual_graph_acc ->
           if Map.get(vertices_to_sccs, v1) != Map.get(vertices_to_sccs, v2) do
             ## Cross-edge, remove
-            Graph.delete_edge(graph_acc, v1, v2)
+            Graph.delete_edge(residual_graph_acc, v1, v2)
             |> tap(fn _ ->
               ## If this is 'value -> variable' edge, remove the value from the domain of variable
               maybe_remove_domain_value(value, v2, vars)
             end)
           else
-            graph_acc
+            residual_graph_acc
           end
 
-        _non_value_edge, graph_acc ->
-          graph_acc
+        _non_value_edge, acc ->
+          acc
       end
     )
   end
