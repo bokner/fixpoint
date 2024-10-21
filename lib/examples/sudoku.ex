@@ -223,6 +223,7 @@ defmodule CPSolver.Examples.Sudoku do
   end
 
   def sudoku_string_to_grid(sudoku_str) do
+    sudoku_str = String.split(sudoku_str, " ") |> hd
     dim = :math.sqrt(String.length(sudoku_str)) |> floor()
     str0 = String.replace(sudoku_str, ".", "0")
 
