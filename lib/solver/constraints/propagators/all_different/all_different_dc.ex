@@ -149,7 +149,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       variable_vertex = {:variable, var_id}
       if Graph.in_degree(value_graph, variable_vertex) > size(var) do
         ## There are some edges to delete
-        var_domain = domain(var) |> Domain.to_list()
         Enum.reduce(Graph.in_edges(graph_acc, variable_vertex), graph_acc,
           fn %{v1: {:value, val}} = edge, g_acc2 ->
             contains?(var, val) && g_acc2 || Graph.delete_edge(g_acc2, edge.v1, edge.v2)
