@@ -217,6 +217,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     ## Build records with list of variable ids and atached matching for SCCs
     Enum.reduce(sccs, [], fn component, acc ->
       if MapSet.size(component) <= 1 do
+        ## We don't have to handle components with less than 2 variables
         acc
       else
         {m, v_graph} = Enum.reduce(component, {Map.new(), Graph.new()}, fn var_id, {matching_acc, value_graph_acc} = acc ->
