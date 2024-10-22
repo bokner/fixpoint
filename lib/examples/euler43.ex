@@ -64,7 +64,7 @@ defmodule CPSolver.Examples.Euler43 do
   end
 
   def run(opts \\ [search: {:input_order, :indomain_random}, space_threads: 8]) do
-    {:ok, res} = CPSolver.solve_sync(model(), opts)
+    {:ok, res} = CPSolver.solve(model(), opts)
 
     Enum.sort(Enum.map(res.solutions, fn s -> Enum.take(s, 10) end))
     |> tap(fn sorted_solutions ->

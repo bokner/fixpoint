@@ -6,7 +6,7 @@ defmodule CPSolverTest.Examples.Reindeers do
   test "order" do
     order = [Dancer, Donder, Comet, Vixen, Blitzen, Dasher, Rudolph, Cupid, Prancer]
 
-    {:ok, result} = CPSolver.solve_sync(Reindeers.model())
+    {:ok, result} = CPSolver.solve(Reindeers.model())
 
     positions = hd(result.solutions)
 

@@ -40,7 +40,7 @@ defmodule SumDebug do
         [sum_constraint]
       )
 
-    {:ok, _res} = CPSolver.solve_sync(model)
+    {:ok, _res} = CPSolver.solve(model)
   end
 end
 

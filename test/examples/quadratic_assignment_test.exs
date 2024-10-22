@@ -19,7 +19,7 @@ defmodule CPSolverTest.Examples.QAP do
     ]
 
     qap_model = QAP.model(distances, weights)
-    {:ok, results} = CPSolver.solve_sync(qap_model)
+    {:ok, results} = CPSolver.solve(qap_model)
 
     assert Enum.all?(results.solutions, fn solution ->
              QAP.check_solution(solution, distances, weights)

@@ -6,7 +6,7 @@ defmodule CPSolverTest.Constraint.Count do
   alias CPSolver.Constraint.Factory, as: ConstraintFactory
 
   describe "Count constraint" do
-  
+
     test "`count` functionality" do
       ~S"""
       MiniZinc:
@@ -24,7 +24,7 @@ defmodule CPSolverTest.Constraint.Count do
 
       model = Model.new([array, y, c] |> List.flatten(), ConstraintFactory.count(array, y, c) |> List.flatten())
 
-      {:ok, result} = CPSolver.solve_sync(model)
+      {:ok, result} = CPSolver.solve(model)
 
       assert result.statistics.solution_count == 2673
       assert_count(result.solutions, length(array))

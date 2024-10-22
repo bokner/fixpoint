@@ -25,7 +25,7 @@ defmodule CpSolverTest do
         [NotEqual.new(x, y)]
       )
 
-    {:ok, res} = CPSolver.solve_sync(model)
+    {:ok, res} = CPSolver.solve(model)
 
     assert res.statistics.failure_count == 0
     ## Note: there are 2 "first fail" distributions:
@@ -58,7 +58,7 @@ defmodule CpSolverTest do
   end
 
   test "Synchronous solver" do
-    {:ok, result} = CPSolver.solve_sync(Queens.model(8))
+    {:ok, result} = CPSolver.solve(Queens.model(8))
     assert result.statistics.solution_count == 92
     ## No active nodes - solving is done
     assert result.statistics.active_node_count == 0
@@ -66,19 +66,19 @@ defmodule CpSolverTest do
 
   test "Solver status" do
     ## N-Queens for n = 3 is unatisfiable
-    {:ok, res} = CPSolver.solve_sync(Queens.model(3))
+    {:ok, res} = CPSolver.solve(Queens.model(3))
     assert res.status == :unsatisfiable
     ## N-Queens for n = 4
-    {:ok, res} = CPSolver.solve_sync(Queens.model(4))
+    {:ok, res} = CPSolver.solve(Queens.model(4))
     assert res.status == :all_solutions
     ## N-Queens for n = 8, async solving
-    {:ok, solver} = CPSolver.solve(Queens.model(8))
+    {:ok, solver} = CPSolver.solve_async(Queens.model(8))
     Process.sleep(10)
     {:running, _} = CPSolver.status(solver)
     Process.sleep(100)
     assert :all_solutions = CPSolver.status(solver)
     ## Status for optimization problem
-    {:ok, solver} = CPSolver.solve(Knapsack.model("data/knapsack/ks_4_0"))
+    {:ok, solver} = CPSolver.solve_async(Knapsack.model("data/knapsack/ks_4_0"))
     Process.sleep(100)
     assert {:optimal, [objective: 19]} == CPSolver.status(solver)
   end
@@ -94,7 +94,7 @@ defmodule CpSolverTest do
       )
 
     {:ok, res} =
-      CPSolver.solve_sync(model,
+      CPSolver.solve(model,
         solution_handler: fn solution ->
           File.write!(@solution_handler_test_file, :erlang.term_to_binary(solution) <> "\n", [
             :append

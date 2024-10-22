@@ -59,7 +59,7 @@ defmodule CPSolver.Examples.Sudoku do
   def solve(puzzle, solver_opts \\ []) do
     puzzle
     |> model()
-    |> CPSolver.solve(solver_opts)
+    |> CPSolver.solve_async(solver_opts)
   end
 
   defp normalize(puzzle) when is_binary(puzzle) do
@@ -132,7 +132,7 @@ defmodule CPSolver.Examples.Sudoku do
     IO.puts(print_grid(puzzle))
 
     {:ok, result} =
-      CPSolver.solve_sync(
+      CPSolver.solve(
         model(puzzle),
         opts
       )

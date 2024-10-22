@@ -16,7 +16,7 @@ defmodule CPSolverTest.Constraint.Element do
 
       model = Model.new([y, z], [Element.new(t, y, z)])
 
-      {:ok, result} = CPSolver.solve_sync(model)
+      {:ok, result} = CPSolver.solve(model)
 
       assert result.statistics.solution_count == 5
       assert_element(result.solutions, t)
@@ -36,7 +36,7 @@ defmodule CPSolverTest.Constraint.Element do
 
       model = Model.new([x, y, z], [Element2D.new(t, x, y, z)])
 
-      {:ok, result} = CPSolver.solve_sync(model)
+      {:ok, result} = CPSolver.solve(model)
       refute Enum.empty?(result.solutions)
       assert_element2d(result.solutions, t)
     end
@@ -51,7 +51,7 @@ defmodule CPSolverTest.Constraint.Element do
       ## Create and run model with generated constraint
       model = Model.new([x_var, y_var], [element_constraint])
 
-      {:ok, result} = CPSolver.solve_sync(model)
+      {:ok, result} = CPSolver.solve(model)
       assert_element(result.solutions, t)
     end
 
@@ -73,7 +73,7 @@ defmodule CPSolverTest.Constraint.Element do
 
       model = Model.new([x_var, y_var, z_var], [element2d_constraint])
 
-      {:ok, result} = CPSolver.solve_sync(model)
+      {:ok, result} = CPSolver.solve(model)
       assert_element2d(result.solutions, t)
     end
 
@@ -109,7 +109,7 @@ defmodule CPSolverTest.Constraint.Element do
 
       element_constraint = ElementVar.new(array_var, index_var, value_var)
       model = Model.new([index_var, value_var | array_var], [element_constraint])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
 
       assert res.status == :unsatisfiable
     end
@@ -125,7 +125,7 @@ defmodule CPSolverTest.Constraint.Element do
 
       element_constraint = ElementVar.new(array_values, index_var, value_var)
       model = Model.new([index_var, value_var | array_values], [element_constraint])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
 
       assert res.statistics.solution_count == 5
 
@@ -140,7 +140,7 @@ defmodule CPSolverTest.Constraint.Element do
       array_var = Enum.map(0..4, fn idx -> Variable.new(-1..1, name: "A#{idx}") end)
       element_constraint = ElementVar.new(array_var, index_var, value_var)
       model = Model.new([index_var, value_var | array_var], [element_constraint])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
 
       ~S"""
       Verified by MiniZinc model:
@@ -163,7 +163,7 @@ defmodule CPSolverTest.Constraint.Element do
       array_var = Enum.map(0..4, fn idx -> Variable.new(-1..1, name: "A#{idx}") end)
       element_constraint = ElementVar.new(array_var, index_var, value_var)
       model = Model.new([index_var, value_var | array_var], [element_constraint])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
 
       ~S"""
       Verified by MiniZinc model:
@@ -211,7 +211,7 @@ defmodule CPSolverTest.Constraint.Element do
         ConstraintFactory.element2d_var(arr2d, x, y, z)
       )
 
-    {:ok, res} = CPSolver.solve_sync(model)
+    {:ok, res} = CPSolver.solve(model)
     assert res.statistics.solution_count == 768
 
     assert_element2d_var(res.solutions, length(arr2d), length(hd(arr2d)))

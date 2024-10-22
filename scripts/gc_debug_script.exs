@@ -14,7 +14,7 @@ defmodule DebugGC do
       Enum.reduce_while(1..number_of_runs, 0, fn i, succ ->
         # Replbug.start(trace_pattern, time: :timer.seconds(10), msgs: 100_000, max_queue: 10000, silent: true)
         Process.sleep(100)
-        {:ok, solver} = CPSolver.Examples.GraphColoring.solve("data/graph_coloring/#{instance}")
+        {:ok, solver} = CPSolver.Examples.GraphColoring.solve_async("data/graph_coloring/#{instance}")
         Process.sleep(solver_timeout)
         traces = Replbug.stop()
         Process.sleep(100)

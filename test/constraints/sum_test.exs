@@ -14,7 +14,7 @@ defmodule CPSolverTest.Constraint.Sum do
       {_sum_var, sum_constraint} = Factory.sum([x, y, z])
 
       model = Model.new([x, y, z], [sum_constraint])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
 
       assert 8 == length(res.solutions)
 
@@ -34,7 +34,7 @@ defmodule CPSolverTest.Constraint.Sum do
       {_sum_var, sum_constraint} = Factory.sum([x, c1, y, c2, c3, z])
 
       model = Model.new([x, y, z], [sum_constraint])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
 
       assert 8 == length(res.solutions)
 

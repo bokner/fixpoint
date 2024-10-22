@@ -79,7 +79,7 @@ defmodule CPSolver.Examples.StableMarriage do
   end
 
   def solve(instance, opts \\ []) do
-    {:ok, res} = CPSolver.solve_sync(model(instance), opts)
+    {:ok, res} = CPSolver.solve(model(instance), opts)
 
     res.solutions
     |> Enum.each(fn solution ->

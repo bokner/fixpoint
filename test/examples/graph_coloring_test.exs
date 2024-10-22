@@ -55,7 +55,7 @@ defmodule CPSolverTest.Examples.GraphColoring do
     instance = "data/graph_coloring/#{graph_name}"
 
     Enum.each(1..opts[:trials], fn _ ->
-      {:ok, result} = CPSolver.solve_sync(GraphColoring.model(instance), timeout: opts[:timeout])
+      {:ok, result} = CPSolver.solve(GraphColoring.model(instance), timeout: opts[:timeout])
       Enum.each(result.solutions, fn sol -> assert_solution(sol, instance) end)
       solution_count = result.statistics.solution_count
 

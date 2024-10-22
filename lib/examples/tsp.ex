@@ -39,7 +39,7 @@ defmodule CPSolver.Examples.TSP do
         opts
       )
 
-    {:ok, _res} = CPSolver.solve_sync(model, opts)
+    {:ok, _res} = CPSolver.solve(model, opts)
   end
 
   ## Read and compile data from instance file

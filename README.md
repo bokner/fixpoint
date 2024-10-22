@@ -78,7 +78,7 @@ Once we have a model, we pass it to `CPSolver.solve/1,2`.
 We can either solve asynchronously:
 ```elixir
 ## Asynchronous solving doesn't block 
-{:ok, solver} = CPSolver.solve(model)
+{:ok, solver} = CPSolver.solve_async(model)
 Process.sleep(10)
 ## We can check for solutions and solver state and/or stats,
 ## for instance:
@@ -103,7 +103,7 @@ iex(48)> CPSolver.statistics(solver)
 ```
 , or use a blocking call:
 ```elixir
-iex(49)> {:ok, results} = CPSolver.solve_sync(model)
+iex(49)> {:ok, results} = CPSolver.solve(model)
 {:ok,
  %{
    status: :all_solutions,
@@ -137,12 +137,12 @@ iex(49)> {:ok, results} = CPSolver.solve_sync(model)
 # It's the responsibility of a caller to dispose of it when no longer needed.
 # (by calling CPSolver.dispose/1)
   
-{:ok, solver} = CPSolver.solve(model, solver_opts)
+{:ok, solver} = CPSolver.solve_async(model, solver_opts)
 
 # Synchronous solving.
 # Takes CPSolver.Model instance and solver options as a Keyword. 
 # Starts the solver and gets the results (solutions and/or solver stats) once the solver finishes.
-{:ok, solver_results} = CPSolver.solve_sync(model, solver_opts)
+{:ok, solver_results} = CPSolver.solve(model, solver_opts)
 ```
 
 , where 
@@ -238,7 +238,7 @@ Then we'll pass spawned worker nodes to the solver:
 ```elixir
 ## To convince ourselves that the solving runs on worker nodes, we'll use a solution handler:
 solution_handler = fn solution -> IO.puts("#{inspect Enum.map(solution, fn {_name, solution} -> solution end)} <- #{inspect Node.self()}") end 
-{:ok, _solver} = CPSolver.solve(CPSolver.Examples.Queens.model(8), 
+{:ok, _solver} = CPSolver.solve_async(CPSolver.Examples.Queens.model(8), 
   distributed: worker_nodes, 
   solution_handler: solution_handler)
 ``` 
@@ -276,7 +276,7 @@ as the following example shows:
 ```elixir
 alias CPSolver.Examples.Knapsack
 ## First, use the default strategy
-{:ok, results} = CPSolver.solve_sync(Knapsack.tourist_knapsack_model())
+{:ok, results} = CPSolver.solve(Knapsack.tourist_knapsack_model())
 results.statistics
 
 %{
@@ -289,10 +289,10 @@ results.statistics
 
 ## Now, use the :indomain_max for the value choice. 
 ## Decision variables for items have {0,1} domain, where 1 means that the item will be packed.
-## Hence, :indomain_max tells the solver to try to include the items first
-## before excluding them.
+## Hence, :indomain_max tells the solver to try to include the items first (i.e. choose 1 over 0).
+## 
 ##
-{:ok, results} = CPSolver.solve_sync(Knapsack.tourist_knapsack_model(), search: {:first_fail, :indomain_max})
+{:ok, results} = CPSolver.solve(Knapsack.tourist_knapsack_model(), search: {:first_fail, :indomain_max})
 
 iex(main@zephyr.local)21> results.statistics
 %{

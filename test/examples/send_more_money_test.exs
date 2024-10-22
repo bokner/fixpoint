@@ -7,7 +7,7 @@ defmodule CPSolverTest.Examples.SendMoreMoney do
     letters = [S, E, N, D, M, O, R, Y]
     expected_solution = [9, 5, 6, 7, 1, 0, 8, 2]
 
-    {:ok, result} = CPSolver.solve_sync(SendMoreMoney.model())
+    {:ok, result} = CPSolver.solve(SendMoreMoney.model())
 
     ## Single solution
     assert length(result.solutions) == 1

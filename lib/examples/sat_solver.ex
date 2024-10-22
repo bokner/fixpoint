@@ -41,7 +41,7 @@ defmodule CPSolver.Examples.SatSolver do
       stop_on: {:max_solutions, 1}
       ]
     {:ok, res} =
-      CPSolver.solve_sync(model,
+      CPSolver.solve(model,
         Keyword.merge(default_opts, opts)
       )
 

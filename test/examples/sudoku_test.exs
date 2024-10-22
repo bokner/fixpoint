@@ -26,7 +26,7 @@ defmodule CPSolverTest.Examples.Sudoku do
       Keyword.merge([timeout: 500, trials: 1], opts)
 
     Enum.each(1..opts[:trials], fn _i ->
-      {:ok, result} = CPSolver.solve_sync(Sudoku.model(puzzle_instance),
+      {:ok, result} = CPSolver.solve(Sudoku.model(puzzle_instance),
       search: {
         Strategy.first_fail(&Enum.random/1),
         :indomain_random},

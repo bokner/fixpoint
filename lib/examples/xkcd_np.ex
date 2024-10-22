@@ -40,7 +40,7 @@ defmodule CPSolver.Examples.XKCD.NP do
   def solve() do
     model = model()
     num_appetizers = length(model.extra.appetizers)
-    {:ok, res} = CPSolver.solve_sync(model)
+    {:ok, res} = CPSolver.solve(model)
 
     Enum.map_join(res.solutions, "\n OR \n", fn sol ->
       sol

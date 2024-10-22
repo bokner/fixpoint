@@ -9,4 +9,4 @@ model = %{
   constraints: [Less.new(x, y)]
 }
 
-{:ok, solver} = CPSolver.solve_sync(model)
+{:ok, solver} = CPSolver.solve(model)

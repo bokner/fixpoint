@@ -30,7 +30,7 @@ defmodule CPSolver.Examples.Reindeers do
   alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
 
   def solve(opts \\ []) do
-    {:ok, res} = CPSolver.solve_sync(model(), opts)
+    {:ok, res} = CPSolver.solve(model(), opts)
 
     res.solutions
     |> hd

@@ -11,14 +11,14 @@ defmodule SudokuBenchmark do
       instances |> Enum.with_index(1),
       fn {instance, idx} ->
         {:ok, res} =
-          CPSolver.solve_sync(Sudoku.model(instance),
+          CPSolver.solve(Sudoku.model(instance),
             stop_on: {:max_solutions, 1},
             space_threads: space_threads,
             timeout: timeout,
             search: {
               Strategy.mixed([
-            Strategy.most_constrained(Strategy.first_fail(&Enum.random/1)),
-            Strategy.first_fail(Strategy.most_constrained(&Enum.random/1)),
+            #Strategy.most_constrained(&Enum.random/1),
+            #Strategy.first_fail(Strategy.most_constrained(&Enum.random/1)),
             Strategy.dom_deg(&Enum.random/1),
             #Strategy.most_completed(&Enum.random/1)
             ]),

@@ -11,7 +11,7 @@ defmodule CPSolver.Examples.Queens do
 
   def solve(n, solver_opts \\ []) when is_integer(n) do
     {:ok, _solver} =
-      CPSolver.solve(model(n), solver_opts)
+      CPSolver.solve_async(model(n), solver_opts)
   end
 
   def model(n, symmetry_breaking_mode \\ nil) do
@@ -48,7 +48,7 @@ defmodule CPSolver.Examples.Queens do
     timeout = Keyword.get(opts, :timeout)
 
     {:ok, result} =
-      CPSolver.solve_sync(model(nqueens, :half_symmetry),
+      CPSolver.solve(model(nqueens, :half_symmetry),
         search: {:input_order, :indomain_random},
         stop_on: {:max_solutions, 1},
         timeout: timeout,

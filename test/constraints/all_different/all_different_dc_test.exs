@@ -11,7 +11,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
     test "all fixed" do
       variables = Enum.map(1..5, fn i -> IntVariable.new(i) end)
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
-      {:ok, result} = CPSolver.solve_sync(model)
+      {:ok, result} = CPSolver.solve(model)
 
       assert hd(result.solutions) == [1, 2, 3, 4, 5]
       assert result.statistics.solution_count == 1
@@ -21,7 +21,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
       minizinc_solutions = [[1, 2, 4, 5], [1, 2, 3, 4], [1, 2, 3, 5]]
       variables = Enum.map([1, 1..2, 1..4, [1, 2, 4, 5]], fn d -> IntVariable.new(d) end)
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
-      {:ok, result} = CPSolver.solve_sync(model)
+      {:ok, result} = CPSolver.solve(model)
       assert Enum.sort(result.solutions) == Enum.sort(minizinc_solutions)
 
     end
@@ -32,7 +32,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
 
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
 
-      {:ok, result} = CPSolver.solve_sync(model, timeout: 100)
+      {:ok, result} = CPSolver.solve(model, timeout: 100)
 
       assert result.statistics.solution_count == 6
 
@@ -50,7 +50,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
       variables = Enum.map(1..3, fn _ -> IntVariable.new(1) end)
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
 
-      {:ok, result} = CPSolver.solve_sync(model, timeout: 1000)
+      {:ok, result} = CPSolver.solve(model, timeout: 1000)
 
       assert result.status == :unsatisfiable
     end
@@ -59,7 +59,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
       variables = Enum.map(1..4, fn _ -> IntVariable.new(1..3) end)
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
 
-      {:ok, result} = CPSolver.solve_sync(model)
+      {:ok, result} = CPSolver.solve(model)
 
       assert result.status == :unsatisfiable
     end
@@ -86,7 +86,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
           ]
         )
 
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
 
       assert res.status == :unsatisfiable
     end

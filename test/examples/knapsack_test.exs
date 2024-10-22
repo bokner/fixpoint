@@ -7,7 +7,7 @@ defmodule CPSolverTest.Examples.Knapsack do
     values = [8, 10, 15, 4]
     weights = [4, 5, 8, 3]
     capacity = 11
-    {:ok, results} = CPSolver.solve_sync(Knapsack.model(values, weights, capacity))
+    {:ok, results} = CPSolver.solve(Knapsack.model(values, weights, capacity))
     objective_value = results.objective
 
     assert Enum.all?(results.solutions, fn solution ->

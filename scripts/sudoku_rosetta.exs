@@ -3,7 +3,7 @@ defmodule SudokuRosetta do
 
   def start(knowns), do: Enum.into(knowns, Map.new())
 
-  def solve(grid) do
+  def solve_async(grid) do
     sure = solve_all_sure(grid)
     solve_unsure(potentials(sure), sure)
   end
@@ -13,7 +13,7 @@ defmodule SudokuRosetta do
     start = start(knowns)
     #display(start)
     #IO.puts("solved")
-    solved = solve(start)
+    solved = solve_async(start)
     #display(solved)
     IO.puts("Solved")
   end

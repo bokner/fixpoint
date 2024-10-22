@@ -34,13 +34,13 @@ defmodule CPSolverTest.Constraint.Reified do
 
       for p <- [LessOrEqual, Less, Equal, NotEqual, Absolute] do
         model1 = make_model(x_domain, y_domain, p, Reified)
-        {:ok, res} = CPSolver.solve_sync(model1)
+        {:ok, res} = CPSolver.solve(model1)
         assert res.statistics.solution_count == num_sols(p, Reified)
         assert Enum.all?(res.solutions, fn s -> check_solution(s, p, Reified) end)
 
         ## The order of variables doesn't matter
         model2 = make_model(x_domain, y_domain, p, Reified, fn [x, y, b] -> [b, x, y] end)
-        {:ok, res} = CPSolver.solve_sync(model2)
+        {:ok, res} = CPSolver.solve(model2)
         assert res.statistics.solution_count == num_sols(p, Reified)
 
         assert Enum.all?(res.solutions, fn [b_value, x_value, y_value] = s ->
@@ -65,7 +65,7 @@ defmodule CPSolverTest.Constraint.Reified do
 
       for p <- [LessOrEqual, Less, Equal, NotEqual, Absolute] do
         model = make_model(x_domain, y_domain, p, HalfReified)
-        {:ok, res} = CPSolver.solve_sync(model)
+        {:ok, res} = CPSolver.solve(model)
         assert res.statistics.solution_count == num_sols(p, HalfReified)
         assert Enum.all?(res.solutions, fn s -> check_solution(s, p, HalfReified) end)
       end
@@ -87,7 +87,7 @@ defmodule CPSolverTest.Constraint.Reified do
 
       for p <- [LessOrEqual, Less, Equal, NotEqual, Absolute] do
         model = make_model(x_domain, y_domain, p, InverseHalfReified)
-        {:ok, res} = CPSolver.solve_sync(model)
+        {:ok, res} = CPSolver.solve(model)
         assert res.statistics.solution_count == num_sols(p, InverseHalfReified)
         assert Enum.all?(res.solutions, fn s -> check_solution(s, p, InverseHalfReified) end)
       end
@@ -103,7 +103,7 @@ defmodule CPSolverTest.Constraint.Reified do
             {InverseHalfReified, 12}
           ] do
         model = make_model(x_domain, y_domain, Absolute, mode)
-        {:ok, res} = CPSolver.solve_sync(model)
+        {:ok, res} = CPSolver.solve(model)
         assert Enum.all?(res.solutions, fn s -> check_solution(s, Absolute, mode) end)
         assert res.statistics.solution_count == expected_num_sols
       end
@@ -171,7 +171,7 @@ defmodule CPSolverTest.Constraint.Reified do
 
     test "equivalence" do
       model = build_model(1..2, 1..2, 1..2, LessOrEqual, :equiv)
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 4
 
       assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
@@ -181,7 +181,7 @@ defmodule CPSolverTest.Constraint.Reified do
 
     test "implication" do
       model = build_model(1..2, 1..2, 1..2, LessOrEqual, :impl)
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 6
 
       assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
@@ -191,7 +191,7 @@ defmodule CPSolverTest.Constraint.Reified do
 
     test "inverse implication" do
       model = build_model(1..2, 1..2, 1..2, LessOrEqual, :inverse_impl)
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 6
 
       assert Enum.all?(res.solutions, fn [x, y, z | _rest] ->
@@ -217,7 +217,7 @@ defmodule CPSolverTest.Constraint.Reified do
 
       impl_model = Factory.impl(Less.new(c1, x), Less.new(c2, y))
       model = Model.new([], impl_model.constraints)
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 5
       ## Positions of variables can be arbitrary, if omitted in the model description
       x_pos = Enum.find_index(res.variables, fn name -> name  == "x" end)

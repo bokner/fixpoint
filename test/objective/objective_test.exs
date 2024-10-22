@@ -103,11 +103,11 @@ defmodule CpSolverTest.Objective do
           objective: Objective.maximize(z)
         )
 
-      {:ok, min_res} = CPSolver.solve_sync(minimization_model)
+      {:ok, min_res} = CPSolver.solve(minimization_model)
       assert min_res.objective == 2
       assert List.last(min_res.solutions) == [1, 1, 2]
 
-      {:ok, max_res} = CPSolver.solve_sync(maximization_model)
+      {:ok, max_res} = CPSolver.solve(maximization_model)
 
       assert max_res.objective == min(sum_bound, x_bound + y_bound)
       [x_val, y_val, sum_bound] = List.last(max_res.solutions)
@@ -119,7 +119,7 @@ defmodule CpSolverTest.Objective do
       model_instance = "data/knapsack/ks_4_0"
       ## Value maximization model
       value_knapsack_model = Knapsack.model(model_instance, :value_maximization)
-      {:ok, value_res} = CPSolver.solve_sync(value_knapsack_model)
+      {:ok, value_res} = CPSolver.solve(value_knapsack_model)
       total_value_idx = Enum.find_index(value_res.variables, fn name -> name == "total_value" end)
       assert List.last(value_res.solutions) |> Enum.at(total_value_idx) == value_res.objective
 
@@ -127,7 +127,7 @@ defmodule CpSolverTest.Objective do
       space_minimization_model =
         Knapsack.model(model_instance, :free_space_minimization)
 
-      {:ok, space_res} = CPSolver.solve_sync(space_minimization_model)
+      {:ok, space_res} = CPSolver.solve(space_minimization_model)
 
       total_value_idx =
         Enum.find_index(space_res.variables, fn name -> name == "total_weight" end)

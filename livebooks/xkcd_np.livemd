@@ -152,11 +152,12 @@ end
 ```elixir
 alias XKCD.NP.Appetizers
 ## Solve
-{:ok, res} = CPSolver.solve_sync(Appetizers.model())
+{:ok, res} = CPSolver.solve(Appetizers.model())
 ## Present results
 Appetizers.print_solutions(res)
 
 IO.puts("Solver status: #{res.status}")
+
 ```
 
 ### That's it! Two solutions are available.
@@ -180,7 +181,7 @@ table_coordinates = [{4, 7}, {5, 5}, {7, 2}, {1, 5}, {1, 1}, {8, 4}, {11, 5}]
 distances = distances_from_coordinates(table_coordinates)
 
 model = TSP.model(distances)
-{:ok, result} = CPSolver.solve_sync(model, search: TSP.search(model), space_threads: 8)
+{:ok, result} = CPSolver.solve(model, search: TSP.search(model), space_threads: 8)
 
 optimal_solution = result.solutions |> List.last()
 

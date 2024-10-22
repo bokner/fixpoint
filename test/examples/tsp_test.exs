@@ -12,7 +12,7 @@ defmodule CPSolverTest.Examples.TSP do
     ]
 
     model = TSP.model(distances)
-    {:ok, result} = CPSolver.solve_sync(model)
+    {:ok, result} = CPSolver.solve(model)
 
     optimal_solution = List.last(result.solutions)
     assert TSP.check_solution(optimal_solution, model)

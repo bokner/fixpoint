@@ -14,7 +14,7 @@ defmodule CPSolverTest.Constraint.Circuit do
 
       model = Model.new(variables, [Constraint.new(Circuit, variables)])
 
-      {:ok, solver} = CPSolver.solve_sync(model)
+      {:ok, solver} = CPSolver.solve(model)
       assert length(solver.solutions) == Math.factorial(n - 1)
     end
   end

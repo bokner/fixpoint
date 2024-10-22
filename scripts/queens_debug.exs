@@ -36,7 +36,7 @@ defmodule DebugQueens do
         Process.sleep(50)
 
         {:ok, solver} =
-          Queens.solve(nqueens, solution_handler: ExamplesUtils.notify_client_handler())
+          Queens.solve_async(nqueens, solution_handler: ExamplesUtils.notify_client_handler())
 
         # Process.sleep(solver_timeout)
         ExamplesUtils.wait_for_solutions(

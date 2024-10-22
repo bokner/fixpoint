@@ -20,8 +20,8 @@ defmodule CPSolver do
   @doc """
 
   """
-  @spec solve(Model.t(), Keyword.t()) :: {:ok, map()}
-  def solve(model, opts \\ []) do
+  @spec solve_async(Model.t(), Keyword.t()) :: {:ok, map()}
+  def solve_async(model, opts \\ []) do
     opts = Keyword.merge(Space.default_space_opts(), opts)
 
     shared_data =
@@ -52,15 +52,22 @@ defmodule CPSolver do
     Map.drop(objective, [:variable, :propagator])
   end
 
-  @spec solve_sync(Model.t(), Keyword.t()) ::
+  @spec solve(Model.t(), Keyword.t()) ::
           {:ok, map()} | {:error, reason :: any(), info :: any()}
-  def solve_sync(model, opts \\ []) do
-    {:ok, solver} = solve(model, Keyword.put(opts, :sync_mode, true))
+  def solve(model, opts \\ []) do
+    {:ok, solver} = solve_async(model, Keyword.put(opts, :sync_mode, true))
 
     :ok = wait_for_completion(solver, Keyword.get(opts, :timeout, @default_timeout))
 
     get_results(solver)
     |> tap(fn _ -> cleanup(solver) end)
+  end
+
+  @spec solve_sync(Model.t(), Keyword.t()) ::
+  {:ok, map()} | {:error, reason :: any(), info :: any()}
+  @deprecated "Use solve/2 instead"
+  def solve_sync(model, opts \\ []) do
+    solve(model, opts)
   end
 
   defp wait_for_completion(%{complete_flag: complete_flag} = solver, timeout) do

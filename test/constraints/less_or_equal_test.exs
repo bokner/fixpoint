@@ -11,7 +11,7 @@ defmodule CPSolverTest.Constraint.LessOrEqual do
       x = Variable.new(0..1, name: "x")
       y = Variable.new(0..1, name: "y")
       model = Model.new([x, y], [Constraint.new(LessOrEqual, [x, y])])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
 
       assert length(res.solutions) == 3
       assert Enum.all?(res.solutions, fn [x_val, y_val] -> x_val <= y_val end)
@@ -22,7 +22,7 @@ defmodule CPSolverTest.Constraint.LessOrEqual do
       upper_bound = 2
       le_constraint = LessOrEqual.new(x, upper_bound)
       model = Model.new([x], [le_constraint])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert length(res.solutions) == 3
       assert Enum.all?(res.solutions, fn [x_val, _] -> x_val <= upper_bound end)
     end
@@ -32,7 +32,7 @@ defmodule CPSolverTest.Constraint.LessOrEqual do
       y = Variable.new(1)
       less_constraint = Less.new(x, y)
       model = Model.new([x, y], [less_constraint])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert res.status == :unsatisfiable
     end
   end

@@ -23,7 +23,7 @@ defmodule CPSolverTest.Constraint.Absolute do
 
       model = Model.new([x, y], [Absolute.new(x, y)])
 
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 5
       assert check_solutions(res)
     end
@@ -33,7 +33,7 @@ defmodule CPSolverTest.Constraint.Absolute do
       y = Variable.new(1, name: "y")
 
       model = Model.new([x, y], [Absolute.new(x, y)])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert res.status == :unsatisfiable
     end
 
@@ -47,7 +47,7 @@ defmodule CPSolverTest.Constraint.Absolute do
 
       model = Model.new([x], [abs_constraint])
 
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 5
       assert check_solutions(res)
     end

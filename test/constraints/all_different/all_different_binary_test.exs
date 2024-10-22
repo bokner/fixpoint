@@ -27,7 +27,7 @@ defmodule CPSolverTest.Constraint.AllDifferent do
 
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
 
-      {:ok, solver} = CPSolver.solve(model)
+      {:ok, solver} = CPSolver.solve_async(model)
 
       Process.sleep(100)
       assert CPSolver.statistics(solver).solution_count == 6

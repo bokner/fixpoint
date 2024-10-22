@@ -39,7 +39,7 @@ defmodule CPSolverTest.Examples.Queens do
       Keyword.merge([timeout: 100, trials: 10], opts)
 
     Enum.each(1..opts[:trials], fn i ->
-      {:ok, result} = CPSolver.solve_sync(Queens.model(n), opts)
+      {:ok, result} = CPSolver.solve(Queens.model(n), opts)
       Enum.each(result.solutions, &assert_solution/1)
       solution_count = result.statistics.solution_count
 

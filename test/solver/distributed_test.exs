@@ -20,7 +20,7 @@ defmodule CPSolverTest.Distributed do
   test "distributed solving uses cluster nodes assigned to it" do
     # Run the solver with the model that takes noticeable time to complete.
     difficult_sudoku = Sudoku.puzzles().s9x9_clue17_hard
-    {:ok, solver} = CPSolver.solve(Sudoku.model(difficult_sudoku), distributed: Node.list())
+    {:ok, solver} = CPSolver.solve_async(Sudoku.model(difficult_sudoku), distributed: Node.list())
     # Wait for a bit so all nodes get involved into solving.
     Process.sleep(1000)
     # Collect active spaces and group them by the nodes.

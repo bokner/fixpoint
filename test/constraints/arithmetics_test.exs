@@ -29,7 +29,7 @@ defmodule CPSolverTest.Constraint.Arithmetics do
       c = 3
       x = Variable.new(x_domain, name: "x")
       model = Model.new([x], [Equal.new(ViewFactory.inc(x, c), 10)])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
 
       assert length(res.solutions) == 1
       assert hd(hd(res.solutions)) == 10 - c
@@ -49,7 +49,7 @@ defmodule CPSolverTest.Constraint.Arithmetics do
         end
 
       model = Model.new([x, y], [constraint])
-      {:ok, _res} = CPSolver.solve_sync(model)
+      {:ok, _res} = CPSolver.solve(model)
     end
   end
 end

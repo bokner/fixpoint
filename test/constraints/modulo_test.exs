@@ -25,7 +25,7 @@ defmodule CPSolverTest.Constraint.Modulo do
 
       model = Model.new([x, y, m], [Modulo.new(m, x, y)])
 
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 20
       assert check_solutions(res)
     end
@@ -38,7 +38,7 @@ defmodule CPSolverTest.Constraint.Modulo do
       assert Interface.max(mod_var) == 6
 
       model = Model.new([x, y], [mod_constraint])
-      {:ok, res} = CPSolver.solve_sync(model)
+      {:ok, res} = CPSolver.solve(model)
       ## Verification against MiniZinc count
       assert res.statistics.solution_count == 2814
       assert check_solutions(res)

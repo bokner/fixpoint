@@ -50,7 +50,7 @@ defmodule FWCDebug do
         Enum.map(order, fn ord -> Enum.at(all_constraints, ord - 1) end)
       )
 
-    {:ok, res} = CPSolver.solve_sync(model)
+    {:ok, res} = CPSolver.solve(model)
     res |> Map.put(:order, Enum.zip(order, constraint_names))
   end
 

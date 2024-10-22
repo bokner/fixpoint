@@ -13,7 +13,7 @@ defmodule CPSolver.Examples.GraphColoring do
 
   def solve(data, solver_opts) do
     {:ok, _solver} =
-      CPSolver.solve(model(data), solver_opts)
+      CPSolver.solve_async(model(data), solver_opts)
       |> tap(fn _ -> Process.sleep(100) end)
   end
 

@@ -38,7 +38,7 @@ defmodule CPSolver.Examples.SendMoreMoney do
   end
 
   def solve() do
-    {:ok, res} = CPSolver.solve_sync(model(), stop_on: {:max_solutions, 1})
+    {:ok, res} = CPSolver.solve(model(), stop_on: {:max_solutions, 1})
     Enum.zip(res.variables, hd(res.solutions))
   end
 
