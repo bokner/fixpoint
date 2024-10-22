@@ -216,7 +216,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     end)
     ## Build records with list of variable ids and atached matching for SCCs
     Enum.reduce(sccs, [], fn component, acc ->
-      if MapSet.size(component) == 0 do
+      if MapSet.size(component) <= 1 do
         acc
       else
         {m, v_graph} = Enum.reduce(component, {Map.new(), Graph.new()}, fn var_id, {matching_acc, value_graph_acc} = acc ->
@@ -224,15 +224,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
             nil -> acc
             value ->
               variable_vertex = {:variable, var_id}
-              value_vertices = Graph.in_neighbors(value_graph, variable_vertex)
-              #IO.inspect(value_vertices, label: :value_vertices)
+              value_edges = Graph.in_edges(value_graph, variable_vertex)
               ## We keep matching in the original form so we can reuse it
               ## in in the consequent iterations
-              {Map.put(matching_acc, {:value, value}, variable_vertex),
-                    Enum.reduce(value_vertices, value_graph_acc,
-                    fn value_vertex, graph_acc2 ->
-                      Graph.add_edge(graph_acc2, value_vertex, variable_vertex)
-                    end)
+              {
+                Map.put(matching_acc, {:value, value}, variable_vertex),
+                Graph.add_edges(value_graph_acc, value_edges)
               }
           end
         end)
