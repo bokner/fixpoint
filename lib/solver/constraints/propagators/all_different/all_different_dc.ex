@@ -202,9 +202,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   defp reduce_residual_graph(residual_graph, vars) do
-    sccs = Graph.strong_components(residual_graph)
+    sccs = Graph.strong_components(residual_graph) |> sccs_to_sets()
     residual_graph = remove_cross_edges(residual_graph, sccs, vars)
     {residual_graph, postprocess_sccs(sccs)}
+  end
+
+  defp sccs_to_sets(sccs_arrays) do
+    Enum.map(sccs_arrays, fn component -> MapSet.new(component) |> MapSet.delete(:sink) end)
   end
 
   ## Move parts of matching to where SCCs they belong to are
@@ -245,29 +249,21 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   defp remove_cross_edges(residual_graph, sccs, vars) do
-    vertices_to_sccs = map_vertices_to_sccs(sccs)
-    ## Remove edges that have vertices in different SCCs
-    residual_graph
-    |> Graph.edges()
-    |> Enum.reduce(
-      residual_graph,
-      fn
-        %{v1: {:value, value} = v1, v2: v2} = _edge, residual_graph_acc ->
-          if Map.get(vertices_to_sccs, v1) != Map.get(vertices_to_sccs, v2) do
-            ## Cross-edge, remove
-            Graph.delete_edge(residual_graph_acc, v1, v2)
-            |> tap(fn _ ->
-              ## If this is 'value -> variable' edge, remove the value from the domain of variable
-              maybe_remove_domain_value(value, v2, vars)
-            end)
-          else
-            residual_graph_acc
-          end
-
-        _non_value_edge, acc ->
-          acc
-      end
-    )
+    Enum.reduce(sccs, residual_graph, fn vertices, graph_acc ->
+      Enum.reduce(vertices, graph_acc, fn {:variable, _var_id} = variable_vertex, graph_acc2 ->
+        edges = Graph.in_edges(graph_acc2, variable_vertex)
+        Enum.reduce(edges, graph_acc2, fn %{v1: {:value, value} = value_vertex} = _edge, graph_acc3 ->
+          value_vertex in vertices && graph_acc3 ||
+          Graph.delete_edge(graph_acc3, value_vertex, variable_vertex)
+          |> tap(fn _ ->
+            ## If this is 'value -> variable' edge, remove the value from the domain of variable
+            maybe_remove_domain_value(value, variable_vertex, vars)
+          end)
+          _non_value_vertex, graph_acc3 -> graph_acc3
+        end)
+        _non_variable_vertex, graph_acc2 -> graph_acc2
+    end)
+    end)
   end
 
   defp maybe_remove_domain_value(value, {:variable, var_id}, vars) do
@@ -276,20 +272,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
   defp maybe_remove_domain_value(_value, :sink, _vars) do
     :ignore
-  end
-
-  defp map_vertices_to_sccs(sccs) do
-    Enum.reduce(
-      sccs,
-      Map.new(),
-      fn component, map_acc ->
-        scc_ref = make_ref()
-
-        Enum.reduce(component, map_acc, fn vertex, map_acc2 ->
-          Map.put(map_acc2, vertex, scc_ref)
-        end)
-      end
-    )
   end
 
   defp postprocess_sccs(sccs) do
