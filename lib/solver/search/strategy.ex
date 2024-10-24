@@ -1,6 +1,6 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable.Interface
-  alias CPSolver.Search.VariableSelector.{FirstFail, MostConstrained, MostCompleted, DomDeg}
+  alias CPSolver.Search.VariableSelector.{FirstFail, MostConstrained, MostCompleted, DomDeg, MaxRegret}
   alias CPSolver.DefaultDomain, as: Domain
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random}
@@ -49,6 +49,10 @@ defmodule CPSolver.Search.Strategy do
     Random
   end
 
+  def shortcut(:max_regret) do
+    &MaxRegret.select_variable/2
+  end
+
   def break_even(strategy_impl, break_even_fun) when is_function(break_even_fun, 1) do
     break_even(strategy_impl, fn vars, _data -> break_even_fun.(vars) end)
   end
@@ -92,6 +96,16 @@ defmodule CPSolver.Search.Strategy do
 
   def most_completed(shortcut) when is_atom(shortcut) do
     most_completed(shortcut(shortcut))
+  end
+
+  def max_regret(break_even_fun \\ &Enum.random/1)
+
+  def max_regret(break_even_fun) when is_function(break_even_fun) do
+    break_even(MaxRegret, break_even_fun)
+  end
+
+  def max_regret(shortcut) when is_atom(shortcut) do
+    max_regret(shortcut(shortcut))
   end
 
   def first_fail(break_even_fun \\ &Enum.random/1)

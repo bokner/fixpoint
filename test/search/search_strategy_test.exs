@@ -5,6 +5,7 @@ defmodule CPSolverTest.Search.FirstFail do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.DefaultDomain, as: Domain
     alias CPSolver.Search.Strategy, as: SearchStrategy
+    alias CPSolver.Search.VariableSelector.MaxRegret, as: MaxRegretSelector
     import CPSolver.Test.Helpers
 
     test ":first_fail and :indomain_min" do
@@ -47,6 +48,13 @@ defmodule CPSolverTest.Search.FirstFail do
 
       assert catch_throw(SearchStrategy.select_variable(variables, :first_fail)) ==
                SearchStrategy.all_vars_fixed_exception()
+    end
+
+    test "max_regret selector" do
+      domains = [1..3, [2, 10, 11], [3, 12, 15], [6, 15]]
+      variables = Enum.map(Enum.with_index(domains, 1), fn {d, idx} -> Variable.new(d, name: idx) end)
+      [var1, var2] = MaxRegretSelector.candidates(variables, :ignore)
+      assert var1.name in [3, 4] && var2.name in [3, 4]
     end
 
     test "branch creation" do
