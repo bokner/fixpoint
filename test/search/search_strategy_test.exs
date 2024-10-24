@@ -54,6 +54,8 @@ defmodule CPSolverTest.Search.FirstFail do
       domains = [1..3, [2, 10, 11], [3, 12, 15], [6, 15]]
       variables = Enum.map(Enum.with_index(domains, 1), fn {d, idx} -> Variable.new(d, name: idx) end)
       [var1, var2] = MaxRegretSelector.candidates(variables, :ignore)
+      ## Chooses variables with largest difference between 2 smallest values
+      ## diff(1) = 1, diff(2) = 8, diff(3) = diff(4) = 9
       assert var1.name in [3, 4] && var2.name in [3, 4]
     end
 
