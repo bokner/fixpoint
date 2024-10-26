@@ -71,6 +71,10 @@ defmodule CPSolver.Constraint.Factory do
     result(z, element2d_var(array2d, x, y, z))
   end
 
+  def equal(x, y) do
+    Equal.new(x, y)
+  end
+
   def sum(vars, sum_var) do
     Sum.new(sum_var, vars)
   end
@@ -154,6 +158,10 @@ defmodule CPSolver.Constraint.Factory do
 
   def absolute(x, abs_var) do
     Absolute.new(x, abs_var)
+  end
+
+  def alldifferent(vars) do
+    AllDifferent.new(vars)
   end
 
   defp compose(constraint1, constraint2, relation) do
