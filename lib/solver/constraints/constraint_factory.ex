@@ -7,7 +7,8 @@ defmodule CPSolver.Constraint.Factory do
     Absolute,
     LessOrEqual,
     Equal,
-    Reified
+    Reified,
+    AllDifferent
   }
 
   alias CPSolver.Propagator.Modulo, as: ModuloPropagator
@@ -88,17 +89,37 @@ defmodule CPSolver.Constraint.Factory do
   end
 
   def count(array, y, c) do
-    {b_vars, reif_propagators} =
+    {b_vars, reif_constraints} =
       for a <- array, reduce: {[], []} do
-        {vars_acc, propagators_acc} ->
+        {vars_acc, constraints_acc} ->
           b = BooleanVariable.new()
           equal_p = Reified.new([Equal.new(a, y), b])
-          {[b | vars_acc], [equal_p | propagators_acc]}
+          {[b | vars_acc], [equal_p | constraints_acc]}
       end
 
     Interface.removeBelow(c, 0)
     Interface.removeAbove(c, length(array))
-    [Sum.new(c, b_vars) | reif_propagators]
+    [Sum.new(c, b_vars) | reif_constraints]
+  end
+
+  def inverse(f, inv_f) do
+    length(f) == length(inv_f)
+     || throw("Inverse constraint has to have sizes of arguments match")
+
+    index_set = MapSet.new(0..(length(f) - 1))
+    for i <- index_set do
+      f_i = Enum.at(f, i)
+      inv_f_i = Enum.at(inv_f, i)
+      MapSet.subset?(Interface.domain(f_i) |> Domain.to_list(), index_set)
+      && MapSet.subset?(Interface.domain(inv_f_i) |> Domain.to_list(), index_set)
+        || throw("Inverse constraint has to have all variable domains within index_set")
+      [
+        element(f, inv_f_i, i),
+        element(inv_f, f_i, i)
+      ]
+    end
+    |> List.flatten()
+    |> Enum.concat([AllDifferent.DC.new(f), AllDifferent.DC.new(inv_f)])
   end
 
   def add(var1, var2) do

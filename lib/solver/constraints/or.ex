@@ -9,11 +9,6 @@ defmodule CPSolver.Constraint.Or do
   alias CPSolver.Propagator.Or, as: OrPropagator
   alias CPSolver.IntVariable, as: Variable
 
-  @spec new(
-          [Variable.variable_or_view()]
-        ) :: Constraint.t()
-
-  
   @impl true
   def propagators(args) do
     [OrPropagator.new(args)]
