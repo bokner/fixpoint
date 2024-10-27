@@ -348,5 +348,5 @@ Two combinatorial problems from https://xkcd.com/287/
 
 #### [Fixpoint models created by Håkan Kjellerstrand](http://hakank.org/elixir/)
 
-### [Zebra puzzle](https://en.wikipedia.org/wiki/Zebra_Puzzle)
+#### [Zebra puzzle](https://en.wikipedia.org/wiki/Zebra_Puzzle)
 
