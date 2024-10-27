@@ -293,35 +293,6 @@ defmodule CPSolver.Space do
     end)
   end
 
-
-  # defp add_branch_constraint(constraint_graph, nil) do
-  #  constraint_graph
-  # end
-
-  # defp add_branch_constraint(constraint_graph, _constraint) do
-  # []
-  # constraint
-  # |> Constraint.constraint_to_propagators()
-  # |> IO.inspect()
-  # |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
-  # constraint_graph
-  # |> tap(fn  -> constraint.() end)
-  # end
-
-  # defp add_branch_constraint(constraint_graph, nil) do
-  #   constraint_graph
-  # end
-
-  # defp add_branch_constraint(constraint_graph, _constraint) do
-  # []
-  # constraint
-  # |> Constraint.constraint_to_propagators()
-  # |> IO.inspect()
-  # |> Enum.reduce(constraint_graph, fn propagator, graph_acc -> ConstraintGraph.add_propagator(graph_acc, propagator) end)
-  # constraint_graph
-  # |> tap(fn  -> constraint.() end)
-  # end
-
   defp handle_stable(data) do
     try do
       distribute(data)
