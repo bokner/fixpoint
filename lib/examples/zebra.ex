@@ -60,8 +60,8 @@ defmodule CPSolver.Examples.Zebra do
         equal(green, inc(ivory, 1)),
         equal(old_gold, snail),
         equal(kool, yellow),
-        equal(milk, 2),
-        equal(norwegian, 0),
+        equal(milk, house(3)),
+        equal(norwegian, house(1)),
         next_to(chesterfield, fox),
         next_to(kool, horse),
         equal(lucky_strike, orange_juice),
@@ -76,9 +76,9 @@ defmodule CPSolver.Examples.Zebra do
       )
   end
 
-  def solve() do
-    CPSolver.solve(model())
-    |> tap(fn {:ok, res} -> print_solution(res) end)
+
+  def solve(opts \\ []) do
+    CPSolver.solve(model(), opts)
   end
 
   defp create_tmp_vars(domain) do
@@ -99,7 +99,7 @@ defmodule CPSolver.Examples.Zebra do
     Enum.find_index(block1, fn x -> x == value_to_match end)
   end
 
-  def print_solution(res) do
+  def puzzle_solution(res) do
     solution = hd(res.solutions)
     nationality_names = Enum.slice(res.variables, 5, 5)
     [_colors, nationalities, animals, drinks, _brands] = Enum.chunk_every(solution, 5) |> Enum.take(5)
@@ -107,7 +107,13 @@ defmodule CPSolver.Examples.Zebra do
     zebra_owner = find_match(nationalities, animals, 4)
     water_drinker = find_match(nationalities, drinks, 4)
 
-    IO.inspect(Enum.at(nationality_names, zebra_owner), label: :zebra_owner)
-    IO.inspect(Enum.at(nationality_names, water_drinker), label: :water_drinker)
+    %{zebra_owner: Enum.at(nationality_names, zebra_owner),
+      water_drinker: Enum.at(nationality_names, water_drinker)
+    }
+  end
+
+  ## Shift to 0-based
+  defp house(number) do
+    number - 1
   end
 end
