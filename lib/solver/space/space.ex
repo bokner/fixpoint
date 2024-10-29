@@ -38,16 +38,20 @@ defmodule CPSolver.Space do
   def create(variables, propagators, space_opts \\ default_space_opts()) do
     propagators = maybe_add_objective_propagator(propagators, space_opts[:objective])
 
+    initial_constraint_graph = ConstraintGraph.create(propagators)
+
     space_data = %{
       variables: variables,
       propagators: propagators,
-      constraint_graph: ConstraintGraph.create(propagators),
+      constraint_graph: initial_constraint_graph,
       opts: space_opts
     }
 
-    create(space_data)
+    ## Save initial constraint graph in shared data
+    ## (for shared search strategies etc.)
+    create(space_data |> put_shared(:initial_constraint_graph, initial_constraint_graph))
     |> tap(fn {:ok, space_pid} ->
-      shared = shared(space_data)
+      shared = get_shared(space_data)
       Shared.increment_node_counts(shared)
       Shared.add_active_spaces(shared, [space_pid])
     end)
@@ -76,7 +80,7 @@ defmodule CPSolver.Space do
   end
 
   defp spawn_space(data) do
-    solver = shared(data)
+    solver = get_shared(data)
     worker_node = Distributed.choose_worker_node(solver.distributed)
     checked_out? = Shared.checkout_space_thread(solver, worker_node)
     run_space(worker_node, solver, data, checked_out?)
@@ -94,13 +98,13 @@ defmodule CPSolver.Space do
     (checked_out? &&
        spawn(fn ->
          run_space(data)
-         Shared.checkin_space_thread(shared(data))
+         Shared.checkin_space_thread(get_shared(data))
        end)) ||
       run_space(data)
   end
 
   def run_space(data) do
-    solver = shared(data)
+    solver = get_shared(data)
 
     case create(
            data
@@ -235,7 +239,7 @@ defmodule CPSolver.Space do
 
   defp handle_error(exception, data) do
     Logger.error(inspect(exception))
-    Shared.set_complete(shared(data))
+    Shared.set_complete(get_shared(data))
     shutdown(data, :error)
   end
 
@@ -251,7 +255,7 @@ defmodule CPSolver.Space do
         |> elem(1)
         |> Solution.run_handler(data.opts[:solution_handler])
         ## Stop producing solutions if the solving is complete
-        |> tap(fn _ -> CPSolver.complete?(shared(data)) && throw(:complete) end)
+        |> tap(fn _ -> CPSolver.complete?(get_shared(data)) && throw(:complete) end)
       end)
     catch
       :complete -> :complete
@@ -314,7 +318,7 @@ defmodule CPSolver.Space do
     branches = Search.branch(variables, opts[:search], data)
 
     Enum.take_while(branches, fn {branch_variables, constraint} ->
-      !CPSolver.complete?(shared(data)) &&
+      !CPSolver.complete?(get_shared(data)) &&
         spawn_space(
           data
           |> Map.put(:variables, branch_variables)
@@ -329,12 +333,18 @@ defmodule CPSolver.Space do
     {:stop, :normal, (!data[:finalized] && cleanup(data, reason)) || data}
   end
 
-  defp shared(data) do
+  def get_shared(data) do
     data.opts[:solver_data]
   end
 
+  def put_shared(data, key, value) do
+    data
+    |> tap(fn _ -> Shared.put_auxillary(get_in(data, [:opts, :solver_data]), key, value)
+  end)
+  end
+
   defp cleanup(data, reason) do
-    Shared.remove_space(shared(data), self(), reason)
+    Shared.remove_space(get_shared(data), self(), reason)
     caller = data[:caller]
     caller && GenServer.reply(caller, :done)
     Map.put(data, :finalized, true)

@@ -17,11 +17,12 @@ defmodule CPSolver.Shared do
       solutions:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       active_nodes:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
+        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       complete_flag: init_complete_flag(),
       space_thread_counters: init_space_thread_counters(space_threads),
       times: init_times(),
-      distributed: distributed
+      distributed: distributed,
+      auxillary: init_auxillary_map()
     }
   end
 
@@ -54,6 +55,25 @@ defmodule CPSolver.Shared do
   defp init_complete_flag() do
     make_ref()
     |> tap(fn ref -> :persistent_term.put(ref, false) end)
+  end
+
+  defp init_auxillary_map() do
+    make_ref()
+    |> tap(fn ref -> :persistent_term.put(ref, %{}) end)
+  end
+
+  def get_auxillary(shared, key) do
+    :persistent_term.get(shared[:auxillary])
+    |> Map.get(key)
+  end
+
+  def put_auxillary(shared, key, value) do
+    pt_ref = shared[:auxillary]
+    aux_map =
+      pt_ref
+      |> :persistent_term.get()
+      |> Map.put(key, value)
+    :persistent_term.put(pt_ref, aux_map)
   end
 
   def init_times() do
