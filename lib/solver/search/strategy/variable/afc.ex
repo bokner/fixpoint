@@ -45,14 +45,15 @@ defmodule CPSolver.Search.VariableSelector.AFC do
       global_failure_count - last_update_at
     end)
 
-    ## It's impractical to consider more than 100 (probably less) decaying steps - the AFC values will be very
-    ## close to 0 even for big global failure counts.
-    #
+    ## It's impractical to consider a lot of decaying steps.
+    ## Considering afc <- afc * decay formula, the AFC values will be very
+    ## close to 0 for a small number of decays even if global failure count is high.
+    # We land on 100 as max for decay steps.
+    max_decay_steps = 100
     ## Add 1 to decayed AFC of failing propagator
-    new_afc_value = afc_value * :math.pow(decay, min(100, decay_steps)) + (failure? && 1 || 0)
+    new_afc_value = afc_value * :math.pow(decay, min(max_decay_steps, decay_steps)) + (failure? && 1 || 0)
 
     {new_afc_value, global_failure_count}
-
 
   end
 
@@ -67,15 +68,17 @@ defmodule CPSolver.Search.VariableSelector.AFC do
     |> then(fn rec -> !Enum.empty?(rec) && elem(hd(rec), 1) || nil end)
   end
 
-  def get_afc_record(space_data, propagator_id) do
-    space_data
+  def get_afc_record(shared, propagator_id) do
+    shared
     |> get_afc_table()
     |> get_afc_record(propagator_id)
   end
 
-  def get_afc_table(space_data) do
-    space_data
-    |> Space.get_shared()
-    |> Shared.get_auxillary(:afc)
+  def get_afc_table(shared) do
+    Shared.get_auxillary(shared, :afc)
+  end
+
+  def update_afc(propagator_id, shared) do
+
   end
 end

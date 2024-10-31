@@ -2,6 +2,7 @@ defmodule CPSolverTest.Search.AFC do
   use ExUnit.Case
 
   alias CPSolver.Search.VariableSelector.AFC, as: AFC
+  alias CPSolver.Space
   import CPSolver.Test.Helpers
 
   describe "AFC search strategy" do
@@ -10,7 +11,7 @@ defmodule CPSolverTest.Search.AFC do
     test "initialization from top space" do
       space = build_space()
       AFC.initialize(space)
-      afc_table_ref = AFC.get_afc_table(space)
+      afc_table_ref = AFC.get_afc_table(Space.get_shared(space))
       propagator_refs = Enum.map(space.propagators, fn p -> p.id end)
 
       assert Enum.all?(
@@ -19,13 +20,14 @@ defmodule CPSolverTest.Search.AFC do
              )
     end
 
-    test "get AFC record" do
+    test "get AFC record for propagator" do
       space = build_space()
       AFC.initialize(space)
       propagator_refs = Enum.map(space.propagators, fn p -> p.id end)
 
+      shared = Space.get_shared(space)
       assert Enum.all?(propagator_refs, fn p_id ->
-               {1, 0} = AFC.get_afc_record(space, p_id)
+               {1, 0} = AFC.get_afc_record(shared, p_id)
              end)
     end
 
