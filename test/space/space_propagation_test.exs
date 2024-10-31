@@ -38,7 +38,7 @@ defmodule CPSolverTest.SpacePropagation do
 
   test "Propagation on failed space" do
     %{constraint_graph: graph, store: store} = fail_setup()
-    assert :fail == Propagation.run(graph, store)
+    assert {:fail, _propagator_id} = Propagation.run(graph, store)
   end
 
   defp stable_setup() do

@@ -45,13 +45,13 @@ defmodule CPSolver.Search.VariableSelector.AFC do
       global_failure_count - last_update_at
     end)
 
-    ## It's impractical to consider more than 100 (probably less) decaying steps - the values wwill be very
+    ## It's impractical to consider more than 100 (probably less) decaying steps - the AFC values will be very
     ## close to 0 even for big global failure counts.
     #
     ## Add 1 to decayed AFC of failing propagator
-    new_value = afc_value * :math.pow(decay, min(100, decay_steps)) + (failure? && 1 || 0)
+    new_afc_value = afc_value * :math.pow(decay, min(100, decay_steps)) + (failure? && 1 || 0)
 
-    {new_value, global_failure_count}
+    {new_afc_value, global_failure_count}
 
 
   end

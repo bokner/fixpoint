@@ -200,8 +200,8 @@ defmodule CPSolver.Space do
        ) do
     try do
       case Propagation.run(constraint_graph, changes) do
-        :fail ->
-          handle_failure(data)
+        {:fail, _propagator_id} = failure ->
+          handle_failure(data, failure)
 
         :solved ->
           handle_solved(data)
@@ -217,23 +217,27 @@ defmodule CPSolver.Space do
     catch
       {:error, error} ->
         handle_error(error, data)
+
     end
   end
 
-  defp handle_failure(data) do
+  defp handle_failure(data, {:fail, _p_id} = failure) do
+    Shared.add_failure(get_shared(data), failure)
     shutdown(data, :failure)
   end
 
   defp handle_solved(data) do
-    if checkpoint(data.propagators, data.constraint_graph) do
-      maybe_tighten_objective_bound(data[:objective])
+    case checkpoint(data.propagators, data.constraint_graph) do
+      {:fail, _propagator_id} = failure ->
+        handle_failure(data, failure)
 
-      ## Generate solutions and run them through solution handler.
-      solutions(data)
+      :ok ->
+        maybe_tighten_objective_bound(data[:objective])
 
-      shutdown(data, :solved)
-    else
-      handle_failure(data)
+        ## Generate solutions and run them through solution handler.
+        solutions(data)
+
+        shutdown(data, :solved)
     end
   end
 
@@ -289,21 +293,16 @@ defmodule CPSolver.Space do
   end
 
   def checkpoint(propagators, constraint_graph) do
-    Enum.reduce_while(propagators, true, fn p, acc ->
+    Enum.reduce_while(propagators, :ok, fn p, acc ->
       case Propagator.filter(p, reset: false, constraint_graph: constraint_graph) do
-        :fail -> {:halt, false}
+        :fail -> {:halt, {:fail, p.id}}
         _ -> {:cont, acc}
       end
     end)
   end
 
   defp handle_stable(data) do
-    try do
       distribute(data)
-    catch
-      :fail ->
-        handle_failure(data)
-    end
   end
 
   def distribute(
@@ -339,8 +338,7 @@ defmodule CPSolver.Space do
 
   def put_shared(data, key, value) do
     data
-    |> tap(fn _ -> Shared.put_auxillary(get_in(data, [:opts, :solver_data]), key, value)
-  end)
+    |> tap(fn _ -> Shared.put_auxillary(get_in(data, [:opts, :solver_data]), key, value) end)
   end
 
   defp cleanup(data, reason) do

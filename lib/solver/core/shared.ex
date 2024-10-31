@@ -209,7 +209,7 @@ defmodule CPSolver.Shared do
     try do
       [active_node_count | _] =
         update_stats_counters(stats_table, [
-          {@active_node_count_pos, -1, 0, 0} | update_stats_ops(reason)
+          {@active_node_count_pos, -1, 0, 0}
         ])
 
       :ets.delete(active_nodes_table, space)
@@ -246,14 +246,20 @@ defmodule CPSolver.Shared do
     end)
   end
 
-  def add_failure(solver) do
+  def add_failure(solver, failure) do
     (on_primary_node?(solver) &&
-       add_failure_impl(solver)) ||
+       add_failure_impl(solver, failure)) ||
       distributed_call(solver, :add_failure_impl)
   end
 
-  def add_failure_impl(%{statistics: stats_table} = _solver) do
+  def add_failure_impl(%{statistics: stats_table} = solver, failure) do
     update_stats_counters(stats_table, [{@failure_count_pos, 1}])
+    maybe_update_afc(solver, failure)
+  end
+
+  defp maybe_update_afc(solver, {:fail, propagator_id} = _failure) do
+    ##IO.inspect(propagator_id, label: :update_afc)
+    :todo
   end
 
   def add_solution(solver, solution) do
@@ -281,18 +287,6 @@ defmodule CPSolver.Shared do
     rescue
       _e -> :ok
     end
-  end
-
-  defp update_stats_ops(:failure) do
-    [{@failure_count_pos, 1}]
-  end
-
-  defp update_stats_ops(:solved) do
-    []
-  end
-
-  defp update_stats_ops(_) do
-    []
   end
 
   defp update_stats_counters(stats_table, update_ops) do

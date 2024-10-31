@@ -80,7 +80,7 @@ defmodule CPSolver.Propagator.Reified do
       Enum.reduce_while(propagators, [], fn p, active_propagators_acc ->
         case Propagator.filter(p, changes: incoming_changes) do
           :fail ->
-            {:halt, :fail}
+            throw(:fail)
 
           %{active?: active?} ->
             {:cont, (active? && [p | active_propagators_acc]) || active_propagators_acc}

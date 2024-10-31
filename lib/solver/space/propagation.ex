@@ -33,8 +33,8 @@ defmodule CPSolver.Space.Propagation do
 
   defp run_impl(propagators, constraint_graph, domain_changes, opts) do
     case propagate(propagators, constraint_graph, domain_changes, opts) do
-      :fail ->
-        :fail
+      {:fail, propagator_id} ->
+        {:fail, propagator_id}
 
       {scheduled_propagators, reduced_graph, new_domain_changes} ->
         (MapSet.size(scheduled_propagators) == 0 && reduced_graph) ||
@@ -51,7 +51,7 @@ defmodule CPSolver.Space.Propagation do
   end
 
   @spec propagate(map(), Graph.t(), map(), Keyword.t()) ::
-          :fail | {map(), Graph.t(), map()}
+          {:fail, reference()} | {map(), Graph.t(), map()}
   @doc """
   A single pass of propagation.
   Produces the list (up to implementation) of propagators scheduled for the next pass.
@@ -87,7 +87,7 @@ defmodule CPSolver.Space.Propagation do
             throw({:error, {:filter_error, error}})
 
           :fail ->
-            {:halt, :fail}
+            {:halt, {:fail, p_id}}
 
           :stable ->
             {:cont, {unschedule(scheduled_acc, p_id), g_acc, changes_acc}}
@@ -145,8 +145,8 @@ defmodule CPSolver.Space.Propagation do
     (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
   end
 
-  defp finalize(:fail, _changes) do
-    :fail
+  defp finalize({:fail, propagator_id} = failure, _changes) do
+    failure
   end
 
   ## At this point, the space is either solved or stable.
