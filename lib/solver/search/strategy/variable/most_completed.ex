@@ -1,8 +1,7 @@
 defmodule CPSolver.Search.VariableSelector.MostCompleted do
   alias CPSolver.Propagator.ConstraintGraph
-  alias CPSolver.Search.VariableSelector.FirstFail
 
-  def candidates(_variables, space_data) do
+  def select(_variables, space_data) do
     most_completed_propagators_selection(space_data[:constraint_graph])
   end
 
@@ -47,9 +46,4 @@ defmodule CPSolver.Search.VariableSelector.MostCompleted do
     |> elem(0)
   end
 
-  def select_variable(variables, space_data, break_even_fun \\ &FirstFail.select_variable/1) do
-    ## Pick out all variables with maximal degrees
-    candidates(variables, space_data)
-    |> break_even_fun.()
-  end
 end

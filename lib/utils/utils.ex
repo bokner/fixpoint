@@ -58,4 +58,33 @@ defmodule CPSolver.Utils do
     |> Interface.domain()
     |> Domain.to_list()
   end
+
+  ## Pick all minimal elements according to given minimizing function
+  def minimals(enumerable, min_by_fun) do
+    List.foldr(enumerable, {[], nil}, fn el, {minimals_acc, current_min} = acc ->
+      val = min_by_fun.(el)
+
+          cond do
+
+            is_nil(current_min) || val < current_min -> {[el], val}
+            is_nil(val) || val > current_min -> acc
+            val == current_min -> {[el | minimals_acc], current_min}
+          end
+    end)
+    |> elem(0)
+  end
+
+  ## Pick all maximal elements according to given maximizing function
+  def maximals(enumerable, max_by_fun) do
+    List.foldr(enumerable, {[], -1}, fn el, {maximals_acc, current_max} = acc ->
+      val = max_by_fun.(el)
+
+      cond do
+        is_nil(val) || val < current_max -> acc
+        val > current_max -> {[el], val}
+        val == current_max -> {[el | maximals_acc], val}
+      end
+    end)
+    |> elem(0)
+  end
 end

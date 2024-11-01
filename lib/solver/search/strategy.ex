@@ -23,7 +23,7 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def shortcut(:first_fail) do
-    &FirstFail.select_variable/1
+    break_even(&FirstFail.select/2, &List.first/1)
   end
 
   def shortcut(:input_order) do
@@ -34,15 +34,16 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def shortcut(:most_constrained) do
-    &MostConstrained.select_variable/2
+    break_even(&MostConstrained.select/2, &Enum.random/1)
+    # &MostConstrained.select_variable/2
   end
 
   def shortcut(:most_completed) do
-    &MostCompleted.select_variable/2
+    break_even(&MostCompleted.select/2, &Enum.random/1)
   end
 
   def shortcut(:dom_deg) do
-    &DomDeg.select_variable/2
+    break_even(&DomDeg.select/2, &Enum.random/1)
   end
 
   def shortcut(:indomain_min) do
@@ -58,18 +59,29 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def shortcut(:max_regret) do
-    &MaxRegret.select_variable/2
+    break_even(&MaxRegret.select/2, &Enum.random/1)
   end
 
-  def break_even(strategy_impl, break_even_fun) when is_function(break_even_fun, 1) do
-    break_even(strategy_impl, fn vars, _data -> break_even_fun.(vars) end)
+  defp execute_break_even(selection, _data, break_even_fun) when is_function(break_even_fun, 1) do
+    break_even_fun.(selection)
   end
 
-  def break_even(strategy_impl, break_even_fun) when is_function(break_even_fun, 2) do
+  defp execute_break_even(selection, data, break_even_fun) when is_function(break_even_fun, 2) do
+    break_even_fun.(selection, data)
+  end
+
+  def break_even(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
+    fn vars, data ->
+      strategy_impl.select(vars, data)
+      |> execute_break_even(data, break_even_fun)
+    end
+  end
+
+  def break_even(strategy_fun, break_even_fun) when is_function(strategy_fun) do
     fn vars, data ->
       vars
-      |> strategy_impl.candidates(data)
-      |> break_even_fun.(data)
+      |> strategy_fun.(data)
+      |> execute_break_even(data, break_even_fun)
     end
   end
 
@@ -136,17 +148,27 @@ defmodule CPSolver.Search.Strategy do
     dom_deg(shortcut(shortcut))
   end
 
-  def select_variable(variables, variable_choice) when is_atom(variable_choice) do
-    select_variable(variables, shortcut(variable_choice))
+  def select_variable(variables, data, variable_choice) when is_atom(variable_choice) do
+    select_variable(variables, data, shortcut(variable_choice))
   end
 
-  def select_variable(variables, variable_choice) when is_function(variable_choice) do
+  def select_variable(variables, data, variable_choice) when is_function(variable_choice) do
     variables
     |> Enum.reject(fn v -> Interface.fixed?(v) end)
     |> then(fn
       [] -> throw(all_vars_fixed_exception())
-      unfixed_vars -> variable_choice.(unfixed_vars)
+      unfixed_vars -> execute_variable_choice(variable_choice, unfixed_vars, data)
     end)
+  end
+
+  defp execute_variable_choice(variable_choice, unfixed_vars, _data)
+       when is_function(variable_choice, 1) do
+    variable_choice.(unfixed_vars)
+  end
+
+  defp execute_variable_choice(variable_choice, unfixed_vars, data)
+       when is_function(variable_choice, 2) do
+    variable_choice.(unfixed_vars, data)
   end
 
   defp partition_impl(variable, value_choice) when is_atom(value_choice) do
@@ -178,9 +200,9 @@ defmodule CPSolver.Search.Strategy do
     branch(variables, variable_choice_arity1, partition_strategy, data)
   end
 
-  def branch(variables, variable_choice, partition_strategy, _data)
+  def branch(variables, variable_choice, partition_strategy, data)
       when is_function(variable_choice, 1) do
-    case select_variable(variables, variable_choice) do
+    case select_variable(variables, data, variable_choice) do
       nil ->
         []
 
