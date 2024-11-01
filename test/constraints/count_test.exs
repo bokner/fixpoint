@@ -6,7 +6,6 @@ defmodule CPSolverTest.Constraint.Count do
   alias CPSolver.Constraint.Factory, as: ConstraintFactory
 
   describe "Count constraint" do
-
     test "`count` functionality" do
       ~S"""
       MiniZinc:
@@ -22,7 +21,11 @@ defmodule CPSolverTest.Constraint.Count do
       y = Variable.new(0..10, name: "value")
       array = Enum.map(1..5, fn i -> Variable.new(1..3, name: "arr#{i}") end)
 
-      model = Model.new([array, y, c] |> List.flatten(), ConstraintFactory.count(array, y, c) |> List.flatten())
+      model =
+        Model.new(
+          [array, y, c] |> List.flatten(),
+          ConstraintFactory.count(array, y, c) |> List.flatten()
+        )
 
       {:ok, result} = CPSolver.solve(model)
 
@@ -32,13 +35,11 @@ defmodule CPSolverTest.Constraint.Count do
 
     defp assert_count(solutions, array_len) do
       assert Enum.all?(solutions, fn solution ->
-              arr = Enum.take(solution, array_len)
-              value = Enum.at(solution, array_len)
-              c = Enum.at(solution, array_len + 1)
-              Enum.count(arr, fn el -> el == value end) == c
+               arr = Enum.take(solution, array_len)
+               value = Enum.at(solution, array_len)
+               c = Enum.at(solution, array_len + 1)
+               Enum.count(arr, fn el -> el == value end) == c
              end)
     end
-
   end
-
 end

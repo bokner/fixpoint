@@ -11,6 +11,7 @@ defmodule CPSolver.Search.VariableSelector.MaxRegret do
   defp largest_difference(variables, _space_data) do
     List.foldr(variables, {[], -1}, fn var, {vars, current_max} = acc ->
       difference = difference(var)
+
       cond do
         difference < current_max -> acc
         difference > current_max -> {[var], difference}
@@ -20,16 +21,14 @@ defmodule CPSolver.Search.VariableSelector.MaxRegret do
     |> elem(0)
   end
 
-
   defp difference(variable) do
-      values = Interface.domain(variable) |> Domain.to_list()
-      [smallest, second_smallest] = Enum.take(values, 2)
-      second_smallest - smallest
+    values = Interface.domain(variable) |> Domain.to_list()
+    [smallest, second_smallest] = Enum.take(values, 2)
+    second_smallest - smallest
   end
 
   def select_variable(variables, space_data, break_even_fun \\ &List.first/1) do
     candidates(variables, space_data)
     |> break_even_fun.()
   end
-
 end

@@ -15,6 +15,7 @@ defmodule CPSolver.Search.VariableSelector.FirstFail do
   def get_minimals(variables) do
     List.foldr(variables, {[], nil}, fn var, {vars, current_min} = acc ->
       domain_size = Interface.size(var)
+
       cond do
         is_nil(current_min) || domain_size < current_min -> {[var], domain_size}
         domain_size > current_min -> acc
@@ -23,7 +24,4 @@ defmodule CPSolver.Search.VariableSelector.FirstFail do
     end)
     |> elem(0)
   end
-
-
-
 end

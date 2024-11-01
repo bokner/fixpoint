@@ -15,10 +15,12 @@ defmodule CPSolver.Search.VariableSelector.MostConstrained do
 
   defp get_maximals(variables, space_data) do
     graph = space_data[:constraint_graph]
+
     List.foldr(variables, {[], -1}, fn var, {vars, current_max} = acc ->
       var_id = Interface.id(var)
 
       deg = ConstraintGraph.variable_degree(graph, var_id)
+
       cond do
         deg < current_max -> acc
         deg > current_max -> {[var], deg}
@@ -27,5 +29,4 @@ defmodule CPSolver.Search.VariableSelector.MostConstrained do
     end)
     |> elem(0)
   end
-
 end

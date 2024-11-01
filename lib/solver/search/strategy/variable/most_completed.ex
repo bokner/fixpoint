@@ -6,7 +6,6 @@ defmodule CPSolver.Search.VariableSelector.MostCompleted do
     most_completed_propagators_selection(space_data[:constraint_graph])
   end
 
-
   ## Choose variables connected to "most completed" propagators.
   ## 1) Choose propagators with smallest number of still unfixed variables
   ## (this corresponds to propagators with smallest degree in constraint graph).
@@ -21,20 +20,24 @@ defmodule CPSolver.Search.VariableSelector.MostCompleted do
     )
     ## Pick out the propagators with minimal number of unfixed variables.
     ## Build the list of variable ids constrained by those propagators.
-    |> Enum.reduce({[], nil},
+    |> Enum.reduce(
+      {[], nil},
       fn {_propagator_id, var_ids}, {var_ids_acc, current_min} = acc ->
         var_count = length(var_ids)
+
         cond do
           is_nil(current_min) || var_count < current_min -> {var_ids, var_count}
           var_count > current_min -> acc
           var_count == current_min -> {var_ids ++ var_ids_acc, var_count}
         end
-    end)
+      end
+    )
     |> elem(0)
     ## Choose variables with the largest counts of constraints (i.e., attached propagators)
     |> Enum.frequencies()
     |> Enum.reduce({[], nil}, fn {var_id, var_count}, {vars_acc, current_max} = acc ->
       graph_var = ConstraintGraph.get_variable(constraint_graph, var_id)
+
       cond do
         is_nil(current_max) || var_count > current_max -> {[graph_var], var_count}
         var_count < current_max -> acc
@@ -49,5 +52,4 @@ defmodule CPSolver.Search.VariableSelector.MostCompleted do
     candidates(variables, space_data)
     |> break_even_fun.()
   end
-
 end

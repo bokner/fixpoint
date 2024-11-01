@@ -42,20 +42,16 @@ defmodule CPSolver.Utils do
   end
 
   def lazy_cartesian([head | rest] = _lists, callback, values) do
-      Enum.map(head, fn i ->
-        more_values = [i | values]
-        if !Enum.empty?(rest) do
-           lazy_cartesian(rest, callback, more_values)
-        else
-          callback && callback.(Enum.reverse(more_values))
-        end
-      end)
+    Enum.map(head, fn i ->
+      more_values = [i | values]
 
+      if !Enum.empty?(rest) do
+        lazy_cartesian(rest, callback, more_values)
+      else
+        callback && callback.(Enum.reverse(more_values))
+      end
+    end)
   end
-
-
-
-
 
   def domain_values(variable_or_view) do
     variable_or_view

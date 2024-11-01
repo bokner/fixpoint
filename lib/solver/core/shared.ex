@@ -2,6 +2,8 @@ defmodule CPSolver.Shared do
   alias CPSolver.Objective
   alias CPSolver.Variable.Interface
   alias CPSolver.Distributed
+  ## 'shared' search strategies
+  alias CPSolver.Search.VariableSelector.AFC
 
   def init_shared_data(opts) do
     distributed = Keyword.get(opts, :distributed, false)
@@ -69,10 +71,12 @@ defmodule CPSolver.Shared do
 
   def put_auxillary(shared, key, value) do
     pt_ref = shared[:auxillary]
+
     aux_map =
       pt_ref
       |> :persistent_term.get()
       |> Map.put(key, value)
+
     :persistent_term.put(pt_ref, aux_map)
   end
 
@@ -204,7 +208,7 @@ defmodule CPSolver.Shared do
   def remove_space_impl(
         %{statistics: stats_table, active_nodes: active_nodes_table} = solver,
         space,
-        reason
+        _reason
       ) do
     try do
       [active_node_count | _] =
@@ -249,7 +253,7 @@ defmodule CPSolver.Shared do
   def add_failure(solver, failure) do
     (on_primary_node?(solver) &&
        add_failure_impl(solver, failure)) ||
-      distributed_call(solver, :add_failure_impl)
+      distributed_call(solver, :add_failure_impl, [failure])
   end
 
   def add_failure_impl(%{statistics: stats_table} = solver, failure) do
@@ -257,9 +261,13 @@ defmodule CPSolver.Shared do
     maybe_update_afc(solver, failure)
   end
 
-  defp maybe_update_afc(solver, {:fail, propagator_id} = _failure) do
-    ##IO.inspect(propagator_id, label: :update_afc)
-    :todo
+  def maybe_update_afc(solver, {:fail, propagator_id} = _failure) do
+    get_auxillary(solver, :afc) &&
+      AFC.update_afc(propagator_id, solver, true)
+  end
+
+  def get_failure_count(solver) do
+    statistics(solver) |> Map.get(:failure_count)
   end
 
   def add_solution(solver, solution) do

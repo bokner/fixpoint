@@ -1,6 +1,14 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable.Interface
-  alias CPSolver.Search.VariableSelector.{FirstFail, MostConstrained, MostCompleted, DomDeg, MaxRegret}
+
+  alias CPSolver.Search.VariableSelector.{
+    FirstFail,
+    MostConstrained,
+    MostCompleted,
+    DomDeg,
+    MaxRegret
+  }
+
   alias CPSolver.DefaultDomain, as: Domain
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random}
@@ -74,8 +82,8 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def mixed(strategies) do
-      Enum.random(strategies)
-      |> strategy_fun()
+    Enum.random(strategies)
+    |> strategy_fun()
   end
 
   def most_constrained(break_even_fun \\ &Enum.random/1)
@@ -159,17 +167,19 @@ defmodule CPSolver.Search.Strategy do
 
   def branch(variables, variable_choice, partition_strategy, data \\ %{})
 
-  def branch(variables, variable_choice, partition_strategy, data) when is_atom(variable_choice) do
+  def branch(variables, variable_choice, partition_strategy, data)
+      when is_atom(variable_choice) do
     branch(variables, shortcut(variable_choice), partition_strategy, data)
   end
 
-  def branch(variables, variable_choice, partition_strategy, data) when is_function(variable_choice, 2) do
+  def branch(variables, variable_choice, partition_strategy, data)
+      when is_function(variable_choice, 2) do
     variable_choice_arity1 = fn variables -> variable_choice.(variables, data) end
     branch(variables, variable_choice_arity1, partition_strategy, data)
   end
 
-  def branch(variables, variable_choice, partition_strategy, _data) when is_function(variable_choice, 1)
-  do
+  def branch(variables, variable_choice, partition_strategy, _data)
+      when is_function(variable_choice, 1) do
     case select_variable(variables, variable_choice) do
       nil ->
         []

@@ -15,7 +15,6 @@ defmodule CPSolver.Propagator.ElementVar do
     [Arrays.new(var_array, implementation: Aja.Vector), var_index, var_value]
   end
 
-
   @impl true
   def bind(%{args: [var_array, var_index, var_value] = _args} = propagator, source, var_field) do
     bound_args =
@@ -54,19 +53,25 @@ defmodule CPSolver.Propagator.ElementVar do
   @impl true
   def filter([var_array, var_index, var_value] = _args, state, changes) do
     new_state = state || %{var_index_position: Arrays.size(var_array)}
-    res = state && filter_impl(var_array, var_index, var_value, new_state, changes)
-    || initial_reduction(var_array, var_index, var_value, new_state, changes)
 
-    res == :passive && :passive || {:state, new_state}
+    res =
+      (state && filter_impl(var_array, var_index, var_value, new_state, changes)) ||
+        initial_reduction(var_array, var_index, var_value, new_state, changes)
+
+    (res == :passive && :passive) || {:state, new_state}
   end
 
-
-
-
-  defp filter_impl(var_array, var_index, var_value, %{var_index_position: idx_position} = state, changes) do
+  defp filter_impl(
+         var_array,
+         var_index,
+         var_value,
+         %{var_index_position: idx_position} = state,
+         changes
+       ) do
     ## Run reduction when either of index or value variables are fixed
-    map_size(changes) > 0 && (Map.has_key?(changes, idx_position) || Map.has_key?(changes, idx_position + 1))
-    && reduction(var_array, var_index, var_value, state, changes)
+    map_size(changes) > 0 &&
+      (Map.has_key?(changes, idx_position) || Map.has_key?(changes, idx_position + 1)) &&
+      reduction(var_array, var_index, var_value, state, changes)
   end
 
   defp reduction(var_array, var_index, var_value, _state, _changes) do
@@ -77,10 +82,9 @@ defmodule CPSolver.Propagator.ElementVar do
     ## present in their domains, then the corresponding index has to be removed.
     value_domain = domain(var_value) |> Domain.to_list()
 
-
     total_value_intersection =
       Enum.reduce(index_domain, MapSet.new(), fn idx, intersection_acc ->
-          case Arrays.get(var_array, idx) do
+        case Arrays.get(var_array, idx) do
           nil ->
             IO.inspect("Unexpected: no element at #{idx}")
             throw(:unexpected_no_element)
@@ -104,6 +108,5 @@ defmodule CPSolver.Propagator.ElementVar do
     Enum.each(value_domain, fn val ->
       !MapSet.member?(total_value_intersection, val) && remove(var_value, val)
     end)
-end
-
+  end
 end

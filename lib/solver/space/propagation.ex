@@ -145,7 +145,7 @@ defmodule CPSolver.Space.Propagation do
     (active? && graph) || ConstraintGraph.remove_propagator(graph, propagator_id)
   end
 
-  defp finalize({:fail, propagator_id} = failure, _changes) do
+  defp finalize({:fail, _propagator_id} = failure, _changes) do
     failure
   end
 
@@ -180,9 +180,9 @@ defmodule CPSolver.Space.Propagation do
 
   defp remove_fixed_variables(graph, changes) do
     Enum.reduce(changes, graph, fn {var_id, domain_change}, g_acc ->
-      domain_change == :fixed &&
-        ConstraintGraph.disconnect_variable(g_acc, var_id)
-        || g_acc
+      (domain_change == :fixed &&
+         ConstraintGraph.disconnect_variable(g_acc, var_id)) ||
+        g_acc
     end)
   end
 

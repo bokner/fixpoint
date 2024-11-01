@@ -137,7 +137,7 @@ defmodule CPSolver.Propagator.Element2D do
 
   @impl true
   def filter(args, state, changes) do
-    filter_impl(args, state && state || initial_state(args), changes)
+    filter_impl(args, (state && state) || initial_state(args), changes)
   end
 
   def filter_impl(args, state, _changes) do

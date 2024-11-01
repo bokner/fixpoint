@@ -45,7 +45,6 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
       variables =
         [v1, _v2, _v3] = get_variable_ids(graph)
 
-
       assert graph |> ConstraintGraph.remove_variable(v1) |> Graph.edges() |> length == 4
 
       assert Enum.reduce(variables, graph, fn v, g ->
@@ -59,15 +58,19 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
       graph = build_graph(AllDifferent, 3)
       graph_variables = get_variables(graph)
 
-      new_variables = Enum.map(graph_variables, fn v ->
-        Variable.copy(v) |> tap(fn c -> Variable.remove(c, 3) end) end)
+      new_variables =
+        Enum.map(graph_variables, fn v ->
+          Variable.copy(v) |> tap(fn c -> Variable.remove(c, 3) end)
+        end)
 
       {updated_graph, _bound_propagators} = ConstraintGraph.update(graph, new_variables)
       ## The domains fo variables in the graph should be updated with domains of new variables
-      assert Enum.all?(get_variables(updated_graph),
-        fn var ->
-        Domain.to_list(var.domain) == MapSet.new([1,2])
-      end)
+      assert Enum.all?(
+               get_variables(updated_graph),
+               fn var ->
+                 Domain.to_list(var.domain) == MapSet.new([1, 2])
+               end
+             )
 
       ## The propagators should be bound to new variables
       assert_propagator_domains(updated_graph, 1..2)
@@ -96,23 +99,33 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
     end
 
     defp assert_propagator_domains(graph, domain) do
-      propagators = Enum.flat_map(Graph.vertices(graph),
-      fn {:propagator, p_id} ->
-        [
-          ConstraintGraph.get_propagator(graph, p_id)
-          |> Propagator.bind(graph, :domain)
-        ]
-        _ -> []
-      end)
+      propagators =
+        Enum.flat_map(
+          Graph.vertices(graph),
+          fn
+            {:propagator, p_id} ->
+              [
+                ConstraintGraph.get_propagator(graph, p_id)
+                |> Propagator.bind(graph, :domain)
+              ]
+
+            _ ->
+              []
+          end
+        )
 
       assert length(propagators) == 3
-      assert Enum.all?(propagators,
-        fn p ->
 
-          Enum.all?(p.args, fn arg ->
-            is_integer(arg) || Interface.domain(arg) |> Domain.to_list()
-            == MapSet.new(domain)  end)
-    end)
-  end
+      assert Enum.all?(
+               propagators,
+               fn p ->
+                 Enum.all?(p.args, fn arg ->
+                   is_integer(arg) ||
+                     Interface.domain(arg) |> Domain.to_list() ==
+                       MapSet.new(domain)
+                 end)
+               end
+             )
+    end
   end
 end

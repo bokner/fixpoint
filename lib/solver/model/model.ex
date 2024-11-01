@@ -30,12 +30,15 @@ defmodule CPSolver.Model do
   end
 
   def init_model(variables, constraints, objective) do
-    safe_variables = Enum.map(variables, fn v ->
-      is_integer(v) && Variable.new(v) || v
-    end)
+    safe_variables =
+      Enum.map(variables, fn v ->
+        (is_integer(v) && Variable.new(v)) || v
+      end)
 
-    variable_map = Map.new(safe_variables, fn v ->
-      {Interface.id(v), Interface.variable(v)} end)
+    variable_map =
+      Map.new(safe_variables, fn v ->
+        {Interface.id(v), Interface.variable(v)}
+      end)
 
     ## Additional variables may come from constraint definitions
     ## (example: LessOrEqual constraint, where the second argument is a constant value).
@@ -73,6 +76,7 @@ defmodule CPSolver.Model do
     For now just flatten (but maybe more in the future
     for factory-constructed constraints etc.)
   """
+
   defp normalize_constraints(constraints) do
     List.flatten(constraints)
   end

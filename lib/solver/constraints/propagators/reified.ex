@@ -50,7 +50,11 @@ defmodule CPSolver.Propagator.Reified do
   end
 
   @impl true
-  def bind(%{args: [propagators, b_var, mode] = _args, state: state} = propagator, source, var_field) do
+  def bind(
+        %{args: [propagators, b_var, mode] = _args, state: state} = propagator,
+        source,
+        var_field
+      ) do
     bound_propagators = Enum.map(propagators, fn p -> Propagator.bind(p, source, var_field) end)
 
     Map.put(propagator, :args, [

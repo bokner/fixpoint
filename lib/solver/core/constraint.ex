@@ -25,8 +25,8 @@ defmodule CPSolver.Constraint do
   end
 
   def new(constraint_impl, args) do
-    Enum.empty?(args) && throw({constraint_impl, :no_args}) ||
-    {constraint_impl, args}
+    (Enum.empty?(args) && throw({constraint_impl, :no_args})) ||
+      {constraint_impl, args}
   end
 
   def constraint_to_propagators({constraint_mod, args}) when is_list(args) do

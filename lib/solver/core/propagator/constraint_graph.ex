@@ -27,6 +27,18 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
+  ## Get a list of propagator ids for variable id
+  def get_propagator_ids(constraint_graph, variable_id) do
+    Graph.edges(constraint_graph, variable_vertex(variable_id))
+    |> Enum.flat_map(fn
+      %{v2: {:propagator, p_id}} = _edge ->
+        [p_id]
+
+      _ ->
+        []
+    end)
+  end
+
   ## Get a list of propagator ids that "listen" to the domain change of given variable.
   def get_propagator_ids(
         constraint_graph,
@@ -117,7 +129,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Graph.in_degree(graph, propagator_vertex(propagator_id))
   end
 
-
   def remove_propagator(graph, propagator_id) do
     remove_vertex(graph, propagator_vertex(propagator_id))
   end
@@ -154,7 +165,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   def update(graph, vars) do
     {updated_var_graph, propagators} =
       Enum.reduce(vars, {graph, MapSet.new()}, fn %{id: var_id} = v,
-                                                             {graph_acc, propagators_acc} ->
+                                                  {graph_acc, propagators_acc} ->
         {update_variable(graph_acc, var_id, v),
          MapSet.union(
            propagators_acc,

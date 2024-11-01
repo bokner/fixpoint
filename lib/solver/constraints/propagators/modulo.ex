@@ -17,7 +17,6 @@ defmodule CPSolver.Propagator.Modulo do
     |> Enum.map(fn var -> set_propagate_on(var, :bound_change) end)
   end
 
-
   @impl true
   def filter(args, nil, changes) do
     filter(args, initial_state(args), changes)
@@ -35,8 +34,8 @@ defmodule CPSolver.Propagator.Modulo do
 
   ## This (no changes) will happen when the propagator doesn't receive changes
   ## (either because it was first to run or there were no changes)
-  defp update_fixed(args, fixed_flags, _changes) #when map_size(changes) == 0
-  do
+  # when map_size(changes) == 0
+  defp update_fixed(args, fixed_flags, _changes) do
     for idx <- 0..2 do
       Enum.at(fixed_flags, idx) || fixed?(Enum.at(args, idx))
     end

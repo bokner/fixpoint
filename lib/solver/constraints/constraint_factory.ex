@@ -107,16 +107,19 @@ defmodule CPSolver.Constraint.Factory do
   end
 
   def inverse(f, inv_f) do
-    length(f) == length(inv_f)
-     || throw("Inverse constraint has to have sizes of arguments match")
+    length(f) == length(inv_f) ||
+      throw("Inverse constraint has to have sizes of arguments match")
 
     index_set = MapSet.new(0..(length(f) - 1))
+
     for i <- index_set do
       f_i = Enum.at(f, i)
       inv_f_i = Enum.at(inv_f, i)
-      MapSet.subset?(Interface.domain(f_i) |> Domain.to_list(), index_set)
-      && MapSet.subset?(Interface.domain(inv_f_i) |> Domain.to_list(), index_set)
-        || throw("Inverse constraint has to have all variable domains within index_set")
+
+      (MapSet.subset?(Interface.domain(f_i) |> Domain.to_list(), index_set) &&
+         MapSet.subset?(Interface.domain(inv_f_i) |> Domain.to_list(), index_set)) ||
+        throw("Inverse constraint has to have all variable domains within index_set")
+
       [
         element(f, inv_f_i, i),
         element(inv_f, f_i, i)
@@ -135,9 +138,10 @@ defmodule CPSolver.Constraint.Factory do
   end
 
   def mod(x, y) do
-          {lb, ub} = ModuloPropagator.mod_bounds(x, y)
-          domain =
-            lb..ub
+    {lb, ub} = ModuloPropagator.mod_bounds(x, y)
+
+    domain =
+      lb..ub
 
     mod_var = Variable.new(domain)
     result(mod_var, Modulo.new(mod_var, x, y))

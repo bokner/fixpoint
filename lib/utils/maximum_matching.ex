@@ -6,7 +6,6 @@ defmodule CPSolver.Utils.MaximumMatching do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Common
 
-  
   @spec build_flow_network([Common.variable_or_view()]) :: Graph.t()
   def build_flow_network(variables) do
     Enum.reduce(variables, {Graph.new(), 0}, fn var, {graph_acc, idx_acc} ->

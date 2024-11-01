@@ -68,12 +68,22 @@ defmodule CPSolver.Examples.StableMarriage do
         ]
       },
       problem4: %{
-        rankWomen:
-          [[1, 5, 4, 6, 2, 3], [4, 1, 5, 2, 6, 3], [6, 4, 2, 1, 5, 3], [1, 5, 2, 4, 3, 6],
-           [4, 2, 1, 5, 6, 3], [2, 6, 3, 5, 1, 4]],
-        rankMen:
-          [[1, 4, 2, 5, 6, 3], [3, 4, 6, 1, 5, 2], [1, 6, 4, 2, 3, 5], [6, 5, 3, 4, 2, 1],
-           [3, 1, 2, 4, 5, 6], [2, 3, 1, 6, 5, 4]]
+        rankWomen: [
+          [1, 5, 4, 6, 2, 3],
+          [4, 1, 5, 2, 6, 3],
+          [6, 4, 2, 1, 5, 3],
+          [1, 5, 2, 4, 3, 6],
+          [4, 2, 1, 5, 6, 3],
+          [2, 6, 3, 5, 1, 4]
+        ],
+        rankMen: [
+          [1, 4, 2, 5, 6, 3],
+          [3, 4, 6, 1, 5, 2],
+          [1, 6, 4, 2, 3, 5],
+          [6, 5, 3, 4, 2, 1],
+          [3, 1, 2, 4, 5, 6],
+          [2, 3, 1, 6, 5, 4]
+        ]
       }
     }
   end
@@ -84,10 +94,13 @@ defmodule CPSolver.Examples.StableMarriage do
     res.solutions
     |> Enum.each(fn solution ->
       Enum.zip(res.variables, solution)
-      |> print(instance_dimension(instances()|>
-      Map.get(instance)))
+      |> print(
+        instance_dimension(
+          instances()
+          |> Map.get(instance)
+        )
+      )
     end)
-
 
     {:ok, res}
   end
@@ -95,43 +108,51 @@ defmodule CPSolver.Examples.StableMarriage do
   def model(instance) do
     data = Map.get(instances(), instance)
     dim = instance_dimension(data)
-    range = 0..dim-1
-    wife = Enum.map(range, fn i -> Variable.new(range, name: "wife#{i+1}") end)
-    husband = Enum.map(range, fn i -> Variable.new(range, name: "husband#{i+1}") end)
+    range = 0..(dim - 1)
+    wife = Enum.map(range, fn i -> Variable.new(range, name: "wife#{i + 1}") end)
+    husband = Enum.map(range, fn i -> Variable.new(range, name: "husband#{i + 1}") end)
     ## Bijection (1-to-1) husband <-> wife
-    bijections = for h <- range do
-      #husband[wife[m]] = m
-      ElementVar.new(husband, Enum.at(wife, h), h)
-    end ++
-    for w <- range do
-      #[wife[husband[m]] = m
-      ElementVar.new(wife, Enum.at(husband, w), w)
-    end
+    bijections =
+      for h <- range do
+        # husband[wife[m]] = m
+        ElementVar.new(husband, Enum.at(wife, h), h)
+      end ++
+        for w <- range do
+          # [wife[husband[m]] = m
+          ElementVar.new(wife, Enum.at(husband, w), w)
+        end
 
-    pref_constraints = for w <- range, h <- range, reduce: [] do
-      constraints_acc ->
-      rankMen_h = Map.get(data, :rankMen) |> Enum.at(h)
-      rankMen_h_w = rankMen_h |> Enum.at(w)
-      {rankMen_h_w_var, elementRankMen} = ConstraintFactory.element(rankMen_h, Enum.at(wife, h))
+    pref_constraints =
+      for w <- range, h <- range, reduce: [] do
+        constraints_acc ->
+          rankMen_h = Map.get(data, :rankMen) |> Enum.at(h)
+          rankMen_h_w = rankMen_h |> Enum.at(w)
 
-      rankWomen_w = Map.get(data, :rankWomen) |> Enum.at(w)
-      rankWomen_w_h = rankWomen_w |> Enum.at(h)
-      {rankWomen_w_h_var, elementRankWomen} = ConstraintFactory.element(rankWomen_w, Enum.at(husband,w))
+          {rankMen_h_w_var, elementRankMen} =
+            ConstraintFactory.element(rankMen_h, Enum.at(wife, h))
 
-      impl_submodel = ConstraintFactory.impl(
-        Less.new([rankMen_h_w, rankMen_h_w_var]),
-        Less.new([rankWomen_w_h_var, rankWomen_w_h]))
+          rankWomen_w = Map.get(data, :rankWomen) |> Enum.at(w)
+          rankWomen_w_h = rankWomen_w |> Enum.at(h)
 
-      constraints_acc ++
-        impl_submodel.constraints ++
-        [elementRankMen, elementRankWomen]
+          {rankWomen_w_h_var, elementRankWomen} =
+            ConstraintFactory.element(rankWomen_w, Enum.at(husband, w))
 
+          impl_submodel =
+            ConstraintFactory.impl(
+              Less.new([rankMen_h_w, rankMen_h_w_var]),
+              Less.new([rankWomen_w_h_var, rankWomen_w_h])
+            )
+
+          constraints_acc ++
+            impl_submodel.constraints ++
+            [elementRankMen, elementRankWomen]
       end
-      |> List.flatten
+      |> List.flatten()
 
-    Model.new(wife ++ husband,
-    bijections ++ pref_constraints ++ [AllDifferent.new(husband), AllDifferent.new(wife)] )
-
+    Model.new(
+      wife ++ husband,
+      bijections ++ pref_constraints ++ [AllDifferent.new(husband), AllDifferent.new(wife)]
+    )
   end
 
   defp instance_dimension(data) do
@@ -140,10 +161,13 @@ defmodule CPSolver.Examples.StableMarriage do
 
   def print(solution, n) do
     IO.puts("\n")
-      solution
-      |> Enum.take(n)
-      |> Enum.with_index(0)
-      |> Enum.each(fn {{_wife_name, h}, w} -> IO.puts("\u2640:#{w+1} #{IO.ANSI.red}\u26ad#{IO.ANSI.reset} #{h+1}:\u2642") end)
+
+    solution
+    |> Enum.take(n)
+    |> Enum.with_index(0)
+    |> Enum.each(fn {{_wife_name, h}, w} ->
+      IO.puts("\u2640:#{w + 1} #{IO.ANSI.red()}\u26ad#{IO.ANSI.reset()} #{h + 1}:\u2642")
+    end)
   end
 
   @doc """
@@ -161,8 +185,10 @@ defmodule CPSolver.Examples.StableMarriage do
     women_prefs = Map.get(data, :rankWomen)
     men_prefs = Map.get(data, :rankMen)
     n = instance_dimension(data)
-    {women_assignments, men_assignments} = Enum.take(solution, 2*n) |> Enum.split(n)
-    men_lookup = Enum.with_index(men_assignments, 0) |> Map.new(fn {partner, idx} -> {idx, partner} end)
+    {women_assignments, men_assignments} = Enum.take(solution, 2 * n) |> Enum.split(n)
+
+    men_lookup =
+      Enum.with_index(men_assignments, 0) |> Map.new(fn {partner, idx} -> {idx, partner} end)
 
     women_assignments
     |> Enum.with_index(0)
@@ -176,14 +202,14 @@ defmodule CPSolver.Examples.StableMarriage do
       |> Enum.all?(fn candidate ->
         candidate_prefs = Enum.at(men_prefs, candidate) |> Enum.map(fn p -> p - 1 end)
         candidate_current_partner = Map.get(men_lookup, candidate)
-        candidate_current_partner_rank = Enum.find_index(candidate_prefs, fn p -> p == candidate_current_partner end)
+
+        candidate_current_partner_rank =
+          Enum.find_index(candidate_prefs, fn p -> p == candidate_current_partner end)
+
         candidate_w_rank = Enum.find_index(candidate_prefs, fn p -> p == w end)
         ## Candidate prefers current partner to w
         candidate_w_rank < candidate_current_partner_rank
       end)
-
-
     end)
-
   end
 end

@@ -1,7 +1,7 @@
 defmodule CPSolver.Constraint.AllDifferent.Combined do
   use CPSolver.Constraint
 
-  #alias CPSolver.Constraint.AllDifferent.FWC, as: DefaultAllDifferent
+  # alias CPSolver.Constraint.AllDifferent.FWC, as: DefaultAllDifferent
 
   @impl true
   def propagators(x) do

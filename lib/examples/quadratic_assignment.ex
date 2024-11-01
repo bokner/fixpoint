@@ -95,7 +95,12 @@ defmodule CPSolver.Examples.QAP do
         sum_constraint
       ] ++ element2d_constraints,
       objective: Objective.minimize(total_cost),
-      extra: %{n: n, distances: distances, weights: weights, total_cost_var_id: Interface.id(total_cost)}
+      extra: %{
+        n: n,
+        distances: distances,
+        weights: weights,
+        total_cost_var_id: Interface.id(total_cost)
+      }
     )
   end
 
@@ -108,10 +113,10 @@ defmodule CPSolver.Examples.QAP do
       )
 
     {
-      #Strategy.mixed([:most_constrained, :dom_deg, :first_fail]),
-        :dom_deg,
-        :indomain_max
-      }
+      # Strategy.mixed([:most_constrained, :dom_deg, :first_fail]),
+      :dom_deg,
+      :indomain_max
+    }
   end
 
   def solution_handler(model) do
@@ -126,11 +131,11 @@ defmodule CPSolver.Examples.QAP do
            model.extra.distances,
            model.extra.weights
          ) &&
-         Logger.warning("#{@checkmark_symbol} #{ans_str}")) ||
-         Logger.error("#{@failure_symbol} #{ans_str}" <> ": wrong -((")      end)
+           Logger.warning("#{@checkmark_symbol} #{ans_str}")) ||
+          Logger.error("#{@failure_symbol} #{ans_str}" <> ": wrong -((")
+      end)
     end
   end
-
 
   def check_solution(solution, distances, weights) do
     n = length(distances)

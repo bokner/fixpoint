@@ -51,7 +51,6 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC do
       assert Enum.all?(Map.values(changes), fn change -> change == :fixed end)
       ## All variables are now fixed
       assert Enum.all?(x_vars, &Interface.fixed?/1)
-
     end
 
     test "inconsistency (pigeonhole)" do

@@ -217,7 +217,6 @@ defmodule CPSolver.Space do
     catch
       {:error, error} ->
         handle_error(error, data)
-
     end
   end
 
@@ -302,7 +301,7 @@ defmodule CPSolver.Space do
   end
 
   defp handle_stable(data) do
-      distribute(data)
+    distribute(data)
   end
 
   def distribute(

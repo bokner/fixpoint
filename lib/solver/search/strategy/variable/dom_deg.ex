@@ -5,9 +5,11 @@ defmodule CPSolver.Search.VariableSelector.DomDeg do
   def candidates(variables, space_data) do
     smallest_ratio(variables, space_data)
   end
+
   ## Smallest ratio of dom(x)/deg(x)
   defp smallest_ratio(variables, space_data) do
     graph = space_data[:constraint_graph]
+
     List.foldr(variables, {[], nil}, fn var, {vars, current_min} = acc ->
       case ConstraintGraph.variable_degree(graph, Interface.id(var)) do
         deg when deg > 0 ->
@@ -19,7 +21,7 @@ defmodule CPSolver.Search.VariableSelector.DomDeg do
             ratio == current_min -> {[var | vars], ratio}
           end
 
-        deg when (is_nil(deg) or deg == 0) ->
+        deg when is_nil(deg) or deg == 0 ->
           acc
       end
     end)
@@ -30,5 +32,4 @@ defmodule CPSolver.Search.VariableSelector.DomDeg do
     smallest_ratio(variables, space_data)
     |> break_even_fun.()
   end
-
 end

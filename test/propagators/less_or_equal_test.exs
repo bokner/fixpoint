@@ -61,7 +61,7 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       {:ok, bound_vars, _store} = create_store(variables)
       [x_var, y_var] = bound_vars
 
-      refute %{active: false}  == Propagator.filter(LessOrEqual.new([x_var, y_var]))
+      refute %{active: false} == Propagator.filter(LessOrEqual.new([x_var, y_var]))
 
       ## Cut domain of x so it intersects with domain of y in exactly one point
       Variable.removeAbove(x_var, 2)
