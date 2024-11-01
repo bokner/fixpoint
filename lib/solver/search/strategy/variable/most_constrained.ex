@@ -5,7 +5,7 @@ defmodule CPSolver.Search.VariableSelector.MostConstrained do
 
   def select_variable(variables, space_data, break_even_fun \\ &FirstFail.select_variable/1) do
     ## Pick out all variables with maximal degrees
-    get_maximals(variables, space_data)
+    candidates(variables, space_data)
     |> break_even_fun.()
   end
 

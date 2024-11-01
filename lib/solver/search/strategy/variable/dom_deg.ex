@@ -29,7 +29,7 @@ defmodule CPSolver.Search.VariableSelector.DomDeg do
   end
 
   def select_variable(variables, space_data, break_even_fun \\ &List.first/1) do
-    smallest_ratio(variables, space_data)
+    candidates(variables, space_data)
     |> break_even_fun.()
   end
 end

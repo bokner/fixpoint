@@ -4,11 +4,15 @@ defmodule CPSolver.Search.VariableSelector.FirstFail do
 
   @impl true
   def select_variable(variables, break_even_fun \\ &List.first/1) do
-    get_minimals(variables)
+    select_variable(variables, %{}, break_even_fun)
+  end
+
+  def select_variable(variables, data, break_even_fun) do
+    candidates(variables, data)
     |> break_even_fun.()
   end
 
-  def candidates(variables, _data) do
+  def candidates(variables, _data \\ nil) do
     get_minimals(variables)
   end
 
