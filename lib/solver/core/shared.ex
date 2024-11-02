@@ -65,8 +65,9 @@ defmodule CPSolver.Shared do
   end
 
   def get_auxillary(shared, key) do
-    :persistent_term.get(shared[:auxillary])
-    |> Map.get(key)
+    !complete?(shared) &&
+      :persistent_term.get(shared[:auxillary])
+      |> Map.get(key)
   end
 
   def put_auxillary(shared, key, value) do
@@ -248,6 +249,8 @@ defmodule CPSolver.Shared do
     Enum.each(active_nodes(solver), fn space ->
       :erpc.cast(node(space), fn -> Process.alive?(space) && Process.exit(space, :normal) end)
     end)
+
+    :persistent_term.erase(solver.auxillary)
   end
 
   def add_failure(solver, failure) do
