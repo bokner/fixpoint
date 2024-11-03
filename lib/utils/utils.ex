@@ -64,12 +64,11 @@ defmodule CPSolver.Utils do
     List.foldr(enumerable, {[], nil}, fn el, {minimals_acc, current_min} = acc ->
       val = min_by_fun.(el)
 
-          cond do
-
-            is_nil(current_min) || val < current_min -> {[el], val}
-            is_nil(val) || val > current_min -> acc
-            val == current_min -> {[el | minimals_acc], current_min}
-          end
+      cond do
+        is_nil(current_min) || val < current_min -> {[el], val}
+        is_nil(val) || val > current_min -> acc
+        val == current_min -> {[el | minimals_acc], current_min}
+      end
     end)
     |> elem(0)
   end

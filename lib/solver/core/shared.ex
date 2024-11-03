@@ -71,6 +71,8 @@ defmodule CPSolver.Shared do
   end
 
   def put_auxillary(shared, key, value) do
+    !complete?(shared) &&
+    (
     pt_ref = shared[:auxillary]
 
     aux_map =
@@ -79,6 +81,7 @@ defmodule CPSolver.Shared do
       |> Map.put(key, value)
 
     :persistent_term.put(pt_ref, aux_map)
+    )
   end
 
   def init_times() do
@@ -261,7 +264,7 @@ defmodule CPSolver.Shared do
 
   def add_failure_impl(%{statistics: stats_table} = solver, failure) do
     update_stats_counters(stats_table, [{@failure_count_pos, 1}])
-    maybe_update_afc(solver, failure)
+    |> tap(fn _ -> maybe_update_afc(solver, failure) end)
   end
 
   def maybe_update_afc(solver, {:fail, propagator_id} = _failure) do

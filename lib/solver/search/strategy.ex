@@ -6,7 +6,8 @@ defmodule CPSolver.Search.Strategy do
     MostConstrained,
     MostCompleted,
     DomDeg,
-    MaxRegret
+    MaxRegret,
+    AFC
   }
 
   alias CPSolver.DefaultDomain, as: Domain
@@ -22,44 +23,53 @@ defmodule CPSolver.Search.Strategy do
     }
   end
 
-  def shortcut(:first_fail) do
-    break_even(&FirstFail.select/2, &List.first/1)
+  ###########################
+  ## Variable choice       ##
+  ###########################
+  def strategy({afc_mode, decay}) when afc_mode in [:afc_min, :afc_max, :afc_min_size, :afc_max_size] do
+    afc({afc_mode, decay}, &Enum.random/1)
   end
 
-  def shortcut(:input_order) do
+  def strategy(:first_fail) do
+    first_fail(&List.first/1)
+  end
+
+  def strategy(:input_order) do
     fn variables ->
       Enum.sort_by(variables, fn %{index: idx} -> idx end)
       |> List.first()
     end
   end
 
-  def shortcut(:most_constrained) do
-    break_even(&MostConstrained.select/2, &Enum.random/1)
-    # &MostConstrained.select_variable/2
+  def strategy(:most_constrained) do
+    most_constrained(&Enum.random/1)
   end
 
-  def shortcut(:most_completed) do
-    break_even(&MostCompleted.select/2, &Enum.random/1)
+  def strategy(:most_completed) do
+    most_completed(&Enum.random/1)
   end
 
-  def shortcut(:dom_deg) do
-    break_even(&DomDeg.select/2, &Enum.random/1)
+  def strategy(:dom_deg) do
+    dom_deg(&Enum.random/1)
   end
 
-  def shortcut(:indomain_min) do
+  def strategy(:max_regret) do
+    max_regret(&Enum.random/1)
+  end
+
+  ###########################
+  ## Value choice          ##
+  ###########################
+  def strategy(:indomain_min) do
     Min
   end
 
-  def shortcut(:indomain_max) do
+  def strategy(:indomain_max) do
     Max
   end
 
-  def shortcut(:indomain_random) do
+  def strategy(:indomain_random) do
     Random
-  end
-
-  def shortcut(:max_regret) do
-    break_even(&MaxRegret.select/2, &Enum.random/1)
   end
 
   defp execute_break_even(selection, _data, break_even_fun) when is_function(break_even_fun, 1) do
@@ -70,14 +80,12 @@ defmodule CPSolver.Search.Strategy do
     break_even_fun.(selection, data)
   end
 
-  def break_even(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
-    fn vars, data ->
-      strategy_impl.select(vars, data)
-      |> execute_break_even(data, break_even_fun)
-    end
+  def variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
+    strategy_fun = fn vars, data -> strategy_impl.select(vars, data) end
+    variable_choice(strategy_fun, break_even_fun)
   end
 
-  def break_even(strategy_fun, break_even_fun) when is_function(strategy_fun) do
+  def variable_choice(strategy_fun, break_even_fun) when is_function(strategy_fun) do
     fn vars, data ->
       vars
       |> strategy_fun.(data)
@@ -86,7 +94,7 @@ defmodule CPSolver.Search.Strategy do
   end
 
   defp strategy_fun(strategy) when is_atom(strategy) do
-    shortcut(strategy)
+    strategy(strategy)
   end
 
   defp strategy_fun(strategy) when is_function(strategy) do
@@ -101,55 +109,63 @@ defmodule CPSolver.Search.Strategy do
   def most_constrained(break_even_fun \\ &Enum.random/1)
 
   def most_constrained(break_even_fun) when is_function(break_even_fun) do
-    break_even(MostConstrained, break_even_fun)
+    variable_choice(MostConstrained, break_even_fun)
   end
 
   def most_constrained(shortcut) when is_atom(shortcut) do
-    most_constrained(shortcut(shortcut))
+    strategy(shortcut)
   end
 
   def most_completed(break_even_fun \\ &Enum.random/1)
 
   def most_completed(break_even_fun) when is_function(break_even_fun) do
-    break_even(MostCompleted, break_even_fun)
+    variable_choice(MostCompleted, break_even_fun)
   end
 
   def most_completed(shortcut) when is_atom(shortcut) do
-    most_completed(shortcut(shortcut))
+    strategy(shortcut)
   end
 
   def max_regret(break_even_fun \\ &Enum.random/1)
 
   def max_regret(break_even_fun) when is_function(break_even_fun) do
-    break_even(MaxRegret, break_even_fun)
+    variable_choice(MaxRegret, break_even_fun)
   end
 
   def max_regret(shortcut) when is_atom(shortcut) do
-    max_regret(shortcut(shortcut))
+    strategy(shortcut)
   end
 
   def first_fail(break_even_fun \\ &Enum.random/1)
 
   def first_fail(break_even_fun) when is_function(break_even_fun) do
-    break_even(FirstFail, break_even_fun)
+    variable_choice(FirstFail, break_even_fun)
   end
 
   def first_fail(shortcut) when is_atom(shortcut) do
-    first_fail(shortcut(shortcut))
+    strategy(shortcut)
   end
 
   def dom_deg(break_even_fun \\ &Enum.random/1)
 
   def dom_deg(break_even_fun) when is_function(break_even_fun) do
-    break_even(DomDeg, break_even_fun)
+    variable_choice(DomDeg, break_even_fun)
   end
 
   def dom_deg(shortcut) when is_atom(shortcut) do
-    dom_deg(shortcut(shortcut))
+    strategy(shortcut)
   end
 
+  def afc({afc_mode, decay}, break_even_fun \\ FirstFail)
+      when afc_mode in [:afc_min, :afc_max, :afc_min_size, :afc_max_size] do
+    variable_choice(fn vars, data ->
+      AFC.initialize(data, decay)
+      AFC.select(vars, data, afc_mode) end, break_even_fun)
+  end
+
+  ### Helpers
   def select_variable(variables, data, variable_choice) when is_atom(variable_choice) do
-    select_variable(variables, data, shortcut(variable_choice))
+    select_variable(variables, data, strategy(variable_choice))
   end
 
   def select_variable(variables, data, variable_choice) when is_function(variable_choice) do
@@ -172,7 +188,7 @@ defmodule CPSolver.Search.Strategy do
   end
 
   defp partition_impl(variable, value_choice) when is_atom(value_choice) do
-    shortcut(value_choice).select_value(variable)
+    strategy(value_choice).select_value(variable)
   end
 
   defp partition_impl(variable, value_choice) when is_function(value_choice) do
@@ -191,7 +207,7 @@ defmodule CPSolver.Search.Strategy do
 
   def branch(variables, variable_choice, partition_strategy, data)
       when is_atom(variable_choice) do
-    branch(variables, shortcut(variable_choice), partition_strategy, data)
+    branch(variables, strategy(variable_choice), partition_strategy, data)
   end
 
   def branch(variables, variable_choice, partition_strategy, data)

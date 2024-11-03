@@ -45,5 +45,4 @@ defmodule CPSolver.Search.VariableSelector.MostCompleted do
     end)
     |> elem(0)
   end
-
 end

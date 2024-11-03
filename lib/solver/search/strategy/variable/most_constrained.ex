@@ -11,6 +11,7 @@ defmodule CPSolver.Search.VariableSelector.MostConstrained do
     max_by_fun = fn var ->
       ConstraintGraph.variable_degree(space_data[:constraint_graph], Interface.id(var))
     end
+
     Utils.maximals(variables, max_by_fun)
   end
 end

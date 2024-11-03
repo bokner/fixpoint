@@ -7,24 +7,49 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   alias CPSolver.Shared
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Variable.Interface
+  alias CPSolver.Utils
+
+  def select(variables, data, :afc_min) do
+    Utils.minimals(
+      variables,
+      fn var -> variable_afc(var, Space.get_shared(data)) end
+    )
+  end
+
+  def select(variables, data, :afc_max) do
+    Utils.maximals(
+      variables,
+      fn var -> variable_afc(var, Space.get_shared(data)) end
+    )
+  end
+
+  def select(variables, data, :afc_min_size) do
+    Utils.minimals(
+      variables,
+      fn var -> variable_afc(var, Space.get_shared(data)) / Interface.size(var) end
+    )
+  end
+
+  def select(variables, data, :afc_max_size) do
+    Utils.maximals(
+      variables,
+      fn var -> variable_afc(var, Space.get_shared(data)) / Interface.size(var) end
+    )
+  end
 
   @doc """
   Initialize AFC
   """
   def initialize(space_data, decay) do
-    propagators = space_data.propagators
-
+    shared = Space.get_shared(space_data)
+    Shared.get_auxillary(shared, :afc) ||
+    (
     afc_table =
-      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
-      |> tap(fn afc_table ->
-        Enum.each(propagators, fn p ->
-          :ets.insert(afc_table, {p.id, afc_record(1, 0)})
-        end)
-      end)
-
-    space_data
-    |> Space.get_shared()
-    |> Shared.put_auxillary(:afc, %{propagator_afcs: afc_table, decay: decay})
+      :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+      solver_process = shared[:solver_pid]
+    :ets.info(afc_table, :owner) != solver_process && :ets.give_away(afc_table, solver_process, :transfer_afc_table)
+    Shared.put_auxillary(shared, :afc, %{propagator_afcs: afc_table, decay: decay})
+    )
   end
 
   @doc """
@@ -33,7 +58,10 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   def variable_afc(variable_id, shared) when is_reference(variable_id) do
     shared
     |> Shared.get_auxillary(:initial_constraint_graph)
-    |> ConstraintGraph.get_propagator_ids(variable_id)
+    |> then(fn graph ->
+      (graph &&
+         ConstraintGraph.get_propagator_ids(graph, variable_id)) || []
+    end)
     |> afc_sum(shared)
   end
 
@@ -42,14 +70,28 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   end
 
   defp afc_sum(propagator_ids, shared) do
-    %{propagator_afcs: afc_table, decay: decay} = Shared.get_auxillary(shared, :afc)
-    global_failure_count = Shared.get_failure_count(shared)
+    case Shared.get_auxillary(shared, :afc) do
+      %{propagator_afcs: afc_table, decay: decay} ->
+        global_failure_count = Shared.get_failure_count(shared)
 
-    :ets.select(afc_table, for(p_id <- propagator_ids, do: {{p_id, :_}, [], [:"$_"]}))
-    |> Enum.reduce(0, fn {_p_id, afc_record}, sum_acc ->
-      sum_acc +
-        (propagator_afc(afc_record, decay, global_failure_count) |> elem(0))
-    end)
+        propagator_records =
+          :ets.select(afc_table, for(p_id <- propagator_ids, do: {{p_id, :_}, [], [:"$_"]}))
+
+        ## We add the count for not recorded  propagators (the ones that did not have failures yet)
+        not_recorded_count = length(propagator_ids) - length(propagator_records)
+
+        not_recorded_decay =
+          (propagator_afc(afc_record(1, 0), decay, global_failure_count) |> elem(0)) *
+            not_recorded_count
+
+        Enum.reduce(propagator_records, not_recorded_decay, fn {_p_id, afc_record}, sum_acc ->
+          sum_acc +
+            (propagator_afc(afc_record, decay, global_failure_count) |> elem(0))
+        end)
+
+      _ ->
+        0
+    end
   end
 
   @doc """
@@ -109,7 +151,10 @@ defmodule CPSolver.Search.VariableSelector.AFC do
       when is_reference(table) and is_reference(propagator_id) do
     table
     |> :ets.lookup(propagator_id)
-    |> then(fn rec -> (!Enum.empty?(rec) && elem(hd(rec), 1)) || nil end)
+    |> then(fn rec ->
+      (!Enum.empty?(rec) && elem(hd(rec), 1)) ||
+        afc_record(1, 0) |> tap(fn rec -> :ets.insert(table, {propagator_id, rec}) end)
+    end)
   end
 
   def get_afc_record(propagator_id, shared) do
@@ -132,15 +177,17 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   def update_afc(propagator_id, shared, failure?) do
     %{propagator_afcs: afc_table, decay: decay} = Shared.get_auxillary(shared, :afc)
 
-    case get_afc_record(afc_table, propagator_id) do
-      nil ->
-        nil
+    global_failure_count = Shared.get_failure_count(shared)
 
-      afc_record ->
-        updated_record =
-          propagator_afc(afc_record, decay, Shared.get_failure_count(shared), failure?)
+    updated_record =
+      case get_afc_record(afc_table, propagator_id) do
+        nil ->
+          propagator_afc(afc_record(1, 0), decay, global_failure_count, failure?)
 
-        :ets.insert(afc_table, {propagator_id, updated_record})
-    end
+        afc_record ->
+          propagator_afc(afc_record, decay, global_failure_count, failure?)
+      end
+
+    :ets.insert(afc_table, {propagator_id, updated_record})
   end
 end

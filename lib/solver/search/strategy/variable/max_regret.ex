@@ -18,5 +18,4 @@ defmodule CPSolver.Search.VariableSelector.MaxRegret do
     [smallest, second_smallest] = Enum.take(values, 2)
     second_smallest - smallest
   end
-
 end

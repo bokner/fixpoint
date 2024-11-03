@@ -78,7 +78,7 @@ defmodule CPSolverTest.Search.AFC do
       ##
       ## That is, each variable participates in 2 propagators.
       ## 1. The initial AFC for every variable should be equal to 2.
-      assert Enum.all?(variables, fn var -> 2 == AFC.variable_afc(var, shared) end)
+      Enum.each(variables, fn var -> assert 2 == AFC.variable_afc(var, shared) end)
 
       [p1, _p2, _p3] = space.propagators
       ## 2. Fail the propagator x != y
@@ -95,8 +95,6 @@ defmodule CPSolverTest.Search.AFC do
       ## Both propagators variable `z` have not failed, both of them decayed.
       ## So AFC for `z` is (2 * decay)
       assert 2 * decay == AFC.variable_afc(var3, shared)
-      #assert Enum.all?(variables, fn var -> 2 == AFC.variable_afc(var, shared) end)
-
     end
 
     defp build_space() do
