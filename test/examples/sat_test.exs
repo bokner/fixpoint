@@ -9,6 +9,7 @@ defmodule CPSolverTest.Examples.SatSolver do
   use ExUnit.Case
 
   alias CPSolver.Examples.SatSolver
+  alias CPSolver.Search.Strategy
 
   test "simple unsatisfiable" do
     assert_unsatisfiable([[1], [-1]])
@@ -70,11 +71,15 @@ defmodule CPSolverTest.Examples.SatSolver do
   end
 
   defp assert_satisfiable(clauses) do
-    solution = SatSolver.solve(clauses)
+    solution = SatSolver.solve(clauses, search: {Strategy.most_completed(
+      Strategy.first_fail(&Enum.random/1)), :indomain_max})
     assert SatSolver.check_solution(solution, clauses)
   end
 
   defp assert_unsatisfiable(clauses) do
-    assert :unsatisfiable == SatSolver.solve(clauses)
+    assert :unsatisfiable == SatSolver.solve(clauses,
+    search: {Strategy.most_completed(
+      Strategy.first_fail(&Enum.random/1)), :indomain_max}
+    )
   end
 end

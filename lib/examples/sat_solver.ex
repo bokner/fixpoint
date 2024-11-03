@@ -3,6 +3,7 @@ defmodule CPSolver.Examples.SatSolver do
   alias CPSolver.Model
   alias CPSolver.BooleanVariable
   alias CPSolver.Variable.Interface
+  alias CPSolver.Search.Strategy
   import CPSolver.Variable.View.Factory
 
   require Logger
@@ -31,12 +32,15 @@ defmodule CPSolver.Examples.SatSolver do
     default_opts =
       [
         search: {
-          :most_completed,
-          # Strategy.most_completed(&Enum.random/1),
-          # fn _vars, space_data ->
-          #   most_completed_propagators_selection(space_data[:constraint_graph])
-          #   |> Enum.random()
-          # end,
+          #:most_completed,
+          #Strategy.most_completed(&Enum.random/1),
+          Strategy.mixed(
+            [
+              Strategy.most_completed(
+                Strategy.first_fail(&Enum.random/1))
+            #Strategy.afc({:afc_min, 0.9}, Strategy.first_fail(&Enum.random/1)))
+          ]),
+
           :indomain_max
         },
         stop_on: {:max_solutions, 1}
