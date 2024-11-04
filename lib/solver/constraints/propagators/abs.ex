@@ -14,7 +14,6 @@ defmodule CPSolver.Propagator.Absolute do
     |> Enum.map(fn var -> set_propagate_on(var, :bound_change) end)
   end
 
-
   @impl true
   def filter([x, y] = args, state, changes) do
     ((state && map_size(changes) > 0) || initial_reduction(x, y)) && filter_impl(x, y, changes)
@@ -89,7 +88,9 @@ defmodule CPSolver.Propagator.Absolute do
               removeAbove(x, y_max)
               removeBelow(x, -y_max)
           end
-        {_idx, _change} -> :ignore
+
+        {_idx, _change} ->
+          :ignore
       end
     )
 

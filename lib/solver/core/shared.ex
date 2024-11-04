@@ -2,6 +2,8 @@ defmodule CPSolver.Shared do
   alias CPSolver.Objective
   alias CPSolver.Variable.Interface
   alias CPSolver.Distributed
+  ## 'shared' search strategies
+  alias CPSolver.Search.VariableSelector.AFC
 
   def init_shared_data(opts) do
     distributed = Keyword.get(opts, :distributed, false)
@@ -17,12 +19,23 @@ defmodule CPSolver.Shared do
       solutions:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       active_nodes:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false]),
+        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       complete_flag: init_complete_flag(),
       space_thread_counters: init_space_thread_counters(space_threads),
       times: init_times(),
-      distributed: distributed
+      distributed: distributed,
+      auxillary: init_auxillary_map()
     }
+  end
+
+  def create_shared_ets_table(solver) do
+    :ets.new(__MODULE__, [
+      :set,
+      :public,
+      {:heir, solver.solver_pid, :transfer_shared_table},
+      read_concurrency: true,
+      write_concurrency: true
+    ])
   end
 
   def complete?(solver) do
@@ -54,6 +67,31 @@ defmodule CPSolver.Shared do
   defp init_complete_flag() do
     make_ref()
     |> tap(fn ref -> :persistent_term.put(ref, false) end)
+  end
+
+  defp init_auxillary_map() do
+    make_ref()
+    |> tap(fn ref -> :persistent_term.put(ref, %{}) end)
+  end
+
+  def get_auxillary(shared, key) do
+    !complete?(shared) &&
+      :persistent_term.get(shared[:auxillary])
+      |> Map.get(key)
+  end
+
+  def put_auxillary(shared, key, value) do
+    !complete?(shared) &&
+      (
+        pt_ref = shared[:auxillary]
+
+        aux_map =
+          pt_ref
+          |> :persistent_term.get()
+          |> Map.put(key, value)
+
+        :persistent_term.put(pt_ref, aux_map)
+      )
   end
 
   def init_times() do
@@ -184,12 +222,12 @@ defmodule CPSolver.Shared do
   def remove_space_impl(
         %{statistics: stats_table, active_nodes: active_nodes_table} = solver,
         space,
-        reason
+        _reason
       ) do
     try do
       [active_node_count | _] =
         update_stats_counters(stats_table, [
-          {@active_node_count_pos, -1, 0, 0} | update_stats_ops(reason)
+          {@active_node_count_pos, -1, 0, 0}
         ])
 
       :ets.delete(active_nodes_table, space)
@@ -224,16 +262,28 @@ defmodule CPSolver.Shared do
     Enum.each(active_nodes(solver), fn space ->
       :erpc.cast(node(space), fn -> Process.alive?(space) && Process.exit(space, :normal) end)
     end)
+
+    :persistent_term.erase(solver.auxillary)
   end
 
-  def add_failure(solver) do
+  def add_failure(solver, failure) do
     (on_primary_node?(solver) &&
-       add_failure_impl(solver)) ||
-      distributed_call(solver, :add_failure_impl)
+       add_failure_impl(solver, failure)) ||
+      distributed_call(solver, :add_failure_impl, [failure])
   end
 
-  def add_failure_impl(%{statistics: stats_table} = _solver) do
+  def add_failure_impl(%{statistics: stats_table} = solver, failure) do
     update_stats_counters(stats_table, [{@failure_count_pos, 1}])
+    |> tap(fn _ -> maybe_update_afc(solver, failure) end)
+  end
+
+  def maybe_update_afc(solver, {:fail, propagator_id} = _failure) do
+    get_auxillary(solver, :afc) &&
+      AFC.update_afc(propagator_id, solver, true)
+  end
+
+  def get_failure_count(solver) do
+    statistics(solver) |> Map.get(:failure_count)
   end
 
   def add_solution(solver, solution) do
@@ -261,18 +311,6 @@ defmodule CPSolver.Shared do
     rescue
       _e -> :ok
     end
-  end
-
-  defp update_stats_ops(:failure) do
-    [{@failure_count_pos, 1}]
-  end
-
-  defp update_stats_ops(:solved) do
-    []
-  end
-
-  defp update_stats_ops(_) do
-    []
   end
 
   defp update_stats_counters(stats_table, update_ops) do

@@ -32,6 +32,7 @@ defmodule CPSolver.Propagator.Or do
   def filter(all_vars, %{unfixed: unfixed} = _state, changes) when map_size(changes) == 0 do
     Enum.reduce_while(unfixed, unfixed, fn idx, unfixed_acc ->
       var = Arrays.get(all_vars, idx)
+
       if fixed?(var) do
         if min(var) == 1 do
           {:halt, :resolved}
@@ -83,13 +84,16 @@ defmodule CPSolver.Propagator.Or do
 
       unfixed ->
         case MapSet.size(unfixed) do
-          0 -> fail()
+          0 ->
+            fail()
+
           1 ->
             last_var_idx = MapSet.to_list(unfixed) |> List.first()
             fix(Arrays.get(all_vars, last_var_idx), 1)
             :passive
+
           _more ->
-          {:state, %{unfixed: unfixed}}
+            {:state, %{unfixed: unfixed}}
         end
     end
   end

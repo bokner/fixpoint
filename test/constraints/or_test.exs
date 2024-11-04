@@ -37,14 +37,17 @@ defmodule CPSolverTest.Constraint.Or do
 
       model = Model.new(bool_vars, [or_constraint])
 
-      {:ok, res} = CPSolver.solve(model, stop_on: {:max_solutions, 1},
-        search: {:first_fail, :indomain_max},
-        space_threads: 1)
+      {:ok, res} =
+        CPSolver.solve(model,
+          stop_on: {:max_solutions, 1},
+          search: {:first_fail, :indomain_max},
+          space_threads: 1
+        )
+
       assert res.statistics.solution_count >= 1
       ## Arbitrary elapsed time, the main point it shouldn't be too big
       assert res.statistics.elapsed_time < 250_000
     end
-
 
     defp assert_or(solutions, array_len) do
       assert Enum.all?(solutions, fn solution ->

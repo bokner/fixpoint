@@ -1,6 +1,15 @@
 defmodule CPSolver.Search.Strategy do
   alias CPSolver.Variable.Interface
-  alias CPSolver.Search.VariableSelector.{FirstFail, MostConstrained, MostCompleted, DomDeg, MaxRegret}
+
+  alias CPSolver.Search.VariableSelector.{
+    FirstFail,
+    MostConstrained,
+    MostCompleted,
+    DomDeg,
+    MaxRegret,
+    AFC
+  }
+
   alias CPSolver.DefaultDomain, as: Domain
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random}
@@ -14,59 +23,78 @@ defmodule CPSolver.Search.Strategy do
     }
   end
 
-  def shortcut(:first_fail) do
-    &FirstFail.select_variable/1
+  ###########################
+  ## Variable choice       ##
+  ###########################
+  def strategy({afc_mode, decay}) when afc_mode in [:afc_min, :afc_max, :afc_min_size, :afc_max_size] do
+    afc({afc_mode, decay}, &Enum.random/1)
   end
 
-  def shortcut(:input_order) do
+  def strategy(:first_fail) do
+    first_fail(&List.first/1)
+  end
+
+  def strategy(:input_order) do
     fn variables ->
       Enum.sort_by(variables, fn %{index: idx} -> idx end)
       |> List.first()
     end
   end
 
-  def shortcut(:most_constrained) do
-    &MostConstrained.select_variable/2
+  def strategy(:most_constrained) do
+    most_constrained(&Enum.random/1)
   end
 
-  def shortcut(:most_completed) do
-    &MostCompleted.select_variable/2
+  def strategy(:most_completed) do
+    most_completed(&Enum.random/1)
   end
 
-  def shortcut(:dom_deg) do
-    &DomDeg.select_variable/2
+  def strategy(:dom_deg) do
+    dom_deg(&Enum.random/1)
   end
 
-  def shortcut(:indomain_min) do
+  def strategy(:max_regret) do
+    max_regret(&Enum.random/1)
+  end
+
+  ###########################
+  ## Value choice          ##
+  ###########################
+  def strategy(:indomain_min) do
     Min
   end
 
-  def shortcut(:indomain_max) do
+  def strategy(:indomain_max) do
     Max
   end
 
-  def shortcut(:indomain_random) do
+  def strategy(:indomain_random) do
     Random
   end
 
-  def shortcut(:max_regret) do
-    &MaxRegret.select_variable/2
+  defp execute_break_even(selection, _data, break_even_fun) when is_function(break_even_fun, 1) do
+    break_even_fun.(selection)
   end
 
-  def break_even(strategy_impl, break_even_fun) when is_function(break_even_fun, 1) do
-    break_even(strategy_impl, fn vars, _data -> break_even_fun.(vars) end)
+  defp execute_break_even(selection, data, break_even_fun) when is_function(break_even_fun, 2) do
+    break_even_fun.(selection, data)
   end
 
-  def break_even(strategy_impl, break_even_fun) when is_function(break_even_fun, 2) do
+  def variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
+    strategy_fun = fn vars, data -> strategy_impl.select(vars, data) end
+    variable_choice(strategy_fun, break_even_fun)
+  end
+
+  def variable_choice(strategy_fun, break_even_fun) when is_function(strategy_fun) do
     fn vars, data ->
       vars
-      |> strategy_impl.candidates(data)
-      |> break_even_fun.(data)
+      |> strategy_fun.(data)
+      |> execute_break_even(data, break_even_fun)
     end
   end
 
   defp strategy_fun(strategy) when is_atom(strategy) do
-    shortcut(strategy)
+    strategy(strategy)
   end
 
   defp strategy_fun(strategy) when is_function(strategy) do
@@ -74,75 +102,93 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def mixed(strategies) do
-      Enum.random(strategies)
-      |> strategy_fun()
+    Enum.random(strategies)
+    |> strategy_fun()
   end
 
   def most_constrained(break_even_fun \\ &Enum.random/1)
 
   def most_constrained(break_even_fun) when is_function(break_even_fun) do
-    break_even(MostConstrained, break_even_fun)
+    variable_choice(MostConstrained, break_even_fun)
   end
 
   def most_constrained(shortcut) when is_atom(shortcut) do
-    most_constrained(shortcut(shortcut))
+    strategy(shortcut)
   end
 
   def most_completed(break_even_fun \\ &Enum.random/1)
 
   def most_completed(break_even_fun) when is_function(break_even_fun) do
-    break_even(MostCompleted, break_even_fun)
+    variable_choice(MostCompleted, break_even_fun)
   end
 
   def most_completed(shortcut) when is_atom(shortcut) do
-    most_completed(shortcut(shortcut))
+    strategy(shortcut)
   end
 
   def max_regret(break_even_fun \\ &Enum.random/1)
 
   def max_regret(break_even_fun) when is_function(break_even_fun) do
-    break_even(MaxRegret, break_even_fun)
+    variable_choice(MaxRegret, break_even_fun)
   end
 
   def max_regret(shortcut) when is_atom(shortcut) do
-    max_regret(shortcut(shortcut))
+    strategy(shortcut)
   end
 
   def first_fail(break_even_fun \\ &Enum.random/1)
 
   def first_fail(break_even_fun) when is_function(break_even_fun) do
-    break_even(FirstFail, break_even_fun)
+    variable_choice(FirstFail, break_even_fun)
   end
 
   def first_fail(shortcut) when is_atom(shortcut) do
-    first_fail(shortcut(shortcut))
+    strategy(shortcut)
   end
 
   def dom_deg(break_even_fun \\ &Enum.random/1)
 
   def dom_deg(break_even_fun) when is_function(break_even_fun) do
-    break_even(DomDeg, break_even_fun)
+    variable_choice(DomDeg, break_even_fun)
   end
 
   def dom_deg(shortcut) when is_atom(shortcut) do
-    dom_deg(shortcut(shortcut))
+    strategy(shortcut)
   end
 
-  def select_variable(variables, variable_choice) when is_atom(variable_choice) do
-    select_variable(variables, shortcut(variable_choice))
+  def afc({afc_mode, decay}, break_even_fun \\ FirstFail)
+      when afc_mode in [:afc_min, :afc_max, :afc_min_size, :afc_max_size] do
+    variable_choice(fn vars, data ->
+      AFC.initialize(data, decay)
+      AFC.select(vars, data, afc_mode) end, break_even_fun)
+      end
+
+  ### Helpers
+  def select_variable(variables, data, variable_choice) when is_atom(variable_choice) do
+    select_variable(variables, data, strategy(variable_choice))
   end
 
-  def select_variable(variables, variable_choice) when is_function(variable_choice) do
+  def select_variable(variables, data, variable_choice) when is_function(variable_choice) do
     variables
     |> Enum.reject(fn v -> Interface.fixed?(v) end)
     |> then(fn
       [] -> throw(all_vars_fixed_exception())
-      unfixed_vars -> variable_choice.(unfixed_vars)
+      unfixed_vars -> execute_variable_choice(variable_choice, unfixed_vars, data)
     end)
   end
 
+  defp execute_variable_choice(variable_choice, unfixed_vars, _data)
+       when is_function(variable_choice, 1) do
+    variable_choice.(unfixed_vars)
+  end
+
+  defp execute_variable_choice(variable_choice, unfixed_vars, data)
+       when is_function(variable_choice, 2) do
+    variable_choice.(unfixed_vars, data)
+  end
+
   defp partition_impl(variable, value_choice) when is_atom(value_choice) do
-    shortcut(value_choice).select_value(variable)
+    strategy(value_choice).select_value(variable)
   end
 
   defp partition_impl(variable, value_choice) when is_function(value_choice) do
@@ -159,18 +205,20 @@ defmodule CPSolver.Search.Strategy do
 
   def branch(variables, variable_choice, partition_strategy, data \\ %{})
 
-  def branch(variables, variable_choice, partition_strategy, data) when is_atom(variable_choice) do
-    branch(variables, shortcut(variable_choice), partition_strategy, data)
+  def branch(variables, variable_choice, partition_strategy, data)
+      when is_atom(variable_choice) do
+    branch(variables, strategy(variable_choice), partition_strategy, data)
   end
 
-  def branch(variables, variable_choice, partition_strategy, data) when is_function(variable_choice, 2) do
+  def branch(variables, variable_choice, partition_strategy, data)
+      when is_function(variable_choice, 2) do
     variable_choice_arity1 = fn variables -> variable_choice.(variables, data) end
     branch(variables, variable_choice_arity1, partition_strategy, data)
   end
 
-  def branch(variables, variable_choice, partition_strategy, _data) when is_function(variable_choice, 1)
-  do
-    case select_variable(variables, variable_choice) do
+  def branch(variables, variable_choice, partition_strategy, data)
+      when is_function(variable_choice, 1) do
+    case select_variable(variables, data, variable_choice) do
       nil ->
         []
 

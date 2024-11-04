@@ -220,15 +220,14 @@ defmodule CPSolverTest.Constraint.Reified do
       {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 5
       ## Positions of variables can be arbitrary, if omitted in the model description
-      x_pos = Enum.find_index(res.variables, fn name -> name  == "x" end)
-      y_pos = Enum.find_index(res.variables, fn name -> name  == "y" end)
+      x_pos = Enum.find_index(res.variables, fn name -> name == "x" end)
+      y_pos = Enum.find_index(res.variables, fn name -> name == "y" end)
+
       assert Enum.all?(res.solutions, fn solution ->
-        x = Enum.at(solution, x_pos)
-        y = Enum.at(solution, y_pos)
-        x >= 1 || y > 5
-      end)
-
-
+               x = Enum.at(solution, x_pos)
+               y = Enum.at(solution, y_pos)
+               x >= 1 || y > 5
+             end)
     end
 
     defp build_model(x_domain, y_domain, z_domain, constraint, kind) do
@@ -238,10 +237,11 @@ defmodule CPSolverTest.Constraint.Reified do
 
       %{constraints: constraints, derived_variables: tmp_vars} =
         apply(Factory, kind, [constraint.new([x_var, y_var]), constraint.new([y_var, z_var])])
-          Model.new(
-          [x_var, y_var, z_var] ++ tmp_vars,
-          constraints
-        )
+
+      Model.new(
+        [x_var, y_var, z_var] ++ tmp_vars,
+        constraints
+      )
     end
   end
 end

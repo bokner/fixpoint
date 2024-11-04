@@ -33,24 +33,36 @@ defmodule CPSolver.Examples.Zebra do
   def model() do
     ### Variables
     domain = 0..4
-    color_vars = [red, green, ivory, yellow, blue] =
+
+    color_vars =
+      [red, green, ivory, yellow, blue] =
       create_vars([:red, :green, :ivory, :yellow, :blue], domain)
-    nationality_vars = [englishman, spaniard, ukrainian, norwegian, japanese] =
+
+    nationality_vars =
+      [englishman, spaniard, ukrainian, norwegian, japanese] =
       create_vars([:englishman, :spaniard, :ukrainian, :norwegian, :japanese], domain)
-    animal_vars = [dog, snail, fox, horse, _zebra] =
+
+    animal_vars =
+      [dog, snail, fox, horse, _zebra] =
       create_vars([:dog, :snail, :fox, :horse, :zebra], domain)
-    drink_vars = [coffee, tea, milk, orange_juice, _water] =
+
+    drink_vars =
+      [coffee, tea, milk, orange_juice, _water] =
       create_vars([:coffee, :tea, :milk, :orange_juice, :water], domain)
-    brand_vars = [old_gold, kool, chesterfield, lucky_strike, parliament] =
+
+    brand_vars =
+      [old_gold, kool, chesterfield, lucky_strike, parliament] =
       create_vars([:old_gold, :kool, :chesterfield, :lucky_strike, :parliament], domain)
 
     ### Constraints
-    inverse_constraints = Enum.map(
-      [color_vars, nationality_vars, animal_vars, drink_vars, brand_vars],
-      fn vars ->
-        inverse(create_tmp_vars(domain), vars)
-      end
-    )
+    inverse_constraints =
+      Enum.map(
+        [color_vars, nationality_vars, animal_vars, drink_vars, brand_vars],
+        fn vars ->
+          inverse(create_tmp_vars(domain), vars)
+        end
+      )
+
     constraints =
       [
         equal(englishman, red),
@@ -70,12 +82,11 @@ defmodule CPSolver.Examples.Zebra do
         inverse_constraints
       ]
 
-      Model.new(
-        color_vars ++ nationality_vars ++ animal_vars ++ drink_vars ++ brand_vars,
-        constraints
-      )
+    Model.new(
+      color_vars ++ nationality_vars ++ animal_vars ++ drink_vars ++ brand_vars,
+      constraints
+    )
   end
-
 
   def solve(opts \\ []) do
     CPSolver.solve(model(), opts)
@@ -90,8 +101,8 @@ defmodule CPSolver.Examples.Zebra do
   end
 
   defp next_to(var1, var2) do
-      {tmp, c} = subtract(var1, var2)
-      [c, absolute(tmp, 1)]
+    {tmp, c} = subtract(var1, var2)
+    [c, absolute(tmp, 1)]
   end
 
   defp find_match(block1, block2, position_to_match) do
@@ -102,12 +113,15 @@ defmodule CPSolver.Examples.Zebra do
   def puzzle_solution(res) do
     solution = hd(res.solutions)
     nationality_names = Enum.slice(res.variables, 5, 5)
-    [_colors, nationalities, animals, drinks, _brands] = Enum.chunk_every(solution, 5) |> Enum.take(5)
+
+    [_colors, nationalities, animals, drinks, _brands] =
+      Enum.chunk_every(solution, 5) |> Enum.take(5)
 
     zebra_owner = find_match(nationalities, animals, 4)
     water_drinker = find_match(nationalities, drinks, 4)
 
-    %{zebra_owner: Enum.at(nationality_names, zebra_owner),
+    %{
+      zebra_owner: Enum.at(nationality_names, zebra_owner),
       water_drinker: Enum.at(nationality_names, water_drinker)
     }
   end

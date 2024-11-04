@@ -6,6 +6,6 @@ defmodule CPSolverTest.Examples.Zebra do
   test "proper solution" do
     {:ok, result} = CPSolver.solve(Zebra.model())
     ## Check against known solution
-    assert  %{zebra_owner: :japanese, water_drinker: :norwegian} = Zebra.puzzle_solution(result)
+    assert %{zebra_owner: :japanese, water_drinker: :norwegian} = Zebra.puzzle_solution(result)
   end
 end

@@ -6,9 +6,7 @@ defmodule CPSolverTest.Constraint.Inverse do
   alias CPSolver.Constraint.Factory, as: ConstraintFactory
 
   describe "Inverse constraint" do
-
     test "`inverse` functionality" do
-
       indexed_domains = List.duplicate(0..5, 6) |> Enum.with_index()
       x_vars = Enum.map(indexed_domains, fn {d, idx} -> Variable.new(d, name: "x#{idx}") end)
       y_vars = Enum.map(indexed_domains, fn {d, idx} -> Variable.new(d, name: "y#{idx}") end)
@@ -23,12 +21,10 @@ defmodule CPSolverTest.Constraint.Inverse do
 
     defp assert_inverse(solutions, array_len) do
       assert Enum.all?(solutions, fn solution ->
-              x_y = Enum.take(solution, array_len * 2)
-              {x, y} = Enum.split(x_y, array_len)
-              Enum.all?(0..array_len-1, fn idx -> Enum.at(x, Enum.at(y, idx)) == idx end)
-            end)
+               x_y = Enum.take(solution, array_len * 2)
+               {x, y} = Enum.split(x_y, array_len)
+               Enum.all?(0..(array_len - 1), fn idx -> Enum.at(x, Enum.at(y, idx)) == idx end)
+             end)
     end
-
   end
-
 end

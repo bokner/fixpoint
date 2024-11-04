@@ -129,5 +129,4 @@ defmodule CPSolver.Variable do
   defp normalize_update_result({change, _}), do: change
 
   defp normalize_update_result(change), do: change
-
 end

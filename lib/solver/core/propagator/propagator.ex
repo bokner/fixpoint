@@ -136,10 +136,12 @@ defmodule CPSolver.Propagator do
           %{}
 
         var_changes ->
-          Enum.reduce(var_changes, Map.new(), fn {var_id, domain_change}, positional_changes_acc ->
-            position = is_integer(var_id) && var_id || Map.get(positions_map, var_id)
-            position && Map.put(positional_changes_acc, position, domain_change)
-            || positional_changes_acc
+          Enum.reduce(var_changes, Map.new(), fn {var_id, domain_change},
+                                                 positional_changes_acc ->
+            position = (is_integer(var_id) && var_id) || Map.get(positions_map, var_id)
+
+            (position && Map.put(positional_changes_acc, position, domain_change)) ||
+              positional_changes_acc
           end)
       end
 

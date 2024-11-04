@@ -64,7 +64,7 @@ defmodule CPSolver do
   end
 
   @spec solve_sync(Model.t(), Keyword.t()) ::
-  {:ok, map()} | {:error, reason :: any(), info :: any()}
+          {:ok, map()} | {:error, reason :: any(), info :: any()}
   @deprecated "Use solve/2 instead"
   def solve_sync(model, opts \\ []) do
     solve(model, opts)
@@ -279,7 +279,7 @@ defmodule CPSolver do
 
     bound_propagators =
       Enum.flat_map(constraints, fn constraint ->
-          Constraint.constraint_to_propagators(constraint)
+        Constraint.constraint_to_propagators(constraint)
       end)
 
     {Map.values(indexed_variables) |> Enum.sort_by(fn v -> Interface.variable(v).index end),

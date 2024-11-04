@@ -126,6 +126,7 @@ defmodule CPSolverTest.Variable.View do
     test "'not' view" do
       bool_var1 = BooleanVariable.new()
       bool_var2 = BooleanVariable.new()
+
       {:ok, _, _store} =
         create_store([bool_var1, bool_var2])
 

@@ -16,7 +16,7 @@ defmodule CPSolver.Examples.TSP do
   alias CPSolver.Objective
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
-  alias CPSolver.Search.VariableSelector.FirstFail
+  alias CPSolver.Search.Strategy, as: SearchStrategy
   import CPSolver.Constraint.Factory
   alias CPSolver.Utils.TupleArray
 
@@ -112,7 +112,7 @@ defmodule CPSolver.Examples.TSP do
     choose_variable_fun = fn variables ->
       {circuit_vars, rest_vars} = Enum.split_with(variables, fn v -> v.index <= n end)
 
-      (circuit_vars == [] && FirstFail.select_variable(rest_vars)) ||
+      (circuit_vars == [] && SearchStrategy.select_variable(rest_vars, nil, :first_fail)) ||
         difference_between_closest_distances(circuit_vars, tuple_matrix)
     end
 

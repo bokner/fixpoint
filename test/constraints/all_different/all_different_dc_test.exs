@@ -23,7 +23,6 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
       {:ok, result} = CPSolver.solve(model)
       assert Enum.sort(result.solutions) == Enum.sort(minizinc_solutions)
-
     end
 
     test "produces all possible permutations" do
@@ -63,8 +62,6 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
 
       assert result.status == :unsatisfiable
     end
-
-
 
     test "views in variable list" do
       n = 3

@@ -3,6 +3,7 @@ defmodule CPSolver.Examples.SatSolver do
   alias CPSolver.Model
   alias CPSolver.BooleanVariable
   alias CPSolver.Variable.Interface
+  alias CPSolver.Search.Strategy
   import CPSolver.Variable.View.Factory
 
   require Logger
@@ -30,30 +31,38 @@ defmodule CPSolver.Examples.SatSolver do
 
     default_opts =
       [
-      search: {
-        :most_completed,
-        #Strategy.most_completed(&Enum.random/1),
-        # fn _vars, space_data ->
-        #   most_completed_propagators_selection(space_data[:constraint_graph])
-        #   |> Enum.random()
-        # end,
-        :indomain_max},
-      stop_on: {:max_solutions, 1}
+        search: {
+          #:most_completed,
+          #Strategy.most_completed(&Enum.random/1),
+          Strategy.mixed(
+            [
+              Strategy.most_completed(
+                Strategy.first_fail(&Enum.random/1))
+            #Strategy.afc({:afc_min, 0.9}, Strategy.first_fail(&Enum.random/1)))
+          ]),
+
+          :indomain_max
+        },
+        stop_on: {:max_solutions, 1}
       ]
+
     {:ok, res} =
-      CPSolver.solve(model,
+      CPSolver.solve(
+        model,
         Keyword.merge(default_opts, opts)
       )
 
     cond do
-      res.status == :unsatisfiable -> :unsatisfiable
-      Enum.empty?(res.solutions) -> :unknown
+      res.status == :unsatisfiable ->
+        :unsatisfiable
+
+      Enum.empty?(res.solutions) ->
+        :unknown
+
       true ->
         List.first(res.solutions) |> sort_by_variables(res.variables)
     end
     |> tap(fn _ -> Logger.notice(inspect(res, pretty: true)) end)
-
-
   end
 
   def model(dimacs_instance) when is_atom(dimacs_instance) do
@@ -82,15 +91,15 @@ defmodule CPSolver.Examples.SatSolver do
     |> Map.get(dimacs_instance)
     |> File.read!()
     |> String.split("\n")
-    |> Enum.flat_map(
-      fn line ->
-        case String.split(line, " ", trim: true) do
-          [x1, x2, x3, _0] = _clause when x1 not in ["p", "c"] ->
-            [Enum.map([x1, x2, x3], fn x -> String.to_integer(x) end)]
-          _other ->
-            []
-        end
-      end)
+    |> Enum.flat_map(fn line ->
+      case String.split(line, " ", trim: true) do
+        [x1, x2, x3, _0] = _clause when x1 not in ["p", "c"] ->
+          [Enum.map([x1, x2, x3], fn x -> String.to_integer(x) end)]
+
+        _other ->
+          []
+      end
+    end)
   end
 
   def check_solution(solution, dimacs_instance) when is_atom(dimacs_instance) do
@@ -109,9 +118,8 @@ defmodule CPSolver.Examples.SatSolver do
   end
 
   def to_cnf(solution) do
-    Enum.reduce(Enum.with_index(solution, 1), MapSet.new(),
-    fn {bool, idx}, acc ->
-      set_val = (bool == 0 && -idx || idx)
+    Enum.reduce(Enum.with_index(solution, 1), MapSet.new(), fn {bool, idx}, acc ->
+      set_val = (bool == 0 && -idx) || idx
       MapSet.put(acc, set_val)
     end)
   end
@@ -163,5 +171,4 @@ defmodule CPSolver.Examples.SatSolver do
       unsat100_403: "data/sat/uuf100-01.cnf"
     }
   end
-
 end
