@@ -23,6 +23,22 @@ defmodule CPSolver.Search.Strategy do
     }
   end
 
+  def initialize({variable_choice, value_choice} = _search, space_data) do
+    {
+      initialize_choice(variable_choice, space_data),
+      initialize_choice(value_choice, space_data)
+    }
+  end
+
+  defp initialize_choice(%{selector: selector, init: init_fun}, space_data) when is_function(init_fun, 1) do
+    init_fun.(space_data)
+    selector
+  end
+
+  defp initialize_choice(selector, _space_data) do
+    selector
+  end
+
   ###########################
   ## Variable choice       ##
   ###########################
@@ -101,6 +117,10 @@ defmodule CPSolver.Search.Strategy do
     strategy
   end
 
+  defp strategy_fun(%{selector: selection}) do
+    selection
+  end
+
   def mixed(strategies) do
     Enum.random(strategies)
     |> strategy_fun()
@@ -158,11 +178,10 @@ defmodule CPSolver.Search.Strategy do
 
   def afc({afc_mode, decay}, break_even_fun \\ FirstFail)
       when afc_mode in [:afc_min, :afc_max, :afc_min_size, :afc_max_size] do
-    variable_choice(fn vars, data ->
-      AFC.initialize(data, decay)
-      AFC.select(vars, data, afc_mode) end, break_even_fun)
-      end
-
+    make_strategy_object(variable_choice(fn vars, data ->
+      AFC.select(vars, data, afc_mode) end, break_even_fun),
+      fn data -> AFC.initialize(data, decay) end)
+    end
   ### Helpers
   def select_variable(variables, data, variable_choice) when is_atom(variable_choice) do
     select_variable(variables, data, strategy(variable_choice))
@@ -242,6 +261,10 @@ defmodule CPSolver.Search.Strategy do
 
   def failed_variables_in_search_exception() do
     :failed_variables_in_search
+  end
+
+  defp make_strategy_object(selector, initialization) do
+    %{selector: selector, init: initialization}
   end
 
   defp set_domain(variable, domain) do

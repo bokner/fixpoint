@@ -47,9 +47,12 @@ defmodule CPSolver.Space do
       opts: space_opts
     }
 
+    search = initialize_search(space_opts[:search], space_data)
     ## Save initial constraint graph in shared data
     ## (for shared search strategies etc.)
-    create(space_data |> put_shared(:initial_constraint_graph, initial_constraint_graph))
+    create(space_data
+    |> Map.put(:search, search)
+    |> put_shared(:initial_constraint_graph, initial_constraint_graph))
     |> tap(fn {:ok, space_pid} ->
       shared = get_shared(space_data)
       Shared.increment_node_counts(shared)
@@ -60,6 +63,10 @@ defmodule CPSolver.Space do
   ## Child space creation
   def create(data) do
     GenServer.start(__MODULE__, data)
+  end
+
+  defp initialize_search(search, space_data) do
+    Search.initialize(search, space_data)
   end
 
   defp maybe_add_objective_propagator(propagators, nil) do
@@ -306,14 +313,14 @@ defmodule CPSolver.Space do
 
   def distribute(
         %{
-          opts: opts,
           variables: variables,
-          constraint_graph: _graph
+          constraint_graph: _graph,
+          search: search
         } = data
       ) do
     ## The search strategy branches off the existing variables.
     ## Each branch is a list of variables to use by a child space
-    branches = Search.branch(variables, opts[:search], data)
+    branches = Search.branch(variables, search, data)
 
     Enum.take_while(branches, fn {branch_variables, constraint} ->
       !CPSolver.complete?(get_shared(data)) &&
