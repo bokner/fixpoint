@@ -28,6 +28,16 @@ defmodule CPSolver.Shared do
     }
   end
 
+  def create_shared_ets_table(solver) do
+    :ets.new(__MODULE__, [
+      :set,
+      :public,
+      {:heir, solver.solver_pid, :transfer_shared_table},
+      read_concurrency: true,
+      write_concurrency: true
+    ])
+  end
+
   def complete?(solver) do
     (on_primary_node?(solver) &&
        complete_impl(solver)) ||
@@ -72,16 +82,16 @@ defmodule CPSolver.Shared do
 
   def put_auxillary(shared, key, value) do
     !complete?(shared) &&
-    (
-    pt_ref = shared[:auxillary]
+      (
+        pt_ref = shared[:auxillary]
 
-    aux_map =
-      pt_ref
-      |> :persistent_term.get()
-      |> Map.put(key, value)
+        aux_map =
+          pt_ref
+          |> :persistent_term.get()
+          |> Map.put(key, value)
 
-    :persistent_term.put(pt_ref, aux_map)
-    )
+        :persistent_term.put(pt_ref, aux_map)
+      )
   end
 
   def init_times() do

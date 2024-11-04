@@ -161,7 +161,7 @@ defmodule CPSolver.Search.Strategy do
     variable_choice(fn vars, data ->
       AFC.initialize(data, decay)
       AFC.select(vars, data, afc_mode) end, break_even_fun)
-  end
+      end
 
   ### Helpers
   def select_variable(variables, data, variable_choice) when is_atom(variable_choice) do

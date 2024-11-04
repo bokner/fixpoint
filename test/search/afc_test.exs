@@ -3,6 +3,7 @@ defmodule CPSolverTest.Search.AFC do
 
   alias CPSolver.Search.VariableSelector.AFC, as: AFC
   alias CPSolver.Space
+
   import CPSolver.Test.Helpers
 
   describe "AFC search strategy" do
@@ -95,6 +96,41 @@ defmodule CPSolverTest.Search.AFC do
       ## Both propagators variable `z` have not failed, both of them decayed.
       ## So AFC for `z` is (2 * decay)
       assert 2 * decay == AFC.variable_afc(var3, shared)
+    end
+
+    test "Caliculate multiple variable AFCs" do
+      space = build_space()
+      shared = Space.get_shared(space)
+
+      decay = :rand.uniform()
+      AFC.initialize(space, decay)
+      variables = space.variables
+
+      ## The propagators in the space setup are:
+      ## X != Y, X != Z, Y != Z
+      ##
+      ## That is, each variable participates in 2 propagators.
+      ## 1. The initial AFC for every variable should be equal to 2.
+      assert Enum.all?(AFC.variable_afcs(variables, shared), fn {var, afc_value} -> 2 == afc_value end)
+
+
+      [p1, _p2, _p3] = space.propagators
+      # ## 2. Fail the propagator x != y
+      # ## This should increment AFCs for variables x and y and decay AFC for variable z
+      assert Enum.map(p1.args, fn arg -> arg.name end) == ["x", "y"]
+
+      Shared.add_failure(shared, {:fail, p1.id})
+
+      [{var1, afc1}, {var2, afc2}, {var3, afc3}] = AFC.variable_afcs(variables, shared) |> Enum.sort_by(fn {var, _afc} -> var.name end)
+      assert var1.name == "x" && var2.name == "y" && var3.name == "z"
+
+      # ## Variables `x` and `y` participate in 1 failed (x != y) and 1 non-failed propagator.
+      # ## Hence the AFC for both of these variables is (2 + decay)
+      assert 2 + decay == afc1
+      assert 2 + decay == afc2
+      # ## Both propagators variable `z` have not failed, both of them decayed.
+      # ## So AFC for `z` is (2 * decay)
+      assert 2 * decay == afc3
     end
 
     defp build_space() do
