@@ -1,8 +1,6 @@
 defmodule CPSolver.Propagator.Absolute do
   use CPSolver.Propagator
 
-  alias CPSolver.DefaultDomain, as: Domain
-
   def new(x, y) do
     new([x, y])
   end
@@ -37,7 +35,7 @@ defmodule CPSolver.Propagator.Absolute do
     max(y) < 0 ||
       (
         {abs_min_x, abs_max_x} =
-          Enum.min_max_by(domain(x) |> Domain.to_list(), fn val -> abs(val) end)
+          Enum.min_max_by(domain_values(x), fn val -> abs(val) end)
           |> then(fn {min_val, max_val} -> {abs(min_val), abs(max_val)} end)
 
         min_y = max(0, min(y))
@@ -105,7 +103,7 @@ defmodule CPSolver.Propagator.Absolute do
   end
 
   defp fix_abs(x, value) do
-    Enum.each(domain(x) |> Domain.to_list(), fn val -> abs(val) != value && remove(x, val) end)
+    Enum.each(domain_values(x), fn val -> abs(val) != value && remove(x, val) end)
   end
 end
 

@@ -1,6 +1,4 @@
 defmodule CPSolver.Search.VariableSelector.MaxRegret do
-  alias CPSolver.Variable.Interface
-  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Utils
 
   ## Choose the variable(s) with largest difference
@@ -14,7 +12,7 @@ defmodule CPSolver.Search.VariableSelector.MaxRegret do
   end
 
   defp difference(variable) do
-    values = Interface.domain(variable) |> Domain.to_list()
+    values = Utils.domain_values(variable)
     [smallest, second_smallest] = Enum.take(values, 2)
     second_smallest - smallest
   end

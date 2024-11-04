@@ -75,12 +75,12 @@ defmodule CPSolver.Propagator.ElementVar do
   end
 
   defp reduction(var_array, var_index, var_value, _state, _changes) do
-    index_domain = domain(var_index) |> Domain.to_list()
+    index_domain = domain_values(var_index)
 
     # Step 1
     ## For all variables in var_array, if no values in D(var_value)
     ## present in their domains, then the corresponding index has to be removed.
-    value_domain = domain(var_value) |> Domain.to_list()
+    value_domain = domain_values(var_value)
 
     total_value_intersection =
       Enum.reduce(index_domain, MapSet.new(), fn idx, intersection_acc ->
@@ -90,7 +90,7 @@ defmodule CPSolver.Propagator.ElementVar do
             throw(:unexpected_no_element)
 
           elem_var ->
-            elem_var_domain = domain(elem_var) |> Domain.to_list()
+            elem_var_domain = domain_values(elem_var)
             intersection = MapSet.intersection(value_domain, elem_var_domain)
 
             (MapSet.size(intersection) == 0 && remove(var_index, idx) && intersection_acc) ||

@@ -29,6 +29,7 @@ defmodule CPSolver.Propagator do
       alias CPSolver.Variable.Interface
       alias CPSolver.DefaultDomain, as: Domain
       import CPSolver.Propagator.Variable
+      import CPSolver.Utils
 
       @behaviour Propagator
 

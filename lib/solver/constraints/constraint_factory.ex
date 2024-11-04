@@ -15,8 +15,8 @@ defmodule CPSolver.Constraint.Factory do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.BooleanVariable
   alias CPSolver.Variable.Interface
-  alias CPSolver.DefaultDomain, as: Domain
   import CPSolver.Variable.View.Factory
+  import CPSolver.Utils
 
   def element(array, x, y) do
     ElementVar.new(array, x, y)
@@ -25,7 +25,7 @@ defmodule CPSolver.Constraint.Factory do
   def element(array, x) do
     y_domain =
       Enum.reduce(array, MapSet.new(), fn el, acc ->
-        Interface.domain(el) |> Domain.to_list() |> MapSet.union(acc)
+        domain_values(el) |> MapSet.union(acc)
       end)
       |> MapSet.to_list()
 
@@ -61,8 +61,7 @@ defmodule CPSolver.Constraint.Factory do
   def element2d_var(array2d, x, y) do
     domain =
       Enum.reduce(array2d |> List.flatten(), MapSet.new(), fn el, acc ->
-        Interface.domain(el)
-        |> Domain.to_list()
+        domain_values(el)
         |> MapSet.union(acc)
       end)
       |> MapSet.to_list()
@@ -82,7 +81,7 @@ defmodule CPSolver.Constraint.Factory do
   def sum(vars) do
     {domain_min, domain_max} =
       Enum.reduce(vars, {0, 0}, fn var, {min_acc, max_acc} ->
-        domain = Interface.domain(var) |> Domain.to_list()
+        domain = domain_values(var)
         {min_acc + Enum.min(domain), max_acc + Enum.max(domain)}
       end)
 
@@ -116,8 +115,8 @@ defmodule CPSolver.Constraint.Factory do
       f_i = Enum.at(f, i)
       inv_f_i = Enum.at(inv_f, i)
 
-      (MapSet.subset?(Interface.domain(f_i) |> Domain.to_list(), index_set) &&
-         MapSet.subset?(Interface.domain(inv_f_i) |> Domain.to_list(), index_set)) ||
+      (MapSet.subset?(domain_values(f_i), index_set) &&
+         MapSet.subset?(domain_values(inv_f_i), index_set)) ||
         throw("Inverse constraint has to have all variable domains within index_set")
 
       [

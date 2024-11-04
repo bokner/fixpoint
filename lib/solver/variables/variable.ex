@@ -118,7 +118,7 @@ defmodule CPSolver.Variable do
     end
   end
 
-  defp store_op(:domain, %{store: nil, domain: domain}) when not is_nil(domain) do
+  defp store_op(:domain, %{domain: domain}) when not is_nil(domain) do
     domain
   end
 

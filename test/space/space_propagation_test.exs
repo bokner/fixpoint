@@ -2,9 +2,9 @@ defmodule CPSolverTest.SpacePropagation do
   use ExUnit.Case
 
   alias CPSolver.IntVariable, as: Variable
-  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Space.Propagation
   alias CPSolver.Test.Helpers
+  import CPSolver.Utils
 
   test "Propagation on stable space" do
     %{
@@ -22,7 +22,7 @@ defmodule CPSolverTest.SpacePropagation do
     refute Variable.fixed?(y)
 
     ## All values of reduced domain of 'y' participate in proper solutions.
-    assert Enum.all?(Variable.domain(y) |> Domain.to_list(), fn y_value ->
+    assert Enum.all?(domain_values(y), fn y_value ->
              y_value != Variable.min(x) && y_value != Variable.min(z)
            end)
   end

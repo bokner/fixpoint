@@ -49,7 +49,7 @@ defmodule CPSolver.Propagator.Circuit do
           unfixed_acc = (fixed? && unfixed_acc) || [idx | unfixed_acc]
 
           {circuit_acc, unfixed_acc,
-           Enum.reduce(domain(var) |> Domain.to_list(), graph_acc, fn value, g ->
+           Enum.reduce(domain_values(var), graph_acc, fn value, g ->
              Graph.add_edge(g, idx, value)
            end)}
         end

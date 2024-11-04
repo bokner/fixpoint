@@ -8,8 +8,8 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
     alias CPSolver.Constraint
     alias CPSolver.Propagator
     alias CPSolver.IntVariable, as: Variable
-    alias CPSolver.Variable.Interface
     alias CPSolver.DefaultDomain, as: Domain
+    import CPSolver.Utils
 
     test "Build graph from AllDifferent constraint" do
       graph = build_graph(AllDifferent, 3)
@@ -121,7 +121,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
                fn p ->
                  Enum.all?(p.args, fn arg ->
                    is_integer(arg) ||
-                     Interface.domain(arg) |> Domain.to_list() ==
+                     domain_values(arg) ==
                        MapSet.new(domain)
                  end)
                end

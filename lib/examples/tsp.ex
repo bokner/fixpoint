@@ -14,10 +14,9 @@ defmodule CPSolver.Examples.TSP do
   alias CPSolver.Model
   alias CPSolver.Constraint.Circuit
   alias CPSolver.Objective
-  alias CPSolver.Variable.Interface
-  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Search.Strategy, as: SearchStrategy
   import CPSolver.Constraint.Factory
+  import CPSolver.Utils
   alias CPSolver.Utils.TupleArray
 
   require Logger
@@ -101,8 +100,7 @@ defmodule CPSolver.Examples.TSP do
     tuple_matrix = TupleArray.new(distances)
 
     choose_value_fun = fn %{index: idx} = var ->
-      domain = Interface.domain(var)
-      d_values = Domain.to_list(domain)
+      d_values = domain_values(var)
 
       (idx in 1..n &&
          Enum.min_by(d_values, fn dom_idx -> TupleArray.at(tuple_matrix, [idx - 1, dom_idx]) end)) ||
@@ -141,7 +139,7 @@ defmodule CPSolver.Examples.TSP do
   ##
   defp difference_between_closest_distances(circuit_vars, distances) do
     Enum.max_by(circuit_vars, fn %{index: idx} = var ->
-      dom = Interface.domain(var) |> Domain.to_list()
+      dom = domain_values(var)
 
       (MapSet.size(dom) < 2 && 0) ||
         dom

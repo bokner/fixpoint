@@ -134,7 +134,7 @@ defmodule CPSolver.Space do
     |> Map.put(
       :domains,
       Map.new(data.variables, fn var ->
-        {Interface.id(var), Interface.domain(var) |> Domain.to_list()}
+        {Interface.id(var), Utils.domain_values(var)}
       end)
     )
   end
@@ -256,7 +256,7 @@ defmodule CPSolver.Space do
   defp solutions(%{variables: variables} = data) do
     try do
       Enum.map(variables, fn var ->
-        Interface.domain(var) |> Domain.to_list()
+        Utils.domain_values(var)
       end)
       |> Utils.lazy_cartesian(fn values ->
         Enum.reduce(values, {0, Map.new()}, fn val, {idx_acc, map_acc} ->

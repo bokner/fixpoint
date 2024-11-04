@@ -147,10 +147,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
             partial_matching_acc
           end
 
-        domain = domain(var) |> Domain.to_list()
-
         graph_acc =
-          Enum.reduce(domain, graph_acc, fn d, graph_acc2 ->
+          Enum.reduce(domain_values(var), graph_acc, fn d, graph_acc2 ->
             Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
           end)
 
@@ -342,10 +340,5 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     {:ok, vars, _store} = CPSolver.ConstraintStore.create_store(vars)
 
     build_value_graph(vars)
-    # |> tap(fn _ ->
-    #   IO.inspect(
-    #     Enum.map(vars, fn var -> {var.name, Interface.domain(var) |> Domain.to_list()} end)
-    #   )
-    # end)
   end
 end

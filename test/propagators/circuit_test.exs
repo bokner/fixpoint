@@ -4,9 +4,9 @@ defmodule CPSolverTest.Propagator.Circuit do
   alias CPSolver.ConstraintStore
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
-  alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Propagator
   alias CPSolver.Propagator.Circuit
+  import CPSolver.Utils
 
   describe "Propagator filtering" do
     test "fixed variables: valid circuit" do
@@ -85,7 +85,7 @@ defmodule CPSolverTest.Propagator.Circuit do
     assert Enum.all?(
              Enum.with_index(propagator.args),
              fn {var, idx} ->
-               domain = Interface.domain(var) |> Domain.to_list()
+               domain = domain_values(var)
                MapSet.new(domain) == MapSet.new(0..(n - 1)) |> MapSet.delete(idx)
              end
            )

@@ -1,13 +1,11 @@
 defmodule CPSolver.Search.ValueSelector.Random do
   @behaviour CPSolver.Search.ValueSelector
-  alias CPSolver.Variable.Interface
-  alias CPSolver.DefaultDomain, as: Domain
+  import CPSolver.Utils
 
   @impl true
   def select_value(variable) do
     variable
-    |> Interface.domain()
-    |> Domain.to_list()
+    |> domain_values()
     |> Enum.random()
   end
 end
