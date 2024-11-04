@@ -9,7 +9,7 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils
 
-  def select(variables, data, afc_mode) when afc_mode in [:afc_min, :afc_max, :afc_min_size, :afc_max_size] do
+  def select(variables, data, afc_mode) when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
     select_impl(variables, data, afc_mode)
     |> Enum.map(fn {var, _afc} -> var end)
   end
@@ -28,14 +28,14 @@ defmodule CPSolver.Search.VariableSelector.AFC do
     )
   end
 
-  defp select_impl(variables, data, :afc_min_size) do
+  defp select_impl(variables, data, :afc_size_min) do
     Utils.minimals(
       variable_afcs(variables, Space.get_shared(data)),
       fn {var, afc} -> afc / Interface.size(var) end
     )
   end
 
-  defp select_impl(variables, data, :afc_max_size) do
+  defp select_impl(variables, data, :afc_size_max) do
     Utils.maximals(
       variable_afcs(variables, Space.get_shared(data)),
       fn {var, afc} ->
@@ -154,7 +154,7 @@ defmodule CPSolver.Search.VariableSelector.AFC do
         global_failure_count,
         failure? \\ false
       )
-      when decay > 0 and decay < 1 do
+      when decay > 0 and decay <= 1 do
     ## Catch up on decaying (we do not update non-failing propagators on failure event!)
     ## We also assume that total failure count includes the last failure across the search nodes.
     decay_steps =

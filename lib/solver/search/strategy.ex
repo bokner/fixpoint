@@ -42,7 +42,7 @@ defmodule CPSolver.Search.Strategy do
   ###########################
   ## Variable choice       ##
   ###########################
-  def strategy({afc_mode, decay}) when afc_mode in [:afc_min, :afc_max, :afc_min_size, :afc_max_size] do
+  def strategy({afc_mode, decay}) when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
     afc({afc_mode, decay}, &Enum.random/1)
   end
 
@@ -177,7 +177,7 @@ defmodule CPSolver.Search.Strategy do
   end
 
   def afc({afc_mode, decay}, break_even_fun \\ FirstFail)
-      when afc_mode in [:afc_min, :afc_max, :afc_min_size, :afc_max_size] do
+      when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
     make_strategy_object(variable_choice(fn vars, data ->
       AFC.select(vars, data, afc_mode) end, break_even_fun),
       fn data -> AFC.initialize(data, decay) end)

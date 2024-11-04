@@ -30,7 +30,7 @@ defmodule CPSolverTest.Examples.Sudoku do
         CPSolver.solve(Sudoku.model(puzzle_instance),
           search: {
             #Strategy.first_fail(&Enum.random/1),
-            Strategy.afc({:afc_min_size, 0.75}, &List.first/1),
+            Strategy.afc({:afc_size_min, 0.75}, &List.first/1),
             :indomain_random
           },
           timeout: opts[:timeout]
