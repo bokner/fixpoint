@@ -192,8 +192,17 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :increment_node_counts_impl)
   end
 
-  def increment_node_counts_impl(%{statistics: stats_table}) do
+  def increment_node_counts_impl(%{statistics: stats_table} = solver) do
     update_stats_counters(stats_table, [{@active_node_count_pos, 1}, {@node_count_pos, 1}])
+    |> tap(fn [active_node_count, total_node_count] ->
+      on_new_node(solver, active_node_count, total_node_count)
+      _ -> :ignore
+    end)
+  end
+
+  ## Placeholder for the hanlder called on 'new_node' event
+  def on_new_node(_solver, _active_node_count, _total_node_count) do
+    :ok
   end
 
   def add_active_spaces(
@@ -274,12 +283,19 @@ defmodule CPSolver.Shared do
 
   def add_failure_impl(%{statistics: stats_table} = solver, failure) do
     update_stats_counters(stats_table, [{@failure_count_pos, 1}])
-    |> tap(fn _ -> maybe_update_afc(solver, failure) end)
+    |> tap(fn [failure_count] ->
+      on_failure(solver, failure, failure_count)
+      _ -> :ignore
+    end)
   end
 
-  def maybe_update_afc(solver, {:fail, propagator_id} = _failure) do
+  defp on_failure(solver, failure, failure_count) do
+    maybe_update_afc(solver, failure, failure_count)
+  end
+
+  defp maybe_update_afc(solver, {:fail, propagator_id} = _failure, failure_count) do
     get_auxillary(solver, :afc) &&
-      AFC.update_afc(propagator_id, solver, true)
+      AFC.update_afc(propagator_id, solver, true, failure_count)
   end
 
   def get_failure_count(solver) do
