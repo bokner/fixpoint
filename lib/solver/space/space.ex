@@ -335,7 +335,7 @@ defmodule CPSolver.Space do
   end
 
   defp shutdown(data, reason) do
-    {:stop, :normal, (!data[:finalized] && cleanup(data, reason)) || data}
+    {:stop, :normal, (!data[:finalized] && finalize(data, reason)) || data}
   end
 
   def get_shared(data) do
@@ -347,12 +347,13 @@ defmodule CPSolver.Space do
     |> tap(fn _ -> Shared.put_auxillary(get_in(data, [:opts, :solver_data]), key, value) end)
   end
 
-  defp cleanup(data, reason) do
-    Shared.remove_space(get_shared(data), self(), reason)
+  defp finalize(data, reason) do
     caller = data[:caller]
     caller && GenServer.reply(caller, :done)
     Map.put(data, :finalized, true)
+    |> tap(fn _ ->   Shared.finalize_space(get_shared(data), data, self(), reason) end)
   end
+
 
   @impl true
   def terminate(reason, data) do

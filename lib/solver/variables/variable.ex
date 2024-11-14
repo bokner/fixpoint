@@ -1,12 +1,12 @@
 defmodule CPSolver.Variable do
-  defstruct [:id, :index, :name, :domain, :store, :fixed?, :propagate_on]
+  defstruct [:id, :index, :name, :domain, :initial_size, :store,  :propagate_on]
 
   @type t :: %__MODULE__{
           id: reference(),
           index: integer(),
           name: term(),
           domain: Domain.t(),
-          fixed?: boolean(),
+          initial_size: integer(),
           propagate_on: Propagator.propagator_event()
         }
 
@@ -32,7 +32,7 @@ defmodule CPSolver.Variable do
           id: id,
           name: Keyword.get(opts, :name, id),
           domain: domain,
-          fixed?: Domain.fixed?(domain)
+          initial_size: Domain.size(domain)
         }
       end
 

@@ -11,15 +11,6 @@ defmodule CPSolverTest.Propagator do
 
     import CPSolver.Variable.View.Factory
 
-    test ":fixed? flag for propagator variables" do
-      x = Variable.new(1..2)
-      y = Variable.new(1..1)
-      propagator = LessOrEqual.new([x, y])
-      [p_x, p_y] = propagator.args
-      refute p_x.fixed?
-      assert p_y.fixed?
-    end
-
     test "filtering with variables bound to a store" do
       %{bound_variables: bound_variables, store: store} =
         setup_store([1..1, 1..2])
