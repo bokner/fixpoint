@@ -3,7 +3,7 @@ defmodule CPSolver.Shared do
   alias CPSolver.Variable.Interface
   alias CPSolver.Distributed
   ## 'shared' search strategies
-  alias CPSolver.Search.VariableSelector.AFC
+  alias CPSolver.Search.VariableSelector.{Action, AFC}
 
   def init_shared_data(opts) do
     distributed = Keyword.get(opts, :distributed, false)
@@ -222,15 +222,15 @@ defmodule CPSolver.Shared do
     end
   end
 
-  def remove_space(solver, space, reason) do
+  def finalize_space(solver, space_data, space_pid, reason) do
     (on_primary_node?(solver) &&
-       remove_space_impl(solver, space, reason)) ||
-      distributed_call(solver, :remove_space_impl, [space, reason])
+       finalize_space_impl(solver, space_data, space_pid, reason)) ||
+      distributed_call(solver, :finalize_space_impl, [space_data, space_pid, reason])
   end
 
-  def remove_space_impl(
+  def finalize_space_impl(
         %{statistics: stats_table, active_nodes: active_nodes_table} = solver,
-        space,
+        space_data, space_pid,
         _reason
       ) do
     try do
@@ -239,14 +239,25 @@ defmodule CPSolver.Shared do
           {@active_node_count_pos, -1, 0, 0}
         ])
 
-      :ets.delete(active_nodes_table, space)
+      :ets.delete(active_nodes_table, space_pid)
       ## The solving is done when there is no more active nodes
       active_node_count == 0 && set_complete(solver)
       :ok
     rescue
       _e -> :ok
     end
+    |> tap(fn _ -> on_finalize_space(solver, space_data) end)
   end
+
+  defp on_finalize_space(solver, space_data) do
+    maybe_update_variable_actions(solver, space_data)
+  end
+
+  defp maybe_update_variable_actions(solver, %{variables: variables} = _space_data) do
+    get_auxillary(solver, :action) &&
+      Action.update_actions(variables, solver)
+  end
+
 
   def cleanup(solver) do
     (on_primary_node?(solver) &&

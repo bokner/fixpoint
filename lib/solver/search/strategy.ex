@@ -7,7 +7,8 @@ defmodule CPSolver.Search.Strategy do
     MostCompleted,
     DomDeg,
     MaxRegret,
-    AFC
+    AFC,
+    Action
   }
 
   alias CPSolver.DefaultDomain, as: Domain
@@ -182,6 +183,16 @@ defmodule CPSolver.Search.Strategy do
       AFC.select(vars, data, afc_mode) end, break_even_fun),
       fn data -> AFC.initialize(data, decay) end)
     end
+
+    def action({action_mode, decay}, break_even_fun \\ FirstFail)
+    when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
+  make_strategy_object(variable_choice(fn vars, data ->
+    Action.select(vars, data, action_mode) end, break_even_fun),
+    fn data -> Action.initialize(data, decay) end)
+  end
+
+
+
   ### Helpers
   def select_variable(variables, data, variable_choice) when is_atom(variable_choice) do
     select_variable(variables, data, strategy(variable_choice))

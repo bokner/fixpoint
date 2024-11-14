@@ -27,6 +27,8 @@ defmodule CPSolver.Examples.QAP do
 
   import CPSolver.Variable.View.Factory
 
+  alias CPSolver.Search.Strategy
+
   require Logger
 
   @checkmark_symbol "\u2713"
@@ -113,8 +115,8 @@ defmodule CPSolver.Examples.QAP do
       )
 
     {
-      # Strategy.mixed([:most_constrained, :dom_deg, :first_fail]),
-      :dom_deg,
+      Strategy.mixed([:most_constrained, :dom_deg, :first_fail]),
+      #:dom_deg,
       :indomain_max
     }
   end
