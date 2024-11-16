@@ -1,6 +1,6 @@
 defmodule CPSolver.Search.VariableSelector.AFC do
   @moduledoc """
-  Accumulated failure count varaible selector
+  Accumulated failure count variable selector
   (https://www.gecode.org/doc-latest/MPG.pdf, p.8.5.2)
   """
   alias CPSolver.Space
