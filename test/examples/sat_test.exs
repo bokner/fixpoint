@@ -70,9 +70,14 @@ defmodule CPSolverTest.Examples.SatSolver do
     assert_unsatisfiable(:unsat100_403)
   end
 
+  test "Dimacs 150,645" do
+    assert_satisfiable(:sat150_645)
+    assert_unsatisfiable(:unsat150_645)
+  end
+
   defp assert_satisfiable(clauses) do
     solution = SatSolver.solve(clauses, search: {Strategy.most_completed(
-      Strategy.first_fail(&Enum.random/1)), :indomain_max})
+      Strategy.first_fail(&Enum.random/1)), :indomain_min})
     assert SatSolver.check_solution(solution, clauses)
   end
 
