@@ -128,10 +128,15 @@ defmodule CPSolver.Search.VariableSelector.CHB do
     initial_size > current_size
   end
 
-  defp q_score(%{q_score: current_qs, last_failure: last_failure}, failure?, global_failure_count) do
-
+  defp q_score(%{q_score: current_qs, last_failure: last_failure} = _current_chb_record, failure?, global_failure_count) do
+    alpha = step_size(global_failure_count)
+    reward = (failure? && 1 || 0.9) / (global_failure_count - last_failure + 1)
+    (1 - alpha) * current_qs + alpha * reward
   end
 
+  def step_size(failure_count) do
+    max(0.06, 0.4 - (failure_count * 1.0e-6))
+  end
 
   defp get_chb(table, variable_id)
     when is_reference(table) and is_reference(variable_id) do
