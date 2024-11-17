@@ -8,7 +8,8 @@ defmodule CPSolver.Search.Strategy do
     DomDeg,
     MaxRegret,
     AFC,
-    Action
+    Action,
+    CHB
   }
 
   alias CPSolver.DefaultDomain, as: Domain
@@ -31,7 +32,8 @@ defmodule CPSolver.Search.Strategy do
     }
   end
 
-  defp initialize_choice(%{selector: selector, init: init_fun}, space_data) when is_function(init_fun, 1) do
+  defp initialize_choice(%{selector: selector, init: init_fun}, space_data)
+       when is_function(init_fun, 1) do
     init_fun.(space_data)
     selector
   end
@@ -43,8 +45,19 @@ defmodule CPSolver.Search.Strategy do
   ###########################
   ## Variable choice       ##
   ###########################
-  def strategy({afc_mode, decay}) when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
+  def strategy({afc_mode, decay})
+      when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
     afc({afc_mode, decay}, &Enum.random/1)
+  end
+
+  def strategy({action_mode, decay})
+      when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
+    action({action_mode, decay}, &Enum.random/1)
+  end
+
+  def strategy(chb_mode)
+      when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
+    chb(chb_mode, &Enum.random/1)
   end
 
   def strategy(:first_fail) do
@@ -179,19 +192,42 @@ defmodule CPSolver.Search.Strategy do
 
   def afc({afc_mode, decay}, break_even_fun \\ FirstFail)
       when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
-    make_strategy_object(variable_choice(fn vars, data ->
-      AFC.select(vars, data, afc_mode) end, break_even_fun),
-      fn data -> AFC.initialize(data, decay) end)
-    end
-
-    def action({action_mode, decay}, break_even_fun \\ FirstFail)
-    when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
-  make_strategy_object(variable_choice(fn vars, data ->
-    Action.select(vars, data, action_mode) end, break_even_fun),
-    fn data -> Action.initialize(data, decay) end)
+    make_strategy_object(
+      variable_choice(
+        fn vars, data ->
+          AFC.select(vars, data, afc_mode)
+        end,
+        break_even_fun
+      ),
+      fn data -> AFC.initialize(data, decay) end
+    )
   end
 
+  def action({action_mode, decay}, break_even_fun \\ FirstFail)
+      when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
+    make_strategy_object(
+      variable_choice(
+        fn vars, data ->
+          Action.select(vars, data, action_mode)
+        end,
+        break_even_fun
+      ),
+      fn data -> Action.initialize(data, decay) end
+    )
+  end
 
+  def chb(chb_mode, break_even_fun \\ FirstFail)
+    when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
+      make_strategy_object(
+        variable_choice(
+          fn vars, data ->
+            CHB.select(vars, data, chb_mode)
+          end,
+          break_even_fun
+        ),
+        fn data -> CHB.initialize(data) end
+      )
+  end
 
   ### Helpers
   def select_variable(variables, data, variable_choice) when is_atom(variable_choice) do

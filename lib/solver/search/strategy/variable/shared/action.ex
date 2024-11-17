@@ -1,6 +1,6 @@
 defmodule CPSolver.Search.VariableSelector.Action do
   @moduledoc """
-  Action (activity-based) varaible selector
+  Action (activity-based) variable selector
   (https://www.gecode.org/doc-latest/MPG.pdf, p.8.5.3)
   """
   alias CPSolver.Space
@@ -61,7 +61,7 @@ defmodule CPSolver.Search.VariableSelector.Action do
   end
 
   defp init_variable_actions(variables, action_table) do
-    Enum.each(variables, fn var -> :ets.insert(action_table, {Interface.id(var), 1}) end)
+    Enum.each(variables, fn var -> :ets.insert(action_table, {Interface.id(var), @default_action_value}) end)
   end
 
   @doc """
@@ -100,7 +100,7 @@ defmodule CPSolver.Search.VariableSelector.Action do
     updated_action =
       case get_action(action_table, variable_id) do
         nil ->
-          1
+          @default_action_value
 
         current_action ->
           ## Some variables may fail
@@ -109,7 +109,7 @@ defmodule CPSolver.Search.VariableSelector.Action do
           catch :fail ->
             0
           end
-          
+
           initial_size > current_size && (current_action + 1) || (current_action * decay)
       end
 

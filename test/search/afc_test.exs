@@ -66,7 +66,7 @@ defmodule CPSolverTest.Search.AFC do
       assert {decay * decay, 2} == AFC.propagator_afc(p3, shared)
     end
 
-    test "Caliculate variable AFC" do
+    test "Calculate variable AFC" do
       space = build_space()
       shared = Space.get_shared(space)
 
@@ -98,7 +98,7 @@ defmodule CPSolverTest.Search.AFC do
       assert 2 * decay == AFC.variable_afc(var3, shared)
     end
 
-    test "Caliculate multiple variable AFCs" do
+    test "Calculate multiple variable AFCs" do
       space = build_space()
       shared = Space.get_shared(space)
 

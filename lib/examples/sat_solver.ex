@@ -167,8 +167,10 @@ defmodule CPSolver.Examples.SatSolver do
     %{
       sat50_218: "data/sat/uf50-01.cnf",
       unsat50_218: "data/sat/uuf50-01.cnf",
-      sat100_403: "data/sat/uf100-01.cnf",
-      unsat100_403: "data/sat/uuf100-01.cnf"
+      sat100_430: "data/sat/uf100-01.cnf",
+      unsat100_430: "data/sat/uuf100-01.cnf",
+      sat150_645: "data/sat/uf150-01.cnf",
+      unsat150_645: "data/sat/uuf150-01.cnf"
     }
   end
 end

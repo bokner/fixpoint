@@ -3,7 +3,7 @@ defmodule CPSolver.Shared do
   alias CPSolver.Variable.Interface
   alias CPSolver.Distributed
   ## 'shared' search strategies
-  alias CPSolver.Search.VariableSelector.{Action, AFC}
+  alias CPSolver.Search.VariableSelector.{Action, AFC, CHB}
 
   def init_shared_data(opts) do
     distributed = Keyword.get(opts, :distributed, false)
@@ -231,7 +231,7 @@ defmodule CPSolver.Shared do
   def finalize_space_impl(
         %{statistics: stats_table, active_nodes: active_nodes_table} = solver,
         space_data, space_pid,
-        _reason
+        reason
       ) do
     try do
       [active_node_count | _] =
@@ -246,11 +246,12 @@ defmodule CPSolver.Shared do
     rescue
       _e -> :ok
     end
-    |> tap(fn _ -> on_finalize_space(solver, space_data) end)
+    |> tap(fn _ -> on_finalize_space(solver, space_data, reason) end)
   end
 
-  defp on_finalize_space(solver, space_data) do
+  defp on_finalize_space(solver, space_data, reason) do
     maybe_update_variable_actions(solver, space_data)
+    maybe_update_variable_chbs(solver, space_data, reason)
   end
 
   defp maybe_update_variable_actions(solver, %{variables: variables} = _space_data) do
@@ -258,6 +259,10 @@ defmodule CPSolver.Shared do
       Action.update_actions(variables, solver)
   end
 
+  defp maybe_update_variable_chbs(solver, %{variables: variables} = _space_data, reason) do
+    get_auxillary(solver, :chb) &&
+      CHB.update_chbs(variables, reason == :failure, solver)
+  end
 
   def cleanup(solver) do
     (on_primary_node?(solver) &&
@@ -310,7 +315,7 @@ defmodule CPSolver.Shared do
   end
 
   def get_failure_count(solver) do
-    statistics(solver) |> Map.get(:failure_count)
+    statistics(solver) |> Map.get(:failure_count, 0)
   end
 
   def add_solution(solver, solution) do

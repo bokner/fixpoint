@@ -59,27 +59,40 @@ defmodule CPSolverTest.Examples.SatSolver do
   end
 
   @tag :slow
-  test "2 instances (50 vars, 218 clauses) from Dimacs" do
+  test "Dimacs (sat/unsat, 50 vars, 218 clauses)" do
     assert_satisfiable(:sat50_218)
     assert_unsatisfiable(:unsat50_218)
   end
 
   @tag :slow
-  test "2 bigger instances (100 vars, 403 clauses) from Dimacs" do
-    assert_satisfiable(:sat100_403)
-    assert_unsatisfiable(:unsat100_403)
+  test "Dimacs (sat/unsat, 100 vars, 430 clauses)" do
+    assert_satisfiable(:sat100_430)
+    assert_unsatisfiable(:unsat100_430)
+  end
+
+  @tag :superslow
+  test "Dimacs (sat/unsat, 150 vars, 645 clauses)" do
+    assert_satisfiable(:sat150_645)
+    assert_unsatisfiable(:unsat150_645)
   end
 
   defp assert_satisfiable(clauses) do
-    solution = SatSolver.solve(clauses, search: {Strategy.most_completed(
-      Strategy.first_fail(&Enum.random/1)), :indomain_max})
+    solution = SatSolver.solve(clauses,
+    search: {
+      Strategy.chb(:chb_size_min, Strategy.most_completed(&Enum.random/1)), :indomain_max})
     assert SatSolver.check_solution(solution, clauses)
   end
 
   defp assert_unsatisfiable(clauses) do
     assert :unsatisfiable == SatSolver.solve(clauses,
-    search: {Strategy.most_completed(
-      Strategy.first_fail(&Enum.random/1)), :indomain_max}
-    )
+    timeout: :timer.minutes(1),
+    search: {
+      Strategy.mixed([
+        #&Enum.random/1,
+        #:dom_deg,
+      Strategy.chb(:chb_size_min, Strategy.most_completed(Strategy.most_constrained()))]),
+      :indomain_max}
+
+      )
   end
 end
