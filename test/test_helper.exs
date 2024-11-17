@@ -1,5 +1,5 @@
 Logger.configure(level: :error)
-ExUnit.start(capture_log: true)
+ExUnit.start(capture_log: true, exclude: [:superslow])
 
 alias CPSolver.Propagator
 alias CPSolver.IntVariable, as: Variable

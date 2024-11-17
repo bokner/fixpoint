@@ -19,29 +19,31 @@ defmodule CPSolver.Search.VariableSelector.CHB do
   defp select_impl(variables, data, :chb_min) do
     Utils.minimals(
       variable_chbs(variables, Space.get_shared(data)),
-      fn {_var, chb} -> chb end
+      fn {_var, %{q_score: q_score} = _chb} -> q_score end
     )
   end
 
   defp select_impl(variables, data, :chb_max) do
     Utils.maximals(
       variable_chbs(variables, Space.get_shared(data)),
-      fn {_var, chb} -> chb end
+      fn {_var, %{q_score: q_score} = _chb} -> q_score end
     )
   end
 
   defp select_impl(variables, data, :chb_size_min) do
     Utils.minimals(
       variable_chbs(variables, Space.get_shared(data)),
-      fn {var, chb} -> chb / Interface.size(var) end
+      fn {var, %{q_score: q_score} = _chb} ->
+        q_score / Interface.size(var)
+      end
     )
   end
 
   defp select_impl(variables, data, :chb_size_max) do
     Utils.maximals(
       variable_chbs(variables, Space.get_shared(data)),
-      fn {var, chb} ->
-        chb / Interface.size(var)
+      fn {var, %{q_score: q_score} = _chb} ->
+        q_score / Interface.size(var)
       end
     )
   end
@@ -97,18 +99,17 @@ defmodule CPSolver.Search.VariableSelector.CHB do
 
   def update_chbs(variables, failure?, shared) do
     %{variable_chbs: chb_table} = Shared.get_auxillary(shared, :chb)
-    global_failure_count = failure? && Shared.get_failure_count(shared)
-    Enum.each(variables, fn var -> update_variable_chb(var, chb_table, global_failure_count, failure?) end)
+    Enum.each(variables, fn var -> update_variable_chb(var, chb_table, failure?, shared) end)
   end
 
   ## Update chb for individual variable in 'shared'
-  defp update_variable_chb(%{id: variable_id} = variable, chb_table, failure_count, failure?) do
+  defp update_variable_chb(%{id: variable_id} = variable, chb_table, failure?, shared) do
+    global_failure_count = Shared.get_failure_count(shared)
     cond do
       pruned?(variable) ->
         chb = get_chb(chb_table, variable_id)
-
-        updated_chb = %{chb | q_score: q_score(chb, failure?, failure_count)}
-        |> then(fn rec -> failure? && %{rec | last_failure: failure_count} || rec end)
+        updated_chb = %{chb | q_score: q_score(chb, failure?, shared)}
+        |> then(fn rec -> failure? && %{rec | last_failure: global_failure_count} || rec end)
 
         :ets.insert(chb_table, {variable_id, updated_chb})
       true ->
@@ -128,13 +129,17 @@ defmodule CPSolver.Search.VariableSelector.CHB do
     initial_size > current_size
   end
 
-  defp q_score(%{q_score: current_qs, last_failure: last_failure} = _current_chb_record, failure?, global_failure_count) do
+  defp q_score(%{q_score: current_qs, last_failure: last_failure} = _current_chb_record, failure?, shared) do
+    global_failure_count = Shared.get_failure_count(shared)
     alpha = step_size(global_failure_count)
-    reward = (failure? && 1 || 0.9) / (global_failure_count - last_failure + 1)
+    reward =
+      (failure? && 1 || 0.9) / (global_failure_count - last_failure + 1)
+
     (1 - alpha) * current_qs + alpha * reward
   end
 
   def step_size(failure_count) do
+
     max(0.06, 0.4 - (failure_count * 1.0e-6))
   end
 

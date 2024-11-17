@@ -315,7 +315,7 @@ defmodule CPSolver.Shared do
   end
 
   def get_failure_count(solver) do
-    statistics(solver) |> Map.get(:failure_count)
+    statistics(solver) |> Map.get(:failure_count, 0)
   end
 
   def add_solution(solver, solution) do
