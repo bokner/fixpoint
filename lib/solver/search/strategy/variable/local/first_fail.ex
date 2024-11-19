@@ -1,5 +1,5 @@
 defmodule CPSolver.Search.VariableSelector.FirstFail do
-  @behaviour CPSolver.Search.VariableSelector
+  use CPSolver.Search.VariableSelector
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils
 

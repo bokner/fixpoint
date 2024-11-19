@@ -3,6 +3,7 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   Accumulated failure count variable selector
   (https://www.gecode.org/doc-latest/MPG.pdf, p.8.5.2)
   """
+  use CPSolver.Search.VariableSelector
   alias CPSolver.Space
   alias CPSolver.Shared
   alias CPSolver.Propagator.ConstraintGraph

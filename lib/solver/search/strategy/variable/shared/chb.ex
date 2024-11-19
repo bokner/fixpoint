@@ -3,6 +3,7 @@ defmodule CPSolver.Search.VariableSelector.CHB do
   Conflict-history based  variable selector
   (https://www.gecode.org/doc-latest/MPG.pdf, p.8.5.4)
   """
+  use CPSolver.Search.VariableSelector
   alias CPSolver.Space
   alias CPSolver.Shared
   alias CPSolver.Variable.Interface

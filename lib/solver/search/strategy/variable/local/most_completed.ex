@@ -1,4 +1,5 @@
 defmodule CPSolver.Search.VariableSelector.MostCompleted do
+  use CPSolver.Search.VariableSelector
   alias CPSolver.Propagator.ConstraintGraph
 
   def select(_variables, space_data) do

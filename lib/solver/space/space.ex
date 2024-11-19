@@ -8,7 +8,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.ConstraintStore
-  alias CPSolver.Search.Strategy, as: Search
+  alias CPSolver.Search, as: Search
   alias CPSolver.Solution, as: Solution
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Propagator

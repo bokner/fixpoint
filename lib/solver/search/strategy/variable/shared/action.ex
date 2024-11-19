@@ -3,6 +3,7 @@ defmodule CPSolver.Search.VariableSelector.Action do
   Action (activity-based) variable selector
   (https://www.gecode.org/doc-latest/MPG.pdf, p.8.5.3)
   """
+  use CPSolver.Search.VariableSelector
   alias CPSolver.Space
   alias CPSolver.Shared
   alias CPSolver.Variable.Interface
