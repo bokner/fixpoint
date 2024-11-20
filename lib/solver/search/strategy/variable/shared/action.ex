@@ -62,7 +62,9 @@ defmodule CPSolver.Search.VariableSelector.Action do
   end
 
   defp init_variable_actions(variables, action_table) do
-    Enum.each(variables, fn var -> :ets.insert(action_table, {Interface.id(var), @default_action_value}) end)
+    Enum.each(variables, fn var ->
+      :ets.insert(action_table, {Interface.id(var), @default_action_value})
+    end)
   end
 
   @doc """
@@ -78,14 +80,13 @@ defmodule CPSolver.Search.VariableSelector.Action do
         :ets.select(
           action_table,
           for(var <- variables, do: {{Interface.id(var), :_}, [], [:"$_"]})
-        ) |> Map.new()
+        )
+        |> Map.new()
 
       Enum.map(variables, fn var ->
         var_id = Interface.id(var)
         {var, Map.get(actions, var_id, @default_action_value)}
       end)
-
-
     else
       Enum.map(variables, fn var -> {var, @default_action_value} end)
     end
@@ -97,7 +98,11 @@ defmodule CPSolver.Search.VariableSelector.Action do
   end
 
   ## Update action for individual variable in 'shared'
-  defp update_variable_action(%{id: variable_id, initial_size: initial_size} = variable, action_table, decay) do
+  defp update_variable_action(
+         %{id: variable_id, initial_size: initial_size} = variable,
+         action_table,
+         decay
+       ) do
     updated_action =
       case get_action(action_table, variable_id) do
         nil ->
@@ -105,25 +110,27 @@ defmodule CPSolver.Search.VariableSelector.Action do
 
         current_action ->
           ## Some variables may fail
-          current_size = try do
-            Interface.size(variable)
-          catch :fail ->
-            0
-          end
+          current_size =
+            try do
+              Interface.size(variable)
+            catch
+              :fail ->
+                0
+            end
 
-          initial_size > current_size && (current_action + 1) || (current_action * decay)
+          (initial_size > current_size && current_action + 1) || current_action * decay
       end
 
     :ets.insert(action_table, {variable_id, updated_action})
   end
 
   defp get_action(table, variable_id)
-    when is_reference(table) and is_reference(variable_id) do
-      table
-      |> :ets.lookup(variable_id)
-      |> then(fn rec ->
-        !Enum.empty?(rec) && elem(hd(rec), 1) ||
-          @default_action_value
-      end)
+       when is_reference(table) and is_reference(variable_id) do
+    table
+    |> :ets.lookup(variable_id)
+    |> then(fn rec ->
+      (!Enum.empty?(rec) && elem(hd(rec), 1)) ||
+        @default_action_value
+    end)
   end
 end

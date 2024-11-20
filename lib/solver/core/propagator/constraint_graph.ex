@@ -6,7 +6,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   """
   alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
-  
+
   @spec create([Propagator.t()]) :: Graph.t()
   def create(propagators) when is_list(propagators) do
     Enum.reduce(propagators, Graph.new(), fn p, graph_acc ->

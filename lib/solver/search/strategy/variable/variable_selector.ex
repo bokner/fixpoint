@@ -6,6 +6,7 @@ defmodule CPSolver.Search.VariableSelector do
   @optional_callbacks select_variable: 1, select_variable: 2
 
   alias CPSolver.Variable.Interface
+
   alias CPSolver.Search.VariableSelector.{
     FirstFail,
     MostConstrained,
@@ -33,14 +34,11 @@ defmodule CPSolver.Search.VariableSelector do
       end
 
       defoverridable initialize: 1, update: 2
-
     end
   end
 
-
-
   def initialize(%{selector: selector, init: init_fun}, space_data)
-       when is_function(init_fun, 1) do
+      when is_function(init_fun, 1) do
     init_fun.(space_data)
     selector
   end
@@ -71,16 +69,14 @@ defmodule CPSolver.Search.VariableSelector do
   end
 
   defp execute_variable_choice(variable_choice, unfixed_vars, _data)
-  when is_function(variable_choice, 1) do
-variable_choice.(unfixed_vars)
-end
+       when is_function(variable_choice, 1) do
+    variable_choice.(unfixed_vars)
+  end
 
-defp execute_variable_choice(variable_choice, unfixed_vars, data)
-  when is_function(variable_choice, 2) do
-variable_choice.(unfixed_vars, data)
-end
-
-
+  defp execute_variable_choice(variable_choice, unfixed_vars, data)
+       when is_function(variable_choice, 2) do
+    variable_choice.(unfixed_vars, data)
+  end
 
   ######################################
   ## Variable choice (shortcuts)      ##
@@ -208,16 +204,16 @@ end
   end
 
   def chb(chb_mode, break_even_fun \\ FirstFail)
-    when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
-      make_strategy_object(
-        variable_choice(
-          fn vars, data ->
-            CHB.select(vars, data, chb_mode)
-          end,
-          break_even_fun
-        ),
-        fn data -> CHB.initialize(data) end
-      )
+      when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
+    make_strategy_object(
+      variable_choice(
+        fn vars, data ->
+          CHB.select(vars, data, chb_mode)
+        end,
+        break_even_fun
+      ),
+      fn data -> CHB.initialize(data) end
+    )
   end
 
   defp strategy_normalized(strategy) when is_atom(strategy) do
@@ -231,7 +227,6 @@ end
   defp strategy_normalized(%{selector: selection}) do
     selection
   end
-
 
   def mixed(strategies) do
     Enum.random(strategies)
@@ -262,6 +257,4 @@ end
   defp make_strategy_object(selector, initialization) do
     %{selector: selector, init: initialization}
   end
-
-
 end

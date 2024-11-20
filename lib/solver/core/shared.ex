@@ -194,9 +194,12 @@ defmodule CPSolver.Shared do
 
   def increment_node_counts_impl(%{statistics: stats_table} = solver) do
     update_stats_counters(stats_table, [{@active_node_count_pos, 1}, {@node_count_pos, 1}])
-    |> tap(fn [active_node_count, total_node_count] ->
-      on_new_node(solver, active_node_count, total_node_count)
-      _ -> :ignore
+    |> tap(fn
+      [active_node_count, total_node_count] ->
+        on_new_node(solver, active_node_count, total_node_count)
+
+      _ ->
+        :ignore
     end)
   end
 
@@ -230,7 +233,8 @@ defmodule CPSolver.Shared do
 
   def finalize_space_impl(
         %{statistics: stats_table, active_nodes: active_nodes_table} = solver,
-        space_data, space_pid,
+        space_data,
+        space_pid,
         reason
       ) do
     try do
@@ -299,9 +303,12 @@ defmodule CPSolver.Shared do
 
   def add_failure_impl(%{statistics: stats_table} = solver, failure) do
     update_stats_counters(stats_table, [{@failure_count_pos, 1}])
-    |> tap(fn [failure_count] ->
-      on_failure(solver, failure, failure_count)
-      _ -> :ignore
+    |> tap(fn
+      [failure_count] ->
+        on_failure(solver, failure, failure_count)
+
+      _ ->
+        :ignore
     end)
   end
 

@@ -25,7 +25,10 @@ defmodule CPSolverTest.Search.FirstFail do
 
       # first_fail chooses among unfixed variables
       selected_variable = SearchStrategy.select_variable(variables, nil, :first_fail)
-      assert selected_variable.id in Enum.map([1, 2, 4], fn var_pos -> Enum.at(bound_vars, var_pos) |> Map.get(:id) end)
+
+      assert selected_variable.id in Enum.map([1, 2, 4], fn var_pos ->
+               Enum.at(bound_vars, var_pos) |> Map.get(:id)
+             end)
 
       # indomain_min splits domain of selected variable into min and the rest of the domain
       {:ok, [{min_value_partition, _equal_constraint}, {no_min_partition, _not_equal_constraint}]} =

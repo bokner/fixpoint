@@ -30,7 +30,7 @@ defmodule CPSolver.Search do
     branch(variables, variable_choice, partition_strategy, data)
   end
 
-  #def branch(variables, variable_choice, partition_strategy, data \\ %{})
+  # def branch(variables, variable_choice, partition_strategy, data \\ %{})
 
   def branch(variables, variable_choice, partition_strategy, data) do
     case VariableSelector.select_variable(variables, data, variable_choice) do
@@ -61,5 +61,4 @@ defmodule CPSolver.Search do
        end), constraint}
     end)
   end
-
 end

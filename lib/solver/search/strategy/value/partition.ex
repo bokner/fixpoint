@@ -1,5 +1,4 @@
 defmodule CPSolver.Search.Partition do
-
   alias CPSolver.DefaultDomain, as: Domain
 
   alias CPSolver.Variable.Interface
@@ -10,7 +9,7 @@ defmodule CPSolver.Search.Partition do
 
   def initialize(partition, _space_data) do
     ## TODO:
-    #strategy(partition).initialize(space_data)
+    # strategy(partition).initialize(space_data)
     partition
   end
 
@@ -68,6 +67,4 @@ defmodule CPSolver.Search.Partition do
         throw(:fail)
     end
   end
-
-
 end

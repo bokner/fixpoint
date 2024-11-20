@@ -50,9 +50,11 @@ defmodule CPSolver.Space do
     search = initialize_search(space_opts[:search], space_data)
     ## Save initial constraint graph in shared data
     ## (for shared search strategies etc.)
-    create(space_data
-    |> Map.put(:search, search)
-    |> put_shared(:initial_constraint_graph, initial_constraint_graph))
+    create(
+      space_data
+      |> Map.put(:search, search)
+      |> put_shared(:initial_constraint_graph, initial_constraint_graph)
+    )
     |> tap(fn {:ok, space_pid} ->
       shared = get_shared(space_data)
       Shared.increment_node_counts(shared)
@@ -350,10 +352,10 @@ defmodule CPSolver.Space do
   defp finalize(data, reason) do
     caller = data[:caller]
     caller && GenServer.reply(caller, :done)
-    Map.put(data, :finalized, true)
-    |> tap(fn _ ->   Shared.finalize_space(get_shared(data), data, self(), reason) end)
-  end
 
+    Map.put(data, :finalized, true)
+    |> tap(fn _ -> Shared.finalize_space(get_shared(data), data, self(), reason) end)
+  end
 
   @impl true
   def terminate(reason, data) do

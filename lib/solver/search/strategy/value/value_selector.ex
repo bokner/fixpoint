@@ -14,8 +14,6 @@ defmodule CPSolver.Search.ValueSelector do
       end
 
       defoverridable initialize: 1
-
     end
   end
-
 end
