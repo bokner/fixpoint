@@ -3,7 +3,7 @@ defmodule CPSolverTest.Examples.Sudoku do
 
   alias CPSolver.Examples.Sudoku
 
-  alias CPSolver.Search.Strategy
+  alias CPSolver.Search.VariableSelector, as: Strategy
 
   test "4x4" do
     test_sudoku(Sudoku.puzzles().s4x4, 2, trials: 10, timeout: 100)

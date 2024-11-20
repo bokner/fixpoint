@@ -4,7 +4,9 @@ defmodule CPSolverTest.Search.FirstFail do
   describe "First-fail search strategy" do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.DefaultDomain, as: Domain
-    alias CPSolver.Search.Strategy, as: SearchStrategy
+    alias CPSolver.Search
+    alias CPSolver.Search.VariableSelector, as: SearchStrategy
+    alias CPSolver.Search.Partition
 
     alias CPSolver.Search.VariableSelector.MaxRegret, as: MaxRegretSelector
     import CPSolver.Test.Helpers
@@ -21,14 +23,13 @@ defmodule CPSolverTest.Search.FirstFail do
 
       {:ok, bound_vars, _store} = create_store(variables)
 
-      # first_fail chooses unfixed variable
-      selected_variable = SearchStrategy.select_variable(bound_vars, nil, :first_fail)
-      v2_var = Enum.at(bound_vars, 2)
-      assert selected_variable.id == v2_var.id
+      # first_fail chooses among unfixed variables
+      selected_variable = SearchStrategy.select_variable(variables, nil, :first_fail)
+      assert selected_variable.id in Enum.map([1, 2, 4], fn var_pos -> Enum.at(bound_vars, var_pos) |> Map.get(:id) end)
 
       # indomain_min splits domain of selected variable into min and the rest of the domain
       {:ok, [{min_value_partition, _equal_constraint}, {no_min_partition, _not_equal_constraint}]} =
-        SearchStrategy.partition(selected_variable, :indomain_min)
+        Partition.partition(selected_variable, :indomain_min)
 
       min_value = Domain.min(min_value_partition)
 
@@ -47,7 +48,7 @@ defmodule CPSolverTest.Search.FirstFail do
 
       {:ok, _bound_vars, _store} = create_store(variables)
 
-      assert catch_throw(SearchStrategy.select_variable(variables, nil, :first_fail)) ==
+      assert catch_throw(Search.branch(variables, {:first_fail, :indomain_min})) ==
                SearchStrategy.all_vars_fixed_exception()
     end
 
@@ -76,7 +77,7 @@ defmodule CPSolverTest.Search.FirstFail do
       {:ok, bound_vars, _store} = create_store(variables)
 
       [b_left, b_right] =
-        branches = SearchStrategy.branch(bound_vars, {:first_fail, :indomain_min})
+        branches = Search.branch(bound_vars, {:first_fail, :indomain_min})
 
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars

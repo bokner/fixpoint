@@ -27,7 +27,7 @@ defmodule CPSolver.Examples.QAP do
 
   import CPSolver.Variable.View.Factory
 
-  alias CPSolver.Search.Strategy
+  alias CPSolver.Search.VariableSelector, as: Strategy
 
   require Logger
 

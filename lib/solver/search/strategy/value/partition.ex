@@ -8,8 +8,10 @@ defmodule CPSolver.Search.Partition do
 
   require Logger
 
-  def initialize(partition, space_data) do
-    strategy(partition).initialize(space_data)
+  def initialize(partition, _space_data) do
+    ## TODO:
+    #strategy(partition).initialize(space_data)
+    partition
   end
 
   def partition(variable, value_choice) do

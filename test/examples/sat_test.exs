@@ -9,7 +9,7 @@ defmodule CPSolverTest.Examples.SatSolver do
   use ExUnit.Case
 
   alias CPSolver.Examples.SatSolver
-  alias CPSolver.Search.Strategy
+  alias CPSolver.Search.VariableSelector, as: Strategy
 
   test "simple unsatisfiable" do
     assert_unsatisfiable([[1], [-1]])

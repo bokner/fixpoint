@@ -3,7 +3,7 @@ defmodule CPSolver.Examples.SatSolver do
   alias CPSolver.Model
   alias CPSolver.BooleanVariable
   alias CPSolver.Variable.Interface
-  alias CPSolver.Search.Strategy
+  alias CPSolver.Search.VariableSelector, as: Strategy
   import CPSolver.Variable.View.Factory
 
   require Logger
