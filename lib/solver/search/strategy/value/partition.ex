@@ -3,7 +3,7 @@ defmodule CPSolver.Search.Partition do
 
   alias CPSolver.Variable.Interface
 
-  alias CPSolver.Search.ValueSelector.{Min, Max, Random}
+  alias CPSolver.Search.ValueSelector.{Min, Max, Random, Split}
 
   require Logger
 
@@ -14,18 +14,37 @@ defmodule CPSolver.Search.Partition do
   end
 
   def partition(variable, value_choice) do
-    variable
-    |> partition_impl(value_choice)
-    |> split_domain_by(variable)
+    {:ok, partition_impl(variable, value_choice)}
   end
 
   defp partition_impl(variable, value_choice) when is_function(value_choice) do
     value_choice.(variable)
+    |> partition_by_fix(variable)
   end
 
   defp partition_impl(variable, value_choice) when is_atom(value_choice) do
-    strategy(value_choice).select_value(variable)
+    domain = Interface.domain(variable)
+    impl = if function_exported?(value_choice, :partition, 1) do
+      value_choice
+    else
+      strategy(value_choice)
+    end
+
+    selected_value = impl.select_value(variable)
+
+    impl.partition(selected_value)
+    |> Enum.map(fn partition_fun ->
+      d_copy = Domain.copy(domain)
+      domain_changes = partition_fun.(d_copy) |> normalize_domain_changes()
+      {
+        d_copy,
+        %{variable.id => domain_changes}
+      }
+    end)
   end
+
+  defp normalize_domain_changes({changes, _domain}), do: changes
+  defp normalize_domain_changes(changes) when is_atom(changes), do: changes
 
   defp strategy(:indomain_min) do
     Min
@@ -39,13 +58,18 @@ defmodule CPSolver.Search.Partition do
     Random
   end
 
-  defp split_domain_by(value, variable) do
+  defp strategy(:indomain_split) do
+    Split
+  end
+
+
+  ## Default partitioning
+  defp partition_by_fix(value, variable) do
     domain = Interface.domain(variable)
 
     try do
       {remove_changes, _domain} = Domain.remove(domain, value)
 
-      {:ok,
        [
          {
            Domain.new(value),
@@ -57,7 +81,7 @@ defmodule CPSolver.Search.Partition do
            %{variable.id => remove_changes}
            # NotEqual.new(variable, value)
          }
-       ]}
+       ]
     rescue
       :fail ->
         Logger.error(

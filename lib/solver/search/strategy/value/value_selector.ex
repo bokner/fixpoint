@@ -1,5 +1,6 @@
 defmodule CPSolver.Search.ValueSelector do
   @callback select_value(Variable.t()) :: integer()
+  @callback partition(integer()) :: [function()]
   @callback initialize(map()) :: :ok
 
   defmacro __using__(_) do
@@ -13,7 +14,14 @@ defmodule CPSolver.Search.ValueSelector do
         :ok
       end
 
-      defoverridable initialize: 1
+      def partition(value) do
+        [
+          fn domain -> Domain.fix(domain, value) end,
+          fn domain -> Domain.remove(domain, value) end,
+        ]
+      end
+
+      defoverridable initialize: 1, partition: 1
     end
   end
 end
