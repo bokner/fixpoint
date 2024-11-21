@@ -133,19 +133,15 @@ defmodule CPSolver.Search.VariableSelector do
     variable_choice(MostConstrained, break_even_fun)
   end
 
-  def most_constrained(shortcut) when is_atom(shortcut) do
-    strategy(shortcut)
-  end
+
 
   def most_completed(break_even_fun \\ &Enum.random/1)
 
-  def most_completed(break_even_fun) when is_function(break_even_fun) do
-    variable_choice(MostCompleted, break_even_fun)
+  def most_completed(break_even_fun) do
+    variable_choice(MostCompleted, extract_strategy(break_even_fun))
   end
 
-  def most_completed(shortcut) when is_atom(shortcut) do
-    strategy(shortcut)
-  end
+
 
   def max_regret(break_even_fun \\ &Enum.random/1)
 
@@ -153,9 +149,7 @@ defmodule CPSolver.Search.VariableSelector do
     variable_choice(MaxRegret, break_even_fun)
   end
 
-  def max_regret(shortcut) when is_atom(shortcut) do
-    strategy(shortcut)
-  end
+
 
   def first_fail(break_even_fun \\ &Enum.random/1)
 
@@ -163,9 +157,7 @@ defmodule CPSolver.Search.VariableSelector do
     variable_choice(FirstFail, break_even_fun)
   end
 
-  def first_fail(shortcut) when is_atom(shortcut) do
-    strategy(shortcut)
-  end
+
 
   def dom_deg(break_even_fun \\ &Enum.random/1)
 
@@ -173,9 +165,7 @@ defmodule CPSolver.Search.VariableSelector do
     variable_choice(DomDeg, break_even_fun)
   end
 
-  def dom_deg(shortcut) when is_atom(shortcut) do
-    strategy(shortcut)
-  end
+
 
   def afc({afc_mode, decay}, break_even_fun \\ FirstFail)
       when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
@@ -216,21 +206,21 @@ defmodule CPSolver.Search.VariableSelector do
     )
   end
 
-  defp strategy_normalized(strategy) when is_atom(strategy) do
-    strategy(strategy)
+  defp extract_strategy(shortcut) when is_atom(shortcut) do
+    strategy(shortcut)
   end
 
-  defp strategy_normalized(strategy) when is_function(strategy) do
+  defp extract_strategy(strategy) when is_function(strategy) do
     strategy
   end
 
-  defp strategy_normalized(%{selector: selection}) do
-    selection
+  defp extract_strategy(%{selector: selector} = _shared_strategy) do
+    selector
   end
 
   def mixed(strategies) do
     Enum.random(strategies)
-    |> strategy_normalized()
+    |> extract_strategy()
   end
 
   defp execute_break_even(selection, _data, break_even_fun) when is_function(break_even_fun, 1) do

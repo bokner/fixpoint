@@ -35,8 +35,9 @@ defmodule CPSolver.Examples.SatSolver do
           # :most_completed,
           # Strategy.most_completed(&Enum.random/1),
           Strategy.mixed([
-            Strategy.most_completed(Strategy.first_fail(&Enum.random/1))
-            # Strategy.afc({:afc_min, 0.9}, Strategy.first_fail(&Enum.random/1)))
+            Strategy.most_completed(Strategy.chb(:chb_size_min, Strategy.first_fail(&Enum.random/1)) ),
+            #Strategy.afc({:afc_size_min, 0.9}, Strategy.first_fail(&Enum.random/1)),
+            Strategy.chb(:chb_size_min, Strategy.most_completed(&Enum.random/1)),
           ]),
           :indomain_max
         },
