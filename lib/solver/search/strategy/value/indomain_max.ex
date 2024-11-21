@@ -1,6 +1,5 @@
 defmodule CPSolver.Search.ValueSelector.Max do
-  @behaviour CPSolver.Search.ValueSelector
-  alias CPSolver.Variable.Interface
+  use CPSolver.Search.ValueSelector
 
   @impl true
   def select_value(variable) do

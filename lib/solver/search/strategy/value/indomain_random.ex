@@ -1,5 +1,5 @@
 defmodule CPSolver.Search.ValueSelector.Random do
-  @behaviour CPSolver.Search.ValueSelector
+  use CPSolver.Search.ValueSelector
   import CPSolver.Utils
 
   @impl true

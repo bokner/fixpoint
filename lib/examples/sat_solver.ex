@@ -3,7 +3,7 @@ defmodule CPSolver.Examples.SatSolver do
   alias CPSolver.Model
   alias CPSolver.BooleanVariable
   alias CPSolver.Variable.Interface
-  alias CPSolver.Search.Strategy
+  alias CPSolver.Search.VariableSelector, as: Strategy
   import CPSolver.Variable.View.Factory
 
   require Logger
@@ -32,15 +32,13 @@ defmodule CPSolver.Examples.SatSolver do
     default_opts =
       [
         search: {
-          #:most_completed,
-          #Strategy.most_completed(&Enum.random/1),
-          Strategy.mixed(
-            [
-              Strategy.most_completed(
-                Strategy.first_fail(&Enum.random/1))
-            #Strategy.afc({:afc_min, 0.9}, Strategy.first_fail(&Enum.random/1)))
+          # :most_completed,
+          # Strategy.most_completed(&Enum.random/1),
+          Strategy.mixed([
+            Strategy.most_completed(Strategy.chb(:chb_size_min, Strategy.first_fail(&Enum.random/1)) ),
+            #Strategy.afc({:afc_size_min, 0.9}, Strategy.first_fail(&Enum.random/1)),
+            Strategy.chb(:chb_size_min, Strategy.most_completed(&Enum.random/1)),
           ]),
-
           :indomain_max
         },
         stop_on: {:max_solutions, 1}

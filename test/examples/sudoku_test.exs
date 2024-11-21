@@ -3,7 +3,7 @@ defmodule CPSolverTest.Examples.Sudoku do
 
   alias CPSolver.Examples.Sudoku
 
-  alias CPSolver.Search.Strategy
+  alias CPSolver.Search.VariableSelector, as: Strategy
 
   test "4x4" do
     test_sudoku(Sudoku.puzzles().s4x4, 2, trials: 10, timeout: 100)
@@ -29,7 +29,7 @@ defmodule CPSolverTest.Examples.Sudoku do
       {:ok, result} =
         CPSolver.solve(Sudoku.model(puzzle_instance),
           search: {
-            #Strategy.first_fail(&Enum.random/1),
+            # Strategy.first_fail(&Enum.random/1),
             Strategy.afc({:afc_size_min, 0.75}, &List.first/1),
             :indomain_random
           },

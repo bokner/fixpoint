@@ -111,8 +111,9 @@ defmodule CPSolverTest.Search.AFC do
       ##
       ## That is, each variable participates in 2 propagators.
       ## 1. The initial AFC for every variable should be equal to 2.
-      assert Enum.all?(AFC.variable_afcs(variables, shared), fn {var, afc_value} -> 2 == afc_value end)
-
+      assert Enum.all?(AFC.variable_afcs(variables, shared), fn {var, afc_value} ->
+               2 == afc_value
+             end)
 
       [p1, _p2, _p3] = space.propagators
       # ## 2. Fail the propagator x != y
@@ -121,7 +122,9 @@ defmodule CPSolverTest.Search.AFC do
 
       Shared.add_failure(shared, {:fail, p1.id})
 
-      [{var1, afc1}, {var2, afc2}, {var3, afc3}] = AFC.variable_afcs(variables, shared) |> Enum.sort_by(fn {var, _afc} -> var.name end)
+      [{var1, afc1}, {var2, afc2}, {var3, afc3}] =
+        AFC.variable_afcs(variables, shared) |> Enum.sort_by(fn {var, _afc} -> var.name end)
+
       assert var1.name == "x" && var2.name == "y" && var3.name == "z"
 
       # ## Variables `x` and `y` participate in 1 failed (x != y) and 1 non-failed propagator.

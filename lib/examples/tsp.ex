@@ -14,7 +14,7 @@ defmodule CPSolver.Examples.TSP do
   alias CPSolver.Model
   alias CPSolver.Constraint.Circuit
   alias CPSolver.Objective
-  alias CPSolver.Search.Strategy, as: SearchStrategy
+  alias CPSolver.Search.VariableSelector, as: SearchStrategy
   import CPSolver.Constraint.Factory
   import CPSolver.Utils
   alias CPSolver.Utils.TupleArray

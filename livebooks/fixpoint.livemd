@@ -219,22 +219,10 @@ RenderHTML.render_sudoku(hard_puzzle)
 
 ```elixir
 alias CPSolver.Search.VariableSelector.{MostConstrained, FirstFail}
-alias CPSolver.Search.Strategy
+alias CPSolver.Search.VariableSelector, as: Strategy
 {:ok, res} =
-  CPSolver.solve(Sudoku.model(hard_puzzle),
-    space_threads: 8,
-    stop_on: {:max_solutions, 1},
-    search: {      
-      #&Enum.random/1,
-      :first_fail,
-      #Strategy.first_fail(
-      #  (Strategy.most_constrained()
-      #  )
-      #),
-      # Strategy.dom_deg(&Enum.random/1),
-      #:most_completed,
-      :indomain_random}
-  )
+        CPSolver.solve(Sudoku.model(hard_puzzle)
+        )
 
 IO.puts("Elapsed time: #{div(res.statistics.elapsed_time, 1000)} \u33b3")
 solution = hd(res.solutions)

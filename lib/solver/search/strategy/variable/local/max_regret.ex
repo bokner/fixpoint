@@ -1,4 +1,5 @@
 defmodule CPSolver.Search.VariableSelector.MaxRegret do
+  use CPSolver.Search.VariableSelector
   alias CPSolver.Utils
 
   ## Choose the variable(s) with largest difference

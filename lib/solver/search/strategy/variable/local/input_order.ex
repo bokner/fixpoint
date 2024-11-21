@@ -1,5 +1,5 @@
 defmodule CPSolver.Search.VariableSelector.InputOrder do
-  @behaviour CPSolver.Search.VariableSelector
+  use CPSolver.Search.VariableSelector
 
   @impl true
   def select_variable(variables) do

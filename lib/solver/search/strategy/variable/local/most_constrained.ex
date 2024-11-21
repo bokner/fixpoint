@@ -1,4 +1,5 @@
 defmodule CPSolver.Search.VariableSelector.MostConstrained do
+  use CPSolver.Search.VariableSelector
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils
   alias CPSolver.Propagator.ConstraintGraph

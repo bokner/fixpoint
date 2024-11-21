@@ -3,13 +3,15 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   Accumulated failure count variable selector
   (https://www.gecode.org/doc-latest/MPG.pdf, p.8.5.2)
   """
+  use CPSolver.Search.VariableSelector
   alias CPSolver.Space
   alias CPSolver.Shared
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils
 
-  def select(variables, data, afc_mode) when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
+  def select(variables, data, afc_mode)
+      when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
     select_impl(variables, data, afc_mode)
     |> Enum.map(fn {var, _afc} -> var end)
   end
@@ -39,7 +41,8 @@ defmodule CPSolver.Search.VariableSelector.AFC do
     Utils.maximals(
       variable_afcs(variables, Space.get_shared(data)),
       fn {var, afc} ->
-        afc / Interface.size(var) end
+        afc / Interface.size(var)
+      end
     )
   end
 
@@ -48,11 +51,12 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   """
   def initialize(space_data, decay) do
     shared = Space.get_shared(space_data)
+
     Shared.get_auxillary(shared, :afc) ||
-    (
-    afc_table = Shared.create_shared_ets_table(shared)
-    Shared.put_auxillary(shared, :afc, %{propagator_afcs: afc_table, decay: decay})
-    )
+      (
+        afc_table = Shared.create_shared_ets_table(shared)
+        Shared.put_auxillary(shared, :afc, %{propagator_afcs: afc_table, decay: decay})
+      )
   end
 
   @doc """
@@ -64,39 +68,38 @@ defmodule CPSolver.Search.VariableSelector.AFC do
     global_failure_count = Shared.get_failure_count(shared)
 
     if graph && afc_data && global_failure_count do
+      %{propagator_afcs: afc_table, decay: decay} = afc_data
 
-    %{propagator_afcs: afc_table, decay: decay} = afc_data
-    {propagator_ids, propagators_by_variable} =
-      Enum.reduce(variables, {MapSet.new(), Map.new()}, fn var, {propagator_ids_acc, map_acc} ->
-        p_ids = ConstraintGraph.get_propagator_ids(graph, Interface.id(var))
-        {
-          MapSet.union(propagator_ids_acc, MapSet.new(p_ids)),
-          Map.put(map_acc, var, p_ids)
-        }
-      end)
-    ## Get p_id => afc_record map from ETS table
+      {propagator_ids, propagators_by_variable} =
+        Enum.reduce(variables, {MapSet.new(), Map.new()}, fn var, {propagator_ids_acc, map_acc} ->
+          p_ids = ConstraintGraph.get_propagator_ids(graph, Interface.id(var))
 
-    afc_records =
+          {
+            MapSet.union(propagator_ids_acc, MapSet.new(p_ids)),
+            Map.put(map_acc, var, p_ids)
+          }
+        end)
+
+      ## Get p_id => afc_record map from ETS table
+
+      afc_records =
         :ets.select(afc_table, for(p_id <- propagator_ids, do: {{p_id, :_}, [], [:"$_"]}))
         |> Map.new()
 
-    ## Collect variable AFCs
-    Enum.map(propagators_by_variable, fn {var, var_propagator_ids} ->
-      {var, Enum.reduce(var_propagator_ids, 0,
-      fn p_id, sum_acc ->
-        sum_acc +
-
-        (afc_records
-        |> Map.get(p_id, afc_record(1, 0))
-        |> propagator_afc(decay, global_failure_count)
-        |> elem(0))
+      ## Collect variable AFCs
+      Enum.map(propagators_by_variable, fn {var, var_propagator_ids} ->
+        {var,
+         Enum.reduce(var_propagator_ids, 0, fn p_id, sum_acc ->
+           sum_acc +
+             (afc_records
+              |> Map.get(p_id, afc_record(1, 0))
+              |> propagator_afc(decay, global_failure_count)
+              |> elem(0))
+         end)}
       end)
-    }
-    end)
-  else
-    Enum.map(variables, fn var -> {var, 1} end)
-  end
-
+    else
+      Enum.map(variables, fn var -> {var, 1} end)
+    end
   end
 
   @doc """

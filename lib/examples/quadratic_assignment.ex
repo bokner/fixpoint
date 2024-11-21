@@ -27,7 +27,7 @@ defmodule CPSolver.Examples.QAP do
 
   import CPSolver.Variable.View.Factory
 
-  alias CPSolver.Search.Strategy
+  alias CPSolver.Search.VariableSelector, as: Strategy
 
   require Logger
 
@@ -116,7 +116,7 @@ defmodule CPSolver.Examples.QAP do
 
     {
       Strategy.mixed([:most_constrained, :dom_deg, :first_fail]),
-      #:dom_deg,
+      # :dom_deg,
       :indomain_max
     }
   end
