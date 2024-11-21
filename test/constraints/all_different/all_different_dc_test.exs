@@ -31,7 +31,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
 
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
 
-      {:ok, result} = CPSolver.solve(model, timeout: 100)
+      {:ok, result} = CPSolver.solve(model, timeout: 100, search: {:first_fail, :indomain_split})
 
       assert result.statistics.solution_count == 6
 
