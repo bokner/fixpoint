@@ -10,9 +10,8 @@ defmodule CPSolver.Search.ValueSelector.Split do
   def select_value(variable) do
     variable
     |> domain_values()
-    |> Enum.sort()
     |> then(fn values ->
-      Enum.at(values, div(length(values) - 1, 2))
+      Enum.at(values, div(MapSet.size(values) - 1, 2))
     end)
   end
 

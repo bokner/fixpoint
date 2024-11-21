@@ -195,5 +195,5 @@ result.solutions
 ```
 
 ```elixir
-{result.statistics.elapsed_time, optimal_route}
+{result.statistics.elapsed_time, optimal_route, result.objective}
 ```
