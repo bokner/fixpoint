@@ -1,4 +1,4 @@
-defmodule CPSolver.Digraph do
+defmodule CPSolver.Utils.Digraph do
     def new(opts \\ []) do
       :digraph.new(opts)
     end
@@ -127,11 +127,30 @@ defmodule CPSolver.Digraph do
     end
 
     def from_libgraph(%Graph{} = graph) do
-
+      dg = new()
+      Enum.each(Graph.vertices(graph), fn vertex ->
+        vertex(dg, vertex) || add_vertex(dg, vertex, Graph.vertex_labels(graph, vertex))
+        edges = Graph.out_edges(graph, vertex)
+        Enum.each(edges, fn %Graph.Edge{v2: v2, label: label} ->
+          vertex(dg, v2) || add_vertex(dg, v2)
+          add_edge(dg, vertex, v2, label)
+        end)
+      end)
+      dg
     end
 
     def to_libgraph(digraph) do
-
+      Enum.reduce(vertices(digraph), Graph.new(),
+        fn vertex, graph_acc ->
+          {vertex_id, labels} = vertex(digraph, vertex)
+          edges = out_edges(digraph, vertex_id)
+          graph_acc = Graph.add_vertex(graph_acc, vertex_id, labels)
+          Enum.reduce(edges, graph_acc, fn digraph_edge, graph_acc2 ->
+            {_edge_id, v1, v2, labels} = edge(digraph, digraph_edge)
+            Graph.add_edge(graph_acc2, v1, v2, label: labels)
+          end)
+        end
+      )
     end
 
 end
