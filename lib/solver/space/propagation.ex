@@ -180,9 +180,7 @@ defmodule CPSolver.Space.Propagation do
 
   defp remove_fixed_variables(graph, changes) do
     Enum.reduce(changes, graph, fn {var_id, domain_change}, g_acc ->
-      (domain_change == :fixed &&
-         ConstraintGraph.disconnect_variable(g_acc, var_id)) ||
-        g_acc
+      maybe_remove_variable(g_acc, var_id, domain_change)
     end)
   end
 
