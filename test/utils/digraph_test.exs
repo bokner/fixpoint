@@ -31,9 +31,8 @@ defmodule CPSolverTest.Utils.Digraph do
         ## Edge: vertices and labels
         assert Enum.all?(Digraph.edges(digraph),
         fn digraph_edge ->
-          {_edge_id, v1, v2, labels}  = edge  = Digraph.edge(digraph, digraph_edge)
-          libgraph_edge = Graph.edge(libgraph, v1, v2, labels)
-          libgraph_edge.label == labels
+
+          digraph_edge == Graph.edge(libgraph, digraph_edge.v1, digraph_edge.v2, digraph_edge.label)
         end)
 
        ## Digraph -> libgraph

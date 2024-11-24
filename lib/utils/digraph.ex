@@ -64,10 +64,12 @@ defmodule CPSolver.Utils.Digraph do
 
     def edges(dg) do
       :digraph.edges(dg)
+      |> expand_edges(dg)
     end
 
     def edges(dg, v) do
       :digraph.edges(dg, v)
+      |> expand_edges(dg)
     end
 
     def get_cycle(dg, v) do
@@ -92,6 +94,7 @@ defmodule CPSolver.Utils.Digraph do
 
     def in_edges(dg, v) do
       :digraph.in_edges(dg, v)
+      |> expand_edges(dg)
     end
 
     def in_neighbours(dg, v) do
@@ -112,6 +115,7 @@ defmodule CPSolver.Utils.Digraph do
 
     def out_edges(dg, v) do
       :digraph.out_edges(dg, v)
+      |> expand_edges(dg)
     end
 
     def out_neighbours(dg, v) do
@@ -129,28 +133,34 @@ defmodule CPSolver.Utils.Digraph do
     def from_libgraph(%Graph{} = graph) do
       dg = new()
       Enum.each(Graph.vertices(graph), fn vertex ->
-        vertex(dg, vertex) || add_vertex(dg, vertex, Graph.vertex_labels(graph, vertex))
-        edges = Graph.out_edges(graph, vertex)
-        Enum.each(edges, fn %Graph.Edge{v2: v2, label: label} ->
-          vertex(dg, v2) || add_vertex(dg, v2)
-          add_edge(dg, vertex, v2, label)
-        end)
+        add_vertex(dg, vertex, Graph.vertex_labels(graph, vertex))
       end)
+
+      edges = Graph.edges(graph)
+      Enum.each(edges, fn %Graph.Edge{v1: v1, v2: v2, label: label} ->
+          add_edge(dg, v1, v2, label)
+        end)
       dg
     end
 
     def to_libgraph(digraph) do
-      Enum.reduce(vertices(digraph), Graph.new(),
+      g_vertices = Enum.reduce(vertices(digraph), Graph.new(),
         fn vertex, graph_acc ->
-          {vertex_id, labels} = vertex(digraph, vertex)
-          edges = out_edges(digraph, vertex_id)
-          graph_acc = Graph.add_vertex(graph_acc, vertex_id, labels)
-          Enum.reduce(edges, graph_acc, fn digraph_edge, graph_acc2 ->
-            {_edge_id, v1, v2, labels} = edge(digraph, digraph_edge)
-            Graph.add_edge(graph_acc2, v1, v2, label: labels)
+          {vertex_id, label} = vertex(digraph, vertex)
+          Graph.add_vertex(graph_acc, vertex_id, label)
+        end)
+
+        Enum.reduce(edges(digraph), g_vertices, fn digraph_edge, graph_acc ->
+            %Graph.Edge{v1: v1, v2: v2, label: label} = digraph_edge
+            Graph.add_edge(graph_acc, v1, v2, label: label)
           end)
-        end
-      )
+    end
+
+    defp expand_edges(edges, digraph) do
+      Enum.map(edges, fn e ->
+        {_edge_id, v1, v2, labels} = edge(digraph, e)
+        %Graph.Edge{v1: v1, v2: v2, label: labels, weight: 1}
+      end)
     end
 
 end

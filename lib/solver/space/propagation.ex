@@ -1,17 +1,21 @@
 defmodule CPSolver.Space.Propagation do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Propagator
+  alias CPSolver.Utils.Digraph
   import CPSolver.Common
 
   require Logger
 
-  def run(constraint_graph, changes \\ %{})
+  def run(constraint_graph, changes \\ %{}, digraph? \\ true)
 
-  def run(%Graph{} = constraint_graph, changes) do
+  def run(%Graph{} = constraint_graph, changes, digraph?) do
     constraint_graph
     |> get_propagators()
     |> then(fn propagators ->
-      run_impl(propagators, constraint_graph, propagator_changes(constraint_graph, changes),
+      c_graph = digraph? && Digraph.from_libgraph(constraint_graph) || constraint_graph
+      run_impl(propagators,
+      c_graph,
+        propagator_changes(c_graph, changes),
         reset?: true
       )
       |> finalize(changes)
@@ -20,7 +24,7 @@ defmodule CPSolver.Space.Propagation do
 
   defp get_propagators(constraint_graph) do
     constraint_graph
-    |> Graph.vertices()
+    |> ConstraintGraph.vertices()
     ## Get %{id => propagator} map
     |> Enum.flat_map(fn
       {:propagator, p_id} ->
@@ -74,7 +78,10 @@ defmodule CPSolver.Space.Propagation do
     |> reorder()
     |> Enum.reduce_while(
       {MapSet.new(), graph, Map.new()},
-      fn {p_id, p}, {scheduled_acc, g_acc, changes_acc} = _acc ->
+      fn {p_id, nil}, {scheduled_acc, g_acc, changes_acc} ->
+        {:cont, {unschedule(scheduled_acc, p_id), g_acc, changes_acc}}
+        {p_id, p}, {scheduled_acc, g_acc, changes_acc} = _acc ->
+
         res =
           Propagator.filter(p,
             reset?: opts[:reset?],
@@ -166,6 +173,11 @@ defmodule CPSolver.Space.Propagation do
     end
   end
 
+  defp finalize(digraph, changes) when elem(digraph, 0) == :digraph do
+    finalize(Digraph.to_libgraph(digraph), changes)
+    |> tap(fn _ -> Digraph.delete(digraph) end)
+  end
+
   defp maybe_remove_variable(graph, var_id, :fixed) do
     ConstraintGraph.disconnect_variable(graph, var_id)
   end
@@ -195,7 +207,7 @@ defmodule CPSolver.Space.Propagation do
     propagators
   end
 
-  defp propagator_changes(%Graph{} = graph, domain_changes) when is_map(domain_changes) do
+  defp propagator_changes(graph, domain_changes) when is_map(domain_changes) do
     Enum.reduce(domain_changes, Map.new(), fn {var_id, domain_change} = change, changes_acc ->
       graph
       |> ConstraintGraph.get_propagator_ids(var_id, domain_change)
