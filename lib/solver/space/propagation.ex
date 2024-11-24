@@ -6,7 +6,7 @@ defmodule CPSolver.Space.Propagation do
 
   require Logger
 
-  def run(constraint_graph, changes \\ %{}, digraph? \\ true)
+  def run(constraint_graph, changes \\ %{}, digraph? \\ false)
 
   def run(%Graph{} = constraint_graph, changes, digraph?) do
     constraint_graph
