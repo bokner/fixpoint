@@ -250,7 +250,13 @@ defmodule CPSolver.Search.VariableSelector do
   def variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
     impl = strategy(strategy_impl)
 
-    strategy_fun = fn vars, data -> impl.select(vars, data) end
+    initialize? = function_exported?(impl, :initialize, 1)
+
+    strategy_fun = fn vars, data ->
+      initialize? && impl.initialize(data)
+      impl.select(vars, data)
+    end
+
     variable_choice(strategy_fun, break_even_fun)
   end
 
