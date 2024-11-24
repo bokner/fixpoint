@@ -24,11 +24,8 @@ defmodule CPSolver.Search.Partition do
 
   defp partition_impl(variable, value_choice) when is_atom(value_choice) do
     domain = Interface.domain(variable)
-    impl = if function_exported?(value_choice, :partition, 1) do
-      value_choice
-    else
-      strategy(value_choice)
-    end
+    impl = strategy(value_choice)
+
 
     selected_value = impl.select_value(variable)
 
@@ -62,6 +59,13 @@ defmodule CPSolver.Search.Partition do
     Split
   end
 
+  defp strategy(impl) when is_atom(impl) do
+    if Code.ensure_loaded(impl) == {:module, impl} && function_exported?(impl, :select, 2) do
+      impl
+    else
+      throw({:unknown_strategy, impl})
+    end
+  end
 
   ## Default partitioning
   defp partition_by_fix(value, variable) do

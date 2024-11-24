@@ -123,6 +123,14 @@ defmodule CPSolver.Search.VariableSelector do
     max_regret(&Enum.random/1)
   end
 
+  def strategy(impl) when is_atom(impl) do
+    if Code.ensure_loaded(impl) == {:module, impl} && function_exported?(impl, :select, 2) do
+      impl
+    else
+      throw({:unknown_strategy, impl})
+    end
+  end
+
   ###################################
   ## Implementations (top-level)   ##
   ###################################
@@ -231,17 +239,19 @@ defmodule CPSolver.Search.VariableSelector do
     break_even_fun.(selection, data)
   end
 
-  def variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
-    strategy_fun = fn vars, data -> strategy_impl.select(vars, data) end
-    variable_choice(strategy_fun, break_even_fun)
-  end
-
   def variable_choice(strategy_fun, break_even_fun) when is_function(strategy_fun) do
     fn vars, data ->
       vars
       |> strategy_fun.(data)
       |> execute_break_even(data, break_even_fun)
     end
+  end
+
+  def variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
+    impl = strategy(strategy_impl)
+
+    strategy_fun = fn vars, data -> impl.select(vars, data) end
+    variable_choice(strategy_fun, break_even_fun)
   end
 
   defp make_strategy_object(selector, initialization) do
