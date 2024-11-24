@@ -322,18 +322,21 @@ defmodule CPSolver.Space do
       ) do
     ## The search strategy branches off the existing variables.
     ## Each branch is a list of variables to use by a child space
-    branches = Search.branch(variables, search, data)
+    try do
+      branches = Search.branch(variables, search, data)
 
-    Enum.take_while(branches, fn {branch_variables, constraint} ->
-      !CPSolver.complete?(get_shared(data)) &&
-        spawn_space(
-          data
-          |> Map.put(:variables, branch_variables)
-          |> put_in([:opts, :branch_constraint], constraint)
-        )
-    end)
+      Enum.take_while(branches, fn {branch_variables, constraint} ->
+        !CPSolver.complete?(get_shared(data)) &&
+          spawn_space(
+            data
+            |> Map.put(:variables, branch_variables)
+            |> put_in([:opts, :branch_constraint], constraint)
+          )
+      end)
 
-    shutdown(data, :distribute)
+      shutdown(data, :distribute)
+    catch :all_vars_fixed -> handle_solved(data)
+  end
   end
 
   defp shutdown(data, reason) do
