@@ -11,9 +11,13 @@ defmodule CPSolver.Search.VariableSelector.Action do
 
   @default_action_value 1
 
-  def select(variables, data, action_mode)
-      when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
-    select_impl(variables, data, action_mode)
+  @impl true
+  def select(variables, data) do
+    select(variables, data, mode: :action_size_min)
+  end
+
+  def select(variables, data, opts) do
+    select_impl(variables, data, opts[:mode])
     |> Enum.map(fn {var, _action} -> var end)
   end
 
@@ -50,14 +54,15 @@ defmodule CPSolver.Search.VariableSelector.Action do
   @doc """
   Initialize Action data
   """
-  def initialize(%{variables: variables} = space_data, decay) do
+  @impl true
+  def initialize(%{variables: variables} = space_data, opts) do
     shared = Space.get_shared(space_data)
 
     Shared.get_auxillary(shared, :action) ||
       (
         action_table = Shared.create_shared_ets_table(shared)
         init_variable_actions(variables, action_table)
-        Shared.put_auxillary(shared, :action, %{variable_actions: action_table, decay: decay})
+        Shared.put_auxillary(shared, :action, %{variable_actions: action_table, decay: opts[:decay]})
       )
   end
 

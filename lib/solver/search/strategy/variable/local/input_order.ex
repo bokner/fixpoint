@@ -2,7 +2,7 @@ defmodule CPSolver.Search.VariableSelector.InputOrder do
   use CPSolver.Search.VariableSelector
 
   @impl true
-  def select_variable(variables) do
+  def select(variables, _data) do
     Enum.sort_by(variables, fn %{index: idx} -> idx end)
     |> List.first()
   end

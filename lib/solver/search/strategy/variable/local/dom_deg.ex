@@ -1,8 +1,10 @@
 defmodule CPSolver.Search.VariableSelector.DomDeg do
+  use CPSolver.Search.VariableSelector
   alias CPSolver.Variable.Interface
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils
 
+  @impl true
   def select(variables, space_data) do
     smallest_ratio(variables, space_data)
   end

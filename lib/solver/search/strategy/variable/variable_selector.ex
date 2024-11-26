@@ -1,9 +1,7 @@
 defmodule CPSolver.Search.VariableSelector do
-  @callback initialize(map()) :: :ok
+  @callback initialize(map(), any()) :: :ok
   @callback update(map(), Keyword.t()) :: :ok
-  @callback select_variable([Variable.t()]) :: Variable.t() | nil
-  @callback select_variable([Variable.t()], any()) :: Variable.t() | nil
-  @optional_callbacks select_variable: 1, select_variable: 2
+  @callback select([Variable.t()], any()) :: Variable.t() | nil
 
   alias CPSolver.Variable.Interface
 
@@ -25,7 +23,7 @@ defmodule CPSolver.Search.VariableSelector do
       alias CPSolver.DefaultDomain, as: Domain
 
       @behaviour VariableSelector
-      def initialize(_data) do
+      def initialize(_data, _opts) do
         :ok
       end
 
@@ -33,14 +31,8 @@ defmodule CPSolver.Search.VariableSelector do
         :ok
       end
 
-      defoverridable initialize: 1, update: 2
+      defoverridable initialize: 2, update: 2
     end
-  end
-
-  def initialize(%{selector: selector, init: init_fun}, space_data)
-      when is_function(init_fun, 1) do
-    init_fun.(space_data)
-    selector
   end
 
   def initialize(selector, _space_data) do
@@ -141,15 +133,11 @@ defmodule CPSolver.Search.VariableSelector do
     variable_choice(MostConstrained, break_even_fun)
   end
 
-
-
   def most_completed(break_even_fun \\ &Enum.random/1)
 
   def most_completed(break_even_fun) do
     variable_choice(MostCompleted, extract_strategy(break_even_fun))
   end
-
-
 
   def max_regret(break_even_fun \\ &Enum.random/1)
 
@@ -157,15 +145,11 @@ defmodule CPSolver.Search.VariableSelector do
     variable_choice(MaxRegret, break_even_fun)
   end
 
-
-
   def first_fail(break_even_fun \\ &Enum.random/1)
 
   def first_fail(break_even_fun) when is_function(break_even_fun) do
     variable_choice(FirstFail, break_even_fun)
   end
-
-
 
   def dom_deg(break_even_fun \\ &Enum.random/1)
 
@@ -173,45 +157,28 @@ defmodule CPSolver.Search.VariableSelector do
     variable_choice(DomDeg, break_even_fun)
   end
 
-
-
   def afc({afc_mode, decay}, break_even_fun \\ FirstFail)
       when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
-    make_strategy_object(
-      variable_choice(
-        fn vars, data ->
-          AFC.select(vars, data, afc_mode)
-        end,
-        break_even_fun
-      ),
-      fn data -> AFC.initialize(data, decay) end
-    )
+    variable_choice({AFC, mode: afc_mode, decay: decay}, break_even_fun)
   end
 
   def action({action_mode, decay}, break_even_fun \\ FirstFail)
       when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
-    make_strategy_object(
-      variable_choice(
-        fn vars, data ->
-          Action.select(vars, data, action_mode)
-        end,
-        break_even_fun
-      ),
-      fn data -> Action.initialize(data, decay) end
-    )
+      variable_choice({Action, mode: action_mode, decay: decay}, break_even_fun)
   end
 
   def chb(chb_mode, break_even_fun \\ FirstFail)
+
+  def chb({chb_mode, q_score}, break_even_fun)
       when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
-    make_strategy_object(
-      variable_choice(
-        fn vars, data ->
-          CHB.select(vars, data, chb_mode)
-        end,
-        break_even_fun
-      ),
-      fn data -> CHB.initialize(data) end
+    variable_choice(
+      {CHB, mode: chb_mode, q_score: q_score},
+      break_even_fun
     )
+  end
+
+  def chb(chb_mode, break_even_fun) do
+    chb({chb_mode, CHB.default_q_score()}, break_even_fun)
   end
 
   defp extract_strategy(shortcut) when is_atom(shortcut) do
@@ -220,10 +187,6 @@ defmodule CPSolver.Search.VariableSelector do
 
   defp extract_strategy(strategy) when is_function(strategy) do
     strategy
-  end
-
-  defp extract_strategy(%{selector: selector} = _shared_strategy) do
-    selector
   end
 
   def mixed(strategies) do
@@ -247,20 +210,21 @@ defmodule CPSolver.Search.VariableSelector do
     end
   end
 
-  def variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
+  def variable_choice({strategy_impl, args}, break_even_fun) when is_atom(strategy_impl) do
     impl = strategy(strategy_impl)
 
-    initialize? = function_exported?(impl, :initialize, 1)
+    initialize? = function_exported?(impl, :initialize, 2)
 
     strategy_fun = fn vars, data ->
-      initialize? && impl.initialize(data)
+      initialize? && impl.initialize(data, args)
       impl.select(vars, data)
     end
 
     variable_choice(strategy_fun, break_even_fun)
   end
 
-  defp make_strategy_object(selector, initialization) do
-    %{selector: selector, init: initialization}
+  def variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
+    variable_choice({strategy_impl, nil}, break_even_fun)
   end
+
 end

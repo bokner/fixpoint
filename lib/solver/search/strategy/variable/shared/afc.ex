@@ -10,9 +10,14 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils
 
-  def select(variables, data, afc_mode)
-      when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
-    select_impl(variables, data, afc_mode)
+  @impl true
+  def select(variables, data) do
+    select(variables, data, mode: :afc_size_min)
+  end
+
+  def select(variables, data, opts) do
+    #IO.inspect(opts[:mode], label: :afc_mode)
+    select_impl(variables, data, opts[:mode])
     |> Enum.map(fn {var, _afc} -> var end)
   end
 
@@ -49,9 +54,10 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   @doc """
   Initialize AFC
   """
-  def initialize(space_data, decay) do
+  @impl true
+  def initialize(space_data, opts) do
     shared = Space.get_shared(space_data)
-
+    decay = opts[:decay]
     Shared.get_auxillary(shared, :afc) ||
       (
         afc_table = Shared.create_shared_ets_table(shared)

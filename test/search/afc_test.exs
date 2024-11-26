@@ -13,7 +13,7 @@ defmodule CPSolverTest.Search.AFC do
       space = build_space()
       shared = Space.get_shared(space)
       decay = :rand.uniform()
-      AFC.initialize(space, decay)
+      AFC.initialize(space, decay: decay)
 
       assert decay == AFC.get_decay(shared)
 
@@ -28,7 +28,7 @@ defmodule CPSolverTest.Search.AFC do
 
     test "get AFC record for propagator" do
       space = build_space()
-      AFC.initialize(space, :rand.uniform())
+      AFC.initialize(space, decay: :rand.uniform())
       propagator_refs = Enum.map(space.propagators, fn p -> p.id end)
 
       shared = Space.get_shared(space)
@@ -42,7 +42,7 @@ defmodule CPSolverTest.Search.AFC do
       space = build_space()
       shared = Space.get_shared(space)
       decay = :rand.uniform()
-      AFC.initialize(space, decay)
+      AFC.initialize(space, decay: decay)
       [p1, p2, p3 | _rest] = Enum.map(space.propagators, fn p -> p.id end)
 
       ## Simulate propagator failure for 'p1' propagator
@@ -71,7 +71,7 @@ defmodule CPSolverTest.Search.AFC do
       shared = Space.get_shared(space)
 
       decay = :rand.uniform()
-      AFC.initialize(space, decay)
+      AFC.initialize(space, decay: decay)
       variables = space.variables
 
       ## The propagators in the space setup are:
@@ -103,7 +103,7 @@ defmodule CPSolverTest.Search.AFC do
       shared = Space.get_shared(space)
 
       decay = :rand.uniform()
-      AFC.initialize(space, decay)
+      AFC.initialize(space, decay: decay)
       variables = space.variables
 
       ## The propagators in the space setup are:

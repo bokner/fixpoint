@@ -11,9 +11,13 @@ defmodule CPSolver.Search.VariableSelector.CHB do
 
   @default_q_score 0.05
 
-  def select(variables, data, chb_mode)
-      when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
-    select_impl(variables, data, chb_mode)
+  @impl true
+  def select(variables, data) do
+    select(variables, data, mode: :chb_size_min)
+  end
+
+  def select(variables, data, opts) do
+    select_impl(variables, data, opts[:mode])
     |> Enum.map(fn {var, _chb} -> var end)
   end
 
@@ -49,16 +53,21 @@ defmodule CPSolver.Search.VariableSelector.CHB do
     )
   end
 
+  def default_q_score() do
+    @default_q_score
+  end
+
   @doc """
   Initialize CHB data
   """
-  def initialize(%{variables: variables} = space_data, q_score \\ @default_q_score) do
+  @impl true
+  def initialize(%{variables: variables} = space_data, opts) do
     shared = Space.get_shared(space_data)
 
     Shared.get_auxillary(shared, :chb) ||
       (
         chb_table = Shared.create_shared_ets_table(shared)
-        init_variable_chbs(variables, chb_table, q_score)
+        init_variable_chbs(variables, chb_table, opts[:q_score] || @default_q_score)
         Shared.put_auxillary(shared, :chb, %{variable_chbs: chb_table})
       )
   end

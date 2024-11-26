@@ -4,6 +4,7 @@ defmodule CPSolver.Search.VariableSelector.MostConstrained do
   alias CPSolver.Utils
   alias CPSolver.Propagator.ConstraintGraph
 
+  @impl true
   def select(variables, space_data) do
     get_maximals(variables, space_data)
   end

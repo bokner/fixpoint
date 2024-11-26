@@ -254,18 +254,25 @@ defmodule CPSolver.Shared do
   end
 
   defp on_finalize_space(solver, space_data, reason) do
-    maybe_update_variable_actions(solver, space_data)
-    maybe_update_variable_chbs(solver, space_data, reason)
+    solver
+    |> on_finalize_space_callbacks()
+    |> Enum.each(fn callback ->
+      callback.(solver, space_data, reason)
+    end)
   end
 
-  defp maybe_update_variable_actions(solver, %{variables: variables} = _space_data) do
-    get_auxillary(solver, :action) &&
-      Action.update_actions(variables, solver)
-  end
+  defp on_finalize_space_callbacks(_solver) do
+    [
+      fn solver, %{variables: variables} = _space_data, _reason ->
+        get_auxillary(solver, :action) &&
+        Action.update_actions(variables, solver)
+      end,
 
-  defp maybe_update_variable_chbs(solver, %{variables: variables} = _space_data, reason) do
-    get_auxillary(solver, :chb) &&
-      CHB.update_chbs(variables, reason == :failure, solver)
+      fn solver,  %{variables: variables} = _space_data, reason ->
+        get_auxillary(solver, :chb) &&
+        CHB.update_chbs(variables, reason == :failure, solver)
+      end
+    ]
   end
 
   def cleanup(solver) do
@@ -313,12 +320,20 @@ defmodule CPSolver.Shared do
   end
 
   defp on_failure(solver, failure, failure_count) do
-    maybe_update_afc(solver, failure, failure_count)
+    solver
+    |> on_failure_callbacks()
+    |> Enum.each(fn callback ->
+      callback.(solver, failure, failure_count)
+    end)
   end
 
-  defp maybe_update_afc(solver, {:fail, propagator_id} = _failure, failure_count) do
-    get_auxillary(solver, :afc) &&
-      AFC.update_afc(propagator_id, solver, true, failure_count)
+  defp on_failure_callbacks(_solver) do
+    [
+      fn solver, {:fail, propagator_id} = _failure, failure_count ->
+        get_auxillary(solver, :afc) &&
+        AFC.update_afc(propagator_id, solver, true, failure_count)
+      end
+    ]
   end
 
   def get_failure_count(solver) do
