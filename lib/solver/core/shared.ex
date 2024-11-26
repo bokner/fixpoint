@@ -2,8 +2,6 @@ defmodule CPSolver.Shared do
   alias CPSolver.Objective
   alias CPSolver.Variable.Interface
   alias CPSolver.Distributed
-  ## 'shared' search strategies
-  alias CPSolver.Search.VariableSelector.{Action, AFC, CHB}
 
   def init_shared_data(opts) do
     distributed = Keyword.get(opts, :distributed, false)
@@ -208,6 +206,42 @@ defmodule CPSolver.Shared do
     :ok
   end
 
+  def add_handler(
+    solver,
+    handler_id,
+    handler_fun
+  ) do
+(on_primary_node?(solver) &&
+   add_handler_impl(solver, handler_id, handler_fun)) ||
+  distributed_call(solver, :add_handler_impl, [handler_id, handler_fun])
+end
+
+  def add_handler_impl(solver, :on_space_finalized, handler) when is_function(handler, 3) do
+    update_handlers(solver, :on_space_finalized, handler)
+  end
+
+  def add_handler_impl(solver, :on_failure, handler) when is_function(handler, 3) do
+    update_handlers(solver, :on_failure, handler)
+  end
+
+  defp update_handlers(solver, handler_id, handler) do
+    updated = case get_auxillary(solver, handler_id) do
+      handlers when is_list(handlers) ->
+        if handler in handlers do
+          handlers
+        else
+          [handler | handlers]
+        end
+      _ -> List.wrap(handler)
+
+    end
+    put_auxillary(solver, handler_id, updated)
+  end
+
+  defp get_handlers(solver, handler_id) do
+    get_auxillary(solver, handler_id) || []
+  end
+
   def add_active_spaces(
         solver,
         spaces
@@ -261,18 +295,8 @@ defmodule CPSolver.Shared do
     end)
   end
 
-  defp on_finalize_space_callbacks(_solver) do
-    [
-      fn solver, %{variables: variables} = _space_data, _reason ->
-        get_auxillary(solver, :action) &&
-        Action.update_actions(variables, solver)
-      end,
-
-      fn solver,  %{variables: variables} = _space_data, reason ->
-        get_auxillary(solver, :chb) &&
-        CHB.update_chbs(variables, reason == :failure, solver)
-      end
-    ]
+  defp on_finalize_space_callbacks(solver) do
+    get_handlers(solver, :on_space_finalized)
   end
 
   def cleanup(solver) do
@@ -327,13 +351,8 @@ defmodule CPSolver.Shared do
     end)
   end
 
-  defp on_failure_callbacks(_solver) do
-    [
-      fn solver, {:fail, propagator_id} = _failure, failure_count ->
-        get_auxillary(solver, :afc) &&
-        AFC.update_afc(propagator_id, solver, true, failure_count)
-      end
-    ]
+  defp on_failure_callbacks(solver) do
+    get_handlers(solver, :on_failure)
   end
 
   def get_failure_count(solver) do

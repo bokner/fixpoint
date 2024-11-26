@@ -69,7 +69,12 @@ defmodule CPSolver.Search.VariableSelector.CHB do
         chb_table = Shared.create_shared_ets_table(shared)
         init_variable_chbs(variables, chb_table, opts[:q_score] || @default_q_score)
         Shared.put_auxillary(shared, :chb, %{variable_chbs: chb_table})
+        Shared.add_handler(shared, :on_space_finalized,
+        fn solver,  %{variables: variables} = _space_data, reason ->
+          update_chbs(variables, reason == :failure, solver)
+        end)
       )
+
   end
 
   defp init_variable_chbs(variables, chb_table, q_score) do

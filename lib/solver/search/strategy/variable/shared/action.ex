@@ -63,6 +63,8 @@ defmodule CPSolver.Search.VariableSelector.Action do
         action_table = Shared.create_shared_ets_table(shared)
         init_variable_actions(variables, action_table)
         Shared.put_auxillary(shared, :action, %{variable_actions: action_table, decay: opts[:decay]})
+        Shared.add_handler(shared, :on_space_finalized,
+        fn variables, shared, _reason -> update_actions(variables, shared) end)
       )
   end
 
