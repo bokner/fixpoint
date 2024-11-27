@@ -11,10 +11,6 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   alias CPSolver.Utils
 
   @impl true
-  def select(variables, data) do
-    select(variables, data, mode: :afc_size_min)
-  end
-
   def select(variables, data, opts) do
     #IO.inspect(opts[:mode], label: :afc_mode)
     select_impl(variables, data, opts[:mode])

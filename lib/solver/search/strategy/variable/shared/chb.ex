@@ -12,10 +12,6 @@ defmodule CPSolver.Search.VariableSelector.CHB do
   @default_q_score 0.05
 
   @impl true
-  def select(variables, data) do
-    select(variables, data, mode: :chb_size_min)
-  end
-
   def select(variables, data, opts) do
     select_impl(variables, data, opts[:mode])
     |> Enum.map(fn {var, _chb} -> var end)

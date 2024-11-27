@@ -1,7 +1,7 @@
 defmodule CPSolver.Search.VariableSelector do
   @callback initialize(map(), any()) :: :ok
   @callback update(map(), Keyword.t()) :: :ok
-  @callback select([Variable.t()], any()) :: Variable.t() | nil
+  @callback select([Variable.t()], map(), any()) :: Variable.t() | nil
 
   alias CPSolver.Variable.Interface
 
@@ -116,7 +116,7 @@ defmodule CPSolver.Search.VariableSelector do
   end
 
   def strategy(impl) when is_atom(impl) do
-    if Code.ensure_loaded(impl) == {:module, impl} && function_exported?(impl, :select, 2) do
+    if Code.ensure_loaded(impl) == {:module, impl} && function_exported?(impl, :select, 3) do
       impl
     else
       throw({:unknown_strategy, impl})
@@ -217,7 +217,7 @@ defmodule CPSolver.Search.VariableSelector do
 
     strategy_fun = fn vars, data ->
       initialize? && impl.initialize(data, args)
-      impl.select(vars, data)
+      impl.select(vars, data, args)
     end
 
     variable_choice(strategy_fun, break_even_fun)

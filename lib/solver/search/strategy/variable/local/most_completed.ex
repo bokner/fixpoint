@@ -3,7 +3,7 @@ defmodule CPSolver.Search.VariableSelector.MostCompleted do
   alias CPSolver.Propagator.ConstraintGraph
 
   @impl true
-  def select(_variables, space_data) do
+  def select(_variables, space_data, _opts) do
     most_completed_propagators_selection(space_data[:constraint_graph])
   end
 

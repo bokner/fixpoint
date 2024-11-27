@@ -5,7 +5,7 @@ defmodule CPSolver.Search.VariableSelector.MaxRegret do
   ## Choose the variable(s) with largest difference
   ## between the two smallest values in its domain.
   @impl true
-  def select(variables, space_data) do
+  def select(variables, space_data, _opts) do
     largest_difference(variables, space_data)
   end
 

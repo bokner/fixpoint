@@ -5,7 +5,7 @@ defmodule CPSolver.Search.VariableSelector.DomDeg do
   alias CPSolver.Utils
 
   @impl true
-  def select(variables, space_data) do
+  def select(variables, space_data, _opts) do
     smallest_ratio(variables, space_data)
   end
 

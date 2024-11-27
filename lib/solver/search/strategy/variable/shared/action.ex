@@ -12,10 +12,6 @@ defmodule CPSolver.Search.VariableSelector.Action do
   @default_action_value 1
 
   @impl true
-  def select(variables, data) do
-    select(variables, data, mode: :action_size_min)
-  end
-
   def select(variables, data, opts) do
     select_impl(variables, data, opts[:mode])
     |> Enum.map(fn {var, _action} -> var end)

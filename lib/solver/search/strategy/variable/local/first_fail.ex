@@ -3,7 +3,7 @@ defmodule CPSolver.Search.VariableSelector.FirstFail do
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils
 
-  def select(variables, _data \\ %{}) do
+  def select(variables, _data \\ %{}, _opts) do
     get_minimals(variables)
   end
 
