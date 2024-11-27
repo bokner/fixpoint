@@ -1,6 +1,6 @@
 defmodule CPSolver.SatSolver.VariableSelector.DLIS do
   @moduledoc """
-  Dynamic Largest Individual Sum
+  Dynamic Largest Individual Sum.
 
   For a given variable x:
 – C(x,p) – # of unresolved clauses in which x appears positively
@@ -13,7 +13,7 @@ defmodule CPSolver.SatSolver.VariableSelector.DLIS do
   use CPSolver.Search.VariableSelector
 
   @impl true
-  def select(variables, space_data, _opts) do
-
+  def select(_variables, _space_data, _opts) do
+    :todo
   end
 end
