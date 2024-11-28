@@ -10,11 +10,10 @@ defmodule CPSolverTest.SpacePropagation do
     %{
       propagators: _propagators,
       variables: [x, y, z] = _variables,
-      constraint_graph: graph,
-      store: store
+      constraint_graph: graph
     } = stable_setup()
 
-    :solved = Propagation.run(graph, store)
+    :solved = Propagation.run(graph, %{})
 
     assert Variable.fixed?(x) && Variable.fixed?(z)
     ## Check not_equal(x, z)
@@ -28,17 +27,17 @@ defmodule CPSolverTest.SpacePropagation do
   end
 
   test "Propagation on solvable space" do
-    %{variables: variables, constraint_graph: graph, store: store} =
+    %{variables: variables, constraint_graph: graph} =
       solved_setup()
 
     refute Enum.all?(variables, fn var -> Variable.fixed?(var) end)
-    assert :solved == Propagation.run(graph, store)
+    assert :solved == Propagation.run(graph, %{})
     assert Enum.all?(variables, fn var -> Variable.fixed?(var) end)
   end
 
   test "Propagation on failed space" do
-    %{constraint_graph: graph, store: store} = fail_setup()
-    assert {:fail, _propagator_id} = Propagation.run(graph, store)
+    %{constraint_graph: graph} = fail_setup()
+    assert {:fail, _propagator_id} = Propagation.run(graph, %{})
   end
 
   defp stable_setup() do

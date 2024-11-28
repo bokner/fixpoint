@@ -4,6 +4,7 @@ defmodule CPSolverTest.Constraint.Or do
   alias CPSolver.BooleanVariable
   alias CPSolver.Model
   alias CPSolver.Constraint.Or
+  import CPSolver.Variable.View.Factory
 
   describe "Or constraint" do
     test "`or` functionality" do
@@ -28,6 +29,17 @@ defmodule CPSolverTest.Constraint.Or do
       {:ok, result} = CPSolver.solve(model)
 
       assert result.status == :unsatisfiable
+    end
+
+    test "with negation vars" do
+      x = BooleanVariable.new(name: "x")
+      not_y = negation(BooleanVariable.new(name: "y"))
+      vars = [x, not_y]
+      or_constraint = Or.new(vars)
+      model = Model.new(vars, [or_constraint])
+
+      {:ok, result} = CPSolver.solve(model)
+      assert [0, 0] in result.solutions
     end
 
     test "peformance" do

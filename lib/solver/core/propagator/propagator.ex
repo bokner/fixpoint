@@ -288,6 +288,10 @@ defmodule CPSolver.Propagator do
     Arrays.get(args, pos)
   end
 
+  def arg_map(%{args: args} = _propagator, mapper) do
+    arg_map(args, mapper)
+  end
+
   def arg_map(args, mapper) when is_function(mapper) and is_list(args) do
     Enum.map(args, mapper)
   end

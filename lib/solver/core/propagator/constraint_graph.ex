@@ -44,7 +44,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         constraint_graph,
         variable_id,
         domain_change
-      ) do
+      ) when is_atom(domain_change) do
     propagators_by_variable(constraint_graph, variable_id, fn p_id, propagator_variable_edge ->
       domain_change in propagator_variable_edge.propagate_on &&
         get_propagator_data(

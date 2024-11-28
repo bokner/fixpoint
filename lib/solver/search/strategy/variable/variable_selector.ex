@@ -202,6 +202,8 @@ defmodule CPSolver.Search.VariableSelector do
     break_even_fun.(selection, data)
   end
 
+  def variable_choice(strategy_fun, break_even_fun \\ &Enum.random/1)
+
   def variable_choice(strategy_fun, break_even_fun) when is_function(strategy_fun) do
     fn vars, data ->
       vars
