@@ -33,7 +33,7 @@ defmodule CPSolver.Test.Helpers do
 
     graph = ConstraintGraph.create(propagators)
 
-    {updated_graph, _bound_propagators} = ConstraintGraph.update(graph, bound_vars)
+    updated_graph = ConstraintGraph.update(graph, bound_vars)
 
     %{
       propagators: propagators,

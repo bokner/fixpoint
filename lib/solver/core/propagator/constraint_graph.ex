@@ -186,31 +186,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   ### Stop notifications from fixed variables and update propagators with variable domains.
   ### Returns updated graph and a list of propagators bound to variable domains
   def update(graph, vars) do
-    {updated_var_graph, propagators} =
-      Enum.reduce(vars, {graph, MapSet.new()}, fn %{id: var_id} = v,
-                                                  {graph_acc, propagators_acc} ->
-        {update_variable(graph_acc, var_id, v),
-         MapSet.union(
-           propagators_acc,
-           MapSet.new(
-             Map.keys(propagators_by_variable(graph, Interface.id(v), fn _p_id, edge -> edge end))
-           )
-         )}
+      Enum.reduce(vars, graph,
+        fn %{id: var_id} = v, graph_acc ->
+        update_variable(graph_acc, var_id, v)
       end)
-
-    ## Update domains
-    propagators
-    |> Enum.reduce({updated_var_graph, []}, fn p_id, {graph_acc, p_acc} ->
-      graph_acc
-      |> get_propagator(p_id)
-      |> Propagator.bind(updated_var_graph, :domain)
-      |> then(fn bound_p ->
-        {
-          update_propagator(graph_acc, p_id, bound_p),
-          [bound_p | p_acc]
-        }
-      end)
-    end)
   end
 
   def remove_vertex(graph, vertex) do
@@ -230,14 +209,12 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   defp get_label(graph, vertex) when elem(graph, 0) == :digraph do
-    #IO.inspect(vertex, label: :vertex)
     {_vertex, label} = Digraph.vertex(graph, vertex)
     case label do
       [] -> nil
       [p] -> p
       _ -> label
     end
-    #|> IO.inspect(label: :propagator)
   end
 
   defp in_degree(%Graph{} = graph, vertex) do

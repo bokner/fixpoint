@@ -79,15 +79,17 @@ defmodule CPSolver.Space.Propagation do
     |> reorder()
     |> Enum.reduce_while(
       {MapSet.new(), graph, Map.new()},
-      fn {p_id, nil}, {scheduled_acc, g_acc, changes_acc} ->
-        {:cont, {unschedule(scheduled_acc, p_id), g_acc, changes_acc}}
+      fn
         {p_id, p}, {scheduled_acc, g_acc, changes_acc} = _acc ->
+        reset? = opts[:reset?]
 
+        p = reset? && Propagator.bind(p, g_acc, :domain) || p
+        g_acc = ConstraintGraph.update_propagator(g_acc, p_id, p)
         res =
           Propagator.filter(p,
-            reset?: opts[:reset?],
+            reset?: reset?,
             changes: Map.get(propagator_changes, p_id),
-            constraint_graph: graph
+            constraint_graph: g_acc
           )
 
         case res do

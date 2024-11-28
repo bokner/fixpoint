@@ -165,19 +165,13 @@ defmodule CPSolver.Space do
         space: self()
       )
 
-    {constraint_graph, bound_propagators} =
-      graph
-      # |> apply_branch_constraint(space_opts[:branch_constraint])
-      |> ConstraintGraph.update(space_variables)
-
     space_data =
       data
       |> Map.put(:id, make_ref())
       |> Map.put(:variables, space_variables)
       |> Map.put(:store, store)
-      |> Map.put(:constraint_graph, constraint_graph)
+      |> Map.put(:constraint_graph, ConstraintGraph.update(graph, space_variables))
       |> Map.put(:objective, update_objective(space_opts[:objective], space_variables))
-      |> Map.put(:propagators, bound_propagators)
       |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
 
     (space_opts[:postpone] &&
@@ -302,7 +296,8 @@ defmodule CPSolver.Space do
 
   def checkpoint(propagators, constraint_graph) do
     Enum.reduce_while(propagators, :ok, fn p, acc ->
-      case Propagator.filter(p, reset: false, constraint_graph: constraint_graph) do
+      bound_p = Propagator.bind(p, constraint_graph, :domain)
+      case Propagator.filter(bound_p, reset: false, constraint_graph: constraint_graph) do
         :fail -> {:halt, {:fail, p.id}}
         _ -> {:cont, acc}
       end

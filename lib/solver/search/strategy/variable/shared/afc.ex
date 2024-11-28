@@ -12,7 +12,6 @@ defmodule CPSolver.Search.VariableSelector.AFC do
 
   @impl true
   def select(variables, data, opts) do
-    #IO.inspect(opts[:mode], label: :afc_mode)
     select_impl(variables, data, opts[:mode])
     |> Enum.map(fn {var, _afc} -> var end)
   end
