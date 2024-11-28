@@ -10,6 +10,7 @@ defmodule CPSolver.Space.Propagation do
 
   def run(%Graph{} = constraint_graph, changes, digraph?) do
     constraint_graph
+    |> remove_fixed_variables(changes)
     |> get_propagators()
     |> then(fn propagators ->
       c_graph = digraph? && Digraph.from_libgraph(constraint_graph) || constraint_graph
