@@ -252,12 +252,8 @@ defmodule CPSolver.Propagator do
     const
   end
 
-  defp get_variable(%Graph{} = constraint_graph, var_id) do
+  defp get_variable(constraint_graph, var_id) do
     ConstraintGraph.get_variable(constraint_graph, var_id)
-  end
-
-  defp get_variable(variable_source, var_id) when is_map(variable_source) do
-    Map.get(variable_source, var_id)
   end
 
   defp copy_variable(%Variable{domain: domain} = var) do
