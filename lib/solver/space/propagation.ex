@@ -10,7 +10,6 @@ defmodule CPSolver.Space.Propagation do
 
   def run(%Graph{} = constraint_graph, changes, digraph?) do
     constraint_graph
-    |> remove_fixed_variables(changes)
     |> get_propagators()
     |> then(fn propagators ->
       c_graph = digraph? && Digraph.from_libgraph(constraint_graph) || constraint_graph
@@ -42,8 +41,11 @@ defmodule CPSolver.Space.Propagation do
         {:fail, propagator_id}
 
       {scheduled_propagators, reduced_graph, new_domain_changes} ->
-        (MapSet.size(scheduled_propagators) == 0 && reduced_graph) ||
+        if MapSet.size(scheduled_propagators) == 0 do
+           reduced_graph
+        else
           run_impl(scheduled_propagators, reduced_graph, new_domain_changes, reset?: false)
+        end
     end
   end
 

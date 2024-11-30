@@ -17,12 +17,12 @@ defmodule CPSolver.Propagator.Sum do
   end
 
   defp initial_state(args) do
-    {sum_fixed, unfixed_vars} =
+    {_idx, sum_fixed, unfixed_vars} =
       args
-      |> Enum.with_index()
-      |> Enum.reduce({0, MapSet.new()}, fn {var, idx}, {sum_acc, unfixed_acc} ->
-        (fixed?(var) && {sum_acc + min(var), unfixed_acc}) ||
-          {sum_acc, MapSet.put(unfixed_acc, idx)}
+      |> Enum.reduce({0, 0, MapSet.new()}, fn var, {idx_acc, sum_acc, unfixed_acc} ->
+        next_idx = idx_acc + 1
+        (fixed?(var) && {next_idx, sum_acc + min(var), unfixed_acc}) ||
+          {next_idx, sum_acc, MapSet.put(unfixed_acc, idx_acc)}
       end)
 
     %{sum_fixed: sum_fixed, unfixed_ids: unfixed_vars}
