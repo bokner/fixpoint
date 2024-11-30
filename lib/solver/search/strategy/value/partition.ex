@@ -86,7 +86,7 @@ defmodule CPSolver.Search.Partition do
            # NotEqual.new(variable, value)
          }
        ]
-    rescue
+      catch
       :fail ->
         Logger.error(
           "Failure on partitioning with value #{inspect(value)}, domain: #{inspect(CPSolver.BitVectorDomain.raw(domain))}"

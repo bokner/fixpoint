@@ -12,9 +12,11 @@ defmodule CPSolver.Space.Propagation do
     constraint_graph
     |> get_propagators()
     |> then(fn propagators ->
-      c_graph = digraph? && Digraph.from_libgraph(constraint_graph) || constraint_graph
-      run_impl(propagators,
-      c_graph,
+      c_graph = (digraph? && Digraph.from_libgraph(constraint_graph)) || constraint_graph
+
+      run_impl(
+        propagators,
+        c_graph,
         propagator_changes(c_graph, changes),
         reset?: true
       )
@@ -42,7 +44,7 @@ defmodule CPSolver.Space.Propagation do
 
       {scheduled_propagators, reduced_graph, new_domain_changes} ->
         if MapSet.size(scheduled_propagators) == 0 do
-           reduced_graph
+          reduced_graph
         else
           run_impl(scheduled_propagators, reduced_graph, new_domain_changes, reset?: false)
         end
@@ -83,46 +85,47 @@ defmodule CPSolver.Space.Propagation do
       {MapSet.new(), graph, Map.new()},
       fn
         {p_id, p}, {scheduled_acc, g_acc, changes_acc} = _acc ->
-        reset? = opts[:reset?]
+          reset? = opts[:reset?]
 
-        p = reset? && Propagator.bind(p, g_acc, :domain) || p
-        g_acc = ConstraintGraph.update_propagator(g_acc, p_id, p)
-        res =
-          Propagator.filter(p,
-            reset?: reset?,
-            changes: Map.get(propagator_changes, p_id),
-            constraint_graph: g_acc
-          )
+          p = (reset? && Propagator.bind(p, g_acc, :domain)) || p
+          g_acc = ConstraintGraph.update_propagator(g_acc, p_id, p)
 
-        case res do
-          {:filter_error, error} ->
-            throw({:error, {:filter_error, error}})
+          res =
+            Propagator.filter(p,
+              reset?: reset?,
+              changes: Map.get(propagator_changes, p_id),
+              constraint_graph: g_acc
+            )
 
-          :fail ->
-            {:halt, {:fail, p_id}}
+          case res do
+            {:filter_error, error} ->
+              throw({:error, {:filter_error, error}})
 
-          :stable ->
-            {:cont, {unschedule(scheduled_acc, p_id), g_acc, changes_acc}}
+            :fail ->
+              {:halt, {:fail, p_id}}
 
-          %{changes: no_changes, active?: active?} when no_changes in [nil, %{}] ->
-            {:cont,
-             {unschedule(scheduled_acc, p_id), maybe_remove_propagator(g_acc, p_id, active?),
-              changes_acc}}
+            :stable ->
+              {:cont, {unschedule(scheduled_acc, p_id), g_acc, changes_acc}}
 
-          %{changes: new_changes, active?: active?, state: state} ->
-            {updated_graph, updated_scheduled, updated_changes} =
-              update_schedule(
-                scheduled_acc,
-                changes_acc,
-                new_changes,
-                maybe_remove_propagator(g_acc, p_id, active?)
-              )
+            %{changes: no_changes, active?: active?} when no_changes in [nil, %{}] ->
+              {:cont,
+               {unschedule(scheduled_acc, p_id), maybe_remove_propagator(g_acc, p_id, active?),
+                changes_acc}}
 
-            {:cont,
-             {updated_scheduled |> unschedule(p_id),
-              ConstraintGraph.update_propagator(updated_graph, p_id, Map.put(p, :state, state)),
-              updated_changes}}
-        end
+            %{changes: new_changes, active?: active?, state: state} ->
+              {updated_graph, updated_scheduled, updated_changes} =
+                update_schedule(
+                  scheduled_acc,
+                  changes_acc,
+                  new_changes,
+                  maybe_remove_propagator(g_acc, p_id, active?)
+                )
+
+              {:cont,
+               {updated_scheduled |> unschedule(p_id),
+                ConstraintGraph.update_propagator(updated_graph, p_id, Map.put(p, :state, state)),
+                updated_changes}}
+          end
       end
     )
   end

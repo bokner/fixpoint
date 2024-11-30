@@ -296,10 +296,10 @@ defmodule CPSolver.Space do
 
   def checkpoint(propagators, constraint_graph) do
     Enum.reduce_while(propagators, :ok, fn p, acc ->
-      if Graph.degree(constraint_graph, {:propagator, p.id}) > 0 do
+      if ConstraintGraph.propagator_degree(constraint_graph, p.id) > 0 do
         bound_p = Propagator.bind(p, constraint_graph, :domain)
 
-        case Propagator.filter(bound_p, reset: false, constraint_graph: constraint_graph) do
+        case Propagator.filter(bound_p, constraint_graph: constraint_graph) do
           :fail -> {:halt, {:fail, p.id}}
           _ -> {:cont, acc}
         end
@@ -322,18 +322,23 @@ defmodule CPSolver.Space do
           search: search
         } = data
       ) do
-    branches = Search.branch(variables, search, data)
+    try do
+      branches = Search.branch(variables, search, data)
 
-    Enum.take_while(branches, fn {branch_variables, constraint} ->
-      !CPSolver.complete?(get_shared(data)) &&
-        spawn_space(
-          data
-          |> Map.put(:variables, branch_variables)
-          |> put_in([:opts, :branch_constraint], constraint)
-        )
-    end)
+      Enum.take_while(branches, fn {branch_variables, constraint} ->
+        !CPSolver.complete?(get_shared(data)) &&
+          spawn_space(
+            data
+            |> Map.put(:variables, branch_variables)
+            |> put_in([:opts, :branch_constraint], constraint)
+          )
+      end)
 
-    shutdown(data, :distribute)
+      shutdown(data, :distribute)
+    catch
+      :all_vars_fixed ->
+        handle_solved(data)
+    end
   end
 
   defp shutdown(data, reason) do
