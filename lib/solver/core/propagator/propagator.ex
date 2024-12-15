@@ -104,11 +104,7 @@ defmodule CPSolver.Propagator do
   end
 
   def variables(%{mod: mod, args: args} = _propagator) do
-    mod_variables = mod.variables(Enum.to_list(args))
-
-    mod_variables
-    |> Enum.with_index()
-    |> Enum.map(fn {var, idx} -> Map.put(var, :arg_position, idx) end)
+    mod.variables(Enum.to_list(args))
   end
 
   def reset(%{mod: mod, args: args} = propagator, opts \\ []) do
