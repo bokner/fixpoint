@@ -86,8 +86,7 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   def to_list(
-        {{:bit_vector, ref} = bit_vector, offset} = domain,
-        value_mapper_fun \\ &Function.identity/1
+        domain, value_mapper_fun \\ &Function.identity/1
       ) do
         reduce(domain, value_mapper_fun, &MapSet.union/2, MapSet.new())
   end
