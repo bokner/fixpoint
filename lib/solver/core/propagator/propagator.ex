@@ -108,7 +108,11 @@ defmodule CPSolver.Propagator do
   end
 
   def reset(%{mod: mod, args: args} = propagator, opts \\ []) do
-    Map.put(propagator, :state, mod.reset(args, Map.get(propagator, :state), opts))
+    update_state(propagator, mod.reset(args, Map.get(propagator, :state), opts))
+  end
+
+  def update_state(propagator, state) do
+    Map.put(propagator, :state, state)
   end
 
   def bind(%{mod: mod} = propagator, source, var_field \\ :domain) do
