@@ -54,11 +54,10 @@ defmodule CPSolver.Propagator.ElementVar do
   def filter([var_array, var_index, var_value] = args, state, changes) do
     new_state = state || %{var_index_position: Arrays.size(var_array)}
 
-    res =
-      (state && filter_impl(var_array, var_index, var_value, new_state, changes)) ||
-        initial_reduction(var_array, var_index, var_value, new_state, changes)
+    (state && filter_impl(var_array, var_index, var_value, new_state, changes)) ||
+      initial_reduction(var_array, var_index, var_value, new_state, changes)
 
-    passive?(args) && :passive || {:state, new_state}
+    (passive?(args) && :passive) || {:state, new_state}
   end
 
   defp filter_impl(
@@ -92,7 +91,8 @@ defmodule CPSolver.Propagator.ElementVar do
           elem_var ->
             value_elem_intersection = reduce_element_domain(value_domain, elem_var)
 
-            (MapSet.size(value_elem_intersection) == 0 && remove(var_index, idx) && intersection_acc) ||
+            (MapSet.size(value_elem_intersection) == 0 && remove(var_index, idx) &&
+               intersection_acc) ||
               MapSet.union(value_elem_intersection, intersection_acc)
         end
       end)
@@ -112,14 +112,16 @@ defmodule CPSolver.Propagator.ElementVar do
   defp reduce_element_domain(value_domain, element_var) do
     element_domain = domain_values(element_var)
     values_to_remove = MapSet.difference(value_domain, element_domain)
-    updated_element_domain = if MapSet.size(values_to_remove) == 0 do
-      element_domain
-    else
-      Enum.reduce(values_to_remove, element_domain, fn val, domain_acc ->
-        remove(element_var, val)
-        MapSet.delete(domain_acc, val)
-      end)
-    end
+
+    updated_element_domain =
+      if MapSet.size(values_to_remove) == 0 do
+        element_domain
+      else
+        Enum.reduce(values_to_remove, element_domain, fn val, domain_acc ->
+          remove(element_var, val)
+          MapSet.delete(domain_acc, val)
+        end)
+      end
 
     MapSet.intersection(updated_element_domain, value_domain)
   end
