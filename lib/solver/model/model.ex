@@ -16,7 +16,14 @@ defmodule CPSolver.Model do
         }
 
   def new(variables, constraints, opts \\ []) do
-    constraints = normalize_constraints(constraints)
+    constraints =
+    normalize_constraints(constraints)
+    # TODO:
+    # consider posting constraints and/or building constraint graph/list of propagators here
+    ## For instance:
+    # tap(fn constraints -> Enum.each(constraints, fn c -> Constraint.post(c) end) end)
+    #
+
     {all_variables, objective} = init_model(variables, constraints, opts[:objective])
 
     %__MODULE__{

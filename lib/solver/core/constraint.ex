@@ -29,18 +29,28 @@ defmodule CPSolver.Constraint do
       {constraint_impl, args}
   end
 
-  def constraint_to_propagators({constraint_mod, args}) when is_list(args) do
-    constraint_mod.propagators(args)
+  def constraint_to_propagators(constraint, reducer_fun \\ &Function.identity/1)
+
+  def constraint_to_propagators({constraint_mod, args}, reducer_fun) when is_list(args) do
+    List.foldr(constraint_mod.propagators(args), [], fn p, plist_acc ->
+      [reducer_fun.(p) | plist_acc]
+    end)
   end
 
-  def constraint_to_propagators(constraint) when is_tuple(constraint) do
+  def constraint_to_propagators(constraint, reducer_fun) when is_tuple(constraint) do
     [constraint_mod | args] = Tuple.to_list(constraint)
-    constraint_to_propagators({constraint_mod, args})
+    constraint_to_propagators({constraint_mod, args}, reducer_fun)
   end
 
   def post(constraint) when is_tuple(constraint) do
-    propagators = constraint_to_propagators(constraint)
-    Enum.map(propagators, fn p -> Propagator.filter(p) end)
+    constraint_to_propagators(constraint,
+    fn p ->
+      case Propagator.filter(p) do
+           :fail -> throw({:fail, p.id})
+           %{state: state} -> Propagator.update_state(p, state)
+           _ -> p
+      end
+    end)
   end
 
   def extract_variables(constraint) do

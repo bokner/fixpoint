@@ -27,7 +27,7 @@ defmodule CPSolverTest.Constraint.LessOrEqual do
       assert Enum.all?(res.solutions, fn [x_val, _] -> x_val <= upper_bound end)
     end
 
-    test "Less" do
+    test "Less (inconsistent)" do
       x = Variable.new(1)
       y = Variable.new(1)
       less_constraint = Less.new(x, y)

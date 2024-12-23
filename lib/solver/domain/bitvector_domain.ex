@@ -59,36 +59,36 @@ defmodule CPSolver.BitVectorDomain do
     to_list(domain, mapper_fun)
   end
 
-  def to_list(
-        {{:bit_vector, ref} = bit_vector, offset} = domain,
-        mapper_fun \\ &Function.identity/1
-      ) do
+  ## Reduce over domain values
+  def reduce( {{:bit_vector, ref} = bit_vector, offset} = domain, value_mapper_fun, reduce_fun \\ &MapSet.union/2, acc_init \\ MapSet.new()) do
     %{
       min_addr: %{block: current_min_block, offset: _min_offset},
       max_addr: %{block: current_max_block, offset: _max_offset}
     } = get_bound_addrs(bit_vector)
 
-    mapped_lb = mapper_fun.(min(domain))
-    mapped_ub = mapper_fun.(max(domain))
+    mapped_lb = value_mapper_fun.(min(domain))
+    mapped_ub = value_mapper_fun.(max(domain))
 
-    ## Note: this will only work for monotonic mapper functions.
-    ## We don't have non-monotonic mappers for the moment.
-    ##
-    ## Adjust bounds
     {lb, ub} = (mapped_lb <= mapped_ub && {mapped_lb, mapped_ub}) || {mapped_ub, mapped_lb}
 
-    Enum.reduce(current_min_block..current_max_block, MapSet.new(), fn idx, acc ->
+    Enum.reduce(current_min_block..current_max_block, acc_init, fn idx, acc ->
       n = :atomics.get(ref, idx)
 
       if n == 0 do
         acc
       else
-        MapSet.union(
+        reduce_fun.(
           acc,
-          bit_positions(n, fn val -> {lb, ub, mapper_fun.(val + 64 * (idx - 1) - offset)} end)
+          bit_positions(n, fn val -> {lb, ub, value_mapper_fun.(val + 64 * (idx - 1) - offset)} end)
         )
       end
     end)
+  end
+
+  def to_list(
+        domain, value_mapper_fun \\ &Function.identity/1
+      ) do
+        reduce(domain, value_mapper_fun, &MapSet.union/2, MapSet.new())
   end
 
   def fixed?({bit_vector, _offset} = _domain) do
