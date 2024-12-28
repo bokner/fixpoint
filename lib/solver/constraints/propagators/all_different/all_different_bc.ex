@@ -1,6 +1,8 @@
 defmodule CPSolver.Propagator.AllDifferent.BC do
   use CPSolver.Propagator
 
+  alias CPSolver.Utils
+
   @moduledoc """
   A fast and simple algorithm for bounds consistency of the alldifferent constraint
     (L´opez et al., 2003)
@@ -26,55 +28,123 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
   end
 
   def initial_state(vars) do
-    ## Create a list of bounds.
-    ## First, create a list L of unique values over all min(v), max(v) + 1, s.t. v is in vars
-    ## Prepend resulting list with min(L) - 2
-    ## Append max(L) + 2
-    {mins, maxes, bounds} =
-      Enum.reduce(
-        vars,
-        {Arrays.new(), Arrays.new(), MapSet.new()},
-        fn var, {mins_acc, maxes_acc, bounds_acc} ->
-          min_v = min(var)
-          max_v = max(var)
-          bounds_acc = MapSet.put(bounds_acc, min_v) |> MapSet.put(max_v + 1)
+    n = Arrays.size(vars)
+    tree = make_array(2*n + 2)
+    diffs = make_array(2*n + 2)
+    hall = make_array(2*n + 2)
+    bounds = make_array(2*n + 2)
+    minrank = make_array(n)
+    maxrank = make_array(n)
 
-          {
-            Arrays.append(mins_acc, min_v),
-            Arrays.append(maxes_acc, max_v),
-            bounds_acc
-          }
+    {_idx, intervals} = Enum.reduce(vars, {0, []},
+    fn var, {idx, interval_acc} ->
+      {
+        idx + 1,
+        [%{idx: idx, min: Interface.min(var), max: Interface.max(var), minrank: 0, maxrank: 0} | interval_acc],
+      }
+    end)
+
+    minsorted =
+      intervals
+      |> Enum.sort_by(fn %{min: min} -> min end)
+      |> Arrays.new()
+
+    maxsorted =
+      intervals
+      |> Enum.sort_by(fn %{max: max} -> max end)
+      |> Arrays.new()
+
+    last_min = minsorted[0].min
+    last_max = maxsorted[0].max + 1
+    last_bound = last_min - 2
+
+    last_min_idx = 0
+    last_max_idx = 0
+    last_bound_idx = 0
+
+
+    array_update(bounds, 0, last_bound)
+
+    res = Enum.reduce(1..2*n, %{
+      last_min: last_min,
+      last_max: last_max,
+      last_bound: last_bound,
+      last_min_idx: last_min_idx,
+      last_max_idx: last_max_idx,
+      last_bound_idx: last_bound_idx},
+    fn _idx, %{
+      last_min: last_min,
+      last_max: last_max,
+      last_bound: last_bound,
+      last_min_idx: last_min_idx,
+      last_max_idx: last_max_idx,
+      last_bound_idx: last_bound_idx} = acc ->
+      cond do
+        last_min_idx < n && last_min <= last_max ->
+          ## LB values first
+          acc = if last_min > last_bound do
+            ## Record new bounds value and advance bounds index
+            acc
+            |> Map.put(:last_bound, last_min)
+            |> Map.put(:last_bound_idx, acc.last_bound_idx + 1)
+            |> tap(fn acc_ -> array_update(bounds, acc_.last_bound_idx, acc_.last_bound) end)
+          else
+            acc
+          end
+          ## Update minrank
+          ## minsorted[]
+          ## update_in(minsorted_acc[acc.last_min_idx], [:minrank], fn _ -> acc.last_bound_idx end)
+          array_update(minrank, minsorted[acc.last_min_idx].idx, acc.last_bound_idx)
+          ## Advance last min idx and record new last min value
+          acc = Map.put(acc, :last_min_idx, last_min_idx + 1)
+          if acc.last_min_idx < n do
+            Map.put(acc, :last_min, minsorted[acc.last_min_idx].min)
+          else
+            acc
+          end
+
+        true ->
+          ## Switch to UB values
+          acc = if last_max > last_bound do
+          ## Record new bounds value and advance bounds index
+          acc
+          |> Map.put(:last_bound, last_max)
+          |> Map.put(:last_bound_idx, acc.last_bound_idx + 1)
+          |> tap(fn acc_ -> array_update(bounds, acc_.last_bound_idx, acc_.last_bound) end)
+        else
+          acc
         end
-      )
+        ## Update maxrank
+        array_update(maxrank, maxsorted[acc.last_max_idx].idx, acc.last_bound_idx)
+        ## Advance last max index and record new max value
+        if last_max_idx + 1 < n do
+          acc = Map.put(acc, :last_max_idx, last_max_idx + 1)
+          Map.put(acc, :last_max, maxsorted[acc.last_max_idx].max + 1)
+        else
+          acc
+        end
 
-    ## Min and max ranks: 0-based indices of min and max+1 in `bounds` list
-    ## TODO: should be doing it in one pass...
-    ## Note: we add 1 to rank indices because the bounds will be prepended with an additional element
-    {min_rank, max_rank} =
-      Enum.reduce(0..(Arrays.size(mins) - 1), {Arrays.new(), Arrays.new()}, fn idx,
-                                                                               {min_rank_acc,
-                                                                                max_rank_acc} ->
-        {
-          Arrays.append(min_rank_acc, Enum.find_index(bounds, fn b -> b == mins[idx] end) + 1),
-          Arrays.append(
-            max_rank_acc,
-            Enum.find_index(bounds, fn b -> b == maxes[idx] + 1 end) + 1
-          )
-        }
-      end)
+      end
+    end)
 
-    {min_b, max_b} = Enum.min_max(bounds)
-    n_bounds = MapSet.size(bounds)
+    array_update(bounds, res.last_bound_idx + 1, array_get(bounds, res.last_bound_idx) + 2)
 
     %{
-      bounds: bounds |> MapSet.put(min_b - 2) |> MapSet.put(max_b + 2) |> Arrays.new(),
-      n_bounds: n_bounds,
-      minimums: mins,
-      maximums: maxes,
-      min_rank: min_rank,
-      max_rank: max_rank
+      n: n,
+      bounds: bounds,
+      n_bounds: res.last_bound_idx + 1,
+      minrank: minrank,
+      maxrank: maxrank,
+      minsorted: minsorted,
+      maxsorted: maxsorted,
+      tree: tree,
+      diffs: diffs,
+      hall: hall
     }
+
+
   end
+
 
   defp filter_impl(
          vars,
@@ -91,86 +161,231 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     {:state, state2}
   end
 
-  def filter_lower(
-        vars,
-        %{bounds: bounds, maximums: maxes, min_rank: min_rank, max_rank: max_rank} = state
-      ) do
-    ## t -Tree links
-    ## d - differences
-    ## h - Hall interval links
-    ##
-    {t, d, h} =
-      Enum.reduce(
-        1..state.n_bounds,
-        {Arrays.new([0]), Arrays.new([0]), Arrays.new([0])},
-        fn idx, {t_acc, d_acc, h_acc} ->
-          {
-            Arrays.append(t_acc, idx - 1),
-            Arrays.append(d_acc, bounds[idx] - bounds[idx - 1]),
-            Arrays.append(h_acc, idx - 1)
-          }
-        end
-      )
-
-    max_sorted =
-      maxes
-      |> Enum.with_index(0)
-      |> Enum.sort_by(fn {max_v, _idx} -> max_v end)
-      |> Enum.map(fn {_max, idx} -> idx end)
-
-    for idx <- max_sorted do
-      x = min_rank[idx]
-      y = max_rank[idx]
-      z = pathmax(t, x + 1)
-      j = t[z]
-
-
-    #   for (int i = 1; i <= nbBounds + 1; i++) {
-    #     t[i] = h[i] = i - 1;
-    #     d[i] = bounds[i] - bounds[i - 1];
-    # }
-    # for (int i = 0; i < this.vars.length; i++) {
-    #     int x = maxsorted[i].minrank;
-    #     int y = maxsorted[i].maxrank;
-    #     int z = pathmax(t, x + 1);
-    #     int j = t[z];
-
-    #     if (--d[z] == 0) {
-    #         t[z] = z + 1;
-    #         z = pathmax(t, t[z]);
-    #         t[z] = j;
-    #     }
-    #     pathset(t, x + 1, z, z);
-    #     if (d[z] < bounds[z] - bounds[y]) {
-    #         fail()
-    #     }
-    #     if (h[x] > x) {
-    #         int w = pathmax(h, h[x]);
-    #         if (maxsorted[i].var.updateLowerBound(bounds[w], aCause)) {
-    #             filter = true;
-    #             maxsorted[i].lb = maxsorted[i].var.getLB();//bounds[w];
-    #         }
-    #         pathset(h, x, w, w);
-    #     }
-    #     if (d[z] == bounds[z] - bounds[y]) {
-    #         pathset(h, h[y], j - 1, y);
-    #         h[y] = j - 1;
-    #     }
-    # }
+  def filter_lower(args, %{
+    n: n,
+    bounds: bounds,
+    maxsorted: maxsorted,
+    minrank: minrank,
+    maxrank: maxrank,
+    tree: tree,
+    hall: hall,
+    diffs: diffs
+    } = state) do
+    ## print_state(state)
+    ## Initialize internal structures
+    for idx <- 1..state.n_bounds + 1 do
+      array_update(tree, idx, idx - 1)
+      array_update(hall, idx, idx - 1)
+      array_update(diffs, idx, array_get(bounds, idx) - array_get(bounds, idx - 1))
     end
+
+
+    for i <- 0..n-1, reduce: false do
+      filter? ->
+      x = array_get(minrank, i)
+      y = array_get(maxrank, i)
+      z = pathmax(tree, x + 1)
+      j = array_get(tree, z)
+
+      array_update(diffs, z, array_get(diffs, z) - 1)
+      z = if array_get(diffs, z) == 0 do
+        array_update(tree, z, z + 1)
+        z = pathmax(tree, array_get(tree, z))
+        array_update(tree, z, j)
+        z
+      else
+        z
+      end
+
+      pathset(tree, x + 1, z, z)
+
+      if array_get(diffs, z) < array_get(bounds, z) - array_get(bounds, y), do: fail(:bounds)
+
+      hall_x = array_get(hall, x)
+      filter? = if hall_x > x do
+        w = pathmax(hall, hall_x)
+        var = args[maxsorted[i].idx]
+        IO.inspect({var.name, Utils.domain_values(var), array_get(bounds, w)}, label: :removeBelow)
+
+        res = removeBelow(var, array_get(bounds, w))
+        pathset(hall, x, w, w)
+        filter? || (res != :changed)
+      else
+        filter?
+      end
+
+      if array_get(diffs, z) == array_get(bounds, z) - array_get(bounds, y) do
+        IO.inspect(%{hall: to_array(hall), y: y, j_1: j - 1})
+        pathset(hall, array_get(hall, y), j - 1, y)
+        array_update(hall, y, j - 1)
+      end
+
+      filter?
+    end
+
+
+    # %{
+    #   tree: to_array(state.tree),
+    #   hall: to_array(state.hall),
+    #   diffs: to_array(state.diffs)
+    # }
   end
 
-  defp filter_upper(vars, state) do
+  def filter_upper(args, %{
+    n: n,
+    bounds: bounds,
+    minsorted: minsorted,
+    minrank: minrank,
+    maxrank: maxrank,
+    tree: tree,
+    hall: hall,
+    diffs: diffs
+    } = state) do
+    ## Initialize internal structures
+    for idx <- 0..state.n_bounds do
+      array_update(tree, idx, idx + 1)
+      array_update(hall, idx, idx + 1)
+      array_update(diffs, idx, array_get(bounds, idx + 1) - array_get(bounds, idx))
+    end
+
+    print_state(state)
+
+    for i <- n-1..0//-1, reduce: false do
+      filter? ->
+      x = array_get(maxrank, i)
+      y = array_get(minrank, i)
+      z = pathmin(tree, x - 1)
+      j = array_get(tree, z)
+
+      array_update(diffs, z, array_get(diffs, z) - 1)
+      z = if array_get(diffs, z) == 0 do
+        array_update(tree, z, z - 1)
+        z = pathmin(tree, array_get(tree, z))
+        array_update(tree, z, j)
+        z
+      else
+        z
+      end
+
+      pathset(tree, x - 1, z, z)
+
+      if array_get(diffs, z) < array_get(bounds, y) - array_get(bounds, z), do: fail(:bounds)
+
+      hall_x = array_get(hall, x)
+      filter? = if hall_x < x do
+        w = pathmin(hall, hall_x)
+        var = args[minsorted[i].idx]
+        IO.inspect({var.name, Utils.domain_values(var), array_get(bounds, w) - 1}, label: :removeAbove)
+        res = removeAbove(var, array_get(bounds, w) - 1)
+        pathset(hall, x, w, w)
+        filter? || (res != :changed)
+      else
+        filter?
+      end
+
+      if array_get(diffs, z) == array_get(bounds, y) - array_get(bounds, z) do
+        IO.inspect(%{hall: to_array(hall), y: y, j_1: j + 1})
+        pathset(hall, array_get(hall, y), j + 1, y)
+        array_update(hall, y, j + 1)
+      end
+
+      filter?
+    end
+
+
+    # %{
+    #   tree: to_array(state.tree),
+    #   hall: to_array(state.hall),
+    #   diffs: to_array(state.diffs)
+    # }
   end
+
 
   defp pathmax(tree, i) do
-    case tree[i] do
+    case array_get(tree, i) do
       n when n > i -> pathmax(tree, n)
-      _leq -> i
+      _le -> i
     end
   end
 
-  defp fail() do
-    throw(:fail)
+  defp pathmin(tree, i) do
+    case array_get(tree, i) do
+      n when n < i -> pathmin(tree, n)
+      _ge -> i
+    end
+  end
+
+  defp pathset(tree, path_start, path_end, to) do
+    next = path_start
+    prev = next
+
+    if prev == path_end do
+      tree
+    else
+      next = array_get(tree, prev)
+      array_update(tree, prev, to)
+      pathset(tree, next, path_end, to)
+    end
+  end
+
+  defp fail(reason) do
+    throw({:fail, reason})
+  end
+
+  defp make_array(arity) when is_integer(arity) do
+    :atomics.new(arity, signed: true)
+  end
+
+  defp make_array(list) when is_list(list) do
+    ref = make_array(length(list))
+    Enum.reduce(list, 1, fn el, idx ->
+      :atomics.put(ref, idx, el)
+      idx + 1
+    end)
+    ref
+  end
+
+  def array_update(ref, zb_index, value) when is_reference(ref) and zb_index >= 0 and is_integer(value) do
+    :atomics.put(ref, zb_index + 1, value)
+  end
+
+  def array_get(ref, zb_index) when is_reference(ref) and zb_index >= 0 do
+    :atomics.get(ref, zb_index + 1)
+  end
+
+  def to_array(ref) do
+    for i <- 1..:atomics.info(ref).size() do
+      :atomics.get(ref, i)
+    end
+  end
+
+  def print_state(state) do
+    Map.put(state, :bounds, to_array(state.bounds))
+    |> Map.put(:minrank, to_array(state.minrank))
+    |> Map.put(:maxrank, to_array(state.maxrank))
+    |> Map.put(:hall, to_array(state.hall))
+    |> Map.put(:tree, to_array(state.tree))
+    |> Map.put(:diffs, to_array(state.diffs))
+    |> IO.inspect(label: :state)
+  end
+
+  def test do
+    alias CPSolver.IntVariable, as: Variable
+    vars =
+      [x1, x2, x3, x4, x5, x6] =
+      Enum.map(
+        [{:x1, 3..4}, {:x2, 2..4}, {:x3, 3..4}, {:x4, 2..5}, {:x5, 3..6}, {:x6, 1..6}],
+        fn {name, d} -> Variable.new(d, name: name) end
+      )
+      args = arguments(vars)
+      state = initial_state(args)
+      filter_lower(args, state)
+      filter_upper(args, state)
+
+      Enum.map(vars, fn v -> try do
+        {v.name, Utils.domain_values(v)}
+      catch _ -> :ok
+    end
+      end)
   end
 end
