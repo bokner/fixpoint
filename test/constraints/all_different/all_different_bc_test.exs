@@ -27,9 +27,8 @@ defmodule CPSolverTest.Constraint.AllDifferent.BC do
       assert Enum.sort(result.solutions) == Enum.sort(minizinc_solutions)
     end
 
-    test "reduction (Puget)" do
+    test "reduction (Puget example)" do
       vars =
-        [x1, x2, x3, x4, x5, x6] =
         Enum.map(
           [{:x1, 3..4}, {:x2, 2..4}, {:x3, 3..4}, {:x4, 2..5}, {:x5, 3..6}, {:x6, 1..6}],
           fn {name, d} -> Variable.new(d, name: name) end
@@ -38,7 +37,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.BC do
       BCPropagator.filter(BCPropagator.arguments(vars), nil, nil)
       reduced_domains = Enum.map(vars, fn v -> Utils.domain_values(v) end)
 
-      assert reduced_domains = [
+      assert reduced_domains == [
                MapSet.new([3, 4]),
                MapSet.new([2]),
                MapSet.new([3, 4]),
