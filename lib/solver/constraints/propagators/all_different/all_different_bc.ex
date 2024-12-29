@@ -71,14 +71,16 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
       last_bound: last_bound,
       last_min_idx: last_min_idx,
       last_max_idx: last_max_idx,
-      last_bound_idx: last_bound_idx},
+      last_bound_idx: last_bound_idx
+      },
     fn _idx, %{
       last_min: last_min,
       last_max: last_max,
       last_bound: last_bound,
       last_min_idx: last_min_idx,
       last_max_idx: last_max_idx,
-      last_bound_idx: last_bound_idx} = acc ->
+      last_bound_idx: last_bound_idx
+      } = acc ->
       cond do
         last_min_idx < n && last_min <= last_max ->
           ## LB values first
@@ -92,8 +94,8 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
             acc
           end
           ## Update minrank
-          ## minsorted[]
-          ## update_in(minsorted_acc[acc.last_min_idx], [:minrank], fn _ -> acc.last_bound_idx end)
+          ##
+
           array_update(minrank, minsorted[acc.last_min_idx].idx, acc.last_bound_idx)
           ## Advance last min idx and record new last min value
           acc = Map.put(acc, :last_min_idx, last_min_idx + 1)
@@ -115,6 +117,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
           acc
         end
         ## Update maxrank
+
         array_update(maxrank, maxsorted[acc.last_max_idx].idx, acc.last_bound_idx)
         ## Advance last max index and record new max value
         if last_max_idx + 1 < n do
@@ -132,11 +135,11 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     %{
       n: n,
       bounds: bounds,
-      n_bounds: res.last_bound_idx + 1,
-      minrank: minrank,
-      maxrank: maxrank,
+      n_bounds: res.last_bound_idx,
       minsorted: minsorted,
       maxsorted: maxsorted,
+      minrank: minrank,
+      maxrank: maxrank,
       tree: tree,
       diffs: diffs,
       hall: hall
@@ -151,14 +154,14 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
          state,
          changes
        ) do
-    {state1, changed1?} = filter_lower(vars, state)
-    {state2, changed2?} = filter_upper(vars, state1)
+    changed1? = filter_lower(vars, state)
+    changed2? = filter_upper(vars, state)
 
     if changed1? || changed2? do
-      filter_impl(vars, state2, changes)
+      filter_impl(vars, state, changes)
     end
 
-    {:state, state2}
+    {:state, state}
   end
 
   def filter_lower(args, %{
@@ -182,8 +185,8 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
     for i <- 0..n-1, reduce: false do
       filter? ->
-      x = array_get(minrank, i)
-      y = array_get(maxrank, i)
+      x = array_get(minrank, maxsorted[i].idx)
+      y = array_get(maxrank, maxsorted[i].idx)
       z = pathmax(tree, x + 1)
       j = array_get(tree, z)
 
@@ -252,8 +255,8 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
     for i <- n-1..0//-1, reduce: false do
       filter? ->
-      x = array_get(maxrank, i)
-      y = array_get(minrank, i)
+      x = array_get(maxrank, minsorted[i].idx)
+      y = array_get(minrank, minsorted[i].idx)
       z = pathmin(tree, x - 1)
       j = array_get(tree, z)
 
@@ -278,7 +281,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
         IO.inspect({var.name, Utils.domain_values(var), array_get(bounds, w) - 1}, label: :removeAbove)
         res = removeAbove(var, array_get(bounds, w) - 1)
         pathset(hall, x, w, w)
-        filter? || (res != :changed)
+        filter? || (res != :no_change)
       else
         filter?
       end
@@ -361,6 +364,8 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
   def print_state(state) do
     Map.put(state, :bounds, to_array(state.bounds))
+    |> Map.put(:minsorted, state.minsorted)
+    |> Map.put(:maxsorted, state.maxsorted)
     |> Map.put(:minrank, to_array(state.minrank))
     |> Map.put(:maxrank, to_array(state.maxrank))
     |> Map.put(:hall, to_array(state.hall))
@@ -379,8 +384,10 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
       )
       args = arguments(vars)
       state = initial_state(args)
+      print_state(state)
       filter_lower(args, state)
       filter_upper(args, state)
+      #filter(args, state, :ignore)
 
       Enum.map(vars, fn v -> try do
         {v.name, Utils.domain_values(v)}
