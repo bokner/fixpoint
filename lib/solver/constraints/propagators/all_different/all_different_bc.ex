@@ -19,24 +19,31 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
   @impl true
   def filter(vars, _state, changes) do
-        filter_impl(vars, initial_state(vars), changes)
-        :stable
+        updated_state = initial_state(vars)
+        filter_impl(vars, updated_state, changes)
+        {:state, updated_state}
   end
 
   defp initial_state(vars) do
+    n = Arrays.size(vars)
+    lbs = make_array(n)
+    ubs = make_array(n)
+
     {_idx, intervals} =
       Enum.reduce(vars, {0, []}, fn var, {idx, interval_acc} ->
         {
           idx + 1,
-          [%{idx: idx, min: Interface.min(var), max: Interface.max(var)} | interval_acc]
+          [
+            %{
+            idx: idx,
+            min: Interface.min(var) |> tap(fn lb -> array_update(lbs, idx, lb) end),
+            max: Interface.max(var) |> tap(fn ub -> array_update(ubs, idx, ub) end)
+            } | interval_acc]
         }
       end)
 
-    init(vars, intervals)
-  end
 
-  defp init(vars, intervals) do
-    n = Arrays.size(vars)
+
     tree = make_array(2 * n + 2)
     diffs = make_array(2 * n + 2)
     hall = make_array(2 * n + 2)
@@ -44,18 +51,27 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     minrank = make_array(n)
     maxrank = make_array(n)
 
-    minsorted =
+    minsorted = make_array(n)
+
       intervals
       |> Enum.sort_by(fn %{min: min} -> min end)
-      |> Arrays.new(implementation: Aja.Vector)
+      |> Enum.reduce(0, fn %{idx: idx}, idx_acc ->
+        array_update(minsorted, idx_acc, idx)
+        idx_acc + 1
+      end)
 
-    maxsorted =
+      maxsorted = make_array(n)
+
       intervals
       |> Enum.sort_by(fn %{max: max} -> max end)
-      |> Arrays.new(implementation: Aja.Vector)
+      |> Enum.reduce(0, fn %{idx: idx}, idx_acc ->
+        array_update(maxsorted, idx_acc, idx)
+        idx_acc + 1
+      end)
 
-    last_min = minsorted[0].min
-    last_max = maxsorted[0].max + 1
+
+    last_min = array_get(lbs, array_get(minsorted, 0))
+    last_max = array_get(ubs, array_get(maxsorted, 0)) + 1
     last_bound = last_min - 2
 
     last_min_idx = 0
@@ -100,12 +116,12 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
               ## Update minrank
               ##
 
-              array_update(minrank, minsorted[acc.last_min_idx].idx, acc.last_bound_idx)
+              array_update(minrank, array_get(minsorted, acc.last_min_idx), acc.last_bound_idx)
               ## Advance last min idx and record new last min value
               acc = Map.put(acc, :last_min_idx, last_min_idx + 1)
 
               if acc.last_min_idx < n do
-                Map.put(acc, :last_min, minsorted[acc.last_min_idx].min)
+                Map.put(acc, :last_min, array_get(lbs, array_get(minsorted, acc.last_min_idx)))
               else
                 acc
               end
@@ -125,11 +141,11 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
               ## Update maxrank
 
-              array_update(maxrank, maxsorted[acc.last_max_idx].idx, acc.last_bound_idx)
+              array_update(maxrank, array_get(maxsorted, acc.last_max_idx), acc.last_bound_idx)
               ## Advance last max index and record new max value
               if last_max_idx + 1 < n do
                 acc = Map.put(acc, :last_max_idx, last_max_idx + 1)
-                Map.put(acc, :last_max, maxsorted[acc.last_max_idx].max + 1)
+                Map.put(acc, :last_max, array_get(ubs, array_get(maxsorted, acc.last_max_idx)) + 1)
               else
                 acc
               end
@@ -156,13 +172,20 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
   defp filter_impl(
          vars,
          state,
-         changes
+         _changes
        ) do
-    if filter_lower(vars, state) && filter_upper(vars, state) do
-      filter_impl(vars, state, changes)
-    end
+
+      lb_change? = while(fn -> filter_lower(vars, state) end)
+      ub_change? = while(fn -> filter_upper(vars, state) end)
+
+      (lb_change? || ub_change?)
+       #&& filter_impl(vars, state, changes)
 
     state
+  end
+
+  defp while(fun) do
+    fun.() && while(fun)
   end
 
   defp filter_lower(
@@ -187,7 +210,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
     for i <- 0..(n - 1), reduce: false do
       filter_acc? ->
-        var_idx = maxsorted[i].idx
+        var_idx = array_get(maxsorted, i)
         x = array_get(minrank, var_idx)
         y = array_get(maxrank, var_idx)
         z = pathmax(tree, x + 1)
@@ -250,7 +273,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
     for i <- (n - 1)..0//-1, reduce: false do
       filter_acc? ->
-        var_idx = minsorted[i].idx
+        var_idx = array_get(minsorted, i)
         x = array_get(maxrank, var_idx)
         y = array_get(minrank, var_idx)
         z = pathmin(tree, x - 1)
