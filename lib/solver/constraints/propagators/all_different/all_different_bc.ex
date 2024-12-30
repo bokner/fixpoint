@@ -42,26 +42,22 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     minrank = make_array(n)
     maxrank = make_array(n)
 
-    minsorted = make_array(n)
+    {_, minsorted} =
+      to_array(lbs, fn i, val -> {val, i - 1} end)
+      |> Enum.sort()
+      |> Enum.reduce({0, :gb_trees.empty()}, fn {val, idx}, {idx_acc, gb_trees_acc} ->
+        {idx_acc + 1, :gb_trees.insert(idx_acc, {val, idx}, gb_trees_acc)}
+      end)
 
-    to_array(lbs, fn i, val -> {val, i - 1} end)
-    |> Enum.sort()
-    |> Enum.reduce(0, fn {_val, idx}, idx_acc ->
-      array_update(minsorted, idx_acc, idx)
-      idx_acc + 1
-    end)
+    {_, maxsorted} =
+      to_array(ubs, fn i, val -> {val, i - 1} end)
+      |> Enum.sort()
+      |> Enum.reduce({0, :gb_trees.empty()}, fn {val, idx}, {idx_acc, gb_trees_acc} ->
+        {idx_acc + 1, :gb_trees.insert(idx_acc, {val, idx}, gb_trees_acc)}
+      end)
 
-    maxsorted = make_array(n)
-
-    to_array(ubs, fn i, val -> {val, i - 1} end)
-    |> Enum.sort()
-    |> Enum.reduce(0, fn {_val, idx}, idx_acc ->
-      array_update(maxsorted, idx_acc, idx)
-      idx_acc + 1
-    end)
-
-    last_min = array_get(lbs, array_get(minsorted, 0))
-    last_max = array_get(ubs, array_get(maxsorted, 0)) + 1
+    last_min = array_get(lbs, :gb_trees.get(0, minsorted) |> elem(1))
+    last_max = array_get(ubs, :gb_trees.get(0, maxsorted) |> elem(1)) + 1
     last_bound = last_min - 2
 
     last_min_idx = 0
@@ -104,12 +100,21 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
                 end
 
               ## Update minrank
-              array_update(minrank, array_get(minsorted, acc.last_min_idx), acc.last_bound_idx)
+              array_update(
+                minrank,
+                :gb_trees.get(acc.last_min_idx, minsorted) |> elem(1),
+                acc.last_bound_idx
+              )
+
               ## Advance last min idx and record new last min value
               acc = Map.put(acc, :last_min_idx, last_min_idx + 1)
 
               if acc.last_min_idx < n do
-                Map.put(acc, :last_min, array_get(lbs, array_get(minsorted, acc.last_min_idx)))
+                Map.put(
+                  acc,
+                  :last_min,
+                  array_get(lbs, :gb_trees.get(acc.last_min_idx, minsorted) |> elem(1))
+                )
               else
                 acc
               end
@@ -128,7 +133,12 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
                 end
 
               ## Update maxrank
-              array_update(maxrank, array_get(maxsorted, acc.last_max_idx), acc.last_bound_idx)
+              array_update(
+                maxrank,
+                :gb_trees.get(acc.last_max_idx, maxsorted) |> elem(1),
+                acc.last_bound_idx
+              )
+
               ## Advance last max index and record new max value
               if last_max_idx + 1 < n do
                 acc = Map.put(acc, :last_max_idx, last_max_idx + 1)
@@ -136,7 +146,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
                 Map.put(
                   acc,
                   :last_max,
-                  array_get(ubs, array_get(maxsorted, acc.last_max_idx)) + 1
+                  array_get(ubs, :gb_trees.get(acc.last_max_idx, maxsorted) |> elem(1)) + 1
                 )
               else
                 acc
@@ -194,7 +204,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
     for i <- 0..(n - 1), reduce: false do
       filter_acc? ->
-        var_idx = array_get(maxsorted, i)
+        var_idx = :gb_trees.get(i, maxsorted) |> elem(1)
         x = array_get(minrank, var_idx)
         y = array_get(maxrank, var_idx)
         z = pathmax(tree, x + 1)
@@ -255,9 +265,9 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
       array_update(diffs, idx, array_get(bounds, idx + 1) - array_get(bounds, idx))
     end
 
-    for i <- 0..(n-1), reduce: false do
+    for i <- 0..(n - 1), reduce: false do
       filter_acc? ->
-        var_idx = array_get(minsorted, n - 1 - i)
+        var_idx = :gb_trees.get(n - 1 - i, minsorted) |> elem(1)
         x = array_get(maxrank, var_idx)
         y = array_get(minrank, var_idx)
         z = pathmin(tree, x - 1)
@@ -366,8 +376,8 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
   defp print_state(state) do
     Map.put(state, :bounds, to_array(state.bounds))
-    |> Map.put(:minsorted, state.minsorted)
-    |> Map.put(:maxsorted, state.maxsorted)
+    |> Map.put(:minsorted, :gb_trees.values(state.minsorted))
+    |> Map.put(:maxsorted, :gb_trees.values(state.maxsorted))
     |> Map.put(:minrank, to_array(state.minrank))
     |> Map.put(:maxrank, to_array(state.maxrank))
     |> Map.put(:hall, to_array(state.hall))
@@ -392,14 +402,14 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     print_state(state)
 
     filter(args, state, :ignore)
-    |> tap(fn r -> IO.inspect(r, label: :state) end)
 
-    {state, Enum.map(vars, fn v ->
-      try do
-        {v.name, Utils.domain_values(v)}
-      catch
-        _ -> {:fail, v.name}
-      end
-    end)}
+    {state,
+     Enum.map(vars, fn v ->
+       try do
+         {v.name, Utils.domain_values(v)}
+       catch
+         _ -> {:fail, v.name}
+       end
+     end)}
   end
 end
