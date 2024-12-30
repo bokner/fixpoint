@@ -18,31 +18,22 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
   end
 
   @impl true
-  def filter(vars, _state, changes) do
-        updated_state = initial_state(vars)
-        filter_impl(vars, updated_state, changes)
-        {:state, updated_state}
+  def filter(vars, state, changes) do
+    updated_state = update_state(vars, state, changes)
+    filter_impl(vars, updated_state, changes)
+    {:state, updated_state}
   end
 
-  defp initial_state(vars) do
+  defp update_state(vars, _state, _changes) do
     n = Arrays.size(vars)
     lbs = make_array(n)
     ubs = make_array(n)
 
-    {_idx, intervals} =
-      Enum.reduce(vars, {0, []}, fn var, {idx, interval_acc} ->
-        {
-          idx + 1,
-          [
-            %{
-            idx: idx,
-            min: Interface.min(var) |> tap(fn lb -> array_update(lbs, idx, lb) end),
-            max: Interface.max(var) |> tap(fn ub -> array_update(ubs, idx, ub) end)
-            } | interval_acc]
-        }
-      end)
-
-
+    Enum.reduce(vars, 0, fn var, idx ->
+      array_update(lbs, idx, min(var))
+      array_update(ubs, idx, max(var))
+      idx + 1
+    end)
 
     tree = make_array(2 * n + 2)
     diffs = make_array(2 * n + 2)
@@ -53,22 +44,21 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
     minsorted = make_array(n)
 
-      intervals
-      |> Enum.sort_by(fn %{min: min} -> min end)
-      |> Enum.reduce(0, fn %{idx: idx}, idx_acc ->
-        array_update(minsorted, idx_acc, idx)
-        idx_acc + 1
-      end)
+    to_array(lbs, fn i, val -> {val, i - 1} end)
+    |> Enum.sort()
+    |> Enum.reduce(0, fn {_val, idx}, idx_acc ->
+      array_update(minsorted, idx_acc, idx)
+      idx_acc + 1
+    end)
 
-      maxsorted = make_array(n)
+    maxsorted = make_array(n)
 
-      intervals
-      |> Enum.sort_by(fn %{max: max} -> max end)
-      |> Enum.reduce(0, fn %{idx: idx}, idx_acc ->
-        array_update(maxsorted, idx_acc, idx)
-        idx_acc + 1
-      end)
-
+    to_array(ubs, fn i, val -> {val, i - 1} end)
+    |> Enum.sort()
+    |> Enum.reduce(0, fn {_val, idx}, idx_acc ->
+      array_update(maxsorted, idx_acc, idx)
+      idx_acc + 1
+    end)
 
     last_min = array_get(lbs, array_get(minsorted, 0))
     last_max = array_get(ubs, array_get(maxsorted, 0)) + 1
@@ -114,8 +104,6 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
                 end
 
               ## Update minrank
-              ##
-
               array_update(minrank, array_get(minsorted, acc.last_min_idx), acc.last_bound_idx)
               ## Advance last min idx and record new last min value
               acc = Map.put(acc, :last_min_idx, last_min_idx + 1)
@@ -140,12 +128,16 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
                 end
 
               ## Update maxrank
-
               array_update(maxrank, array_get(maxsorted, acc.last_max_idx), acc.last_bound_idx)
               ## Advance last max index and record new max value
               if last_max_idx + 1 < n do
                 acc = Map.put(acc, :last_max_idx, last_max_idx + 1)
-                Map.put(acc, :last_max, array_get(ubs, array_get(maxsorted, acc.last_max_idx)) + 1)
+
+                Map.put(
+                  acc,
+                  :last_max,
+                  array_get(ubs, array_get(maxsorted, acc.last_max_idx)) + 1
+                )
               else
                 acc
               end
@@ -174,18 +166,10 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
          state,
          _changes
        ) do
-
-      lb_change? = while(fn -> filter_lower(vars, state) end)
-      ub_change? = while(fn -> filter_upper(vars, state) end)
-
-      (lb_change? || ub_change?)
-       #&& filter_impl(vars, state, changes)
+    filter_lower(vars, state)
+    filter_upper(vars, state)
 
     state
-  end
-
-  defp while(fun) do
-    fun.() && while(fun)
   end
 
   defp filter_lower(
@@ -216,7 +200,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
         z = pathmax(tree, x + 1)
         j = array_get(tree, z)
 
-        array_add(diffs, z, - 1)
+        array_add(diffs, z, -1)
 
         z =
           if array_get(diffs, z) == 0 do
@@ -271,15 +255,15 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
       array_update(diffs, idx, array_get(bounds, idx + 1) - array_get(bounds, idx))
     end
 
-    for i <- (n - 1)..0//-1, reduce: false do
+    for i <- 0..(n-1), reduce: false do
       filter_acc? ->
-        var_idx = array_get(minsorted, i)
+        var_idx = array_get(minsorted, n - 1 - i)
         x = array_get(maxrank, var_idx)
         y = array_get(minrank, var_idx)
         z = pathmin(tree, x - 1)
         j = array_get(tree, z)
 
-        array_add(diffs, z, - 1)
+        array_add(diffs, z, -1)
 
         z =
           if array_get(diffs, z) == 0 do
@@ -365,7 +349,8 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     :atomics.put(ref, zb_index + 1, value)
   end
 
-  defp array_add(ref, zb_index, value) when is_reference(ref) and zb_index >=0 and is_integer(value) do
+  defp array_add(ref, zb_index, value)
+       when is_reference(ref) and zb_index >= 0 and is_integer(value) do
     :atomics.add(ref, zb_index + 1, value)
   end
 
@@ -373,9 +358,9 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     :atomics.get(ref, zb_index + 1)
   end
 
-  defp to_array(ref) do
-    for i <- 1..:atomics.info(ref).size() do
-      :atomics.get(ref, i)
+  defp to_array(ref, fun \\ fn _i, val -> val end) do
+    for i <- 1..:atomics.info(ref).size do
+      fun.(i, :atomics.get(ref, i))
     end
   end
 
@@ -403,18 +388,18 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
       )
 
     args = arguments(vars)
-    state = initial_state(args)
+    state = update_state(args, nil, %{})
     print_state(state)
 
     filter(args, state, :ignore)
     |> tap(fn r -> IO.inspect(r, label: :state) end)
 
-    Enum.map(vars, fn v ->
+    {state, Enum.map(vars, fn v ->
       try do
         {v.name, Utils.domain_values(v)}
       catch
         _ -> {:fail, v.name}
       end
-    end)
+    end)}
   end
 end
