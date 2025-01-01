@@ -2,6 +2,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
   use CPSolver.Propagator
 
   alias CPSolver.Utils
+  import CPSolver.Utils.MutableArray
 
   @moduledoc """
   A fast and simple algorithm for bounds consistency of the alldifferent constraint
@@ -329,40 +330,6 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     throw(:fail)
   end
 
-  defp make_array(arity) when is_integer(arity) do
-    :atomics.new(arity, signed: true)
-  end
-
-  defp make_array(list) when is_list(list) do
-    ref = make_array(length(list))
-
-    Enum.reduce(list, 1, fn el, idx ->
-      :atomics.put(ref, idx, el)
-      idx + 1
-    end)
-
-    ref
-  end
-
-  defp array_update(ref, zb_index, value)
-       when is_reference(ref) and zb_index >= 0 and is_integer(value) do
-    :atomics.put(ref, zb_index + 1, value)
-  end
-
-  defp array_add(ref, zb_index, value)
-       when is_reference(ref) and zb_index >= 0 and is_integer(value) do
-    :atomics.add(ref, zb_index + 1, value)
-  end
-
-  defp array_get(ref, zb_index) when is_reference(ref) and zb_index >= 0 do
-    :atomics.get(ref, zb_index + 1)
-  end
-
-  defp to_array(ref, fun \\ fn _i, val -> val end) do
-    for i <- 1..:atomics.info(ref).size do
-      fun.(i, :atomics.get(ref, i))
-    end
-  end
 
   defp print_state(state) do
     Map.put(state, :bounds, to_array(state.bounds))
