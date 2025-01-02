@@ -3,6 +3,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
   alias CPSolver.Utils
   import CPSolver.Utils.MutableArray
+  alias CPSolver.Utils.MutableOrder
 
   @moduledoc """
   A fast and simple algorithm for bounds consistency of the alldifferent constraint
@@ -25,44 +26,65 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     {:state, updated_state}
   end
 
-  defp update_state(vars, _state, _changes) do
+  defp initialize_state(vars) do
     n = Arrays.size(vars)
-    lbs = make_array(n)
-    ubs = make_array(n)
-
-    Enum.reduce(vars, 0, fn var, idx ->
-      array_update(lbs, idx, min(var))
-      array_update(ubs, idx, max(var))
-      idx + 1
+    {_, lbs, ubs} = Enum.reduce(vars, {0, [], []}, fn var, {idx, min_acc, max_acc} ->
+      {idx + 1, [min(var) | min_acc], [max(var) | max_acc]}
     end)
 
-    tree = make_array(2 * n + 2)
-    diffs = make_array(2 * n + 2)
-    hall = make_array(2 * n + 2)
-    bounds = make_array(2 * n + 2)
-    minrank = make_array(n)
-    maxrank = make_array(n)
+    %{n: n,
+      minsorted_order: MutableOrder.new(Enum.reverse(lbs)),
+      maxsorted_order: MutableOrder.new(Enum.reverse(ubs)),
+      tree: make_array(2 * n + 2),
+      diffs: make_array(2 * n + 2),
+      hall: make_array(2 * n + 2),
+      bounds: make_array(2 * n + 2),
+      minrank: make_array(n),
+      maxrank: make_array(n)
+    }
 
-    minsorted = make_array(n)
+  end
 
-    to_array(lbs, fn i, val -> {val, i - 1} end)
-    |> Enum.sort()
-    |> Enum.reduce(0, fn {_val, idx}, idx_acc ->
-      array_update(minsorted, idx_acc, idx)
-      idx_acc + 1
+  defp apply_changes(vars, state, changes) do
+    Enum.each(changes, fn {var_index, domain_change} ->
+      apply_change(vars[var_index], var_index, state, domain_change)
     end)
 
-    maxsorted = make_array(n)
+    #state
+    false
+  end
 
-    to_array(ubs, fn i, val -> {val, i - 1} end)
-    |> Enum.sort()
-    |> Enum.reduce(0, fn {_val, idx}, idx_acc ->
-      array_update(maxsorted, idx_acc, idx)
-      idx_acc + 1
-    end)
+  defp apply_change(var, var_index, %{minsorted_order: minsorted} = _state, :min_change) do
+    MutableOrder.update(minsorted, {var_index, min(var)})
+  end
 
-    last_min = array_get(lbs, array_get(minsorted, 0))
-    last_max = array_get(ubs, array_get(maxsorted, 0)) + 1
+  defp apply_change(var, var_index, %{maxsorted_order: maxsorted} = _state, :max_change) do
+    MutableOrder.update(maxsorted, {var_index, max(var)})
+  end
+
+  defp apply_change(var, var_index, state, domain_change) when domain_change in [:fixed, :bound_change] do
+    apply_change(var, var_index, state, :min_change)
+    apply_change(var, var_index, state, :max_change)
+  end
+
+  defp update_state(vars, state, changes) do
+    state && apply_changes(vars, state, changes) || initialize_state(vars)
+  end
+
+  defp prepare(%{n: n,
+    minsorted_order: minsorted,
+    maxsorted_order: maxsorted,
+    tree: tree,
+    diffs: diffs,
+    hall: hall,
+    bounds: bounds,
+    minrank: minrank,
+    maxrank: maxrank
+    } = _state) do
+
+
+    last_min = MutableOrder.get(minsorted, 0)
+    last_max = MutableOrder.get(maxsorted, 0) + 1
     last_bound = last_min - 2
 
     last_min_idx = 0
@@ -105,12 +127,13 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
                 end
 
               ## Update minrank
-              array_update(minrank, array_get(minsorted, acc.last_min_idx), acc.last_bound_idx)
+              array_update(minrank, array_get(minsorted.sort_index, acc.last_min_idx), acc.last_bound_idx)
               ## Advance last min idx and record new last min value
               acc = Map.put(acc, :last_min_idx, last_min_idx + 1)
 
               if acc.last_min_idx < n do
-                Map.put(acc, :last_min, array_get(lbs, array_get(minsorted, acc.last_min_idx)))
+                Map.put(acc, :last_min,
+                MutableOrder.get(minsorted, acc.last_min_idx))
               else
                 acc
               end
@@ -129,7 +152,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
                 end
 
               ## Update maxrank
-              array_update(maxrank, array_get(maxsorted, acc.last_max_idx), acc.last_bound_idx)
+              array_update(maxrank, array_get(maxsorted.sort_index, acc.last_max_idx), acc.last_bound_idx)
               ## Advance last max index and record new max value
               if last_max_idx + 1 < n do
                 acc = Map.put(acc, :last_max_idx, last_max_idx + 1)
@@ -137,7 +160,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
                 Map.put(
                   acc,
                   :last_max,
-                  array_get(ubs, array_get(maxsorted, acc.last_max_idx)) + 1
+                  MutableOrder.get(maxsorted, acc.last_max_idx) + 1
                 )
               else
                 acc
@@ -152,8 +175,8 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
       n: n,
       bounds: bounds,
       n_bounds: res.last_bound_idx,
-      minsorted: minsorted,
-      maxsorted: maxsorted,
+      minsorted: minsorted.sort_index,
+      maxsorted: maxsorted.sort_index,
       minrank: minrank,
       maxrank: maxrank,
       tree: tree,
@@ -167,6 +190,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
          state,
          _changes
        ) do
+    state = prepare(state)
     filter_lower(vars, state)
     filter_upper(vars, state)
 
@@ -333,8 +357,8 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
   defp print_state(state) do
     Map.put(state, :bounds, to_array(state.bounds))
-    |> Map.put(:minsorted, state.minsorted)
-    |> Map.put(:maxsorted, state.maxsorted)
+    |> Map.put(:minsorted, to_array(state.minsorted))
+    |> Map.put(:maxsorted, to_array(state.maxsorted))
     |> Map.put(:minrank, to_array(state.minrank))
     |> Map.put(:maxrank, to_array(state.maxrank))
     |> Map.put(:hall, to_array(state.hall))
@@ -355,10 +379,10 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
       )
 
     args = arguments(vars)
-    state = update_state(args, nil, %{})
+    state = update_state(args, nil, %{}) |> prepare()
     print_state(state)
 
-    filter(args, state, :ignore)
+    filter(args, state, %{})
     |> tap(fn r -> IO.inspect(r, label: :state) end)
 
     {state, Enum.map(vars, fn v ->
