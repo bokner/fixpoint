@@ -4,6 +4,7 @@ defmodule CPSolverTest.Utils.MutableArray do
 
   describe "Mutable order" do
     alias CPSolver.Utils.MutableOrder
+
     test "create" do
       values = [2, 8, 3, 5, 2]
       order_rec = MutableOrder.new(values)
@@ -14,7 +15,8 @@ defmodule CPSolverTest.Utils.MutableArray do
       values = [2, 8, 3, 5, 2]
       order_rec = MutableOrder.new(values)
 
-      change = {1, 2} ## Current value of element at position 1 (that is, 8) changes to 2
+      ## Current value of element at position 1 (that is, 8) changes to 2
+      change = {1, 2}
       MutableOrder.update(order_rec, change)
       ## The changed value has been updated internally
       assert to_array(order_rec.values) == [2, 2, 3, 5, 2]
@@ -27,7 +29,8 @@ defmodule CPSolverTest.Utils.MutableArray do
       values = [2, 8, 3, 5, 2]
       order_rec = MutableOrder.new(values)
 
-      change = {2, 9} ## Current value of element at position 2 (that is, 3) changes to 9
+      ## Current value of element at position 2 (that is, 3) changes to 9
+      change = {2, 9}
       MutableOrder.update(order_rec, change)
       ## The changed value has been updated internally
       assert to_array(order_rec.values) == [2, 8, 9, 5, 2]
