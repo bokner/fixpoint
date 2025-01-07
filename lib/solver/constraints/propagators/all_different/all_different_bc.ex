@@ -22,8 +22,14 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
   end
 
   @impl true
+  @doc "Needs a reset so not to carry over the mutable arrays"
+  def reset(vars, _state, _opts) do
+    initialize_state(vars)
+  end
+
+  @impl true
   def filter(vars, state, changes) do
-    updated_state = update_state(vars, state, changes)
+    updated_state = apply_changes(vars, state, changes)
     filter_impl(vars, updated_state, changes)
     {:state, updated_state}
   end
@@ -36,15 +42,13 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
     %{n: n,
       minsorted_order: MutableOrder.new(Enum.reverse(lbs)),
-      maxsorted_order: MutableOrder.new(Enum.reverse(ubs)),
-      tree: MutableArray.new(2 * n + 2),
-      diffs: MutableArray.new(2 * n + 2),
-      hall: MutableArray.new(2 * n + 2),
-      bounds: MutableArray.new(2 * n + 2),
-      minrank: MutableArray.new(n),
-      maxrank: MutableArray.new(n)
+      maxsorted_order: MutableOrder.new(Enum.reverse(ubs))
     }
 
+  end
+
+  defp apply_changes(vars, nil, changes) do
+    apply_changes(vars, initialize_state(vars), changes || %{})
   end
 
   defp apply_changes(vars, state, changes) do
@@ -52,16 +56,17 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
       apply_change(vars[var_index], var_index, state, domain_change)
     end)
 
-    #state
-    false
+    state
   end
 
-  defp apply_change(var, var_index, %{minsorted_order: minsorted} = _state, :min_change) do
-    MutableOrder.update(minsorted, {var_index, min(var)})
+  defp apply_change(_var, _var_index, %{minsorted_order: _minsorted} = _state, :min_change) do
+    ## TODO: enable (fails as of now)
+    ##MutableOrder.update(minsorted, {var_index, min(var)})
   end
 
-  defp apply_change(var, var_index, %{maxsorted_order: maxsorted} = _state, :max_change) do
-    MutableOrder.update(maxsorted, {var_index, max(var)})
+  defp apply_change(_var, _var_index, %{maxsorted_order: _maxsorted} = _state, :max_change) do
+    ## TODO: enable (fails as of now)
+    #MutableOrder.update(maxsorted, {var_index, max(var)})
   end
 
   defp apply_change(var, var_index, state, domain_change) when domain_change in [:fixed, :bound_change] do
@@ -75,11 +80,15 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
   defp prepare(%{n: n,
     minsorted_order: minsorted,
-    maxsorted_order: maxsorted,
-    bounds: bounds,
-    minrank: minrank,
-    maxrank: maxrank
+    maxsorted_order: maxsorted
     } = state) do
+
+      tree = make_array(2 * n + 2)
+      diffs = make_array(2 * n + 2)
+      hall = make_array(2 * n + 2)
+      bounds =  make_array(2 * n + 2)
+      minrank = make_array(n)
+      maxrank = make_array(n)
 
 
     last_min = MutableOrder.get(minsorted, 0)
@@ -171,6 +180,12 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     array_update(bounds, res.last_bound_idx + 1, array_get(bounds, res.last_bound_idx) + 2)
 
     Map.put(state, :n_bounds, res.last_bound_idx)
+    |> Map.put(:tree, tree)
+    |> Map.put(:diffs, diffs)
+    |> Map.put(:hall, hall)
+    |> Map.put(:bounds, bounds)
+    |> Map.put(:minrank, minrank)
+    |> Map.put(:maxrank, maxrank)
   end
 
   defp filter_impl(
@@ -362,14 +377,18 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
   defp print_state(state) do
     Map.put(state, :bounds, to_array(state.bounds))
-    |> Map.put(:minsorted, to_array(state.minsorted))
-    |> Map.put(:maxsorted, to_array(state.maxsorted))
+    |> Map.put(:minsorted_order, to_array(state.minsorted))
+    |> Map.put(:maxsorted_order, to_array(state.maxsorted))
     |> Map.put(:minrank, to_array(state.minrank))
     |> Map.put(:maxrank, to_array(state.maxrank))
     |> Map.put(:hall, to_array(state.hall))
     |> Map.put(:tree, to_array(state.tree))
     |> Map.put(:diffs, to_array(state.diffs))
     |> IO.inspect(label: :state)
+  end
+
+  defp make_array(arity) when is_integer(arity) do
+    MutableArray.new(arity)
   end
 
   def test do
