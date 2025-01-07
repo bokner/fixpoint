@@ -6,12 +6,12 @@ defmodule CPSolver.Utils.MutableArray do
     array_update(array, index2, val1)
   end
 
-  def make_array(arity) when is_integer(arity) do
+  def new(arity) when is_integer(arity) do
     :atomics.new(arity, signed: true)
   end
 
-  def make_array(list) when is_list(list) do
-    ref = make_array(length(list))
+  def new(list) when is_list(list) do
+    ref = new(length(list))
 
     Enum.reduce(list, 1, fn el, idx ->
       :atomics.put(ref, idx, el)
