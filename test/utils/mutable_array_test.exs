@@ -63,8 +63,9 @@ defmodule CPSolverTest.Utils.MutableArray do
       assert MutableOrder.valid?(order)
 
       ## Swap values without changing the sort index
-      rnd1 = Enum.random(values)
-      rnd2 = Enum.random(List.delete(values, rnd1))
+      range = Enum.to_list(0..length(values)-1)
+      rnd1 = Enum.random(range)
+      rnd2 = Enum.random(List.delete(range, rnd1))
       swap(order.values, rnd1, rnd2)
       refute MutableOrder.valid?(order)
     end
