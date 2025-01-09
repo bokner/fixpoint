@@ -36,7 +36,14 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
     %{n: n,
       minsorted_order: MutableOrder.new(Enum.reverse(lbs)),
-      maxsorted_order: MutableOrder.new(Enum.reverse(ubs))
+      maxsorted_order: MutableOrder.new(Enum.reverse(ubs)),
+      tree: make_array(2 * n + 2),
+      diffs: make_array(2 * n + 2),
+      hall: make_array(2 * n + 2),
+      bounds: make_array(2 * n + 2),
+      minrank: make_array(n),
+      maxrank: make_array(n)
+
     }
 
   end
@@ -48,16 +55,14 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
 
   defp prepare(%{n: n,
     minsorted_order: minsorted,
-    maxsorted_order: maxsorted
+    maxsorted_order: maxsorted,
+    tree: tree,
+    diffs: diffs,
+    hall: hall,
+    bounds: bounds,
+    minrank: minrank,
+    maxrank: maxrank
     } = state) do
-
-      tree = make_array(2 * n + 2)
-      diffs = make_array(2 * n + 2)
-      hall = make_array(2 * n + 2)
-      bounds =  make_array(2 * n + 2)
-      minrank = make_array(n)
-      maxrank = make_array(n)
-
 
     last_min = MutableOrder.get(minsorted, 0)
     last_max = MutableOrder.get(maxsorted, 0) + 1
