@@ -44,11 +44,9 @@ defmodule CPSolver.Utils.MutableOrder do
     values
     |> Enum.with_index()
     |> Enum.sort()
-    |> Enum.with_index()
-    |> Enum.sort_by(fn {{_val, sorted_idx}, _pos} -> sorted_idx end)
-    |> Enum.reduce(0, fn {{_val, sorted_idx}, pos}, pos_acc ->
-      array_update(value_positions_ref, pos_acc, pos)
-      array_update(sort_index_ref, pos, sorted_idx)
+    |> Enum.reduce(0, fn {_val, idx}, pos_acc ->
+      array_update(sort_index_ref, pos_acc, idx)
+      array_update(value_positions_ref, idx, pos_acc)
       pos_acc + 1
     end)
 
