@@ -124,15 +124,15 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     {residual_graph, localize_state(sccs, value_graph, maximum_matching)}
   end
 
-  def build_value_graph(var_list) when is_struct(var_list, Aja.Vector) do
-    Arrays.reduce(var_list, {0, Map.new()}, fn var, {idx_acc, map_acc} ->
+  def build_value_graph(var_list) do
+    Enum.reduce(var_list, {0, Map.new()}, fn var, {idx_acc, map_acc} ->
       {idx_acc + 1, Map.put(map_acc, idx_acc, var)}
     end)
     |> elem(1)
-    |> build_value_graph()
+    |> build_value_graph_impl()
   end
 
-  def build_value_graph(variable_map) when is_map(variable_map) do
+  def build_value_graph_impl(variable_map) when is_map(variable_map) do
     Enum.reduce(
       variable_map,
       {Graph.new(), [], Map.new()},
@@ -140,22 +140,29 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
         var_vertex = {:variable, var_id}
         var_ids_acc = [var_vertex | var_ids_acc]
 
+        fixed? = fixed?(var)
+
         partial_matching_acc =
-          if fixed?(var) do
+          if fixed? do
             Map.put(partial_matching_acc, {:value, min(var)}, var_vertex)
           else
             partial_matching_acc
           end
 
         graph_acc =
-          Enum.reduce(domain_values(var), graph_acc, fn d, graph_acc2 ->
+          if fixed? do
+            graph_acc
+          else
+            Enum.reduce(domain_values(var), graph_acc, fn d, graph_acc2 ->
             Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
           end)
+        end
 
         {graph_acc, var_ids_acc, partial_matching_acc}
       end
     )
   end
+
 
   defp update_value_graph(variable_map, value_graph) do
     Enum.reduce(variable_map, value_graph, fn {var_id, var}, graph_acc ->
@@ -184,8 +191,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   def compute_maximum_matching(value_graph, variable_ids, partial_matching) do
-    Kuhn.run(value_graph, variable_ids, partial_matching)
-    |> tap(fn matching -> map_size(matching) < length(variable_ids) && fail() end)
+    Kuhn.run(value_graph, variable_ids, partial_matching, length(variable_ids))
+    || fail()
   end
 
   defp build_residual_graph(value_graph, maximum_matching) do
@@ -331,14 +338,4 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     throw(:fail)
   end
 
-  alias CPSolver.IntVariable, as: Variable
-
-  def test(domains) do
-    vars =
-      Enum.map(Enum.with_index(domains, 1), fn {d, idx} -> Variable.new(d, name: "x#{idx}") end)
-
-    {:ok, vars, _store} = CPSolver.ConstraintStore.create_store(vars)
-
-    build_value_graph(vars)
-  end
 end

@@ -10,41 +10,72 @@ defmodule CPSolver.Algorithms.Kuhn do
   find maximum matching
   """
   @spec run(Graph.t(), [any()], map()) :: map()
-  def run(%Graph{} = graph, left_partition, partial_matching \\ %{}) do
+  def run(%Graph{} = graph, left_partition, partial_matching \\ %{}, matching_size \\ nil) do
+    partial_matching = Map.merge(initial_matching(graph, left_partition), partial_matching)
+    partition_size = length(left_partition)
+
+    unmatched_limit =
+      ((matching_size && matching_size - partition_size) || partition_size) -
+        map_size(partial_matching)
+
     used = MapSet.new(Map.values(partial_matching))
 
-    Enum.reduce(
+    Enum.reduce_while(
       left_partition,
-      {partial_matching, MapSet.new()},
-      fn v, {matching_acc, visited_acc} = acc ->
+      {partial_matching, MapSet.new(), unmatched_limit},
+      fn v, {matching_acc, visited_acc, unmatched_count} = acc ->
         if MapSet.member?(used, v) do
-          acc
+          {:cont, acc}
         else
           case augment(graph, v, matching_acc, visited_acc) do
-            ## No augmented path found
-            {false, _matching, updated_visited} -> {matching_acc, updated_visited}
-            {true, increased_matching} -> {increased_matching, MapSet.new()}
+            ## No augmenting path found for vertex v
+            {false, _matching, updated_visited} ->
+              ## If the required size of matching can not be reached, we fail early.
+              case unmatched_count - 1 do
+                new_unmatched_count when new_unmatched_count < 0 ->
+                  {:halt, false}
+
+                new_unmatched_count ->
+                  {:cont, {matching_acc, updated_visited, new_unmatched_count}}
+              end
+
+            {true, increased_matching} ->
+              {:cont, {increased_matching, MapSet.new(), unmatched_count}}
           end
         end
       end
     )
-    |> elem(0)
+    |> then(fn
+      false ->
+        false
+
+      {matching, _, _} ->
+        if matching_size do
+          map_size(matching) >= matching_size && matching
+        else
+          matching
+        end
+    end)
   end
 
-  defp augment(graph, ls_vertex, matching, visited_vertices) do
-    if MapSet.member?(visited_vertices, ls_vertex) do
+  defp augment(graph, vertex, matching, visited_vertices) do
+    if MapSet.member?(visited_vertices, vertex) do
+      ## Skip already visited vertices
       {false, matching, visited_vertices}
     else
-      updated_visited = MapSet.put(visited_vertices, ls_vertex)
+      ## Mark vertex from left partition as visited
+      updated_visited = MapSet.put(visited_vertices, vertex)
 
       Enum.reduce_while(
-        Graph.neighbors(graph, ls_vertex),
+        Graph.neighbors(graph, vertex),
         {false, matching, updated_visited},
-        fn rs_vertex, {_found?, matching_acc, visited_acc} ->
-          case Map.get(matching_acc, rs_vertex) do
+        fn neighbor_vertex, {_path_found?, matching_acc, visited_acc} = acc ->
+          case Map.get(matching_acc, neighbor_vertex) do
             nil ->
-              {:halt, {true, Map.put(matching_acc, rs_vertex, ls_vertex)}}
+              {:halt, {true, Map.put(matching_acc, neighbor_vertex, vertex)}}
 
+            match when match == vertex ->
+              {:cont, acc}
             match ->
               case augment(
                      graph,
@@ -56,7 +87,7 @@ defmodule CPSolver.Algorithms.Kuhn do
                   {:cont, path_not_found}
 
                 {true, new_matching} ->
-                  {:halt, {true, Map.put(new_matching, rs_vertex, ls_vertex)}}
+                  {:halt, {true, Map.put(new_matching, neighbor_vertex, vertex)}}
               end
           end
         end

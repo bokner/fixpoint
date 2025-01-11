@@ -11,6 +11,7 @@ defmodule CPSolverTest.Algorithms.Kuhn do
     [1, 4, 5, 8, 9],
     [1, 4, 5]
   ]
+  @maximum_2_instance [[1, 2, 3], [1, 2, 3]]
 
   describe "Kuhn maximal matching" do
     test "3 vertices in left-side partition" do
@@ -77,6 +78,13 @@ defmodule CPSolverTest.Algorithms.Kuhn do
       initial_matching = Kuhn.initial_matching(bp_graph, left_partition)
 
       assert_matching(Kuhn.run(bp_graph, left_partition, initial_matching), 6)
+    end
+
+    test "no matching of required size" do
+      right_side_neighbors = @maximum_2_instance
+      {bp_graph, left_partition} = build_bp_graph(right_side_neighbors)
+      ## Can't have matching size of 3
+      refute Kuhn.run(bp_graph, left_partition, %{}, 3)
     end
   end
 
