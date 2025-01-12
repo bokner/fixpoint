@@ -10,8 +10,8 @@ defmodule CPSolver.Algorithms.Kuhn do
   find maximum matching
   """
   @spec run(Graph.t(), [any()], map()) :: map()
-  def run(%Graph{} = graph, left_partition, partial_matching \\ %{}, matching_size \\ nil) do
-    partial_matching = Map.merge(initial_matching(graph, left_partition), partial_matching)
+  def run(%Graph{} = graph, left_partition, fixed_matching \\ %{}, matching_size \\ nil) do
+    partial_matching = Map.merge(initial_matching(graph, left_partition), fixed_matching)
     partition_size = length(left_partition)
 
     unmatched_limit =
