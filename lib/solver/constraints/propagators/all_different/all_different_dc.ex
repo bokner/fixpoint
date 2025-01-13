@@ -73,7 +73,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       reduction(
         all_vars,
         value_graph,
-        Enum.map(component, fn var_id -> {:variable, var_id} end),
+        MapSet.new(component, fn var_id -> {:variable, var_id} end),
         matching,
         repair_matching?
       )
@@ -135,10 +135,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   def build_value_graph_impl(variable_map) when is_map(variable_map) do
     Enum.reduce(
       variable_map,
-      {Graph.new(), [], MapSet.new(), Map.new()},
+      {Graph.new(), MapSet.new(), MapSet.new(), Map.new()},
       fn {var_id, var}, {graph_acc, var_vertices_acc, value_vertices_acc, partial_matching_acc} ->
         var_vertex = {:variable, var_id}
-        var_ids_acc = [var_vertex | var_vertices_acc]
+        var_vertices_acc = MapSet.put(var_vertices_acc, var_vertex)
 
         fixed? = fixed?(var)
 
@@ -161,7 +161,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
           end)
         end
 
-        {graph_acc, var_ids_acc, value_vertices_acc, partial_matching_acc}
+        {graph_acc, var_vertices_acc, value_vertices_acc, partial_matching_acc}
       end
     )
   end
@@ -194,7 +194,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   def compute_maximum_matching(value_graph, variable_ids, partial_matching) do
-    Kuhn.run(value_graph, variable_ids, partial_matching, length(variable_ids))
+    Kuhn.run(value_graph, variable_ids, partial_matching, MapSet.size(variable_ids))
     || fail()
   end
 

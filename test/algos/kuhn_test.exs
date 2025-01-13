@@ -99,7 +99,7 @@ defmodule CPSolverTest.Algorithms.Kuhn do
         Graph.add_edges(g_acc, edges)
       end)
 
-    {bp_graph, left_partition}
+    {bp_graph, MapSet.new(left_partition)}
   end
 
   defp assert_matching(matching, size) do

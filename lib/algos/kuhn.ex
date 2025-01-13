@@ -12,7 +12,7 @@ defmodule CPSolver.Algorithms.Kuhn do
   @spec run(Graph.t(), [any()], map()) :: map()
   def run(%Graph{} = graph, left_partition, fixed_matching \\ %{}, matching_size \\ nil) do
     partial_matching = Map.merge(initial_matching(graph, left_partition), fixed_matching)
-    partition_size = length(left_partition)
+    partition_size = MapSet.size(left_partition)
 
     unmatched_limit =
       ((matching_size && matching_size - partition_size) || partition_size) -
