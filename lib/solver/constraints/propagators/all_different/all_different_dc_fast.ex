@@ -4,14 +4,29 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   Xizhe Zhang, Qian Li and Weixiong Zhang
   https://www.ijcai.org/proceedings/2018/0194.pdf
   """
-  alias CPSolver.IntVariable, as: Variable
+
   alias CPSolver.Propagator.AllDifferent.DC
+  alias CPSolver.Variable.Interface
   alias CPSolver.Algorithms.Kuhn
+
+  def reduce(variables) do
+    {value_graph, variable_vertices, value_vertices, partial_matching} =
+      DC.build_value_graph(variables)
+
+    matching = Kuhn.run(value_graph, variable_vertices, partial_matching)
+
+    removal_callback = fn var_idx, value ->
+      Interface.remove(Enum.at(variables, var_idx), value)
+    end
+
+    value_graph
+    |> reduce(matching, variable_vertices, value_vertices, removal_callback)
+  end
 
   def reduce(
         value_graph,
         matching,
-        variable_vertices,
+        _variable_vertices,
         value_vertices,
         remove_edge_callback \\ fn _var_idx, _value -> :noop end
       ) do

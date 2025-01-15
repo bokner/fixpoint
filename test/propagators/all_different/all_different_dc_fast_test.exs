@@ -1,25 +1,23 @@
 defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
   use ExUnit.Case
 
-  alias CPSolver.ConstraintStore
+  #alias CPSolver.ConstraintStore
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
-  alias CPSolver.Propagator
+  #alias CPSolver.Propagator
   alias CPSolver.Propagator.AllDifferent.DC.Fast
 
-  describe "Reduction algoritm" do
+  describe "Reduction algoritm (Zhang et al. paper example " do
     test "reduction" do
         domains = [1, 1..2, 1..4, [1, 2, 4, 5]]
-        vars = Enum.map(Enum.with_index(domains, 0), fn {d, idx} ->
+        [_x0, x1, x2, x3] = vars = Enum.map(Enum.with_index(domains, 0), fn {d, idx} ->
           Variable.new(d, name: "x#{idx}")
         end)
-        {value_graph, variable_vertices, value_vertices, partial_matching} = DC.build_value_graph(vars)
-        matching = Kuhn.run(value_graph, variable_vertices, partial_matching)
+        Fast.reduce(vars)
 
-        removal_callback = fn var_idx, value -> IO.inspect("Remove #{value} from x[#{var_idx}]") end
-        reduced_graph =
-          value_graph
-          |> reduce(matching, variable_vertices, value_vertices, removal_callback)
+        assert Interface.fixed?(x1) && Interface.min(x1) == 2
+        assert Interface.min(x2) == 3 && Interface.max(x2) == 4
+        assert Interface.min(x3) == 4 && Interface.max(x3) == 5
     end
 
     # test "cascading filtering" do
