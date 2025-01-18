@@ -24,8 +24,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   @impl true
   def filter(all_vars, _state, _changes) do
-    reduce(all_vars)
-    {:state, %{}}
+    {:state, %{value_graph: reduce(all_vars)}}
   end
 
   def reduce(variables) do
@@ -82,8 +81,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     # ga_c = MapSet.difference(variable_vertices, ga_da_set)
     graph
     |> remove_type1_edges(ga_da_set, remove_edge_callback)
-    |> then(fn {graph, complement_vertices} ->
-      remove_type2_edges(graph, complement_vertices, remove_edge_callback)
+    |> then(fn {t1_graph, complement_vertices} ->
+      remove_type2_edges(t1_graph, complement_vertices, remove_edge_callback)
     end)
   end
 
@@ -162,8 +161,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     end)
   end
 
-  def remove_type2_edges(graph, vertices, callback) do
-    type2_graph = Graph.subgraph(graph, vertices)
+  def remove_type2_edges(value_graph, vertices, callback) do
+    type2_graph = Graph.subgraph(value_graph, vertices)
     sccs = Graph.strong_components(type2_graph)
     ## Make maps var_vertex => scc_id, val_vertex => scc_id
     {_idx, var_scc_map, value_scc_map} =
@@ -185,14 +184,17 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       )
 
     ## Remove the cross-edges
-    Enum.reduce(var_scc_map, type2_graph, fn {{:variable, var_idx} = var_vertex, scc_id},
+    Enum.reduce(var_scc_map, value_graph, fn {{:variable, var_idx} = var_vertex, scc_id},
                                              graph_acc ->
       Enum.reduce(Graph.in_edges(graph_acc, var_vertex), graph_acc, fn
         %{v1: {:value, value} = value_vertex} = _edge, graph_acc2 ->
-          if Map.get(value_scc_map, value_vertex) == scc_id do
+          case Map.get(value_scc_map, value_vertex)  do
             ## Not a cross-edge
-            graph_acc2
-          else
+            nil -> graph_acc2
+            value_scc when value_scc == scc_id ->
+              graph_acc2
+            _different_scc ->
+              ## Cross-edge
             callback.(var_idx, value)
             Graph.delete_edge(graph_acc2, value_vertex, var_vertex)
           end
