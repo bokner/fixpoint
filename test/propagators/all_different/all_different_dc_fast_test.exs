@@ -20,7 +20,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
         assert Interface.min(x3) == 4 && Interface.max(x3) == 5
     end
 
-    test "cascading filtering" do
+    test "cascading" do
       ## all variables become fixed, and this will take a single filtering call.
       ##
       [x2, _x1, x3, x4, x5] = vars =
@@ -43,5 +43,24 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
         Enum.map(domains, fn d -> Variable.new(d) end)
       assert catch_throw(Fast.reduce(vars)) == :fail
     end
+  end
+
+  describe "Filtering" do
+    alias CPSolver.Propagator
+    test "reduction" do
+      domains = [1, 1..2, 1..4, [1, 2, 4, 5]]
+      [_x0, x1, x2, x3] = vars = Enum.map(Enum.with_index(domains, 0), fn {d, idx} ->
+        Variable.new(d, name: "x#{idx}")
+      end)
+
+      {:ok, x_vars, _store} = CPSolver.ConstraintStore.create_store(vars)
+
+      dc_propagator = Fast.new(x_vars)
+      %{state: _} = Propagator.filter(dc_propagator)
+
+      assert Interface.fixed?(x1) && Interface.min(x1) == 2
+      assert Interface.min(x2) == 3 && Interface.max(x2) == 4
+      assert Interface.min(x3) == 4 && Interface.max(x3) == 5
+  end
   end
 end

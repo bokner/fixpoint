@@ -280,8 +280,14 @@ defmodule CPSolver.Propagator do
     TupleArray.at(args, pos)
   end
 
+  def arg_at(args, pos) when is_list(args) do
+    Enum.at(args, pos)
+  end
+
   def arg_at(args, pos) do
-    Arrays.get(args, pos)
+    (Enumerable.impl_for(args) &&
+       Arrays.get(args, pos)) ||
+      throw({:error, :unknown_type, args})
   end
 
   def arg_map(%{args: args} = _propagator, mapper) do
@@ -297,7 +303,9 @@ defmodule CPSolver.Propagator do
   end
 
   def arg_map(args, mapper) when is_function(mapper) do
-    Arrays.map(args, mapper)
+    (Enumerable.impl_for(args) &&
+       Arrays.map(args, mapper)) ||
+      throw({:error, :unknown_type, args})
   end
 
   def args_to_list(args) when is_tuple(args) do

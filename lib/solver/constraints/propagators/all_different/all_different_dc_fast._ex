@@ -4,13 +4,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   Xizhe Zhang, Qian Li and Weixiong Zhang
   https://www.ijcai.org/proceedings/2018/0194.pdf
   """
-
   use CPSolver.Propagator
 
   alias CPSolver.Propagator.AllDifferent.DC
   alias CPSolver.Variable.Interface
   alias CPSolver.Algorithms.Kuhn
-
 
   @impl true
   def arguments(args) do
@@ -28,36 +26,30 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     {:state, %{}}
   end
 
-  def reduce(variables) do
-    reduce(variables, reduction_callback(variables))
-  end
-
-  def reduce(variables, reduction_callback) do
-    {value_graph, variable_vertices, value_vertices, partial_matching} =
-      DC.build_value_graph(variables)
-
-    case Kuhn.run(
-           value_graph,
-           variable_vertices,
-           partial_matching,
-           MapSet.size(variable_vertices)
-         ) do
-      nil ->
-        fail()
-
-      matching ->
-        reduce(value_graph, matching, variable_vertices, value_vertices, reduction_callback)
-    end
-  end
-
-  defp reduction_callback(variables) do
+  defp remove_values_callback(variables) do
     fn var_idx, value ->
-      Interface.remove(Propagator.arg_at(variables, var_idx), value)
+      Interface.remove(variables[var_idx], value)
     end
   end
 
   defp fail() do
     throw(:fail)
+  end
+
+  def reduce(variables) do
+    reduce(variables, remove_values_callback(variables))
+  end
+
+  def reduce(variables, removal_callback) do
+    {value_graph, variable_vertices, value_vertices, partial_matching} =
+      DC.build_value_graph(variables)
+
+    case Kuhn.run(value_graph, variable_vertices) do
+      matching when matching ->
+        value_graph
+        |> reduce(matching, variable_vertices, value_vertices, removal_callback)
+      _falsey -> fail()
+    end
   end
 
   def reduce(

@@ -10,12 +10,12 @@ defmodule CPSolver.Algorithms.Kuhn do
   find maximum matching
   """
   @spec run(Graph.t(), [any()], map()) :: map()
-  def run(%Graph{} = graph, left_partition, fixed_matching \\ %{}, matching_size \\ nil) do
+  def run(%Graph{} = graph, left_partition, fixed_matching \\ %{}, required_matching_size \\ nil) do
     partial_matching = Map.merge(initial_matching(graph, left_partition), fixed_matching)
     partition_size = MapSet.size(left_partition)
 
     unmatched_limit =
-      ((matching_size && matching_size - partition_size) || partition_size) -
+      ((required_matching_size && required_matching_size - partition_size) || partition_size) -
         map_size(partial_matching)
 
     used = MapSet.new(Map.values(partial_matching))
@@ -47,11 +47,11 @@ defmodule CPSolver.Algorithms.Kuhn do
     )
     |> then(fn
       false ->
-        false
+        nil
 
       {matching, _, _} ->
-        if matching_size do
-          map_size(matching) >= matching_size && matching
+        if required_matching_size do
+          map_size(matching) >= required_matching_size && matching
         else
           matching
         end
@@ -76,6 +76,7 @@ defmodule CPSolver.Algorithms.Kuhn do
 
             match when match == vertex ->
               {:cont, acc}
+
             match ->
               case augment(
                      graph,

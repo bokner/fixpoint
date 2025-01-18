@@ -35,7 +35,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
            _state,
          changes
        ) do
-    # initial_state(all_vars)
     ## Apply changes to affected SCCs
     trigger_vars =
       Map.keys(changes) |> MapSet.new()
@@ -183,15 +182,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       end
     end)
 
-    # Enum.reduce(triggers, value_graph, fn var_id, graph_acc ->
-    #    var = Map.get(variable_map, var_id)
-    #    var_vertex = {:variable, var_id}
-    #    graph_values = Graph.in_neighbors(graph_acc, var_vertex)
-    #    Enum.reduce(graph_values, graph_acc, fn {:value, val} = val_vertex, graph_acc2 ->
-    #      contains?(var, val) && graph_acc2 || Graph.delete_edge(graph_acc2, val_vertex, var_vertex)
-    #    end)
-    # end)
-  end
+    end
 
   def compute_maximum_matching(value_graph, variable_ids, partial_matching) do
     Kuhn.run(value_graph, variable_ids, partial_matching, MapSet.size(variable_ids))
