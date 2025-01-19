@@ -76,7 +76,8 @@ defmodule CPSolverTest.Algorithms.Kuhn do
 
       {bp_graph, left_partition} = build_bp_graph(right_side_neighbors)
       initial_matching = Kuhn.initial_matching(bp_graph, left_partition)
-
+      initial_matching = Kuhn.initial_matching(bp_graph, left_partition, initial_matching)
+  
       assert_matching(Kuhn.run(bp_graph, left_partition, initial_matching), 6)
     end
 

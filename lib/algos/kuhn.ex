@@ -11,7 +11,8 @@ defmodule CPSolver.Algorithms.Kuhn do
   """
   @spec run(Graph.t(), [any()], map()) :: map()
   def run(%Graph{} = graph, left_partition, fixed_matching \\ %{}, required_matching_size \\ nil) do
-    partial_matching = Map.merge(initial_matching(graph, left_partition), fixed_matching)
+    partial_matching = #fixed_matching
+     initial_matching(graph, left_partition, fixed_matching)
     partition_size = MapSet.size(left_partition)
 
     unmatched_limit =
@@ -96,16 +97,20 @@ defmodule CPSolver.Algorithms.Kuhn do
     end
   end
 
-  def initial_matching(graph, left_partition) do
-    Enum.reduce(left_partition, Map.new(), fn ls_vertex, partial_matching ->
+  def initial_matching(graph, left_partition, fixed_matching \\ %{}) do
+    Enum.reduce(left_partition, {fixed_matching, Map.values(fixed_matching) |> MapSet.new()}, fn ls_vertex, {_matching_acc, _used_left_acc} = acc->
       Enum.reduce_while(
         Graph.neighbors(graph, ls_vertex),
-        partial_matching,
-        fn rs_vertex, matching_acc ->
-          (Map.get(matching_acc, rs_vertex) && {:cont, matching_acc}) ||
-            {:halt, Map.put(matching_acc, rs_vertex, ls_vertex)}
+        acc,
+        fn rs_vertex, {matching_acc2, used_left_acc2} = acc2 ->
+          Map.get(matching_acc2, rs_vertex) && {:cont, acc2} ||
+            (MapSet.member?(used_left_acc2, ls_vertex) && {:cont, acc2} ||
+            {:halt,
+              {Map.put(matching_acc2, rs_vertex, ls_vertex), MapSet.put(used_left_acc2, ls_vertex)}
+            })
         end
       )
     end)
+    |> elem(0)
   end
 end
