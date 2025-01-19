@@ -23,9 +23,24 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   @impl true
-  def filter(all_vars, _state, _changes) do
-    {:state, %{value_graph: reduce(all_vars)}}
+  def filter(vars, state, changes) do
+    new_state =
+      (state && filter_impl(vars, state, changes)) ||
+        initial_state(vars)
+
+    (new_state == :resolved && :passive) ||
+      {:state, new_state}
   end
+
+  def initial_state(vars) do
+    value_graph = reduce(vars)
+    %{value_graph: value_graph}
+  end
+
+  def filter_impl(vars, _state, _changes) do
+    initial_state(vars)
+  end
+
 
   def reduce(variables) do
     reduce(variables, reduction_callback(variables))
@@ -98,8 +113,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     end)
   end
 
-  def collect_GA_nodes(graph, vertex, acc) do
-    Enum.reduce(Graph.out_neighbors(graph, vertex), acc, fn variable_vertex, acc2 ->
+  ## Collect Γ(A) and A nodes by following paths starting from each variable
+  ## the free node connected to
+  def collect_GA_nodes(graph, free_node, acc) do
+    Enum.reduce(Graph.out_neighbors(graph, free_node), acc, fn variable_vertex, acc2 ->
       if MapSet.member?(acc2, variable_vertex) do
         acc2
       else
@@ -162,6 +179,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def remove_type2_edges(value_graph, vertices, callback) do
+    ## TODO: SCC detection without building a subgraph?
     type2_graph = Graph.subgraph(value_graph, vertices)
     sccs = Graph.strong_components(type2_graph)
     ## Make maps var_vertex => scc_id, val_vertex => scc_id
@@ -183,7 +201,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         end
       )
 
-    ## Remove the cross-edges
+    ## Remove edges between SCCs
     Enum.reduce(var_scc_map, value_graph, fn {{:variable, var_idx} = var_vertex, scc_id},
                                              graph_acc ->
       Enum.reduce(Graph.in_edges(graph_acc, var_vertex), graph_acc, fn

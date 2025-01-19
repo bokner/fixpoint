@@ -25,11 +25,11 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
 
       ## Reduced value graph consists of 3 components, as per paper
       assert 3 == length(Graph.components(reduced_value_graph))
+
+      assert 6 == length(Graph.edges(reduced_value_graph))
     end
 
     test "cascading" do
-      ## all variables become fixed, and this will take a single filtering call.
-      ##
       [x2, _x1, x3, x4, x5] =
         vars =
         Enum.map([{"x2", 1..2}, {"x1", 1}, {"x3", 1..3}, {"x4", 1..4}, {"x5", 1..5}], fn {name, d} ->
@@ -37,6 +37,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
         end)
 
       Fast.reduce(vars)
+      ## all variables are fixed
       assert Interface.fixed?(x2) && Interface.min(x2) == 2
       assert Interface.fixed?(x3) && Interface.min(x3) == 3
       assert Interface.fixed?(x4) && Interface.min(x4) == 4
