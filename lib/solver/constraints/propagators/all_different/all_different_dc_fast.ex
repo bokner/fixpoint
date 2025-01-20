@@ -77,24 +77,24 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   def reduce(
         value_graph,
         matching,
-        _variable_vertices,
+        variable_vertices,
         value_vertices,
         remove_edge_callback \\ fn _var_idx, _value -> :noop end
       ) do
     ## Flip edges that are in matching
-    graph = flip_matching(value_graph, matching)
+    value_graph = flip_matching(value_graph, matching)
 
     free_nodes = free_nodes(matching, value_vertices)
     ## Build sets Γ(A) (neighbors of free value vertices)
     ## and A (allowed nodes)
-    ga_da_set =
-      Enum.reduce(free_nodes, free_nodes, fn vertex, ga_set_acc ->
-        ## Free node
-        collect_GA_nodes(graph, vertex, ga_set_acc)
-      end)
+    ga_da_set = build_GA(value_graph, variable_vertices, free_nodes)
+#      Enum.reduce(free_nodes, free_nodes, fn vertex, ga_set_acc ->
+#        ## Free node
+#        collect_GA_nodes(graph, vertex, ga_set_acc)
+#      end)
 
     # ga_c = MapSet.difference(variable_vertices, ga_da_set)
-    graph
+    value_graph
     |> remove_type1_edges(ga_da_set, remove_edge_callback)
     |> then(fn {t1_graph, complement_vertices} ->
       remove_type2_edges(t1_graph, complement_vertices, remove_edge_callback)
@@ -124,6 +124,26 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       end
     end)
   end
+
+  def build_GA(value_graph, _variable_vertices, free_nodes) do
+    Enum.reduce(free_nodes, free_nodes, fn vertex, ga_set_acc ->
+      ## Free node
+        collect_GA_nodes(value_graph, vertex, ga_set_acc)
+    end)
+    # Enum.reduce(free_nodes, MapSet.new(), fn free_node, acc ->
+    #   Enum.reduce(variable_vertices, acc, fn var_vertex, acc2 ->
+    #     if MapSet.member?(acc2, var_vertex) do
+    #       acc2
+    #     else
+    #       ## If there is a path, we only need one
+    #       path = Graph.get_paths(value_graph, free_node, var_vertex)
+    #       Enum.empty?(path) && acc2 || MapSet.union(acc2, MapSet.new(hd(path)))
+    #     end
+    #   end)
+    # end)
+  end
+
+
 
   ## Alternating path starting from (and including) vertex.
   ## Alternating path always
