@@ -98,7 +98,11 @@ defmodule CPSolver.Algorithms.Kuhn do
   end
 
   def initial_matching(graph, left_partition, fixed_matching \\ %{}) do
-    Enum.reduce(left_partition, {fixed_matching, Map.values(fixed_matching) |> MapSet.new()}, fn ls_vertex, {_matching_acc, _used_left_acc} = acc->
+    repaired_matching = # Remove matchings that are not edges
+      Enum.reduce(fixed_matching, fixed_matching, fn {right_vertex, left_vertex}, matching_acc ->
+      Enum.empty?(Graph.edges(graph, right_vertex, left_vertex)) && Map.delete(matching_acc, right_vertex) || matching_acc end)
+
+    Enum.reduce(left_partition, {repaired_matching, Map.values(repaired_matching) |> MapSet.new()}, fn ls_vertex, {_matching_acc, _used_left_acc} = acc->
       Enum.reduce_while(
         Graph.neighbors(graph, ls_vertex),
         acc,

@@ -149,16 +149,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
           end
 
         {graph_acc, value_vertices_acc}  =
-          if fixed? do
-            {graph_acc, value_vertices_acc}
-          else
             Enum.reduce(domain_values(var), {graph_acc, value_vertices_acc}, fn d, {graph_acc2, value_vertices_acc2} ->
             {
               Graph.add_edge(graph_acc2, {:value, d}, var_vertex),
               MapSet.put(value_vertices_acc2, {:value, d})
             }
           end)
-        end
 
         {graph_acc, var_vertices_acc, value_vertices_acc, partial_matching_acc}
       end
