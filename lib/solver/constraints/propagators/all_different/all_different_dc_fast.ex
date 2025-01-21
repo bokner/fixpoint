@@ -95,10 +95,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     value_graph
     |> remove_type1_edges(ga_da_set, remove_edge_callback)
     |> then(fn {t1_graph, complement_vertices} ->
-      {value_graph, sccs, var_scc_map} = remove_type2_edges(t1_graph, complement_vertices, remove_edge_callback)
+      {value_graph, sccs, vertices_to_scc_map} = remove_type2_edges(t1_graph, complement_vertices, remove_edge_callback)
       %{value_graph: value_graph,
         sccs: sccs,
-        variables_to_sccs: var_scc_map,
+        vertices_to_sccs: vertices_to_scc_map,
         matching: matching,
         t1_graph: t1_graph
       }
@@ -106,7 +106,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def reduce_state(vars, state, changes) do
-    
+
     reduce(vars)
   end
 
@@ -200,31 +200,28 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     type2_graph = Graph.subgraph(value_graph, vertices)
     sccs = Graph.strong_components(type2_graph)
     ## Make maps var_vertex => scc_id, val_vertex => scc_id
-    {var_scc_map, value_scc_map} =
+    vertex_to_scc_map =
       Enum.reduce(
         sccs,
-        {Map.new(), Map.new()},
-        fn vertices, {variable_map_acc, value_map_acc} = _acc ->
+        Map.new(),
+        fn vertices, vertex_map_acc = _acc ->
           idx = make_ref()
-          {var_map, val_map} =
-            Enum.reduce(vertices, {variable_map_acc, value_map_acc}, fn
-              {:value, _} = vertex, {variable_map_acc2, value_map_acc2} ->
-                {variable_map_acc2, Map.put(value_map_acc2, vertex, idx)}
-
-              {:variable, _} = vertex, {variable_map_acc2, value_map_acc2} ->
-                {Map.put(variable_map_acc2, vertex, idx), value_map_acc2}
+            Enum.reduce(vertices, vertex_map_acc, fn
+              vertex, vertex_map_acc2 ->
+                Map.put(vertex_map_acc2, vertex, idx)
             end)
-
-          {var_map, val_map}
         end
       )
 
     ## Remove edges between SCCs
-    value_graph = Enum.reduce(var_scc_map, value_graph, fn {{:variable, var_idx} = var_vertex, scc_id},
-                                             graph_acc ->
+    value_graph = Enum.reduce(vertex_to_scc_map, value_graph,
+      fn
+        {{:value, _} = _vertex, _scc_id}, graph_acc -> graph_acc
+        {{:variable, var_idx} = var_vertex, scc_id}, graph_acc ->
       Enum.reduce(Graph.in_edges(graph_acc, var_vertex), graph_acc, fn
+
         %{v1: {:value, value} = value_vertex} = _edge, graph_acc2 ->
-          case Map.get(value_scc_map, value_vertex)  do
+          case Map.get(vertex_to_scc_map, value_vertex)  do
             ## Not a cross-edge
             nil -> graph_acc2
             value_scc when value_scc == scc_id ->
@@ -237,7 +234,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       end)
     end)
 
-    {value_graph, remove_resolved_sccs(sccs), var_scc_map}
+    {value_graph, remove_resolved_sccs(sccs), vertex_to_scc_map}
 
   end
 
