@@ -100,7 +100,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         sccs: sccs,
         vertices_to_sccs: vertices_to_scc_map,
         matching: matching,
-        t1_graph: t1_graph
+        t1_component: ga_da_set
       }
     end)
   end
