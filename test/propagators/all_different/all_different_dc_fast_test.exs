@@ -76,12 +76,37 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       {:ok, x_vars, _store} = CPSolver.ConstraintStore.create_store(vars)
 
       dc_propagator = Fast.new(x_vars)
-      %{state: %{value_graph: _value_graph, components: _components}} = Propagator.filter(dc_propagator)
+      state = %{state: %{value_graph: _value_graph, components: _components, matching: matching}} = Propagator.filter(dc_propagator)
 
       ## Variable filtering
       assert Interface.fixed?(x1) && Interface.min(x1) == 2
       assert Interface.min(x2) == 3 && Interface.max(x2) == 4
       assert Interface.min(x3) == 4 && Interface.max(x3) == 5
+
+      ## Domain changes that alter existing matching.
+      ## x3 has value `5` in matching
+      assert Map.get(matching, {:value, 5}) == {:variable, 3}
+      ## Fixing x3 to `4` will make x3 unmatched...
+      :fixed = Interface.fix(x3, 4)
+      changes = %{3 => :fixed}
+
+      ### ...and the update will detect it
+      {state, unmatched_variables} = Fast.update_value_graph(vars, state.state, changes)
+      assert unmatched_variables == MapSet.new([3])
+      ### ...the matching will lose the edge to unmatched variable
+      refute Map.get(state.matching, {:value, 5})
+      ### ... the matching for x3 will change to the value it was fixed at
+      assert Map.get(state.matching, {:value, 4}) ==  {:variable, 3}
+
+      # IO.inspect(state.components, label: :altered_matching)
+
+      res = Fast.update_components(vars, unmatched_variables, state)
+
+      #IO.inspect(matching, label: :matching)
+
+      #IO.inspect(res, label: :update_components)
+
+      #Propagator.filter(Map.put(dc_propagator, :state, state), changes: changes)
     end
   end
 end

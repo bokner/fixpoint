@@ -98,7 +98,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   def initial_state(vars) do
-    {value_graph, variable_vertices, _value_vertices, partial_matching} = build_value_graph(vars)
+    {value_graph, variable_vertices, partial_matching} = build_value_graph(vars)
     {_residual_graph, sccs} = reduction(vars, value_graph, variable_vertices, partial_matching)
     final_state(sccs)
   end
@@ -134,8 +134,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   def build_value_graph_impl(variable_map) when is_map(variable_map) do
     Enum.reduce(
       variable_map,
-      {Graph.new(), MapSet.new(), MapSet.new(), Map.new()},
-      fn {var_id, var}, {graph_acc, var_vertices_acc, value_vertices_acc, partial_matching_acc} ->
+      {Graph.new(), MapSet.new(), Map.new()},
+      fn {var_id, var}, {graph_acc, var_vertices_acc, partial_matching_acc} ->
         var_vertex = {:variable, var_id}
         var_vertices_acc = MapSet.put(var_vertices_acc, var_vertex)
 
@@ -148,15 +148,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
             partial_matching_acc
           end
 
-        {graph_acc, value_vertices_acc}  =
-            Enum.reduce(domain_values(var), {graph_acc, value_vertices_acc}, fn d, {graph_acc2, value_vertices_acc2} ->
-            {
-              Graph.add_edge(graph_acc2, {:value, d}, var_vertex),
-              MapSet.put(value_vertices_acc2, {:value, d})
-            }
+        graph_acc  =
+            Enum.reduce(domain_values(var), graph_acc, fn d, graph_acc2 ->
+              Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
           end)
 
-        {graph_acc, var_vertices_acc, value_vertices_acc, partial_matching_acc}
+        {graph_acc, var_vertices_acc, partial_matching_acc}
       end
     )
   end
