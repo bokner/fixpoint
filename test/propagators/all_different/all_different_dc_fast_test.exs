@@ -32,8 +32,8 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
 
       # The value graph is split into 2 single-edge components and one component with Γ(A) + A vertices
       assert Enum.map(Graph.components(reduced_value_graph), fn component -> length(component) end) |> Enum.sort() == [2, 2, 5]
-      # Single-edge SCCs are removed
-      assert length(state.sccs) == 0
+      # Single-edge SCCs are removed, one left is the one with reduced t2-type edges
+      assert length(state.components) == 1
     end
 
     test "cascading" do
@@ -76,7 +76,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       {:ok, x_vars, _store} = CPSolver.ConstraintStore.create_store(vars)
 
       dc_propagator = Fast.new(x_vars)
-      %{state: %{value_graph: _value_graph, sccs: _sccs}} = Propagator.filter(dc_propagator)
+      %{state: %{value_graph: _value_graph, components: _components}} = Propagator.filter(dc_propagator)
 
       ## Variable filtering
       assert Interface.fixed?(x1) && Interface.min(x1) == 2

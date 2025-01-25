@@ -37,7 +37,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def filter_impl(vars, state, changes) do
-    reduce_state(vars, state, changes)
+    updated_state = reduce_state(vars, state, changes)
+    case length(updated_state.components) do
+      0 -> :resolved
+      _num_active_components -> updated_state
+    end
   end
 
   defp reduction_callback(variables) do
@@ -86,28 +90,37 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     ## Build sets Γ(A) (neighbors of free value vertices)
     ## and A (allowed nodes)
     ga_da_set = build_GA(value_graph, variable_vertices, free_nodes)
-#      Enum.reduce(free_nodes, free_nodes, fn vertex, ga_set_acc ->
-#        ## Free node
-#        collect_GA_nodes(graph, vertex, ga_set_acc)
-#      end)
 
-    # ga_c = MapSet.difference(variable_vertices, ga_da_set)
     value_graph
     |> remove_type1_edges(ga_da_set, remove_edge_callback)
     |> then(fn {t1_graph, complement_vertices} ->
       {value_graph, sccs, vertices_to_scc_map} = remove_type2_edges(t1_graph, complement_vertices, remove_edge_callback)
       %{value_graph: value_graph,
-        sccs: sccs,
+        components: finalize_components(ga_da_set, sccs),
         vertices_to_sccs: vertices_to_scc_map,
-        matching: matching,
-        t1_component: ga_da_set
+        matching: matching
       }
     end)
   end
 
   def reduce_state(vars, state, changes) do
+    changed_vars = Map.keys(changes) |> MapSet.new(fn var_id -> {:variable, var_id} end)
+    {components, value_graph} = Enum.reduce(state.components, {[], state.value_graph},
+      fn component, {components_acc, value_graph_acc} ->
+        component_changed_vars = MapSet.intersection(component, changed_vars)
+        if MapSet.size(component_changed_vars) == 0 do
+          {[component | components_acc], value_graph_acc} ## No change to component, keep it
+        else
+          {derived_components, updated_value_graph} = update_component(component, component_changed_vars, value_graph_acc)
+          {Enum.empty?(derived_components) && components_acc || components_acc, updated_value_graph}
+        end
+        end)
 
     reduce(vars)
+  end
+
+  defp update_component(component, component_changed_vars, value_graph) do
+
   end
 
   def free_nodes(matching, value_vertices) do
@@ -143,7 +156,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
 
   ## Alternating path starting from (and including) vertex.
-  ## Alternating path always
+  ##
   def alternating_path(graph, vertex) do
     alternating_path(graph, vertex, MapSet.new([vertex]))
   end
@@ -234,12 +247,26 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       end)
     end)
 
-    {value_graph, remove_resolved_sccs(sccs), vertex_to_scc_map}
+    {value_graph, sccs, vertex_to_scc_map}
 
   end
 
-  ## SCCs with a single edge correspond to fixed valiables - won't need thenm for next iteration
-  defp remove_resolved_sccs(sccs) do
-    Enum.filter(sccs, fn component -> length(component) > 2 end)
+  ## Components with a single variable are "resolved" - they correspond to variables with the values
+  ## that won't be shared with other variables.
+  defp finalize_components(ga_da_set, sccs) do
+    reduced_sccs = Enum.flat_map(sccs, fn component -> length(component) > 2 && [component_record(component)] || [] end)
+    div(MapSet.size(ga_da_set), 2) > 1 ## meaning there is more than 1 variable in subgraph induced by ga_da_set.
+    && [component_record(ga_da_set) | reduced_sccs]
+    || reduced_sccs
+  end
+
+  defp component_record(component) do
+    {values, var_ids} = Enum.reduce(component, {MapSet.new(), MapSet.new()},
+      fn {:value, value} = _value_vertex, {values_acc, variables_acc} ->
+          {MapSet.put(values_acc, value), variables_acc}
+        {:variable, var_id} = _variable_vertex, {values_acc, variables_acc} ->
+          {values_acc, MapSet.put(variables_acc, var_id)}
+    end)
+    %{values: values, variables: var_ids}
   end
 end
