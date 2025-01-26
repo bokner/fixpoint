@@ -35,7 +35,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
            _state,
          changes
        ) do
-    # initial_state(all_vars)
     ## Apply changes to affected SCCs
     trigger_vars =
       Map.keys(changes) |> MapSet.new()
@@ -73,7 +72,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       reduction(
         all_vars,
         value_graph,
-        Enum.map(component, fn var_id -> {:variable, var_id} end),
+        MapSet.new(component, fn var_id -> {:variable, var_id} end),
         matching,
         repair_matching?
       )
@@ -135,10 +134,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   def build_value_graph_impl(variable_map) when is_map(variable_map) do
     Enum.reduce(
       variable_map,
-      {Graph.new(), [], Map.new()},
-      fn {var_id, var}, {graph_acc, var_ids_acc, partial_matching_acc} ->
+      {Graph.new(), MapSet.new(), Map.new()},
+      fn {var_id, var}, {graph_acc, var_vertices_acc, partial_matching_acc} ->
         var_vertex = {:variable, var_id}
-        var_ids_acc = [var_vertex | var_ids_acc]
+        var_vertices_acc = MapSet.put(var_vertices_acc, var_vertex)
 
         fixed? = fixed?(var)
 
@@ -149,16 +148,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
             partial_matching_acc
           end
 
-        graph_acc =
-          if fixed? do
-            graph_acc
-          else
+        graph_acc  =
             Enum.reduce(domain_values(var), graph_acc, fn d, graph_acc2 ->
-            Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
+              Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
           end)
-        end
 
-        {graph_acc, var_ids_acc, partial_matching_acc}
+        {graph_acc, var_vertices_acc, partial_matching_acc}
       end
     )
   end
@@ -180,18 +175,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       end
     end)
 
-    # Enum.reduce(triggers, value_graph, fn var_id, graph_acc ->
-    #    var = Map.get(variable_map, var_id)
-    #    var_vertex = {:variable, var_id}
-    #    graph_values = Graph.in_neighbors(graph_acc, var_vertex)
-    #    Enum.reduce(graph_values, graph_acc, fn {:value, val} = val_vertex, graph_acc2 ->
-    #      contains?(var, val) && graph_acc2 || Graph.delete_edge(graph_acc2, val_vertex, var_vertex)
-    #    end)
-    # end)
-  end
+    end
 
   def compute_maximum_matching(value_graph, variable_ids, partial_matching) do
-    Kuhn.run(value_graph, variable_ids, partial_matching, length(variable_ids))
+    Kuhn.run(value_graph, variable_ids, partial_matching, MapSet.size(variable_ids))
     || fail()
   end
 

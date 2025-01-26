@@ -76,6 +76,7 @@ defmodule CPSolverTest.Algorithms.Kuhn do
 
       {bp_graph, left_partition} = build_bp_graph(right_side_neighbors)
       initial_matching = Kuhn.initial_matching(bp_graph, left_partition)
+      initial_matching = Kuhn.initial_matching(bp_graph, left_partition, initial_matching)
 
       assert_matching(Kuhn.run(bp_graph, left_partition, initial_matching), 6)
     end
@@ -85,6 +86,18 @@ defmodule CPSolverTest.Algorithms.Kuhn do
       {bp_graph, left_partition} = build_bp_graph(right_side_neighbors)
       ## Can't have matching size of 3
       refute Kuhn.run(bp_graph, left_partition, %{}, 3)
+    end
+
+    test "fixed matchings that are not edges will be ignored" do
+      right_side_neighbors = @maximum_2_instance
+      {bp_graph, left_partition} = build_bp_graph(right_side_neighbors)
+      ## There is no value 0 for any of the left-side vertices
+      non_value_edge = %{{:R, 0} => {:L, 1}}
+      refute {:R, 0} in (Kuhn.run(bp_graph, left_partition, non_value_edge) |> Map.keys())
+
+      non_variable_edge = %{{:R, 1} => {:L, 0}}
+      refute {:L, 0} in (Kuhn.run(bp_graph, left_partition, non_variable_edge) |> Map.values())
+
     end
   end
 
@@ -99,7 +112,7 @@ defmodule CPSolverTest.Algorithms.Kuhn do
         Graph.add_edges(g_acc, edges)
       end)
 
-    {bp_graph, left_partition}
+    {bp_graph, MapSet.new(left_partition)}
   end
 
   defp assert_matching(matching, size) do

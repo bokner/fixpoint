@@ -7,7 +7,7 @@ defmodule CPSolver.Examples.Sudoku do
   require Logger
 
   ## Sudoku puzzle is a list of n rows, each one has n elements.
-  ## If puzzle[i, j] = 0, the cell (i,j) is not filled.
+  ## If puzzle[i, j] is not a number between 1 and 9, the cell (i,j) is not filled.
   ##
   ## 4x4 example:
   ##

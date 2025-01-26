@@ -10,12 +10,13 @@ defmodule CPSolver.Algorithms.Kuhn do
   find maximum matching
   """
   @spec run(Graph.t(), [any()], map()) :: map()
-  def run(%Graph{} = graph, left_partition, fixed_matching \\ %{}, matching_size \\ nil) do
-    partial_matching = Map.merge(initial_matching(graph, left_partition), fixed_matching)
-    partition_size = length(left_partition)
+  def run(%Graph{} = graph, left_partition, fixed_matching \\ %{}, required_matching_size \\ nil) do
+    partial_matching = #fixed_matching
+     initial_matching(graph, left_partition, fixed_matching)
+    partition_size = MapSet.size(left_partition)
 
     unmatched_limit =
-      ((matching_size && matching_size - partition_size) || partition_size) -
+      ((required_matching_size && required_matching_size - partition_size) || partition_size) -
         map_size(partial_matching)
 
     used = MapSet.new(Map.values(partial_matching))
@@ -47,11 +48,11 @@ defmodule CPSolver.Algorithms.Kuhn do
     )
     |> then(fn
       false ->
-        false
+        nil
 
       {matching, _, _} ->
-        if matching_size do
-          map_size(matching) >= matching_size && matching
+        if required_matching_size do
+          map_size(matching) >= required_matching_size && matching
         else
           matching
         end
@@ -76,6 +77,7 @@ defmodule CPSolver.Algorithms.Kuhn do
 
             match when match == vertex ->
               {:cont, acc}
+
             match ->
               case augment(
                      graph,
@@ -95,16 +97,24 @@ defmodule CPSolver.Algorithms.Kuhn do
     end
   end
 
-  def initial_matching(graph, left_partition) do
-    Enum.reduce(left_partition, Map.new(), fn ls_vertex, partial_matching ->
+  def initial_matching(graph, left_partition, fixed_matching \\ %{}) do
+    repaired_matching = # Remove matchings that are not edges
+      Enum.reduce(fixed_matching, fixed_matching, fn {right_vertex, left_vertex}, matching_acc ->
+      Enum.empty?(Graph.edges(graph, right_vertex, left_vertex)) && Map.delete(matching_acc, right_vertex) || matching_acc end)
+
+    Enum.reduce(left_partition, {repaired_matching, Map.values(repaired_matching) |> MapSet.new()}, fn ls_vertex, {_matching_acc, _used_left_acc} = acc->
       Enum.reduce_while(
         Graph.neighbors(graph, ls_vertex),
-        partial_matching,
-        fn rs_vertex, matching_acc ->
-          (Map.get(matching_acc, rs_vertex) && {:cont, matching_acc}) ||
-            {:halt, Map.put(matching_acc, rs_vertex, ls_vertex)}
+        acc,
+        fn rs_vertex, {matching_acc2, used_left_acc2} = acc2 ->
+          Map.get(matching_acc2, rs_vertex) && {:cont, acc2} ||
+            (MapSet.member?(used_left_acc2, ls_vertex) && {:cont, acc2} ||
+            {:halt,
+              {Map.put(matching_acc2, rs_vertex, ls_vertex), MapSet.put(used_left_acc2, ls_vertex)}
+            })
         end
       )
     end)
+    |> elem(0)
   end
 end
