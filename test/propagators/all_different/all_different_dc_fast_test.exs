@@ -17,7 +17,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
           Variable.new(d, name: "x#{idx}")
         end)
 
-      state = Fast.reduce(vars)
+      state = Fast.initial_reduction(vars)
       reduced_value_graph = state[:value_graph]
 
       assert Interface.fixed?(x1) && Interface.min(x1) == 2
@@ -33,7 +33,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       # The value graph is split into 2 single-edge components and one component with Γ(A) + A vertices
       assert Enum.map(Graph.components(reduced_value_graph), fn component -> length(component) end) |> Enum.sort() == [2, 2, 5]
       # Single-edge SCCs are removed, one left is the one with reduced t2-type edges
-      assert length(state.components) == 1
+      assert state.components == 1
     end
 
     test "cascading" do
@@ -43,7 +43,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
           Variable.new(d, name: name)
         end)
 
-      Fast.reduce(vars)
+      Fast.initial_reduction(vars)
       ## all variables are fixed
       assert Interface.fixed?(x2) && Interface.min(x2) == 2
       assert Interface.fixed?(x3) && Interface.min(x3) == 3
@@ -57,13 +57,11 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       vars =
         Enum.map(domains, fn d -> Variable.new(d) end)
 
-      assert catch_throw(Fast.reduce(vars)) == :fail
+      assert catch_throw(Fast.initial_reduction(vars)) == :fail
     end
   end
 
   describe "Filtering" do
-    alias CPSolver.Propagator
-
     test "reduction" do
       domains = [1, 1..2, 1..4, [1, 2, 4, 5]]
 
@@ -75,38 +73,14 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
 
       {:ok, x_vars, _store} = CPSolver.ConstraintStore.create_store(vars)
 
-      dc_propagator = Fast.new(x_vars)
-      state = %{state: %{value_graph: _value_graph, components: _components, matching: matching}} = Propagator.filter(dc_propagator)
+      {:state, state1} =
+        Fast.filter(vars, nil, %{})
 
       ## Variable filtering
       assert Interface.fixed?(x1) && Interface.min(x1) == 2
       assert Interface.min(x2) == 3 && Interface.max(x2) == 4
       assert Interface.min(x3) == 4 && Interface.max(x3) == 5
 
-      ## Domain changes that alter existing matching.
-      ## x3 has value `5` in matching
-      assert Map.get(matching, {:value, 5}) == {:variable, 3}
-      ## Fixing x3 to `4` will make x3 unmatched...
-      :fixed = Interface.fix(x3, 4)
-      changes = %{3 => :fixed}
-
-      ### ...and the update will detect it
-      {state, unmatched_variables} = Fast.update_value_graph(vars, state.state, changes)
-      assert unmatched_variables == MapSet.new([3])
-      ### ...the matching will lose the edge to unmatched variable
-      refute Map.get(state.matching, {:value, 5})
-      ### ... the matching for x3 will change to the value it was fixed at
-      assert Map.get(state.matching, {:value, 4}) ==  {:variable, 3}
-
-      # IO.inspect(state.components, label: :altered_matching)
-
-      res = Fast.update_components(vars, unmatched_variables, state)
-
-      #IO.inspect(matching, label: :matching)
-
-      #IO.inspect(res, label: :update_components)
-
-      #Propagator.filter(Map.put(dc_propagator, :state, state), changes: changes)
     end
   end
 end

@@ -26,63 +26,80 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   @impl true
   def filter(vars, state, changes) do
     new_state =
-      (state && filter_impl(vars, state, changes)) ||
-        initial_state(vars)
+      (state && filter_impl(update_variables(state, vars), changes)) ||
+        initial_reduction(vars)
 
     (new_state == :resolved && :passive) ||
       {:state, new_state}
   end
 
-  def initial_state(vars) do
-    reduce(vars)
-  end
+  def filter_impl(state, changes) do
+    updated_state = apply_changes(state, changes)
 
-  def filter_impl(vars, state, changes) do
-    updated_state = reduce_state(vars, state, changes)
-    case length(updated_state.components) do
+    case updated_state.components do
       0 -> :resolved
       _num_active_components -> updated_state
     end
   end
 
-  defp reduction_callback(variables) do
-    fn var_idx, value ->
-      Interface.remove(Propagator.arg_at(variables, var_idx), value)
-    end
+  def initial_reduction(vars) do
+    initial_state = initial_state(vars)
+    reduce_state(initial_state)
+  end
+
+  def initial_state(variables) do
+    {value_graph, variable_vertices, partial_matching} =
+      DC.build_value_graph(variables)
+
+    %{
+      value_graph: value_graph,
+      variable_vertices: variable_vertices,
+      matching: partial_matching
+    }
+    |> update_variables(variables)
+  end
+
+  defp update_variables(state, variables) do
+    state
+    |> Map.put(:variables, variables)
+    |> Map.put(:reduction_callback,
+      fn var_idx, value ->
+        Interface.remove(Propagator.arg_at(variables, var_idx), value)
+      end
+    )
+  end
+
+  def reduce_state(%{
+        value_graph: value_graph,
+        matching: partial_matching,
+        variable_vertices: variable_vertices,
+        reduction_callback: reduction_callback
+      } = state) do
+    Map.merge(state,
+    reduce_impl(
+      value_graph,
+      variable_vertices,
+      partial_matching,
+      reduction_callback
+    ))
+  end
+
+  def find_matching(value_graph, variable_vertices, partial_matching) do
+    Kuhn.run(
+      value_graph,
+      variable_vertices,
+      partial_matching,
+      MapSet.size(variable_vertices)
+    )
+    |> tap(fn matching -> matching || fail() end)
   end
 
   defp fail() do
     throw(:fail)
   end
 
-  def reduce(variables) do
-    reduce(variables, reduction_callback(variables))
-  end
-
-  def reduce(variables, reduction_callback) do
-    {value_graph, variable_vertices, partial_matching} =
-      DC.build_value_graph(variables)
-
-    case Kuhn.run(
-           value_graph,
-           variable_vertices,
-           partial_matching,
-           MapSet.size(variable_vertices)
-         ) do
-      nil ->
-        fail()
-
-      matching ->
-          reduce(value_graph, matching, variable_vertices, reduction_callback)
-    end
-  end
-
-  def reduce(
-        value_graph,
-        matching,
-        variable_vertices,
-        remove_edge_callback \\ fn _var_idx, _value -> :noop end
-      ) do
+  def reduce_impl(value_graph, variable_vertices, partial_matching, remove_edge_callback) do
+    matching = find_matching(value_graph, variable_vertices, partial_matching)
     ## Flip edges that are in matching
     value_graph = flip_matching(value_graph, matching)
 
@@ -93,116 +110,140 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     value_graph
     |> remove_type1_edges(ga_da_set, remove_edge_callback)
     |> then(fn {t1_graph, complement_vertices} ->
-      {value_graph, sccs, vertices_to_scc_map} = remove_type2_edges(t1_graph, complement_vertices, remove_edge_callback)
-      %{value_graph: value_graph,
-        components: finalize_components(ga_da_set, sccs),
-        vertices_to_sccs: vertices_to_scc_map,
+      {value_graph, sccs, _vertices_to_scc_map} =
+        remove_type2_edges(t1_graph, complement_vertices, remove_edge_callback)
+
+      %{
+        value_graph: value_graph,
+        components: active_components_count(value_graph, matching, ga_da_set, sccs),
         matching: matching
       }
     end)
   end
 
-  def reduce_state(vars, state, changes) do
+  def apply_changes(state, changes) do
     ## Step 1: update value graph and matching.
     ## As a result of update, some variables could become unmatched
-    {state, unmatched_variables} = update_value_graph(vars, state, changes)
-    #IO.inspect({state, unmatched_variables}, label: :interim)
+    {state, _unmatched_variables} = update_value_graph(state, changes)
+    # IO.inspect({state, unmatched_variables}, label: :interim)
     ## Step 2: update components that contain unmatched variables.
-    state = update_components(vars, unmatched_variables, state, reduction_callback(vars))
-    reduce(vars)
+    # state = update_components(vars, unmatched_variables, state, reduction_callback(vars))
+
+    reduce_state(state)
   end
 
   ## Update value graph based on domain changes
-  def update_value_graph(vars, %{value_graph: value_graph, matching: matching} = state, changes) do
-    {value_graph, matching, unmatched_variables} = Enum.reduce(changes, {value_graph, matching, MapSet.new()},
-    fn {var_id, _domain_change}, {graph_acc, _matching_acc, _unmatched_vars_acc}  = acc ->
-      var_domain = Utils.domain_values(Propagator.arg_at(vars, var_id))
-      variable_vertex = {:variable, var_id}
-      Enum.reduce(Graph.edges(graph_acc, variable_vertex), acc,
-        fn %{v1: variable_vertex, v2: {:value, value} = value_vertex}, {graph_acc2, matching_acc2, unmatched_vars_acc2}  = acc2 ->
-          ## This is a 'matching' edge (out-edge of variable vertex)
-          ##
-          if value in var_domain do
-            acc2
-          else
-             updated_matching = repair_matching(matching_acc2, var_id, value, var_domain)
+  def update_value_graph(
+        %{value_graph: value_graph, matching: matching, variables: vars} = state,
+        changes
+      ) do
+    {value_graph, matching, unmatched_variables} =
+      Enum.reduce(changes, {value_graph, matching, MapSet.new()}, fn {var_id, _domain_change},
+                                                                     {graph_acc, _matching_acc,
+                                                                      _unmatched_vars_acc} = acc ->
+        var_domain = Utils.domain_values(Propagator.arg_at(vars, var_id))
+        variable_vertex = {:variable, var_id}
 
-            {Graph.delete_edge(graph_acc2, variable_vertex, value_vertex), updated_matching, MapSet.put(unmatched_vars_acc2, var_id)}
-          end
-        %{v1: {:value, value} = value_vertex, v2: variable_vertex}, {graph_acc2, matching_acc2, unmatched_vars_acc2}  = acc2 ->
-          ## The edge is not in matching
-          if value in var_domain do
-            acc2
-          else
-            {Graph.delete_edge(graph_acc2, variable_vertex, value_vertex), matching_acc2, unmatched_vars_acc2}
-          end
-        end
-      )
-    end)
+        Enum.reduce(Graph.edges(graph_acc, variable_vertex), acc, fn
+          %{v1: variable_vertex, v2: {:value, value} = value_vertex},
+          {graph_acc2, matching_acc2, unmatched_vars_acc2} = acc2 ->
+            ## This is a 'matching' edge (out-edge of variable vertex)
+            ##
+            if value in var_domain do
+              acc2
+            else
+              ## Matching is no longer valid, the value has been removed
+              {updated_graph, updated_matching} = repair_matching(graph_acc2, matching_acc2, var_id, value, var_domain)
+
+              {Graph.delete_edge(updated_graph, variable_vertex, value_vertex), updated_matching,
+               MapSet.put(unmatched_vars_acc2, var_id)}
+            end
+
+          %{v1: {:value, value} = value_vertex, v2: variable_vertex},
+          {graph_acc2, matching_acc2, unmatched_vars_acc2} = acc2 ->
+            ## The edge is not in matching
+            if value in var_domain do
+              acc2
+            else
+              {Graph.delete_edge(graph_acc2, value_vertex, variable_vertex), matching_acc2,
+               unmatched_vars_acc2}
+            end
+        end)
+      end)
 
     {state
-    |> Map.put(:value_graph, value_graph)
-    |> Map.put(:matching, matching),
-    unmatched_variables}
+     |> Map.put(:value_graph, value_graph)
+     |> Map.put(:matching, matching), unmatched_variables}
   end
 
-  defp repair_matching(matching, var_id, removed_value, variable_domain) do
+  defp repair_matching(value_graph, matching, var_id, removed_value, variable_domain) do
     Map.delete(matching, {:value, removed_value})
     |> then(fn updated ->
       ## If variable is fixed, we'll update matching for it
       if MapSet.size(variable_domain) == 1 do
-        Map.put(updated, {:value, MapSet.to_list(variable_domain) |> hd},  {:variable, var_id} )
+        fixed_value = MapSet.to_list(variable_domain) |> hd
+        ## If there is a matching for already for the fixed value,
+        ## we'll flip the edge for this matching
+        fixed_value_vertex = {:value, fixed_value}
+        updated_graph = case Map.get(matching, fixed_value_vertex) do
+          nil -> value_graph
+          variable_matching_vertex -> flip_edge(value_graph, variable_matching_vertex, fixed_value_vertex)
+        end
+
+        {updated_graph, Map.put(updated, {:value, fixed_value}, {:variable, var_id})}
       else
-        updated
+        {value_graph, updated}
       end
     end)
   end
 
   ## Find and run a reduction for the components that have unmatched variables
-  def update_components(vars, unmatched_variables, state) do
-    update_components(vars, unmatched_variables, state, reduction_callback(vars))
-  end
+  # def update_components(vars, unmatched_variables, state) do
+  #   update_components(vars, unmatched_variables, state, reduction_callback(vars))
+  # end
 
-  def update_components(vars, unmatched_variables, %{components: components, matching: matching, value_graph: value_graph} = state, edge_removal_callback) do
-    Enum.reduce(components, {unmatched_variables, [], matching, value_graph},
-      fn %{variables: component_vars} = component, {unmatched_variables_acc, components_acc, matching_acc, value_graph_acc} = acc ->
-        {unmatched_in_component, unmatched_variables_acc} =
-          MapSet.split_with(unmatched_variables,
-          fn unmatch -> unmatch in component_vars end)
+  # def update_components(vars, unmatched_variables, %{components: components, matching: matching, value_graph: value_graph} = state, edge_removal_callback) do
+  #   Enum.reduce(components, {unmatched_variables, [], matching, value_graph},
+  #     fn %{variables: component_vars} = component, {unmatched_variables_acc, components_acc, matching_acc, value_graph_acc} = acc ->
+  #       {unmatched_in_component, unmatched_variables_acc} =
+  #         MapSet.split_with(unmatched_variables,
+  #         fn unmatch -> unmatch in component_vars end)
 
-        if MapSet.size(unmatched_in_component) == 0 do
-          ## Nothing to do with this component, re-add
-          {unmatched_variables_acc, [component | components_acc], matching_acc, value_graph_acc}
-        else
-          ## Reduce the component. This may produce the list of "split" components
-          reduce(
-          value_graph,
-          matching,
-          Enum.map(component_vars, fn var_id -> {:variable, var_id} end),
-          edge_removal_callback
-          )
-        end
-      end
-    )
-  end
-
+  #       if MapSet.size(unmatched_in_component) == 0 do
+  #         ## Nothing to do with this component, re-add
+  #         {unmatched_variables_acc, [component | components_acc], matching_acc, value_graph_acc}
+  #       else
+  #         ## Reduce the component. This may produce the list of "split" components
+  #         reduce(
+  #         value_graph,
+  #         matching,
+  #         Enum.map(component_vars, fn var_id -> {:variable, var_id} end),
+  #         edge_removal_callback
+  #         )
+  #       end
+  #     end
+  #   )
+  # end
 
   def free_nodes(value_graph, variable_vertices) do
-    Enum.reduce(variable_vertices, MapSet.new(),
-    fn var_vertex, acc ->
-      Enum.reduce(Graph.in_neighbors(value_graph, var_vertex), acc,
-      fn val_vertex, acc2 ->
+    Enum.reduce(variable_vertices, MapSet.new(), fn var_vertex, acc ->
+      Enum.reduce(Graph.in_neighbors(value_graph, var_vertex), acc, fn val_vertex, acc2 ->
         ## No matching for the value => it's a free node
-        Graph.in_degree(value_graph, val_vertex) > 0 && acc2
-        || MapSet.put(acc2, val_vertex)
+        (Graph.in_degree(value_graph, val_vertex) > 0 && acc2) ||
+          MapSet.put(acc2, val_vertex)
       end)
     end)
   end
 
   def flip_matching(value_graph, matching) do
     Enum.reduce(matching, value_graph, fn {val, var}, g_acc ->
-      Graph.delete_edge(g_acc, val, var) |> Graph.add_edge(var, val)
+      flip_edge(g_acc, val, var)
+      #
     end)
+  end
+
+  defp flip_edge(graph, v1, v2) do
+    Graph.delete_edge(graph, v1, v2) |> Graph.add_edge(v2, v1)
   end
 
   ## Collect Γ(A) and A nodes by following paths starting from each variable
@@ -219,8 +260,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def build_GA(value_graph, variable_vertices) do
     free_nodes = free_nodes(value_graph, variable_vertices)
+
     Enum.reduce(free_nodes, free_nodes, fn free_node, ga_set_acc ->
-        collect_GA_nodes(value_graph, free_node, ga_set_acc)
+      collect_GA_nodes(value_graph, free_node, ga_set_acc)
     end)
   end
 
@@ -288,54 +330,69 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         Map.new(),
         fn vertices, vertex_map_acc = _acc ->
           idx = make_ref()
-            Enum.reduce(vertices, vertex_map_acc, fn
-              vertex, vertex_map_acc2 ->
-                Map.put(vertex_map_acc2, vertex, idx)
-            end)
+
+          Enum.reduce(vertices, vertex_map_acc, fn
+            vertex, vertex_map_acc2 ->
+              Map.put(vertex_map_acc2, vertex, idx)
+          end)
         end
       )
 
     ## Remove edges between SCCs
-    value_graph = Enum.reduce(vertex_to_scc_map, value_graph,
-      fn
-        {{:value, _} = _vertex, _scc_id}, graph_acc -> graph_acc
-        {{:variable, var_idx} = var_vertex, scc_id}, graph_acc ->
-      Enum.reduce(Graph.in_edges(graph_acc, var_vertex), graph_acc, fn
+    value_graph =
+      Enum.reduce(vertex_to_scc_map, value_graph, fn
+        {{:value, _} = _vertex, _scc_id}, graph_acc ->
+          graph_acc
 
-        %{v1: {:value, value} = value_vertex} = _edge, graph_acc2 ->
-          case Map.get(vertex_to_scc_map, value_vertex)  do
-            ## Not a cross-edge
-            nil -> graph_acc2
-            value_scc when value_scc == scc_id ->
-              graph_acc2
-            _different_scc ->
-              ## Cross-edge
-            callback.(var_idx, value)
-            Graph.delete_edge(graph_acc2, value_vertex, var_vertex)
-          end
+        {{:variable, var_idx} = var_vertex, scc_id}, graph_acc ->
+          Enum.reduce(Graph.in_edges(graph_acc, var_vertex), graph_acc, fn
+            %{v1: {:value, value} = value_vertex} = _edge, graph_acc2 ->
+              case Map.get(vertex_to_scc_map, value_vertex) do
+                ## Not a cross-edge
+                nil ->
+                  graph_acc2
+
+                value_scc when value_scc == scc_id ->
+                  graph_acc2
+
+                _different_scc ->
+                  ## Cross-edge
+                  callback.(var_idx, value)
+                  Graph.delete_edge(graph_acc2, value_vertex, var_vertex)
+              end
+          end)
       end)
-    end)
 
     {value_graph, sccs, vertex_to_scc_map}
-
   end
 
   ## Components with a single variable are "resolved" - they correspond to variables with the values
   ## that won't be shared with other variables.
-  defp finalize_components(ga_da_set, sccs) do
-    reduced_sccs = Enum.flat_map(sccs, fn component -> length(component) > 2 && [component_record(component)] || [] end)
-    div(MapSet.size(ga_da_set), 2) > 1 ## meaning there is more than 1 variable in subgraph induced by ga_da_set.
-    && [component_record(ga_da_set) | reduced_sccs]
-    || reduced_sccs
+  defp active_components_count(value_graph, matching, ga_da_set, sccs) do
+    active_sccs_count = Enum.count(sccs, fn component -> length(component) > 2 end)
+    active_sccs_count + (ga_da_set_active?(value_graph, matching, ga_da_set) && 1 || 0)
+
+    # reduced_sccs =
+    #   Enum.flat_map(sccs, fn component ->
+    #     (length(component) > 2 && [component_record(component)]) || []
+    #   end)
+
+    # ga_da_components = Graph.subgraph(value_graph, ga_da_set) |> Graph.components()
+    # Enum.reduce(ga_da_components, reduced_sccs, fn component, components_acc ->
+    # ## meaning there is more than 1 variable in subgraph induced by ga_da_set.
+    # (div(length(component), 2) > 1 &&
+    # [component_record(component) | components_acc]) ||
+    # components_acc
+    # end)
+
   end
 
-  defp component_record(component) do
-    {values, var_ids} = Enum.reduce(component, {MapSet.new(), MapSet.new()},
-      fn {:value, value} = _value_vertex, {values_acc, variables_acc} ->
-          {MapSet.put(values_acc, value), variables_acc}
-        {:variable, var_id} = _variable_vertex, {values_acc, variables_acc} ->
-          {values_acc, MapSet.put(variables_acc, var_id)}
+  def ga_da_set_active?(value_graph, matching, ga_da_set) do
+    Enum.any?(matching, fn {value_vertex, _variable_vertex} ->
+      # Are there value vertices that are connected to more than one variable vertex?
+      value_vertex in ga_da_set
+      && Graph.out_degree(value_graph, value_vertex) > 0
     end)
-    %{values: values, variables: var_ids}
   end
+
 end
