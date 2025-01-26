@@ -62,6 +62,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
   end
 
   describe "Filtering" do
+    alias CPSolver.Propagator
     test "reduction" do
       domains = [1, 1..2, 1..4, [1, 2, 4, 5]]
 
@@ -71,15 +72,23 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
           Variable.new(d, name: "x#{idx}")
         end)
 
-      {:ok, x_vars, _store} = CPSolver.ConstraintStore.create_store(vars)
-
-      {:state, state1} =
-        Fast.filter(vars, nil, %{})
+      dc_propagator = Propagator.new(Fast, vars)
+      %{active?: true, state: state1} =
+        Propagator.filter(dc_propagator)
 
       ## Variable filtering
       assert Interface.fixed?(x1) && Interface.min(x1) == 2
       assert Interface.min(x2) == 3 && Interface.max(x2) == 4
       assert Interface.min(x3) == 4 && Interface.max(x3) == 5
+
+      ## More filtering
+      domain_change = Interface.fix(x2, 4)
+
+      assert %{active?: false} =
+        Propagator.filter(Map.put(dc_propagator, :state, state1), changes: %{2 => domain_change})
+
+      assert Interface.fixed?(x2) && Interface.min(x2) == 4
+      assert Interface.fixed?(x3) && Interface.min(x3) == 5
 
     end
   end
