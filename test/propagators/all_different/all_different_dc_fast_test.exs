@@ -7,7 +7,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
   # alias CPSolver.Propagator
   alias CPSolver.Propagator.AllDifferent.DC.Fast
 
-  describe "Reduction algoritm (Zhang et al. paper example" do
+  describe "Reduction algorithm (Zhang et al. paper example" do
     test "reduction" do
       domains = [1, 1..2, 1..4, [1, 2, 4, 5]]
 

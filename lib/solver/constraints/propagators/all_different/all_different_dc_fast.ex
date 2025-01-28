@@ -98,7 +98,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     throw(:fail)
   end
 
-  def reduce_impl(value_graph, variable_vertices, partial_matching, remove_edge_callback) do
+  def reduction_zhang(value_graph, variable_vertices, partial_matching, remove_edge_callback) do
     matching = find_matching(value_graph, variable_vertices, partial_matching)
     ## Flip edges that are in matching
     value_graph = flip_matching(value_graph, matching)
@@ -112,13 +112,20 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     |> then(fn {t1_graph, complement_vertices} ->
       {value_graph, sccs, _vertices_to_scc_map} =
         remove_type2_edges(t1_graph, complement_vertices, remove_edge_callback)
-
-      %{
-        value_graph: value_graph,
-        components: active_components_count(value_graph, matching, ga_da_set, sccs),
-        matching: matching
-      }
+        %{
+          value_graph: value_graph,
+          matching: matching,
+          ga_da_set: ga_da_set,
+          sccs: sccs
+        }
     end)
+  end
+
+  def reduce_impl(value_graph, variable_vertices, partial_matching, remove_edge_callback) do
+    value_graph
+    |> reduction_zhang(variable_vertices, partial_matching, remove_edge_callback)
+    |> Map.put(:variable_vertices, variable_vertices)
+    |> finalize_state()
   end
 
   def apply_changes(state, changes) do
@@ -366,26 +373,76 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     {value_graph, sccs, vertex_to_scc_map}
   end
 
-  ## Components with a single variable are "resolved" - they correspond to variables with the values
-  ## that won't be shared with other variables.
-  defp active_components_count(value_graph, matching, ga_da_set, sccs) do
-    active_sccs_count = Enum.count(sccs, fn component -> length(component) > 2 end)
-    active_sccs_count + (ga_da_set_active?(value_graph, matching, ga_da_set) && 1 || 0)
+  def finalize_state(%{value_graph: value_graph, sccs: sccs, ga_da_set: ga_da_set, variable_vertices: variable_vertices, matching: matching} = _state) do
+    ## Remove SCCs with a single variable (which is the same as having less than 3 vertices)
+    {variable_vertices, value_graph, active_sccs_count} =
+      Enum.reduce(sccs, {variable_vertices, value_graph, 0},
+      fn component, {variable_vertices_acc, value_graph_acc, active_component_count_acc} = _acc ->
+        if length(component) <=2 do
+          {
+            MapSet.difference(variable_vertices_acc, MapSet.new(component)),
+            Graph.delete_vertices(value_graph_acc, component),
+            active_component_count_acc
+          }
+        else
+          {variable_vertices_acc, value_graph_acc, active_component_count_acc + 1}
+        end
+      end)
 
-    # reduced_sccs =
-    #   Enum.flat_map(sccs, fn component ->
-    #     (length(component) > 2 && [component_record(component)]) || []
-    #   end)
+    ## Remove components with a variables that do not share values with other variables from ga_da_set.
+    ## For every matching edge, look for the in-neighbors (i.e., value vertices) of the "variable" part.
+    ## If none of these neighbors participate in another matching edge, remove that variable
+      {variable_vertices, value_graph, ga_da_active?} = Enum.reduce(matching, {variable_vertices, value_graph, false},
+      fn {_value_vertex, variable_vertex}, {variable_vertices_acc, value_graph_acc, ga_da_active?} = acc ->
+        cond do
+          !(variable_vertex in ga_da_set) -> acc
+          true ->
+            neighbors = Graph.in_neighbors(value_graph_acc, variable_vertex)
+          ## Any neighbor of variable vertex connected to another variable?
+            if Enum.any?(neighbors,
+              fn value_vertex -> Graph.out_degree(value_graph_acc, value_vertex) > 1
+            end) do
+              {variable_vertices_acc, value_graph_acc, true}
+            else
+              ## We can remove variable vertex
+              {MapSet.delete(variable_vertices_acc, variable_vertex),
+                Graph.delete_vertices(value_graph_acc, [variable_vertex | neighbors]),
+                ga_da_active?
+              }
+            end
+        end
+      end)
 
-    # ga_da_components = Graph.subgraph(value_graph, ga_da_set) |> Graph.components()
-    # Enum.reduce(ga_da_components, reduced_sccs, fn component, components_acc ->
-    # ## meaning there is more than 1 variable in subgraph induced by ga_da_set.
-    # (div(length(component), 2) > 1 &&
-    # [component_record(component) | components_acc]) ||
-    # components_acc
-    # end)
+    %{
+      value_graph: value_graph,
+      components: active_sccs_count + (ga_da_active? && 1 || 0),
+      variable_vertices: variable_vertices,
+      matching: Map.filter(matching, fn {_value, variable} -> variable in variable_vertices end)
+    }
 
   end
+
+
+  # ## Components with a single variable are "resolved" - they correspond to variables with the values
+  # ## that won't be shared with other variables.
+  # defp active_components_count(value_graph, matching, ga_da_set, sccs) do
+  #   active_sccs_count = Enum.count(sccs, fn component -> length(component) > 2 end)
+  #   active_sccs_count + (ga_da_set_active?(value_graph, matching, ga_da_set) && 1 || 0)
+
+  #   # reduced_sccs =
+  #   #   Enum.flat_map(sccs, fn component ->
+  #   #     (length(component) > 2 && [component_record(component)]) || []
+  #   #   end)
+
+  #   # ga_da_components = Graph.subgraph(value_graph, ga_da_set) |> Graph.components()
+  #   # Enum.reduce(ga_da_components, reduced_sccs, fn component, components_acc ->
+  #   # ## meaning there is more than 1 variable in subgraph induced by ga_da_set.
+  #   # (div(length(component), 2) > 1 &&
+  #   # [component_record(component) | components_acc]) ||
+  #   # components_acc
+  #   # end)
+
+  # end
 
   def ga_da_set_active?(value_graph, matching, ga_da_set) do
     Enum.any?(matching, fn {value_vertex, _variable_vertex} ->
