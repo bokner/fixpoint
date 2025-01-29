@@ -124,12 +124,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   def apply_changes(state, changes) do
     ## Step 1: update value graph and matching.
     ## As a result of update, some variables could become unmatched
-    {state, _unmatched_variables} = update_value_graph(state, changes)
+    {state, reduce_state?} = update_value_graph(state, changes)
     # IO.inspect({state, unmatched_variables}, label: :interim)
     ## Step 2: update components that contain unmatched variables.
     # state = update_components(vars, unmatched_variables, state, reduction_callback(vars))
 
-    reduce_state(state)
+    reduce_state? && reduce_state(state) || state
+
   end
 
   ## Update value graph based on domain changes
@@ -137,43 +138,43 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         %{value_graph: value_graph, matching: matching, variables: vars} = state,
         changes
       ) do
-    {value_graph, matching, unmatched_variables} =
-      Enum.reduce(changes, {value_graph, matching, MapSet.new()}, fn {var_id, _domain_change},
+    {value_graph, matching, reduce_state?} =
+      Enum.reduce(changes, {value_graph, matching, false}, fn {var_id, _domain_change},
                                                                      {graph_acc, _matching_acc,
-                                                                      _unmatched_vars_acc} = acc ->
+                                                                      _reduce_state_acc?} = acc ->
         var_domain = Utils.domain_values(Propagator.arg_at(vars, var_id))
         variable_vertex = {:variable, var_id}
 
         Enum.reduce(Graph.edges(graph_acc, variable_vertex), acc, fn
           %{v1: variable_vertex, v2: {:value, value} = value_vertex},
-          {graph_acc2, matching_acc2, unmatched_vars_acc2} = acc2 ->
+          {graph_acc2, matching_acc2, reduce_state_acc2?} = _acc2 ->
             ## This is a 'matching' edge (out-edge of variable vertex)
             ##
             if value in var_domain do
-              acc2
+              {graph_acc2, matching_acc2, reduce_state_acc2? || (MapSet.size(var_domain) == 1)}
             else
               ## Matching is no longer valid, the value has been removed
               {updated_graph, updated_matching} = repair_matching(graph_acc2, matching_acc2, var_id, value, var_domain)
 
               {Graph.delete_edge(updated_graph, variable_vertex, value_vertex), updated_matching,
-               MapSet.put(unmatched_vars_acc2, var_id)}
+               true}
             end
 
           %{v1: {:value, value} = value_vertex, v2: variable_vertex},
-          {graph_acc2, matching_acc2, unmatched_vars_acc2} = acc2 ->
+          {graph_acc2, matching_acc2, reduce_state_acc2?} = acc2 ->
             ## The edge is not in matching
             if value in var_domain do
               acc2
             else
               {Graph.delete_edge(graph_acc2, value_vertex, variable_vertex), matching_acc2,
-               unmatched_vars_acc2}
+               reduce_state_acc2?}
             end
         end)
       end)
 
     {state
      |> Map.put(:value_graph, value_graph)
-     |> Map.put(:matching, matching), unmatched_variables}
+     |> Map.put(:matching, matching), reduce_state?}
   end
 
   defp repair_matching(value_graph, matching, var_id, removed_value, variable_domain) do
