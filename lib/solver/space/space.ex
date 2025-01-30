@@ -36,7 +36,10 @@ defmodule CPSolver.Space do
 
   ## Top space creation
   def create(variables, propagators, space_opts \\ default_space_opts()) do
-    propagators = maybe_add_objective_propagator(propagators, space_opts[:objective])
+    propagators =
+      propagators
+      |> assign_unique_ids()
+      |> maybe_add_objective_propagator(space_opts[:objective])
 
     initial_constraint_graph = ConstraintGraph.create(propagators)
 
@@ -69,6 +72,10 @@ defmodule CPSolver.Space do
 
   defp initialize_search(search, space_data) do
     Search.initialize(search, space_data)
+  end
+
+  defp assign_unique_ids(propagators) do
+    Enum.map(propagators, fn p -> Map.put(p, :id, make_ref()) end)
   end
 
   defp maybe_add_objective_propagator(propagators, nil) do

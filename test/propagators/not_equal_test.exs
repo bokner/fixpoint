@@ -29,7 +29,6 @@ defmodule CPSolverTest.Propagator.NotEqual do
       ## Fix one of vars
       assert :fixed = Variable.fix(x_var, 5)
       assert %{active?: false} = reset_and_filter(bound_vars)
-      assert PropagatorVariable.get_variable_ops() == %{y_var.id => :max_change}
 
       ## The filtering should have removed '5' from y_var
       assert Variable.max(y_var) == 4
@@ -38,7 +37,6 @@ defmodule CPSolverTest.Propagator.NotEqual do
       ## Fix second var and filter again
       assert :fixed == Variable.fix(y_var, 4)
       assert %{active?: false} = reset_and_filter(bound_vars)
-      refute PropagatorVariable.get_variable_ops()
       ## Make sure filtering doesn't fail on further calls
       refute Enum.any?(
                [x_var, y_var],

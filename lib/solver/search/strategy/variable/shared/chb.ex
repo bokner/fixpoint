@@ -109,8 +109,12 @@ defmodule CPSolver.Search.VariableSelector.CHB do
   end
 
   def update_chbs(variables, failure?, shared) do
-    %{variable_chbs: chb_table} = Shared.get_auxillary(shared, :chb)
-    Enum.each(variables, fn var -> update_variable_chb(var, chb_table, failure?, shared) end)
+    case Shared.get_auxillary(shared, :chb) do
+      false -> :ok
+      %{variable_chbs: chb_table} ->
+        Enum.each(variables,
+        fn var -> update_variable_chb(var, chb_table, failure?, shared) end)
+      end
   end
 
   ## Update chb for individual variable in 'shared'

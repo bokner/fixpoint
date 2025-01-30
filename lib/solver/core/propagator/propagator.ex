@@ -216,7 +216,7 @@ defmodule CPSolver.Propagator do
           %{:changes => map(), :state => map(), active?: boolean()}
   defp get_filter_changes(propagator_active?) when is_boolean(propagator_active?) do
     %{
-      changes: PropagatorVariable.get_variable_ops(),
+      changes: PropagatorVariable.reset_variable_ops(),
       active?: propagator_active?,
       state: nil
     }
