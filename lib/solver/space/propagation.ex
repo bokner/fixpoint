@@ -104,9 +104,6 @@ defmodule CPSolver.Space.Propagation do
             :fail ->
               {:halt, {:fail, p_id}}
 
-            :stable ->
-              {:cont, {unschedule(scheduled_acc, p_id), g_acc, changes_acc}}
-
             %{changes: no_changes, active?: active?} when no_changes in [nil, %{}] ->
               {:cont,
                {unschedule(scheduled_acc, p_id), maybe_remove_propagator(g_acc, p_id, active?),

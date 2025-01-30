@@ -110,6 +110,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   def get_propagator(graph, {:propagator, _propagator_id} = vertex) do
     get_label(graph, vertex)
+    |> tap(fn p -> is_list(p) && throw("Multiple propagators") end)
   end
 
   def get_propagator(graph, propagator_id) do

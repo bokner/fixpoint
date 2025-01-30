@@ -129,21 +129,16 @@ defmodule CPSolver.Propagator do
     state = propagator[:state]
 
     ## Propagation changes
-    ## The propagation may reshedule the filtering and pass the changes that woke
-    ## the propagator.
+    ## The propagation may reshedule the filtering
+    ## and pass the changes that awake the propagator.
+    ##
     incoming_changes =
       case Keyword.get(opts, :changes) do
         nil ->
           %{}
 
         var_changes ->
-          Enum.reduce(var_changes, Map.new(), fn {var_id, domain_change},
-                                                 positional_changes_acc ->
-            position = (is_integer(var_id) && var_id) || Map.get(positions_map, var_id)
-
-            (position && Map.put(positional_changes_acc, position, domain_change)) ||
-              positional_changes_acc
-          end)
+          to_positional_changes(var_changes, positions_map)
       end
 
     ## We will reset the state if required.
@@ -152,17 +147,7 @@ defmodule CPSolver.Propagator do
 
     try do
       state = (reset? && mod.reset(args, state, opts)) || state
-
-      case mod.filter(args, state, incoming_changes) do
-        :fail ->
-          :fail
-
-        :stable ->
-          :stable
-
-        result ->
-          get_filter_changes(result)
-      end
+      do_filter(mod, args, state, incoming_changes)
     catch
       :error, error ->
         {:filter_error, {mod, error}}
@@ -180,6 +165,61 @@ defmodule CPSolver.Propagator do
           nil
       end
     end)
+  end
+
+  defp to_positional_changes(domain_changes, positions_map) do
+    Enum.reduce(domain_changes, Map.new(),
+      fn {var_id, domain_change}, positional_changes_acc ->
+      position = (is_integer(var_id) && var_id) || Map.get(positions_map, var_id)
+
+      (position && Map.put(positional_changes_acc, position, domain_change)) ||
+      positional_changes_acc
+    end)
+
+  end
+
+  defp do_filter(mod, args, state, incoming_changes) do
+      ### The propagator filtering can return:
+      ## - :fail
+      ##   Meaning the propagator thinks it has found inconsistencies
+      ##   (for instance, Circuit propagator concludes there is no possible way to have a hamiltonian cycle)
+      ##   given current variable domains
+      ## - :stable
+      ##   Propagator claims that filtering resulted neither in variable domain changes nor
+      ##   propagator state.
+      ##
+      ## - :passive
+      ##   Propagator claims it won't be able to do further reductions
+      ##   of variable domains regardless of their current state.
+      ##   Note: in this case, the state of propagator is irrelevant, as it will be excluded
+      ##   from any further propagations.
+      ##
+      ## - {:state, new_state}
+      ##   Propagator has updated it's state as a result of filtering.
+      ##
+      ## -any other result
+      ##   The propagator didn't change it's state, but it's possible there were
+      ##   changes in variable domains.
+      ##
+      case mod.filter(args, state, incoming_changes) do
+        :fail ->
+          :fail
+        :stable ->
+          %{changes: %{}, state: state, active?: true}
+
+        result ->
+          #IO.inspect(result, label: :filter_result)
+          case result do
+            :passive ->
+              %{active?: false, state: nil}
+            {:state, updated_state} ->
+              %{active?: Map.get(updated_state, :active?, true), state: updated_state}
+            _ ->
+              %{active?: true, state: state}
+          end
+          |> Map.put(:changes, PropagatorVariable.reset_variable_ops())
+        end
+
   end
 
   ## Check if propagator is entailed (i.e., all variables are fixed)
@@ -210,26 +250,6 @@ defmodule CPSolver.Propagator do
 
   def to_domain_events(_fixed) do
     [:fixed]
-  end
-
-  @spec get_filter_changes(term()) ::
-          %{:changes => map(), :state => map(), active?: boolean()}
-  defp get_filter_changes(propagator_active?) when is_boolean(propagator_active?) do
-    %{
-      changes: PropagatorVariable.reset_variable_ops(),
-      active?: propagator_active?,
-      state: nil
-    }
-  end
-
-  defp get_filter_changes({:state, state}) do
-    get_filter_changes(true)
-    |> Map.put(:state, state)
-    |> Map.put(:active?, Map.get(state, :active?, true))
-  end
-
-  defp get_filter_changes(result) do
-    get_filter_changes(result != :passive)
   end
 
   def bind_to_variables(args, variable_source, var_field) do

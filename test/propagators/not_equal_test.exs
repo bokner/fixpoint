@@ -22,7 +22,7 @@ defmodule CPSolverTest.Propagator.NotEqual do
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
       {:ok, bound_vars, _store} = create_store(variables)
-      assert :stable == reset_and_filter(bound_vars)
+      assert %{changes: %{}} = reset_and_filter(bound_vars)
       refute PropagatorVariable.get_variable_ops()
 
       [x_var, y_var] = bound_vars
