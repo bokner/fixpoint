@@ -98,8 +98,11 @@ defmodule CPSolver.Search.VariableSelector.Action do
   end
 
   def update_actions(variables, shared) do
-    %{variable_actions: action_table, decay: decay} = Shared.get_auxillary(shared, :action)
-    Enum.each(variables, fn var -> update_variable_action(var, action_table, decay) end)
+    case Shared.get_auxillary(shared, :action) do
+      false -> :ok
+      %{variable_actions: action_table, decay: decay} ->
+        Enum.each(variables, fn var -> update_variable_action(var, action_table, decay) end)
+      end
   end
 
   ## Update action for individual variable in 'shared'

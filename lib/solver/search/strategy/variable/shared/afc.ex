@@ -231,19 +231,22 @@ defmodule CPSolver.Search.VariableSelector.AFC do
 
   ## Update AFC in 'shared'
   def update_afc(propagator_id, shared, failure?, global_failure_count \\ nil) do
-    %{propagator_afcs: afc_table, decay: decay} = Shared.get_auxillary(shared, :afc)
+    case Shared.get_auxillary(shared, :afc) do
+      false -> :ok
+      %{propagator_afcs: afc_table, decay: decay} ->
 
-    failure_count = global_failure_count || Shared.get_failure_count(shared)
+      failure_count = global_failure_count || Shared.get_failure_count(shared)
 
-    updated_record =
-      case get_afc_record(afc_table, propagator_id) do
-        nil ->
-          propagator_afc(afc_record(1, 0), decay, failure_count, failure?)
+      updated_record =
+        case get_afc_record(afc_table, propagator_id) do
+          nil ->
+            propagator_afc(afc_record(1, 0), decay, failure_count, failure?)
 
-        afc_record ->
-          propagator_afc(afc_record, decay, failure_count, failure?)
-      end
+          afc_record ->
+            propagator_afc(afc_record, decay, failure_count, failure?)
+        end
 
-    :ets.insert(afc_table, {propagator_id, updated_record})
+      :ets.insert(afc_table, {propagator_id, updated_record})
+    end
   end
 end
