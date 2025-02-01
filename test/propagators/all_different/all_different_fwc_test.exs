@@ -71,7 +71,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
       assert Enum.all?(x_vars, &Interface.fixed?/1)
 
       ## Consequent filtering does not result in more changes and/or failures
-      %{changes: nil} = Propagator.filter(fwc_propagator)
+      assert Map.get(Propagator.filter(fwc_propagator), :changes) in [nil, %{}]
       assert Enum.all?(x_vars, &Interface.fixed?/1)
     end
   end

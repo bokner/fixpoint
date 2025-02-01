@@ -27,6 +27,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       {:state, new_state}
   end
 
+  defp filter_impl(_all_vars, state, changes) when is_nil(changes) or map_size(changes) == 0 do
+    state
+  end
+
   defp filter_impl(
          all_vars,
          %{

@@ -44,9 +44,9 @@ defmodule CpSolverTest.Objective do
         %{propagator: min_propagator, bound_handle: min_handle} =
         Objective.minimize(objective_variable)
 
-      assert %{changes: nil, active?: true, state: nil} ==
-               Propagator.filter(min_propagator)
+        %{changes: changes, active?: true, state: nil} =  Propagator.filter(min_propagator)
 
+        assert changes in [nil, %{}]
       ## Tighten the bound (this will set the bound to objective_variable.max() - 1)
       Objective.tighten(min_objective)
 

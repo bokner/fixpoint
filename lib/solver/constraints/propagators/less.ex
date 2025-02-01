@@ -1,4 +1,6 @@
 defmodule CPSolver.Propagator.Less do
+  use CPSolver.Propagator
+  
   alias CPSolver.Propagator.LessOrEqual, as: LessOrEqual
 
   # def new(x, y, offset \\ 0) do
