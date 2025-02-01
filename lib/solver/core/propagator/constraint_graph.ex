@@ -8,6 +8,8 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils.Digraph
 
+  require Logger
+
   @spec create([Propagator.t()]) :: Graph.t()
   def create(propagators) when is_list(propagators) do
     Enum.reduce(propagators, Graph.new(), fn p, graph_acc ->
@@ -110,7 +112,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   def get_propagator(graph, {:propagator, _propagator_id} = vertex) do
     get_label(graph, vertex)
-    |> tap(fn p -> is_list(p) && throw("Multiple propagators") end)
+    |> tap(fn p -> is_list(p) && Logger.error(inspect {"Multiple propagators", vertex, p}) end)
   end
 
   def get_propagator(graph, propagator_id) do

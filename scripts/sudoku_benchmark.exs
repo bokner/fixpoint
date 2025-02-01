@@ -4,26 +4,26 @@ defmodule SudokuBenchmark do
   alias CPSolver.Search.VariableSelector, as: Strategy
   require Logger
 
-  def run(instance_file, n, space_threads, timeout) do
+  def run(instance_file, n, space_threads, timeout, alldifferent_constraint) do
     instances = File.read!(instance_file) |> String.split("\n") |> Enum.take(n)
 
     Enum.map(
       instances |> Enum.with_index(1),
       fn {instance, idx} ->
         {:ok, res} =
-          CPSolver.solve(Sudoku.model(instance),
+          CPSolver.solve(Sudoku.model(instance, alldifferent_constraint: alldifferent_constraint),
             stop_on: {:max_solutions, 1},
             space_threads: space_threads,
             timeout: timeout,
             search: {
               Strategy.mixed([
                 # Strategy.most_constrained(&Enum.random/1),
-                #Strategy.first_fail(Strategy.most_constrained(&Enum.random/1)),
-                Strategy.afc({:afc_size_max, 0.9}, Strategy.first_fail(&Enum.random/1)),
-                # Strategy.dom_deg(&Enum.random/1),
+                Strategy.first_fail(Strategy.most_constrained(&Enum.random/1)),
+                #Strategy.afc({:afc_size_max, 0.9}, Strategy.first_fail(&Enum.random/1)),
+                Strategy.dom_deg(&Enum.random/1),
                 # Strategy.action({:action_size_min, 0.75}, Strategy.first_fail(&Enum.random/1)),
                 # Strategy.action({:action_size_max, 0.9}, &Enum.random/1)
-                Strategy.chb(:chb_max, Strategy.first_fail(&Enum.random/1))
+                #Strategy.chb(:chb_max, Strategy.first_fail(&Enum.random/1))
                 # Strategy.most_completed(&Enum.random/1)
               ]),
               :indomain_random
@@ -36,8 +36,8 @@ defmodule SudokuBenchmark do
     )
   end
 
-  def stats(instance_file, n, space_threads, timeout) do
-    run(instance_file, n, space_threads, timeout)
+  def stats(instance_file, n, space_threads, timeout, alldiff) do
+    run(instance_file, n, space_threads, timeout, alldiff)
     |> Enum.map(fn s ->
       !(s.solutions |> hd |> Sudoku.check_solution()) &&
         Logger.error("Wrong solution!")

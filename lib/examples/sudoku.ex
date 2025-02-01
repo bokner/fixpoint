@@ -70,7 +70,8 @@ defmodule CPSolver.Examples.Sudoku do
     puzzle
   end
 
-  def model(puzzle) when is_list(puzzle) do
+  def model(puzzle, opts \\ [])
+  def model(puzzle, opts) when is_list(puzzle) do
     dimension = length(puzzle)
     ## Check if puzzle is valid
     sq_root = :math.sqrt(dimension)
@@ -99,18 +100,19 @@ defmodule CPSolver.Examples.Sudoku do
         end)
       end)
 
+    alldifferent_constraint = opts[:alldifferent_constraint] || AllDifferent
     # Each row has different numbers
     row_constraints =
-      Enum.map(cells, fn row -> Constraint.new(AllDifferent, row) end)
+      Enum.map(cells, fn row -> Constraint.new(alldifferent_constraint, row) end)
 
     # Each column has different numbers
     column_constraints =
       Enum.zip_with(cells, &Function.identity/1)
-      |> Enum.map(fn column -> Constraint.new(AllDifferent, column) end)
+      |> Enum.map(fn column -> Constraint.new(alldifferent_constraint, column) end)
 
     subsquare_constraints =
       group_by_subsquares(cells)
-      |> Enum.map(fn square_vars -> Constraint.new(AllDifferent, square_vars) end)
+      |> Enum.map(fn square_vars -> Constraint.new(alldifferent_constraint, square_vars) end)
 
     Model.new(
       cells |> List.flatten(),
@@ -118,10 +120,10 @@ defmodule CPSolver.Examples.Sudoku do
     )
   end
 
-  def model(puzzle) when is_binary(puzzle) do
+  def model(puzzle, opts) when is_binary(puzzle) do
     puzzle
     |> normalize()
-    |> model()
+    |> model(opts)
   end
 
   def solve_and_print(puzzle, opts \\ []) do
