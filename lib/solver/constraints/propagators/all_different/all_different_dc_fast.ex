@@ -121,6 +121,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     end)
   end
 
+  def apply_changes(state, changes) when is_nil(changes) or map_size(changes) == 0 do
+    state
+  end
+
   def apply_changes(state, changes) do
     ## Step 1: update value graph and matching.
     ## As a result of update, some variables could become unmatched

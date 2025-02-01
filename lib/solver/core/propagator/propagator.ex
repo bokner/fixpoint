@@ -124,30 +124,10 @@ defmodule CPSolver.Propagator do
     {staged_propagator, filter(staged_propagator, opts)}
   end
 
-  def filter(%{mod: mod, args: args, variable_positions: positions_map} = propagator, opts \\ []) do
-    PropagatorVariable.reset_variable_ops()
-    state = propagator[:state]
-
-    ## Propagation changes
-    ## The propagation may reshedule the filtering
-    ## and pass the changes that awake the propagator.
-    ##
-    incoming_changes =
-      case Keyword.get(opts, :changes) do
-        nil ->
-          %{}
-
-        var_changes ->
-          to_positional_changes(var_changes, positions_map)
-      end
-
-    ## We will reset the state if required.
-    ## Reset will be forced when the space starts propagation.
-    reset? = Keyword.get(opts, :reset?, false)
-
+  def filter(%{mod: mod} = propagator, opts \\ []) do
     try do
-      state = (reset? && mod.reset(args, state, opts)) || state
-      do_filter(mod, args, state, incoming_changes)
+      propagator = maybe_reset_state(propagator, opts)
+      do_filter(propagator, Keyword.get(opts, :changes) || %{})
     catch
       :error, error ->
         {:filter_error, {mod, error}}
@@ -167,7 +147,19 @@ defmodule CPSolver.Propagator do
     end)
   end
 
-  defp to_positional_changes(domain_changes, positions_map) do
+  defp maybe_reset_state(%{mod: mod, args: args, state: state} = propagator, opts) do
+    ## We will reset the state if required.
+    ## Reset will be forced on all propagators when the space starts propagation.
+    Keyword.get(opts, :reset?, false) && propagator ||
+    Map.put(propagator, :state, mod.reset(args, state, opts))
+  end
+
+  defp positional_changes(domain_changes, positions_map) do
+    ## Propagation changes is a var_ref => domain_change map
+    ## For performance considerations, it has to be transformed to
+    ## var_position => domain_change map,
+    ## where `var_position is a position in  propagator's argument list.
+    ##
     Enum.reduce(domain_changes, Map.new(),
       fn {var_id, domain_change}, positional_changes_acc ->
       position = (is_integer(var_id) && var_id) || Map.get(positions_map, var_id)
@@ -178,7 +170,8 @@ defmodule CPSolver.Propagator do
 
   end
 
-  defp do_filter(mod, args, state, incoming_changes) do
+  defp do_filter(%{mod: mod, args: args, state: state, variable_positions: positions} = _propagator,
+    domain_changes) do
       ### The propagator filtering can return:
       ## - :fail
       ##   Meaning the propagator thinks it has found inconsistencies
@@ -201,6 +194,8 @@ defmodule CPSolver.Propagator do
       ##   The propagator didn't change it's state, but it's possible there were
       ##   changes in variable domains.
       ##
+      incoming_changes = positional_changes(domain_changes, positions)
+
       case mod.filter(args, state, incoming_changes) do
         :fail ->
           :fail
@@ -208,7 +203,6 @@ defmodule CPSolver.Propagator do
           %{changes: %{}, state: state, active?: true}
 
         result ->
-          #IO.inspect(result, label: :filter_result)
           case result do
             :passive ->
               %{active?: false, state: nil}
@@ -217,9 +211,16 @@ defmodule CPSolver.Propagator do
             _ ->
               %{active?: true, state: state}
           end
-          |> Map.put(:changes, PropagatorVariable.reset_variable_ops())
+          |> Map.put(:changes, reset_filter_changes())
         end
+  end
 
+  def reset_filter_changes() do
+    PropagatorVariable.reset_variable_ops()
+  end
+
+  def get_filter_changes() do
+    PropagatorVariable.get_variable_ops() || %{}
   end
 
   ## Check if propagator is entailed (i.e., all variables are fixed)
