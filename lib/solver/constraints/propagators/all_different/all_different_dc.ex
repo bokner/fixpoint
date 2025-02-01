@@ -43,7 +43,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     trigger_vars =
       Map.keys(changes) |> MapSet.new()
 
-    Enum.reduce(sccs, [], fn %{component: component} = component_rec, sccs_acc ->
+    state = Enum.reduce(sccs, [], fn %{component: component} = component_rec, sccs_acc ->
       component_triggers = MapSet.intersection(trigger_vars, component)
 
       if MapSet.size(component_triggers) == 0 do
@@ -52,7 +52,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
         update_component(all_vars, component_rec) ++ sccs_acc
       end
     end)
-    |> final_state()
+
+    case final_state(state) do
+      :resolved -> :resolved
+      final_state ->
+        #final_state
+        filter_impl(all_vars, final_state, reset_filter_changes())
+      end
   end
 
   defp update_component(
@@ -294,8 +300,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     end)
   end
 
-  defp maybe_remove_domain_value(value, {:variable, var_id}, vars) do
-    Propagator.arg_at(vars, var_id) |> remove(value)
+  defp maybe_remove_domain_value(value, {:variable, var_idx}, vars) do
+    res = Interface.remove(Propagator.arg_at(vars, var_idx), value)
+    res != :no_change && store_filter_change(var_idx, res)
   end
 
   defp maybe_remove_domain_value(_value, :sink, _vars) do
@@ -328,5 +335,22 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   defp fail() do
     throw(:fail)
   end
+
+    ## Store domain changes (removals of values)
+    defp store_filter_change(var_idx, domain_change) do
+      get_filter_changes()
+      |> Map.put(var_idx, domain_change)
+      |> then(fn changes -> Process.put(:filter_changes, changes) end)
+      #|> IO.inspect(label: :filter_changes)
+    end
+
+    defp get_filter_changes() do
+      Process.get(:filter_changes) || %{}
+    end
+
+    defp reset_filter_changes() do
+      Process.delete(:filter_changes)
+    end
+
 
 end

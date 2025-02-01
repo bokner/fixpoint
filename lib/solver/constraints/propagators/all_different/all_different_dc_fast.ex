@@ -64,7 +64,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     |> Map.put(:variables, variables)
     |> Map.put(:reduction_callback,
       fn var_idx, value ->
-        Interface.remove(Propagator.arg_at(variables, var_idx), value)
+        res = Interface.remove(Propagator.arg_at(variables, var_idx), value)
+        res != :no_change && store_filter_change(var_idx, res)
+
       end
     )
   end
@@ -133,7 +135,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     ## Step 2: update components that contain unmatched variables.
     # state = update_components(vars, unmatched_variables, state, reduction_callback(vars))
 
-    reduce_state? && reduce_state(state) || state
+    reduce_state? &&
+      apply_changes(reduce_state(state), reset_filter_changes()) || state
 
   end
 
@@ -398,6 +401,22 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       value_vertex in ga_da_set
       && Graph.out_degree(value_graph, value_vertex) > 0
     end)
+  end
+
+  ## Store domain changes (removals of values)
+  defp store_filter_change(var_idx, domain_change) do
+    get_filter_changes()
+    |> Map.put(var_idx, domain_change)
+    |> then(fn changes -> Process.put(:filter_changes, changes) end)
+    #|> IO.inspect(label: :filter_changes)
+  end
+
+  defp get_filter_changes() do
+    Process.get(:filter_changes) || %{}
+  end
+
+  defp reset_filter_changes() do
+    Process.delete(:filter_changes)
   end
 
 end
