@@ -20,6 +20,7 @@ defmodule CPSolver.Propagator do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils.TupleArray
   alias CPSolver.Utils
+  alias CPSolver.Common
 
   require Logger
 
@@ -213,7 +214,7 @@ defmodule CPSolver.Propagator do
             _ ->
               %{active?: true, state: state}
           end
-          |> Map.put(:changes, reset_filter_changes())
+          |> Map.put(:changes, reset_filter_changes() || %{})
         end
   end
 
@@ -223,6 +224,13 @@ defmodule CPSolver.Propagator do
 
   def get_filter_changes() do
     PropagatorVariable.get_variable_ops() || %{}
+  end
+
+  def merge_changes(changes1, changes2) do
+    Map.merge(changes1, changes2,
+      fn _var_id, domain_change1, domain_change2 ->
+        Common.stronger_domain_change(domain_change1, domain_change2)
+      end)
   end
 
   ## Check if propagator is entailed (i.e., all variables are fixed)

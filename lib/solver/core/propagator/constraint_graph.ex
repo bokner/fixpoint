@@ -86,7 +86,17 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Graph.add_vertex(graph, variable_vertex(variable.id), [variable])
   end
 
-  def add_propagator(graph, propagator) do
+  def add_propagator(graph, propagator, action_fun \\ fn propagator -> {:add, propagator} end) do
+    propagator
+    |> action_fun.()
+    |> then(fn {:add, propagator} ->
+              add_propagator_impl(graph, propagator)
+               {:skip, _propagator} ->
+                graph
+               end)
+  end
+
+  defp add_propagator_impl(graph, propagator) do
     propagator_vertex = propagator_vertex(propagator.id)
 
     propagator
@@ -101,8 +111,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         (Interface.fixed?(interface_var) && graph) ||
           Graph.add_edge(graph, variable_vertex(interface_var.id), propagator_vertex,
             label: %{
-              propagate_on: get_propagate_on(var),
-              variable_name: interface_var.name
+              propagate_on: get_propagate_on(var)
             }
           )
       end)
@@ -112,7 +121,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   def get_propagator(graph, {:propagator, _propagator_id} = vertex) do
     get_label(graph, vertex)
-    |> tap(fn p -> is_list(p) && Logger.error(inspect {"Multiple propagators", vertex, p}) end)
+    |> tap(fn ps -> is_list(ps) && Logger.error(inspect {"Multiple propagators", vertex, Enum.map(ps, fn p -> Map.take(p, [:id, :mod]) end)}) end)
   end
 
   def get_propagator(graph, propagator_id) do
@@ -124,10 +133,20 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         propagator_id,
         propagator
       ) do
-    vertex = propagator_vertex(propagator_id)
 
-    graph
-    |> Map.put(:vertex_labels, Map.put(labels, identifier.(vertex), propagator))
+    vertex = propagator_vertex(propagator_id)
+    if propagator.id != elem(vertex, 1) do
+      Logger.error("""
+        Mismatch between propagator id and CG vertex
+        Propagator id: #{propagator.id}"
+        Propagator vertex: #{inspect vertex}
+        """
+        )
+        graph
+    else
+      graph
+      |> Map.put(:vertex_labels, Map.put(labels, identifier.(vertex), propagator))
+    end
   end
 
   def update_propagator(

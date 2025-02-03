@@ -89,6 +89,7 @@ defmodule CPSolver.Space.Propagation do
 
           p = (reset? && Propagator.bind(p, g_acc, :domain)) || p
           g_acc = ConstraintGraph.update_propagator(g_acc, p_id, p)
+          |> tap(fn _ -> p_id != p.id && Logger.error("Propagator mismatch: #{inspect p_id} != #{inspect p.id}") end)
 
           res =
             Propagator.filter(p,
