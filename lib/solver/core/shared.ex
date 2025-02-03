@@ -168,11 +168,14 @@ defmodule CPSolver.Shared do
   end
 
   def checkin_space_thread_impl(
-        %{space_thread_counters: node_threads_ref} = _solver,
+        %{space_thread_counters: node_threads_ref} = solver,
         node \\ Node.self()
       ) do
+    complete?(solver) && :ok ||
+    (
     counter_ref = :persistent_term.get(node_threads_ref) |> Map.get(node)
     :counters.get(counter_ref, 1) > 0 && :counters.sub(counter_ref, 1, 1)
+    )
   end
 
   @active_node_count_pos 2
@@ -313,8 +316,12 @@ end
     end)
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
-    :persistent_term.erase(complete_flag)
     reset_objective(objective)
+    :persistent_term.erase(complete_flag)
+    :persistent_term.erase(solver.auxillary)
+    :persistent_term.erase(solver.space_thread_counters)
+    :persistent_term.erase(solver.times)
+
     :ok
   end
 
@@ -322,8 +329,6 @@ end
     Enum.each(active_nodes(solver), fn space ->
       :erpc.cast(node(space), fn -> Process.alive?(space) && Process.exit(space, :normal) end)
     end)
-
-    :persistent_term.erase(solver.auxillary)
   end
 
   def add_failure(solver, failure) do
