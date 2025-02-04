@@ -43,11 +43,11 @@ defmodule CPSolver.Shared do
   end
 
   def complete_impl(%{complete_flag: complete_flag} = _solver) do
-    :persistent_term.get(complete_flag, true)
+    :ets.lookup_element(complete_flag, :complete_flag, 2)
   end
 
   def set_complete(%{complete_flag: complete_flag, caller: caller, sync_mode: sync?} = solver) do
-    :persistent_term.put(complete_flag, true)
+    :ets.insert(complete_flag, {:complete_flag, true})
 
     set_end_time(solver)
     |> tap(fn _ -> sync? && send(caller, {:solver_completed, complete_flag}) end)
@@ -63,38 +63,36 @@ defmodule CPSolver.Shared do
   end
 
   defp init_complete_flag() do
-    make_ref()
-    |> tap(fn ref -> :persistent_term.put(ref, false) end)
+    :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
+    |> tap(fn ref -> :ets.insert(ref, {:complete_flag, false}) end)
+
   end
 
   defp init_auxillary_map() do
-    make_ref()
-    |> tap(fn ref -> :persistent_term.put(ref, %{}) end)
+    :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+    |> tap(fn ref -> :ets.insert(ref, {:auxillary, %{}}) end)
   end
 
   def get_auxillary(shared, key) do
     !complete?(shared) &&
-      :persistent_term.get(shared[:auxillary])
-      |> Map.get(key)
+
+      :ets.lookup(shared[:auxillary], key)
+      |> then(fn
+        [] -> nil
+        [{^key, value}] -> value
+      end)
   end
 
   def put_auxillary(shared, key, value) do
     !complete?(shared) &&
       (
-        pt_ref = shared[:auxillary]
-
-        aux_map =
-          pt_ref
-          |> :persistent_term.get()
-          |> Map.put(key, value)
-
-        :persistent_term.put(pt_ref, aux_map)
+        :ets.insert(shared[:auxillary], {key, value})
       )
   end
 
   def init_times() do
-    make_ref()
-    |> tap(fn ref -> :persistent_term.put(ref, {:erlang.monotonic_time(), nil}) end)
+    :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+    |> tap(fn ref -> :ets.insert(ref, {:times, {:erlang.monotonic_time(), nil}}) end)
   end
 
   def get_times(solver) do
@@ -103,8 +101,8 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :get_times_impl)
   end
 
-  def get_times_impl(%{times: time_ref} = _solver) do
-    {_start_time, _end_time} = :persistent_term.get(time_ref)
+  def get_times_impl(%{times: times_ref} = _solver) do
+    {_start_time, _end_time} = :ets.lookup(times_ref, :times) |> hd |> elem(1)
   end
 
   def set_end_time(solver) do
@@ -113,9 +111,10 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :get_times_impl)
   end
 
-  def set_end_time_impl(%{times: ref} = solver) do
+  def set_end_time_impl(%{times: times_ref} = solver) do
     {start_time, _end_time} = get_times(solver)
-    :persistent_term.put(ref, {start_time, :erlang.monotonic_time()})
+    :ets.insert(times_ref, {:times, {start_time, :erlang.monotonic_time()}})
+    :ok
   end
 
   ## This is a map nodes => atomics
@@ -123,24 +122,26 @@ defmodule CPSolver.Shared do
   ## First element is a thread counter, 2nd is the max number of
   ## space processes allowed to run simultaneously on a given node.
   defp init_space_thread_counters(space_threads, nodes \\ [Node.self() | Node.list()]) do
-    Map.new(nodes, fn node ->
+    :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+    |> tap(fn space_threads_ref ->
+    Enum.each(nodes, fn node ->
       ref = :counters.new(2, [:atomics])
       :counters.put(ref, 1, 0)
       :counters.put(ref, 2, space_threads)
-      {node, ref}
+      :ets.insert(space_threads_ref, {node, ref})
     end)
-    |> then(fn node_thread_counters ->
-      make_ref()
-      |> tap(fn ref -> :persistent_term.put(ref, node_thread_counters) end)
-    end)
+  end)
   end
 
-  def get_space_thread_counter(
+  defp get_space_thread_counters(
         %{space_thread_counters: node_threads_ref} = _shared,
-        node \\ Node.self()
+        node
       ) do
-    counter_ref = :persistent_term.get(node_threads_ref) |> Map.get(node)
-    :counters.get(counter_ref, 1)
+    :ets.lookup(node_threads_ref, node)
+    |> then(fn [] -> nil
+        [{^node, counter_ref}] ->
+          counter_ref
+        end)
   end
 
   def checkout_space_thread(solver, node \\ Node.self()) do
@@ -150,10 +151,9 @@ defmodule CPSolver.Shared do
   end
 
   def checkout_space_thread_impl(
-        %{space_thread_counters: node_threads_ref} = _solver,
-        node
+        solver, node
       ) do
-    counter_ref = :persistent_term.get(node_threads_ref) |> Map.get(node)
+    counter_ref = get_space_thread_counters(solver, node)
 
     if :counters.get(counter_ref, 1) < :counters.get(counter_ref, 2) do
       :counters.add(counter_ref, 1, 1)
@@ -168,12 +168,12 @@ defmodule CPSolver.Shared do
   end
 
   def checkin_space_thread_impl(
-        %{space_thread_counters: node_threads_ref} = solver,
+        solver,
         node \\ Node.self()
       ) do
     complete?(solver) && :ok ||
     (
-    counter_ref = :persistent_term.get(node_threads_ref) |> Map.get(node)
+    counter_ref = get_space_thread_counters(solver, node)
     :counters.get(counter_ref, 1) > 0 && :counters.sub(counter_ref, 1, 1)
     )
   end
@@ -309,7 +309,7 @@ end
   end
 
   def cleanup_impl(
-        %{solver_pid: solver_pid, complete_flag: complete_flag, objective: objective} = solver
+        %{solver_pid: solver_pid, objective: objective} = solver
       ) do
     Enum.each([:solutions, :statistics, :active_nodes], fn item ->
       Map.get(solver, item) |> :ets.delete()
@@ -317,11 +317,6 @@ end
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
     reset_objective(objective)
-    :persistent_term.erase(complete_flag)
-    :persistent_term.erase(solver.auxillary)
-    :persistent_term.erase(solver.space_thread_counters)
-    :persistent_term.erase(solver.times)
-
     :ok
   end
 

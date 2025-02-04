@@ -59,6 +59,7 @@ defmodule CPSolver.Search.VariableSelector.AFC do
         Shared.put_auxillary(shared, :afc, %{propagator_afcs: afc_table, decay: decay})
         Shared.add_handler(shared, :on_failure,
           fn solver, {:fail, propagator_id} = _failure, failure_count ->
+            Shared.complete?(solver) ||
             update_afc(propagator_id, solver, true, failure_count)
           end
         )

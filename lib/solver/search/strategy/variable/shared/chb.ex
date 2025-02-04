@@ -67,6 +67,7 @@ defmodule CPSolver.Search.VariableSelector.CHB do
         Shared.put_auxillary(shared, :chb, %{variable_chbs: chb_table})
         Shared.add_handler(shared, :on_space_finalized,
         fn solver,  %{variables: variables} = _space_data, reason ->
+          Shared.complete?(solver) ||
           update_chbs(variables, reason == :failure, solver)
         end)
       )
@@ -112,8 +113,14 @@ defmodule CPSolver.Search.VariableSelector.CHB do
     case Shared.get_auxillary(shared, :chb) do
       false -> :ok
       %{variable_chbs: chb_table} ->
-        Enum.each(variables,
-        fn var -> update_variable_chb(var, chb_table, failure?, shared) end)
+        Enum.reduce_while(variables, :ok,
+        fn var, _acc ->
+          Shared.complete?(shared) && {:halt, :ok} ||
+          (
+          update_variable_chb(var, chb_table, failure?, shared)
+          {:cont, :ok}
+          )
+        end)
       end
   end
 

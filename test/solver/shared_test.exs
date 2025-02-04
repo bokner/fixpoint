@@ -20,7 +20,7 @@ defmodule CPSolverTest.Shared do
   test "manage auxillaries" do
     shared = Shared.init_shared_data(space_threads: 4)
     refute Shared.get_auxillary(shared, :hello)
-    assert :ok == Shared.put_auxillary(shared, :hello, "hello")
+    assert Shared.put_auxillary(shared, :hello, "hello")
     assert "hello" == Shared.get_auxillary(shared, :hello)
   end
 end

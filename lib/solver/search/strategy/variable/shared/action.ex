@@ -61,6 +61,7 @@ defmodule CPSolver.Search.VariableSelector.Action do
         Shared.put_auxillary(shared, :action, %{variable_actions: action_table, decay: opts[:decay]})
         Shared.add_handler(shared, :on_space_finalized,
         fn solver,  %{variables: variables} = _space_data, _reason ->
+          Shared.complete?(solver) ||
           update_actions(variables, solver)
         end)
       )
