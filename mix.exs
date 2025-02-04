@@ -4,7 +4,7 @@ defmodule CPSolver.MixProject do
   def project do
     [
       app: :fixpoint,
-      version: "0.10.4",
+      version: "0.10.5",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
