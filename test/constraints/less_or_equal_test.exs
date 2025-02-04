@@ -31,9 +31,8 @@ defmodule CPSolverTest.Constraint.LessOrEqual do
       x = Variable.new(1)
       y = Variable.new(1)
       less_constraint = Less.new(x, y)
-      model = Model.new([x, y], [less_constraint])
-      {:ok, res} = CPSolver.solve(model)
-      assert res.status == :unsatisfiable
+      assert catch_throw({:fail, _} = Model.new([x, y], [less_constraint]))
+
     end
   end
 end

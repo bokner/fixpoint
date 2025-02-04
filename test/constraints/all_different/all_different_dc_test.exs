@@ -47,20 +47,12 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
 
     test "unsatisfiable (duplicates)" do
       variables = Enum.map(1..3, fn _ -> IntVariable.new(1) end)
-      model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
-
-      {:ok, result} = CPSolver.solve(model, timeout: 1000)
-
-      assert result.status == :unsatisfiable
+      assert catch_throw({:fail, _} = Model.new(variables, [Constraint.new(AllDifferent, variables)]))
     end
 
     test "unsatisfiable(pigeonhole)" do
       variables = Enum.map(1..4, fn _ -> IntVariable.new(1..3) end)
-      model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
-
-      {:ok, result} = CPSolver.solve(model)
-
-      assert result.status == :unsatisfiable
+      assert catch_throw({:fail, _} = Model.new(variables, [Constraint.new(AllDifferent, variables)]))
     end
 
     test "views in variable list" do

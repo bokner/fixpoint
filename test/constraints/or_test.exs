@@ -24,11 +24,7 @@ defmodule CPSolverTest.Constraint.Or do
 
       or_constraint = Or.new(bool_vars)
 
-      model = Model.new(bool_vars, [or_constraint])
-
-      {:ok, result} = CPSolver.solve(model)
-
-      assert result.status == :unsatisfiable
+      assert catch_throw({:fail, _} = Model.new(bool_vars, [or_constraint]))
     end
 
     test "with negation vars" do

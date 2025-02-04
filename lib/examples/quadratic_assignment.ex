@@ -23,6 +23,7 @@ defmodule CPSolver.Examples.QAP do
   alias CPSolver.Model
   alias CPSolver.Constraint.AllDifferent.DC, as: AllDifferent
   alias CPSolver.Objective
+  alias CPSolver.Constraint
   import CPSolver.Constraint.Factory
 
   import CPSolver.Variable.View.Factory
@@ -93,7 +94,7 @@ defmodule CPSolver.Examples.QAP do
     Model.new(
       assignments,
       [
-        AllDifferent.new(assignments),
+        Constraint.new(AllDifferent, assignments),
         sum_constraint
       ] ++ element2d_constraints,
       objective: Objective.minimize(total_cost),

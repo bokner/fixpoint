@@ -33,7 +33,11 @@ defmodule CPSolver.Constraint do
 
   def constraint_to_propagators({constraint_mod, args}, reducer_fun) when is_list(args) do
     List.foldr(constraint_mod.propagators(args), [], fn p, plist_acc ->
-      [reducer_fun.(p) | plist_acc]
+      case reducer_fun.(p) do
+        nil -> plist_acc
+        p_result ->
+          [p_result | plist_acc]
+        end
     end)
   end
 
@@ -45,10 +49,10 @@ defmodule CPSolver.Constraint do
   def post(constraint) when is_tuple(constraint) do
     constraint_to_propagators(constraint,
     fn p ->
-      case Propagator.filter(p) do
+      case Propagator.filter(p, reset?: true, changes: %{}) do
            :fail -> throw({:fail, p.id})
-           %{state: state} -> Propagator.update_state(p, state)
-           _ -> p
+           %{state: _state, active?: true, changes: _changes} -> p
+           %{active?: false} -> nil
       end
     end)
   end

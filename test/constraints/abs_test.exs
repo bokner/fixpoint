@@ -32,9 +32,8 @@ defmodule CPSolverTest.Constraint.Absolute do
       x = Variable.new(0, name: "x")
       y = Variable.new(1, name: "y")
 
-      model = Model.new([x, y], [Absolute.new(x, y)])
-      {:ok, res} = CPSolver.solve(model)
-      assert res.status == :unsatisfiable
+      assert catch_throw({:fail, _} = Model.new([x, y], [Absolute.new(x, y)]))
+
     end
 
     test "factory" do

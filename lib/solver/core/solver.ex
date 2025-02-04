@@ -5,7 +5,6 @@ defmodule CPSolver do
 
   alias CPSolver.Model
   alias CPSolver.Space
-  alias CPSolver.Constraint
   alias CPSolver.Solution
   alias CPSolver.Variable.Interface
 
@@ -182,13 +181,15 @@ defmodule CPSolver do
   ## GenServer callbacks
 
   @impl true
-  def init([%{constraints: constraints, variables: variables} = model, solver_opts]) do
+  def init([%{propagators: propagators, variables: variables} = model, solver_opts]) do
     stop_on = Keyword.get(solver_opts, :stop_on)
     ## Some data (stats, solutions, possibly more - TBD) has to be shared between spaces
     shared = Keyword.get(solver_opts, :shared)
 
-    {variables, propagators} = prepare(constraints, variables)
+    variables = prepare(variables)
+
     objective = Map.get(model, :objective)
+
 
     {:ok,
      %{
@@ -274,18 +275,13 @@ defmodule CPSolver do
     Logger.error("Stop condition with #{inspect(opts)} is not implemented")
   end
 
-  defp prepare(constraints, variables) do
-    indexed_variables =
-      variables
-      |> Enum.with_index(1)
-      |> Map.new(fn {v, idx} -> {Interface.id(v), Map.put(Interface.variable(v), :index, idx)} end)
-
-    bound_propagators =
-      Enum.flat_map(constraints, fn constraint ->
-        Constraint.constraint_to_propagators(constraint)
+  defp prepare(variables) do
+    ## Add index to variables
+    Enum.reduce(variables, {0, []},
+      fn v, {idx, acc} ->
+        {idx + 1, [Map.put(Interface.variable(v), :index, idx) | acc]}
       end)
-
-    {Map.values(indexed_variables) |> Enum.sort_by(fn v -> Interface.variable(v).index end),
-     bound_propagators}
+      |> elem(1)
+      |> Enum.sort_by(fn v -> v.index end)
   end
 end

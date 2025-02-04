@@ -1,16 +1,18 @@
 defmodule CPSolver.Model do
   alias CPSolver.Constraint
+  alias CPSolver.Propagator
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
   alias CPSolver.Objective
 
-  defstruct [:name, :variables, :constraints, :objective, :extra, :id]
+  defstruct [:name, :variables, :constraints, :propagators, :objective, :extra, :id]
 
   @type t :: %__MODULE__{
           id: reference(),
           name: term(),
           variables: [Variable.t()],
           constraints: [Constraint.t()],
+          propagators: [Propagator.t()],
           objective: Objective.t(),
           extra: term()
         }
@@ -21,7 +23,6 @@ defmodule CPSolver.Model do
     # TODO:
     # consider posting constraints and/or building constraint graph/list of propagators here
     ## For instance:
-    # tap(fn constraints -> Enum.each(constraints, fn c -> Constraint.post(c) end) end)
     #
 
     {all_variables, objective} = init_model(variables, constraints, opts[:objective])
@@ -29,6 +30,7 @@ defmodule CPSolver.Model do
     %__MODULE__{
       variables: all_variables,
       constraints: constraints,
+      propagators: Enum.flat_map(constraints, fn c -> Constraint.post(c) end),
       objective: objective,
       id: Keyword.get(opts, :id, make_ref()),
       name: opts[:name],

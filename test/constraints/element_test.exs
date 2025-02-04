@@ -108,10 +108,7 @@ defmodule CPSolverTest.Constraint.Element do
         end)
 
       element_constraint = ElementVar.new(array_var, index_var, value_var)
-      model = Model.new([index_var, value_var | array_var], [element_constraint])
-      {:ok, res} = CPSolver.solve(model)
-
-      assert res.status == :unsatisfiable
+      assert catch_throw({:fail, _} = Model.new([index_var, value_var | array_var], [element_constraint]))
     end
 
     test "`element with fixed values in variable array" do

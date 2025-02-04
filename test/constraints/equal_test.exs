@@ -32,9 +32,7 @@ defmodule CPSolverTest.Constraint.Equal do
 
       unsatisfiable_value = -1
       equal_constraint = Equal.new(x, unsatisfiable_value)
-      unsatisfiable_model = Model.new([x], [equal_constraint])
-      {:ok, res} = CPSolver.solve(unsatisfiable_model)
-      assert res.status == :unsatisfiable
+      assert catch_throw({:fail, _} = Model.new([x], [equal_constraint]))
     end
   end
 end

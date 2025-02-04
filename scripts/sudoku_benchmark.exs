@@ -18,12 +18,12 @@ defmodule SudokuBenchmark do
             search: {
               Strategy.mixed([
                 # Strategy.most_constrained(&Enum.random/1),
-                Strategy.first_fail(Strategy.most_constrained(&Enum.random/1)),
+                #Strategy.first_fail(Strategy.most_constrained(&Enum.random/1)),
                 #Strategy.afc({:afc_size_max, 0.9}, Strategy.first_fail(&Enum.random/1)),
                 Strategy.dom_deg(&Enum.random/1),
-                # Strategy.action({:action_size_min, 0.75}, Strategy.first_fail(&Enum.random/1)),
+                #Strategy.action({:action_size_min, 0.75}, Strategy.first_fail(&Enum.random/1)),
                 # Strategy.action({:action_size_max, 0.9}, &Enum.random/1)
-                #Strategy.chb(:chb_max, Strategy.first_fail(&Enum.random/1))
+                Strategy.chb(:chb_max, Strategy.first_fail(&Enum.random/1))
                 # Strategy.most_completed(&Enum.random/1)
               ]),
               :indomain_random

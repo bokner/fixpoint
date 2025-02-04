@@ -6,6 +6,7 @@ defmodule CPSolver.Examples.StableMarriage do
   """
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
+  alias CPSolver.Constraint
   alias CPSolver.Constraint.{ElementVar, Less}
   alias CPSolver.Constraint.Factory, as: ConstraintFactory
   alias CPSolver.Constraint.AllDifferent.DC, as: AllDifferent
@@ -151,7 +152,7 @@ defmodule CPSolver.Examples.StableMarriage do
 
     Model.new(
       wife ++ husband,
-      bijections ++ pref_constraints ++ [AllDifferent.new(husband), AllDifferent.new(wife)]
+      bijections ++ pref_constraints ++ [Constraint.new(AllDifferent, husband), Constraint.new(AllDifferent, wife)]
     )
   end
 

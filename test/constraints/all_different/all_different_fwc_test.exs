@@ -39,11 +39,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.FWC do
 
     test "unsatisfiable (duplicates)" do
       variables = Enum.map(1..3, fn _ -> IntVariable.new(1) end)
-      model = Model.new(variables, [Constraint.new(AllDifferentFWC, variables)])
-
-      {:ok, result} = CPSolver.solve(model, timeout: 1000)
-
-      assert result.status == :unsatisfiable
+      assert catch_throw({:fail, _} = Model.new(variables, [Constraint.new(AllDifferentFWC, variables)]))
     end
 
     test "unsatisfiable(pigeonhole)" do
