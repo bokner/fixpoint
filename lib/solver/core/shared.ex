@@ -43,7 +43,7 @@ defmodule CPSolver.Shared do
   end
 
   def complete_impl(%{complete_flag: complete_flag} = _solver) do
-    :ets.lookup_element(complete_flag, :complete_flag, 2)
+    :ets.info(complete_flag) == :undefined || :ets.lookup_element(complete_flag, :complete_flag, 2)
   end
 
   def set_complete(%{complete_flag: complete_flag, caller: caller, sync_mode: sync?} = solver) do
