@@ -290,7 +290,6 @@ defmodule CPSolver.Space do
   defp update_objective(%{variable: variable} = objective, variables) do
     updated_var = update_domain(variable, variables)
     Map.put(objective, :variable, updated_var)
-    # objective
   end
 
   defp update_domain(variable, space_variables) do

@@ -10,7 +10,7 @@ defmodule CPSolver.Space.Propagation do
 
   def run(%Graph{} = constraint_graph, changes, digraph?) do
     constraint_graph
-    |> get_propagators()
+    |> ConstraintGraph.get_propagators()
     |> then(fn propagators ->
       c_graph = (digraph? && Digraph.from_libgraph(constraint_graph)) || constraint_graph
 
@@ -24,18 +24,7 @@ defmodule CPSolver.Space.Propagation do
     end)
   end
 
-  defp get_propagators(constraint_graph) do
-    constraint_graph
-    |> ConstraintGraph.vertices()
-    ## Get %{id => propagator} map
-    |> Enum.flat_map(fn
-      {:propagator, p_id} ->
-        [ConstraintGraph.get_propagator(constraint_graph, p_id)]
 
-      _ ->
-        []
-    end)
-  end
 
   defp run_impl(propagators, constraint_graph, domain_changes, opts) do
     case propagate(propagators, constraint_graph, domain_changes, opts) do

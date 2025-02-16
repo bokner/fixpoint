@@ -17,15 +17,16 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end)
   end
 
-  def propagators_by_variable(constraint_graph, variable_id, reduce_fun)
-      when is_function(reduce_fun, 2) do
+  def get_propagators(constraint_graph) do
     constraint_graph
-    |> edges(variable_vertex(variable_id))
-    |> Enum.reduce(Map.new(), fn edge, acc ->
-      {:propagator, p_id} = edge.v2
+    |> vertices()
+    ## Get %{id => propagator} map
+    |> Enum.flat_map(fn
+      {:propagator, p_id} ->
+        [get_propagator(constraint_graph, p_id)]
 
-      ((p_data = reduce_fun.(p_id, edge.label)) && p_data && Map.put(acc, p_id, p_data)) ||
-        acc
+      _ ->
+        []
     end)
   end
 
@@ -46,7 +47,8 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         constraint_graph,
         variable_id,
         domain_change
-      ) when is_atom(domain_change) do
+      )
+      when is_atom(domain_change) do
     propagators_by_variable(constraint_graph, variable_id, fn p_id, propagator_variable_edge ->
       domain_change in propagator_variable_edge.propagate_on &&
         get_propagator_data(
@@ -65,13 +67,24 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Digraph.vertices(constraint_graph)
   end
 
-
   def edges(%Graph{} = constraint_graph, vertex) do
     Graph.edges(constraint_graph, vertex)
   end
 
   def edges(constraint_graph, vertex) when elem(constraint_graph, 0) == :digraph do
     Digraph.edges(constraint_graph, vertex)
+  end
+
+  defp propagators_by_variable(constraint_graph, variable_id, reduce_fun)
+       when is_function(reduce_fun, 2) do
+    constraint_graph
+    |> edges(variable_vertex(variable_id))
+    |> Enum.reduce(Map.new(), fn edge, acc ->
+      {:propagator, p_id} = edge.v2
+
+      ((p_data = reduce_fun.(p_id, edge.label)) && p_data && Map.put(acc, p_id, p_data)) ||
+        acc
+    end)
   end
 
   defp get_propagator_data(_edge, domain_change, propagator) do
@@ -81,7 +94,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     }
   end
 
-
   def add_variable(graph, variable) do
     Graph.add_vertex(graph, variable_vertex(variable.id), [variable])
   end
@@ -89,11 +101,13 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   def add_propagator(graph, propagator, action_fun \\ fn propagator -> {:add, propagator} end) do
     propagator
     |> action_fun.()
-    |> then(fn {:add, propagator} ->
-              add_propagator_impl(graph, propagator)
-               {:skip, _propagator} ->
-                graph
-               end)
+    |> then(fn
+      {:add, propagator} ->
+        add_propagator_impl(graph, propagator)
+
+      {:skip, _propagator} ->
+        graph
+    end)
   end
 
   defp add_propagator_impl(graph, propagator) do
@@ -121,7 +135,14 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   def get_propagator(graph, {:propagator, _propagator_id} = vertex) do
     get_label(graph, vertex)
-    |> tap(fn ps -> is_list(ps) && Logger.error(inspect {"Multiple propagators", vertex, Enum.map(ps, fn p -> Map.take(p, [:id, :mod]) end)}) end)
+    |> tap(fn ps ->
+      is_list(ps) &&
+        Logger.error(
+          inspect(
+            {"Multiple propagators", vertex, Enum.map(ps, fn p -> Map.take(p, [:id, :mod]) end)}
+          )
+        )
+    end)
   end
 
   def get_propagator(graph, propagator_id) do
@@ -133,16 +154,16 @@ defmodule CPSolver.Propagator.ConstraintGraph do
         propagator_id,
         propagator
       ) do
-
     vertex = propagator_vertex(propagator_id)
+
     if propagator.id != elem(vertex, 1) do
       Logger.error("""
-        Mismatch between propagator id and CG vertex
-        Propagator id: #{propagator.id}"
-        Propagator vertex: #{inspect vertex}
-        """
-        )
-        graph
+      Mismatch between propagator id and CG vertex
+      Propagator id: #{propagator.id}"
+      Propagator vertex: #{inspect(vertex)}
+      """)
+
+      graph
     else
       graph
       |> Map.put(:vertex_labels, Map.put(labels, identifier.(vertex), propagator))
@@ -180,8 +201,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     remove_vertex(graph, propagator_vertex(propagator_id))
   end
 
-
-
   def entailed_propagator?(graph, propagator) do
     Enum.empty?(in_neighbors(graph, propagator_vertex(propagator.id)))
   end
@@ -208,10 +227,9 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   ### Stop notifications from fixed variables and update propagators with variable domains.
   ### Returns updated graph and a list of propagators bound to variable domains
   def update(graph, vars) do
-      Enum.reduce(vars, graph,
-        fn %{id: var_id} = v, graph_acc ->
-        update_variable(graph_acc, var_id, v)
-      end)
+    Enum.reduce(vars, graph, fn v, graph_acc ->
+      update_variable(graph_acc, v)
+    end)
   end
 
   def remove_vertex(graph, vertex) do
@@ -232,6 +250,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   defp get_label(graph, vertex) when elem(graph, 0) == :digraph do
     {_vertex, label} = Digraph.vertex(graph, vertex)
+
     case label do
       [] -> nil
       [p] -> p
@@ -265,21 +284,20 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   def update_variable(
         %Graph{vertex_labels: labels, vertex_identifier: identifier} = graph,
-        var_id,
         variable
       ) do
-    vertex = variable_vertex(var_id)
+    vertex = variable_vertex(Interface.id(variable))
 
     Map.put(graph, :vertex_labels, Map.put(labels, identifier.(vertex), variable))
+    #graph
   end
 
   def update_variable(
         graph,
-        var_id,
         variable
       )
       when elem(graph, 0) == :digraph do
-    vertex = variable_vertex(var_id)
+    vertex = variable_vertex(Interface.id(variable))
 
     Digraph.add_vertex(graph, vertex, variable)
   end

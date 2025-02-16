@@ -22,15 +22,9 @@ defmodule CPSolver.Search do
 
   ### Helpers
 
-  # def branch(variables, {variable_choice, partition_strategy}) do
-  #   branch(variables, variable_choice, partition_strategy, %{})
-  # end
-
   def branch(variables, {variable_choice, partition_strategy}, data \\ %{}) do
     branch(variables, variable_choice, partition_strategy, data)
   end
-
-  # def branch(variables, variable_choice, partition_strategy, data \\ %{})
 
   def branch(variables, variable_choice, partition_strategy, data) do
     case VariableSelector.select_variable(variables, data, variable_choice) do
@@ -41,7 +35,7 @@ defmodule CPSolver.Search do
         {:ok, domain_partitions} =
           Partition.partition(selected_variable, partition_strategy)
 
-        variable_partitions(selected_variable, domain_partitions, variables)
+        partitions(selected_variable, domain_partitions, variables)
     end
   end
 
@@ -49,12 +43,11 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, domain)
   end
 
-  defp variable_partitions(selected_variable, domain_partitions, variables) do
+  defp partitions(selected_variable, domain_partitions, variables) do
     Enum.map(domain_partitions, fn {domain, constraint} ->
       {Enum.map(variables, fn var ->
          domain_copy =
            ((var.id == selected_variable.id && domain) || var.domain)
-           # var.domain
            |> Domain.copy()
 
          set_domain(var, domain_copy)
