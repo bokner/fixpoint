@@ -177,7 +177,7 @@ defmodule CPSolver.Space do
       |> Map.put(:id, make_ref())
       |> Map.put(:variables, space_variables)
       |> Map.put(:store, store)
-      |> Map.put(:constraint_graph, ConstraintGraph.update(graph, space_variables))
+      |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
       |> Map.put(:objective, update_objective(space_opts[:objective], space_variables))
       |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
 
@@ -283,6 +283,12 @@ defmodule CPSolver.Space do
     Objective.tighten(objective)
   end
 
+  defp update_constraint_graph(graph, variables) do
+    graph
+    |> ConstraintGraph.copy()
+    |> ConstraintGraph.update(variables)
+  end
+
   defp update_objective(nil, _vars) do
     nil
   end
@@ -331,15 +337,11 @@ defmodule CPSolver.Space do
     try do
       variables
       |> Search.branch(search, data)
-      |> Enum.map(fn {branch_variables, constraint} ->
-        {branch_variables, constraint, ConstraintGraph.copy(data.constraint_graph)}
-      end)
-      |> Enum.take_while(fn {branch_variables, constraint, constraint_graph} ->
+      |> Enum.take_while(fn {branch_variables, constraint} ->
         !CPSolver.complete?(get_shared(data)) &&
           spawn_space(
             data
             |> Map.put(:variables, branch_variables)
-            |> Map.put(:constraint_graph, constraint_graph)
             |> put_in([:opts, :branch_constraint], constraint)
           )
       end)

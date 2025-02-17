@@ -130,6 +130,20 @@ defmodule CPSolver.Utils.Digraph do
       :digraph.vertices(dg)
     end
 
+    def copy(graph) do
+      dg = :digraph.new()
+      Enum.each(:digraph.vertices(graph), fn vertex_id ->
+        {_vertex_id, label} = vertex(graph, vertex_id)
+        :digraph.add_vertex(dg, vertex_id, label)
+      end)
+
+      Enum.each(:digraph.edges(graph), fn edge ->
+        {_e, v1, v2, label} = :digraph.edge(graph, edge)
+        :digraph.add_edge(dg, v1, v2, label)
+        end)
+      dg
+    end
+
     def from_libgraph(%Graph{} = graph) do
       dg = new()
       Enum.each(Graph.vertices(graph), fn vertex ->

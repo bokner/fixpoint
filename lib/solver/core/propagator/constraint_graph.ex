@@ -22,7 +22,8 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   end
 
   def copy(graph) when elem(graph, 0) == :digraph do
-    :digraph_utils.subgraph(graph, :digraph.vertices(graph))
+    #:digraph_utils.subgraph(graph, :digraph.vertices(graph))
+    Digraph.copy(graph)
   end
 
   def get_propagators(constraint_graph) do
@@ -274,12 +275,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   defp get_label(graph, vertex) when elem(graph, 0) == :digraph do
     {_vertex, label} = Digraph.vertex(graph, vertex)
-
-    case label do
-      [] -> nil
-      [p] -> p
-      _ -> label
-    end
+    label
   end
 
   defp in_degree(%Graph{} = graph, vertex) do
