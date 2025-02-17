@@ -14,7 +14,7 @@ defmodule CPSolver.Search.VariableSelector.MostCompleted do
   def most_completed_propagators_selection(constraint_graph) do
     ## Make p => (unfixed variables) map
     constraint_graph
-    |> Graph.edges()
+    |> ConstraintGraph.edges()
     |> Enum.group_by(
       fn edge -> edge.v2 end,
       fn edge -> edge.v1 end

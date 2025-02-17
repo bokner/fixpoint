@@ -14,11 +14,11 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
     test "Build graph from AllDifferent constraint" do
       graph = build_graph(AllDifferent, 3)
       ## Vertices: 3 propagators (x != y, y != z, x != z) and 3 variables
-      assert length(Graph.vertices(graph)) == 6
+      assert length(ConstraintGraph.vertices(graph)) == 6
       ## Edges: 2 per each propagator
-      assert length(Graph.edges(graph)) == 6
+      assert length(ConstraintGraph.edges(graph)) == 6
       ## All edges are labeled with :fixed
-      Enum.all?(Graph.edges(graph), fn edge -> assert edge.label.propagate_on == [:fixed] end)
+      Enum.all?(ConstraintGraph.edges(graph), fn edge -> assert edge.label.propagate_on == [:fixed] end)
       ## Make sure the propagators are properly bound to their variables
       assert_propagator_domains(graph, 1..3)
     end
@@ -27,7 +27,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
       graph = build_graph(AllDifferent, 3)
 
       variables =
-        Graph.vertices(graph)
+        ConstraintGraph.vertices(graph)
         |> Enum.flat_map(fn
           {:variable, v} -> [v]
           _ -> []
@@ -45,13 +45,13 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
       variables =
         [v1, _v2, _v3] = get_variable_ids(graph)
 
-      assert graph |> ConstraintGraph.remove_variable(v1) |> Graph.edges() |> length == 4
+      assert graph |> ConstraintGraph.remove_variable(v1) |> ConstraintGraph.edges() |> length == 4
 
       assert Enum.reduce(variables, graph, fn v, g ->
-               assert Graph.vertices(g) != []
+               assert ConstraintGraph.vertices(g) != []
                ConstraintGraph.remove_variable(g, v)
              end)
-             |> Graph.edges() == []
+             |> ConstraintGraph.edges() == []
     end
 
     test "Update graph variables" do
@@ -85,7 +85,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
     end
 
     defp get_variable_ids(graph) do
-      Graph.vertices(graph)
+      ConstraintGraph.vertices(graph)
       |> Enum.flat_map(fn
         {:variable, v} -> [v]
         _ -> []
@@ -101,7 +101,7 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
     defp assert_propagator_domains(graph, domain) do
       propagators =
         Enum.flat_map(
-          Graph.vertices(graph),
+          ConstraintGraph.vertices(graph),
           fn
             {:propagator, p_id} ->
               [

@@ -1,23 +1,20 @@
 defmodule CPSolver.Space.Propagation do
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Propagator
-  alias CPSolver.Utils.Digraph
   import CPSolver.Common
 
   require Logger
 
-  def run(constraint_graph, changes \\ %{}, digraph? \\ false)
+  def run(constraint_graph, changes \\ %{})
 
-  def run(%Graph{} = constraint_graph, changes, digraph?) do
+  def run(constraint_graph, changes) do
     constraint_graph
     |> ConstraintGraph.get_propagators()
     |> then(fn propagators ->
-      c_graph = (digraph? && Digraph.from_libgraph(constraint_graph)) || constraint_graph
-
       run_impl(
         propagators,
-        c_graph,
-        propagator_changes(c_graph, changes),
+        constraint_graph,
+        propagator_changes(constraint_graph, changes),
         reset?: true
       )
       |> finalize(changes)
@@ -152,25 +149,20 @@ defmodule CPSolver.Space.Propagation do
   end
 
   ## At this point, the space is either solved or stable.
-  defp finalize(%Graph{} = residual_graph, changes) do
-    if Enum.empty?(Graph.edges(residual_graph)) do
+  defp finalize(residual_graph, changes) do
+    if Enum.empty?(ConstraintGraph.edges(residual_graph)) do
       :solved
     else
       residual_graph
       |> remove_fixed_variables(changes)
       |> then(fn g ->
-        if Enum.empty?(Graph.edges(g)) do
+        if Enum.empty?(ConstraintGraph.edges(g)) do
           :solved
         else
           {:stable, g}
         end
       end)
     end
-  end
-
-  defp finalize(digraph, changes) when elem(digraph, 0) == :digraph do
-    finalize(Digraph.to_libgraph(digraph), changes)
-    |> tap(fn _ -> Digraph.delete(digraph) end)
   end
 
   defp maybe_remove_variable(graph, var_id, :fixed) do

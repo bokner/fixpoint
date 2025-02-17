@@ -35,7 +35,7 @@ defmodule CPSolver.Search do
         {:ok, domain_partitions} =
           Partition.partition(selected_variable, partition_strategy)
 
-        partitions(selected_variable, domain_partitions, variables)
+        partitions(selected_variable, domain_partitions, variables, data)
     end
   end
 
@@ -43,7 +43,7 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, domain)
   end
 
-  defp partitions(selected_variable, domain_partitions, variables) do
+  defp partitions(selected_variable, domain_partitions, variables, _data) do
     Enum.map(domain_partitions, fn {domain, constraint} ->
       {Enum.map(variables, fn var ->
          domain_copy =
@@ -51,7 +51,8 @@ defmodule CPSolver.Search do
            |> Domain.copy()
 
          set_domain(var, domain_copy)
-       end), constraint}
+       end),
+       constraint}
     end)
   end
 end

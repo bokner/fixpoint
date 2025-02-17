@@ -329,13 +329,17 @@ defmodule CPSolver.Space do
         } = data
       ) do
     try do
-      branches = Search.branch(variables, search, data)
-
-      Enum.take_while(branches, fn {branch_variables, constraint} ->
+      variables
+      |> Search.branch(search, data)
+      |> Enum.map(fn {branch_variables, constraint} ->
+        {branch_variables, constraint, ConstraintGraph.copy(data.constraint_graph)}
+      end)
+      |> Enum.take_while(fn {branch_variables, constraint, constraint_graph} ->
         !CPSolver.complete?(get_shared(data)) &&
           spawn_space(
             data
             |> Map.put(:variables, branch_variables)
+            |> Map.put(:constraint_graph, constraint_graph)
             |> put_in([:opts, :branch_constraint], constraint)
           )
       end)

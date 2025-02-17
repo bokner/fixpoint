@@ -84,8 +84,8 @@ defmodule CpSolverTest do
   end
 
   test "Solution handler" do
-    x = IntVariable.new([1, 2])
-    y = IntVariable.new([0, 1])
+    x = IntVariable.new([1, 2], name: "x")
+    y = IntVariable.new([0, 1], name: "y")
 
     model =
       Model.new(

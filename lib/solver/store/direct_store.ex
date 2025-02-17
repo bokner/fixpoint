@@ -65,8 +65,6 @@ defmodule CPSolver.Store.Direct do
       :fail ->
         :fail
 
-      # update_variable_domain(variable, :fail, :fail)
-
       :no_change ->
         :no_change
 
