@@ -276,12 +276,13 @@ defmodule CPSolver do
   end
 
   defp prepare(variables) do
-    ## Add index to variables
-    Enum.reduce(variables, {0, []},
+    ## At this point, `variables` list can contain views
+    ## In this case, we will extract variables.
+    ## We will also assign :index field to each variable.
+    List.foldr(variables, {0, []},
       fn v, {idx, acc} ->
         {idx + 1, [Map.put(Interface.variable(v), :index, idx) | acc]}
       end)
       |> elem(1)
-      |> Enum.sort_by(fn v -> v.index end)
   end
 end

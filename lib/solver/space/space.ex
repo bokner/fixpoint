@@ -166,7 +166,7 @@ defmodule CPSolver.Space do
   end
 
   defp init_impl(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
-    {:ok, space_variables, store} =
+    {:ok, space_variables, _store} =
       ConstraintStore.create_store(variables,
         store_impl: space_opts[:store_impl],
         space: self()
@@ -176,7 +176,6 @@ defmodule CPSolver.Space do
       data
       |> Map.put(:id, make_ref())
       |> Map.put(:variables, space_variables)
-      |> Map.put(:store, store)
       |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
       |> Map.put(:objective, update_objective(space_opts[:objective], space_variables))
       |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))

@@ -12,8 +12,6 @@ defmodule CPSolver.ConstraintStore do
   @type get_operation :: Common.domain_get_operation() | nil
   @type update_operation :: Common.domain_update_operation()
 
-  @store_key :space_store_key
-
   def default_store() do
     CPSolver.Store.Direct
   end
@@ -103,22 +101,14 @@ defmodule CPSolver.ConstraintStore do
        updated_var =
          var
          |> Map.put(:index, idx_acc)
-         |> Map.put(:name, var.name)
-         |> Map.put(:store, store)
 
        {Arrays.append(vars_acc, updated_var), idx_acc + 1}
      end)
      |> elem(0), store}
-    |> tap(fn _ -> set_store(store) end)
   end
 
   def domain(variable) do
     domain(variable.store, variable)
-  end
-
-  def domain(nil, variable) do
-    get_store_from_dict()
-    |> domain(variable)
   end
 
   def domain(%{handle: handle, store_impl: store_impl} = _store, variable) do
@@ -127,21 +117,11 @@ defmodule CPSolver.ConstraintStore do
 
   def get(store, variable, operation, args \\ [])
 
-  def get(nil, variable, operation, args) do
-    get_store_from_dict()
-    |> get(variable, operation, args)
-  end
-
   def get(%{handle: handle, store_impl: store_impl} = _store, variable, operation, args) do
     store_impl.get(handle, variable, operation, args)
   end
 
   def update(store, variable, operation, args \\ [])
-
-  def update(nil, variable, operation, args) do
-    get_store_from_dict()
-    |> update(variable, operation, args)
-  end
 
   def update(
         %{handle: handle, store_impl: store_impl} = _store,
@@ -152,25 +132,8 @@ defmodule CPSolver.ConstraintStore do
     store_impl.update(handle, variable, operation, args)
   end
 
-  def dispose(nil, variables) do
-    get_store_from_dict()
-    |> dispose(variables)
-  end
-
   def dispose(%{handle: handle, store_impl: store_impl} = _store, variables) do
     store_impl.dispose(handle, variables)
   end
 
-  def fixed?(%{store: nil} = variable) do
-    fixed?(Map.put(variable, :store, get_store_from_dict()))
-  end
-
-  ## Store handle in dict
-  def set_store(store) do
-    Process.put(@store_key, store)
-  end
-
-  defp get_store_from_dict() do
-    Process.get(@store_key)
-  end
 end
