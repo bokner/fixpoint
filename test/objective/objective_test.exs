@@ -5,7 +5,6 @@ defmodule CpSolverTest.Objective do
   alias CPSolver.Objective
   alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
-  import CPSolver.Test.Helpers
 
   describe "Objective API" do
     test "low-level operations" do
@@ -37,8 +36,7 @@ defmodule CpSolverTest.Objective do
     end
 
     test "Propagation and tightening" do
-      {:ok, [objective_variable], _store} =
-        create_store([Variable.new(1..10)])
+      objective_variable = Variable.new(1..10)
 
       min_objective =
         %{propagator: min_propagator, bound_handle: min_handle} =

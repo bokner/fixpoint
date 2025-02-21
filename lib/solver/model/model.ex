@@ -20,10 +20,6 @@ defmodule CPSolver.Model do
   def new(variables, constraints, opts \\ []) do
     constraints =
     normalize_constraints(constraints)
-    # TODO:
-    # consider posting constraints and/or building constraint graph/list of propagators here
-    ## For instance:
-    #
 
     {all_variables, objective} = init_model(variables, constraints, opts[:objective])
 
@@ -38,7 +34,7 @@ defmodule CPSolver.Model do
     }
   end
 
-  def init_model(variables, constraints, objective) do
+  defp init_model(variables, constraints, objective) do
     safe_variables =
       Enum.map(variables, fn v ->
         (is_integer(v) && Variable.new(v)) || v
@@ -78,13 +74,6 @@ defmodule CPSolver.Model do
     |> List.flatten()
     |> Enum.uniq_by(fn var -> Map.get(var, :id) end)
   end
-
-  ~S"""
-    Transform list of constraints of different types
-    into the list of plain constraints.
-    For now just flatten (but maybe more in the future
-    for factory-constructed constraints etc.)
-  """
 
   defp normalize_constraints(constraints) do
     List.flatten(constraints)

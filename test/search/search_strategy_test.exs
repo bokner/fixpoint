@@ -8,9 +8,6 @@ defmodule CPSolverTest.Search.FirstFail do
   describe "First-fail search strategy" do
     alias CPSolver.Search.VariableSelector, as: SearchStrategy
 
-
-    import CPSolver.Test.Helpers
-
     test ":first_fail and :indomain_min" do
       v0_values = 0..0
       v1_values = 1..10
@@ -21,13 +18,11 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = create_store(variables)
-
       # first_fail chooses among unfixed variables
       selected_variable = SearchStrategy.select_variable(variables, nil, :first_fail)
 
       assert selected_variable.id in Enum.map([1, 2, 4], fn var_pos ->
-               Enum.at(bound_vars, var_pos) |> Map.get(:id)
+               Enum.at(variables, var_pos) |> Map.get(:id)
              end)
 
       # indomain_min splits domain of selected variable into min and the rest of the domain
@@ -49,8 +44,6 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, _bound_vars, _store} = create_store(variables)
-
       assert catch_throw(Search.branch(variables, {:first_fail, :indomain_min})) ==
                SearchStrategy.all_vars_fixed_exception()
     end
@@ -65,15 +58,13 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = create_store(variables)
-
       [b_left, b_right] =
-        branches = Search.branch(bound_vars, {:first_fail, :indomain_min})
+        branches = Search.branch(variables, {:first_fail, :indomain_min})
 
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars
       assert Enum.all?(branches, fn {branch, _constraint} ->
-               length(branch) == length(variables)
+              Arrays.size(branch) == length(variables)
              end)
 
       ## Left branch contains v2 variable fixed at 0

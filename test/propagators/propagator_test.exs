@@ -5,26 +5,24 @@ defmodule CPSolverTest.Propagator do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Variable.Interface
     alias CPSolver.Propagator.{NotEqual, LessOrEqual}
-    alias CPSolver.ConstraintStore
     alias CPSolver.Propagator
-    import CPSolver.Test.Helpers
-
+  
     import CPSolver.Variable.View.Factory
 
     test "filtering with variables bound to a store" do
-      %{bound_variables: bound_variables, store: store} =
+      %{variables: variables} =
         setup_store([1..1, 1..2])
 
-      [x_bound, y_bound] = bound_variables
+      [x_var, y_var] = variables
 
-      refute Variable.fixed?(y_bound)
-      assert Variable.fixed?(x_bound)
-      propagator = NotEqual.new(bound_variables)
+      refute Variable.fixed?(y_var)
+      assert Variable.fixed?(x_var)
+      propagator = NotEqual.new(variables)
 
-      assert %{changes: %{y_bound.id => :fixed}, active?: false, state: nil} ==
+      assert %{changes: %{y_var.id => :fixed}, active?: false, state: nil} ==
                Propagator.filter(propagator)
 
-      assert ConstraintStore.get(store, y_bound, :fixed?)
+      assert Interface.fixed?(y_var)
     end
 
     test "Using views" do
@@ -32,10 +30,7 @@ defmodule CPSolverTest.Propagator do
       y = 0..10
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} =
-        create_store(variables)
-
-      [x_var, y_var] = bound_vars
+      [x_var, y_var] = variables
 
       ## Make 'minus' view
       minus_y_view = minus(y_var)
@@ -48,23 +43,23 @@ defmodule CPSolverTest.Propagator do
     test "dry run (reduction)" do
       # `dry_run` option tests the result of the propagator filtering,
       # but does not change space variables
-      %{bound_variables: bound_variables} =
+      %{variables: variables} =
         setup_store([1..1, 1..2])
 
-      [x_bound, y_bound] = bound_variables
+      [x_var, y_var] = variables
 
-      assert Variable.fixed?(x_bound)
-      refute Variable.fixed?(y_bound)
+      assert Variable.fixed?(x_var)
+      refute Variable.fixed?(y_var)
 
-      propagator = NotEqual.new(bound_variables)
+      propagator = NotEqual.new(variables)
 
       ## Dry-run first
       {_p_copy, dry_run_result} = Propagator.dry_run(propagator)
-      assert dry_run_result == %{changes: %{y_bound.id => :fixed}, active?: false, state: nil}
+      assert dry_run_result == %{changes: %{y_var.id => :fixed}, active?: false, state: nil}
 
       # Store variables didn't change
-      assert Variable.fixed?(x_bound)
-      refute Variable.fixed?(y_bound)
+      assert Variable.fixed?(x_var)
+      refute Variable.fixed?(y_var)
 
       ## Real run now
       real_run_result = Propagator.filter(propagator)
@@ -72,8 +67,8 @@ defmodule CPSolverTest.Propagator do
       assert dry_run_result == real_run_result
 
       ## Variables are fixed, as expected
-      assert Variable.fixed?(x_bound)
-      assert Variable.fixed?(y_bound)
+      assert Variable.fixed?(x_var)
+      assert Variable.fixed?(y_var)
     end
 
     test "dry run (inconsistency, view)" do
@@ -81,10 +76,7 @@ defmodule CPSolverTest.Propagator do
       y = 0..10
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} =
-        create_store(variables)
-
-      [x_var, y_var] = bound_vars
+      [x_var, y_var] = variables
 
       minus_y_view = minus(y_var)
       {_p_copy, res} = Propagator.dry_run(LessOrEqual.new(x_var, minus_y_view))
@@ -102,8 +94,7 @@ defmodule CPSolverTest.Propagator do
 
     defp setup_store(domains) do
       variables = Enum.map(domains, fn d -> Variable.new(d) end)
-      {:ok, bound_variables, store} = create_store(variables)
-      %{variables: variables, bound_variables: bound_variables, store: store}
+      %{variables: variables}
     end
   end
 end

@@ -1,7 +1,6 @@
 defmodule CPSolverTest.Propagator.Circuit do
   use ExUnit.Case
 
-  alias CPSolver.ConstraintStore
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
   alias CPSolver.Propagator
@@ -73,10 +72,7 @@ defmodule CPSolverTest.Propagator.Circuit do
   defp make_propagator(domains) do
     variables =
       Enum.map(Enum.with_index(domains), fn {d, idx} -> Variable.new(d, name: "x#{idx}") end)
-
-    {:ok, x_vars, _store} = ConstraintStore.create_store(variables)
-
-    Circuit.new(x_vars)
+    Circuit.new(variables)
   end
 
   defp assert_initial_reduction(propagator) do

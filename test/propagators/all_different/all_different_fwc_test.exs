@@ -2,27 +2,22 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
   use ExUnit.Case
 
   describe "Propagator filtering" do
-    alias CPSolver.ConstraintStore
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Variable.Interface
     alias CPSolver.Propagator
     alias CPSolver.Propagator.AllDifferent.FWC
-    import CPSolver.Test.Helpers
 
     test "unsatisfiable" do
-      x = Enum.map([2, 1, 1, 3], fn val -> Variable.new(val) end)
-      {:ok, x_vars, _store} = ConstraintStore.create_store(x)
+      x_vars = Enum.map([2, 1, 1, 3], fn val -> Variable.new(val) end)
       fwc_propagator = FWC.new(x_vars)
       assert :fail == Propagator.filter(fwc_propagator)
     end
 
     test "maintains the list of unfixed variables" do
-      x =
+      x_vars =
         Enum.map([{"x1", 0..5}, {"x2", 1..4}, {"x3", 0..5}, {"x4", 4}, {"x5", 5}], fn {name, d} ->
           Variable.new(d, name: name)
         end)
-
-      {:ok, x_vars, _store} = create_store(x)
 
       [x1_var, x2_var, x3_var, _x4_var, _x5_var] = x_vars
 
@@ -55,12 +50,10 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
       ## This makes x2 fixed, which in turn triggers a removal of 2 from x3 to x5 etc.
       ## Eventually all variables become fixed, and this will take a single filtering call.
       ##
-      x =
+      x_vars =
         Enum.map([{"x2", 1..2}, {"x1", 1}, {"x3", 1..3}, {"x4", 1..4}, {"x5", 1..5}], fn {name, d} ->
           Variable.new(d, name: name)
         end)
-
-      {:ok, x_vars, _store} = create_store(x)
 
       fwc_propagator = FWC.new(x_vars)
       %{changes: changes} = Propagator.filter(fwc_propagator)

@@ -13,7 +13,6 @@ defmodule CPSolver.Common do
   end
 
   ## Value for unfixed variables.
-  ## Is used by ConstraintStore to track atomic changes for already fixed variables.
   ##
   def unfixed() do
     :atomics.new(1, signed: true)

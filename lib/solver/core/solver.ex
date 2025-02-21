@@ -277,12 +277,10 @@ defmodule CPSolver do
 
   defp prepare(variables) do
     ## At this point, `variables` list can contain views
-    ## In this case, we will extract variables.
-    ## We will also assign :index field to each variable.
-    List.foldr(variables, {0, []},
-      fn v, {idx, acc} ->
-        {idx + 1, [Map.put(Interface.variable(v), :index, idx) | acc]}
-      end)
-      |> elem(1)
+    ## In this case, we will extract variables from views.
+    Enum.reduce(variables, Arrays.new([], implementation: Aja.Vector), fn var,
+    vars_acc ->
+      Arrays.append(vars_acc, Interface.variable(var))
+    end)
   end
 end

@@ -5,16 +5,14 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Propagator
     alias CPSolver.Propagator.{Less, LessOrEqual}
-    import CPSolver.Test.Helpers
-
+  
     test "filtering" do
       ## Both vars are unfixed
       x = 0..10
       y = -5..5
-      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+      vars = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = create_store(variables)
-      vars = [x_var, y_var] = bound_vars
+      [x_var, y_var] = vars
 
       %{changes: changes} = Propagator.filter(LessOrEqual.new(vars))
       assert Map.get(changes, x_var.id) == :max_change
@@ -31,18 +29,15 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       y = -10..0
       ## Inconsistency: no solution to x <= y
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-
-      {:ok, bound_vars, _store} = create_store(variables)
       ## The propagator will fail on one of the variables
-      assert Propagator.filter(LessOrEqual.new(bound_vars)) == :fail
+      assert Propagator.filter(LessOrEqual.new(variables)) == :fail
     end
 
     test "offset" do
       x = 0..10
       y = -10..0
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-      {:ok, bound_vars, _store} = create_store(variables)
-      [x_var, y_var] = bound_vars
+      [x_var, y_var] = variables
       # (x <= y + 5)
       offset = 5
       Propagator.filter(LessOrEqual.new([x_var, y_var, offset]))
@@ -58,8 +53,8 @@ defmodule CPSolverTest.Propagator.LessOrEqual do
       y = 2..4
 
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
-      {:ok, bound_vars, _store} = create_store(variables)
-      [x_var, y_var] = bound_vars
+
+      [x_var, y_var] = variables
 
       refute %{active: false} == Propagator.filter(LessOrEqual.new([x_var, y_var]))
 
