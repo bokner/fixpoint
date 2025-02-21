@@ -25,7 +25,7 @@ defmodule CPSolver.Utils.BitGraph do
     end
 
     def delete_edges(bg, edges) do
-      BitGraph.delete_edges(bg, edges)
+      Enum.reduce(edges, bg, fn {from, to} -> delete_edge(bg, from, to) end)
     end
 
     def delete_vertex(bg, v) do
@@ -33,11 +33,11 @@ defmodule CPSolver.Utils.BitGraph do
     end
 
     def delete_vertices(bg, vertices) do
-      BitGraph.delete_vertices(bg, vertices)
+      Enum.reduce(vertices, bg, fn vertex -> delete_vertex(bg, vertex) end)
     end
 
     def edge(bg, v1, v2) do
-      BitGraph.edge(bg, v1, v2)
+      BitGraph.get_edge(bg, v1, v2)
     end
 
     def edges(bg) do
