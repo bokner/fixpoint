@@ -12,10 +12,6 @@ defmodule CPSolver.Utils.BitGraph do
       BitGraph.add_edge(bg, v1, v2, label)
     end
 
-    def add_edge(bg, e, v1, v2, label) do
-      BitGraph.add_edge(bg, e, v1, v2, label)
-    end
-
     def add_vertex(bg, v) do
       BitGraph.add_vertex(bg, v)
     end
@@ -24,32 +20,24 @@ defmodule CPSolver.Utils.BitGraph do
       BitGraph.add_vertex(bg, v, label)
     end
 
-    def delete_edge(bg, e) do
-      BitGraph.del_edge(bg, e)
+    def delete_edge(bg, v1, v2) do
+      BitGraph.delete_edge(bg, v1, v2)
     end
 
     def delete_edges(bg, edges) do
-      BitGraph.del_edges(bg, edges)
-    end
-
-    def delete_path(bg, v1, v2) do
-      BitGraph.del_path(bg, v1, v2)
+      BitGraph.delete_edges(bg, edges)
     end
 
     def delete_vertex(bg, v) do
-      BitGraph.del_vertex(bg, v)
+      BitGraph.delete_vertex(bg, v)
     end
 
     def delete_vertices(bg, vertices) do
-      BitGraph.del_vertices(bg, vertices)
+      BitGraph.delete_vertices(bg, vertices)
     end
 
-    def delete(bg) do
-      BitGraph.delete(bg)
-    end
-
-    def edge(bg, e) do
-      BitGraph.edge(bg, e)
+    def edge(bg, v1, v2) do
+      BitGraph.edge(bg, v1, v2)
     end
 
     def edges(bg) do
@@ -60,22 +48,6 @@ defmodule CPSolver.Utils.BitGraph do
     def edges(bg, v) do
       BitGraph.edges(bg, v)
       |> expand_edges(bg)
-    end
-
-    def get_cycle(bg, v) do
-      BitGraph.get_cycle(bg, v)
-    end
-
-    def get_path(bg, v1, v2) do
-      BitGraph.get_path(bg, v1, v2)
-    end
-
-    def get_short_cycle(bg, v) do
-      BitGraph.get_short_cycle(bg, v)
-    end
-
-    def get_short_path(bg, v1, v2) do
-      BitGraph.get_short_path(bg, v1, v2)
     end
 
     def in_degree(bg, v) do
@@ -124,9 +96,9 @@ defmodule CPSolver.Utils.BitGraph do
       BitGraph.copy(graph)
     end
 
-    defp expand_edges(edges, digraph) do
-      Enum.map(edges, fn e ->
-        {_edge_id, v1, v2, labels} = edge(digraph, e)
+    defp expand_edges(edges, graph) do
+      Enum.map(edges, fn {v1, v2} ->
+        {_edge_id, v1, v2, labels} = edge(graph, v1, v2)
         %Graph.Edge{v1: v1, v2: v2, label: labels, weight: 1}
       end)
     end
