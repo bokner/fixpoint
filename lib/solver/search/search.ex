@@ -43,9 +43,13 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, domain)
   end
 
+  defp partitions(selected_variable, domain_partitions, variables, data) when is_list(variables) do
+    partitions(selected_variable, domain_partitions, Arrays.new(variables, implementation: Aja.Vector), data)
+  end
+
   defp partitions(selected_variable, domain_partitions, variables, _data) do
     Enum.map(domain_partitions, fn {domain, constraint} ->
-      {Enum.map(variables, fn var ->
+      {Arrays.map(variables, fn var ->
          domain_copy =
            ((var.id == selected_variable.id && domain) || var.domain)
            |> Domain.copy()

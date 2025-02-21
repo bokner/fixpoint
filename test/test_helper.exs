@@ -12,18 +12,14 @@ defmodule CPSolver.Test.Helpers do
   end
 
   def create_store(variables) do
-    {:ok, bound_vars, store} = CPSolver.ConstraintStore.create_store(variables)
-    {:ok, Arrays.to_list(bound_vars), store}
+    {:ok, _store} = CPSolver.ConstraintStore.create_store(variables)
   end
 
   def space_setup(x, y, z) do
     variables =
       Enum.map([{x, "x"}, {y, "y"}, {z, "z"}], fn {d, name} -> Variable.new(d, name: name) end)
 
-    {:ok, bound_vars, store} =
-      create_store(variables)
-
-    bound_vars = [x_var, y_var, z_var] = bound_vars
+    [x_var, y_var, z_var] = variables
 
     propagators =
       Enum.map(
@@ -33,13 +29,12 @@ defmodule CPSolver.Test.Helpers do
 
     graph = ConstraintGraph.create(propagators)
 
-    updated_graph = ConstraintGraph.update(graph, bound_vars)
+    updated_graph = ConstraintGraph.update(graph, variables)
 
     %{
       propagators: propagators,
-      variables: bound_vars,
-      constraint_graph: updated_graph,
-      store: store
+      variables: variables,
+      constraint_graph: updated_graph
     }
   end
 end

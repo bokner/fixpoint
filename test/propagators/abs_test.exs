@@ -1,6 +1,5 @@
 defmodule CPSolverTest.Propagator.Absolute do
   use ExUnit.Case
-  import CPSolver.Test.Helpers
 
   describe "Propagator filtering" do
     alias CPSolver.IntVariable, as: Variable
@@ -11,11 +10,9 @@ defmodule CPSolverTest.Propagator.Absolute do
     test "filtering, initial call" do
       x = -1..10
       y = -5..5
-      variables = Enum.map([x, y], fn d -> Variable.new(d) end)
+      vars = [x_var, y_var] = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, [x_var, y_var] = bound_vars, _store} = create_store(variables)
-
-      p = Absolute.new(bound_vars)
+      p = Absolute.new(vars)
       _res = Propagator.filter(p)
       ## y has negative values removed
       assert Interface.min(y_var) >= 0
@@ -34,8 +31,7 @@ defmodule CPSolverTest.Propagator.Absolute do
       y = 11..20
       variables = Enum.map([x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = create_store(variables)
-      p = Absolute.new(bound_vars)
+      p = Absolute.new(variables)
 
       assert :fail = Propagator.filter(p)
     end

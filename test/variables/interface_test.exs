@@ -6,7 +6,6 @@ defmodule CPSolverTest.Variable.Interface do
     alias CPSolver.Variable.Interface
 
     import CPSolver.Variable.View.Factory
-    import CPSolver.Test.Helpers
     import CPSolver.Utils
 
     test "view vs variable" do
@@ -15,12 +14,9 @@ defmodule CPSolverTest.Variable.Interface do
       values = [v1_values, v2_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} =
-        create_store(variables)
+      [var1, _var2] = variables
 
-      [var1, _var2] = bound_vars
-
-      [view1, view2] = Enum.map(bound_vars, fn var -> minus(var) end)
+      [view1, view2] = Enum.map(variables, fn var -> minus(var) end)
 
       ## Domain
       ##

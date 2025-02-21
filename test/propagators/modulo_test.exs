@@ -1,6 +1,5 @@
 defmodule CPSolverTest.Propagator.Modulo do
   use ExUnit.Case
-  import CPSolver.Test.Helpers
 
   describe "Propagator filtering" do
     alias CPSolver.IntVariable, as: Variable
@@ -14,30 +13,28 @@ defmodule CPSolverTest.Propagator.Modulo do
       x = 1..10
       y = -5..5
       m = -10..10
-      variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
+      [m_var, _x_var, y_var] = variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
 
-      {:ok, [m_var, _x_var, y_var] = bound_vars, _store} = create_store(variables)
       # before filtering
       assert Interface.contains?(y_var, 0)
       assert Interface.min(m_var) == -10
 
-      p = Modulo.new(bound_vars)
+      p = Modulo.new(variables)
       _res = Propagator.filter(p)
       ## y has 0 removed
       refute Interface.contains?(y_var, 0)
 
       ## Nothing is fixed
-      refute Enum.any?(bound_vars, fn var -> Interface.fixed?(var) end)
+      refute Enum.any?(variables, fn var -> Interface.fixed?(var) end)
     end
 
     test "filtering, dividend and divisor fixed" do
       x = -7
       y = 3
       m = -10..10
-      variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
+      [m_var, _x_var, _y_var] = variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
 
-      {:ok, [m_var, _x_var, _y_var] = bound_vars, _store} = create_store(variables)
-      p = Modulo.new(bound_vars)
+      p = Modulo.new(variables)
       res = Propagator.filter(p)
 
       assert res.changes == %{m_var.id => :fixed}
@@ -51,10 +48,9 @@ defmodule CPSolverTest.Propagator.Modulo do
       x = -10
       y = -100..100
       m = -2
-      variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
+      [_m_var, _x_var, y_var] = variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
 
-      {:ok, [_m_var, _x_var, y_var] = bound_vars, _store} = create_store(variables)
-      p = Modulo.new(bound_vars)
+      p = Modulo.new(variables)
       res = Propagator.filter(p)
       refute res == :fail
       ## All values in domain of y satisfy x % y = m
@@ -67,10 +63,9 @@ defmodule CPSolverTest.Propagator.Modulo do
       x = -100..100
       y = -10
       m = -2
-      variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
+      [_m_var, x_var, _y_var] = variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
 
-      {:ok, [_m_var, x_var, _y_var] = bound_vars, _store} = create_store(variables)
-      p = Modulo.new(bound_vars)
+      p = Modulo.new(variables)
       res = Propagator.filter(p)
       refute res == :fail
       ## All values in domain of x satisfy x % y = m
@@ -83,8 +78,7 @@ defmodule CPSolverTest.Propagator.Modulo do
       m = -2
       variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = create_store(variables)
-      p = Modulo.new(bound_vars)
+      p = Modulo.new(variables)
 
       assert :fail = Propagator.filter(p)
     end
@@ -95,8 +89,7 @@ defmodule CPSolverTest.Propagator.Modulo do
       x = -10..-1
       variables = Enum.map([m, x, y], fn d -> Variable.new(d) end)
 
-      {:ok, bound_vars, _store} = create_store(variables)
-      p = Modulo.new(bound_vars)
+      p = Modulo.new(variables)
 
       assert :fail = Propagator.filter(p)
     end

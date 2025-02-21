@@ -94,17 +94,7 @@ defmodule CPSolver.ConstraintStore do
       store_impl: store_impl
     }
 
-    {:ok,
-     variables
-     |> Enum.reduce({Arrays.new([], implementation: Aja.Vector), 1}, fn var,
-                                                                        {vars_acc, idx_acc} ->
-       updated_var =
-         var
-         |> Map.put(:index, idx_acc)
-
-       {Arrays.append(vars_acc, updated_var), idx_acc + 1}
-     end)
-     |> elem(0), store}
+    {:ok, store}
   end
 
   def domain(variable) do

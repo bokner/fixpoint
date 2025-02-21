@@ -7,7 +7,6 @@ defmodule CPSolver.Space do
 
   alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
-  alias CPSolver.ConstraintStore
   alias CPSolver.Search, as: Search
   alias CPSolver.Solution, as: Solution
   alias CPSolver.Propagator.ConstraintGraph
@@ -25,7 +24,6 @@ defmodule CPSolver.Space do
 
   def default_space_opts() do
     [
-      store_impl: CPSolver.ConstraintStore.default_store(),
       solution_handler: Solution.default_handler(),
       search: Search.default_strategy(),
       space_threads: :erlang.system_info(:logical_processors),
@@ -166,18 +164,11 @@ defmodule CPSolver.Space do
   end
 
   defp init_impl(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
-    {:ok, space_variables, _store} =
-      ConstraintStore.create_store(variables,
-        store_impl: space_opts[:store_impl],
-        space: self()
-      )
-
     space_data =
       data
       |> Map.put(:id, make_ref())
-      |> Map.put(:variables, space_variables)
       |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
-      |> Map.put(:objective, update_objective(space_opts[:objective], space_variables))
+      |> Map.put(:objective, update_objective(space_opts[:objective], variables))
       |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
 
     (space_opts[:postpone] &&
