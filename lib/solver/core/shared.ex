@@ -43,7 +43,11 @@ defmodule CPSolver.Shared do
   end
 
   def complete_impl(%{complete_flag: complete_flag} = _solver) do
-    :ets.info(complete_flag) == :undefined || :ets.lookup_element(complete_flag, :complete_flag, 2)
+    try do
+      :ets.lookup_element(complete_flag, :complete_flag, 2)
+    rescue _ ->
+      true
+    end
   end
 
   def set_complete(%{complete_flag: complete_flag, caller: caller, sync_mode: sync?} = solver) do
@@ -302,6 +306,14 @@ end
     get_handlers(solver, :on_space_finalized)
   end
 
+  defp safe_ets_delete(ets_table) do
+    try do
+      :ets.delete(ets_table)
+    rescue
+      _ -> :ok
+    end
+  end
+
   def cleanup(solver) do
     (on_primary_node?(solver) &&
        cleanup_impl(solver)) ||
@@ -311,8 +323,8 @@ end
   def cleanup_impl(
         %{solver_pid: solver_pid, objective: objective} = solver
       ) do
-    Enum.each([:solutions, :statistics, :active_nodes], fn item ->
-      Map.get(solver, item) |> :ets.delete()
+    Enum.each([:solutions, :statistics, :active_nodes, :auxillary, :times, :complete_flag], fn item ->
+      Map.get(solver, item) |> safe_ets_delete()
     end)
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
