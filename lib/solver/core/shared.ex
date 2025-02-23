@@ -45,8 +45,9 @@ defmodule CPSolver.Shared do
   def complete_impl(%{complete_flag: complete_flag} = _solver) do
     try do
       :ets.lookup_element(complete_flag, :complete_flag, 2)
-    rescue _ ->
-      true
+    rescue
+      _ ->
+        true
     end
   end
 
@@ -69,7 +70,6 @@ defmodule CPSolver.Shared do
   defp init_complete_flag() do
     :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
     |> tap(fn ref -> :ets.insert(ref, {:complete_flag, false}) end)
-
   end
 
   defp init_auxillary_map() do
@@ -78,20 +78,25 @@ defmodule CPSolver.Shared do
   end
 
   def get_auxillary(shared, key) do
-    !complete?(shared) &&
-
-      :ets.lookup(shared[:auxillary], key)
-      |> then(fn
-        [] -> nil
-        [{^key, value}] -> value
-      end)
+    try do
+      !complete?(shared) &&
+        :ets.lookup(shared[:auxillary], key)
+        |> then(fn
+          [] -> nil
+          [{^key, value}] -> value
+        end)
+    rescue
+      _ -> nil
+    end
   end
 
   def put_auxillary(shared, key, value) do
-    !complete?(shared) &&
-      (
+    try do
+      !complete?(shared) &&
         :ets.insert(shared[:auxillary], {key, value})
-      )
+    rescue
+      _ -> nil
+    end
   end
 
   def init_times() do
@@ -128,24 +133,27 @@ defmodule CPSolver.Shared do
   defp init_space_thread_counters(space_threads, nodes \\ [Node.self() | Node.list()]) do
     :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
     |> tap(fn space_threads_ref ->
-    Enum.each(nodes, fn node ->
-      ref = :counters.new(2, [:atomics])
-      :counters.put(ref, 1, 0)
-      :counters.put(ref, 2, space_threads)
-      :ets.insert(space_threads_ref, {node, ref})
+      Enum.each(nodes, fn node ->
+        ref = :counters.new(2, [:atomics])
+        :counters.put(ref, 1, 0)
+        :counters.put(ref, 2, space_threads)
+        :ets.insert(space_threads_ref, {node, ref})
+      end)
     end)
-  end)
   end
 
   defp get_space_thread_counters(
-        %{space_thread_counters: node_threads_ref} = _shared,
-        node
-      ) do
+         %{space_thread_counters: node_threads_ref} = _shared,
+         node
+       ) do
     :ets.lookup(node_threads_ref, node)
-    |> then(fn [] -> nil
-        [{^node, counter_ref}] ->
-          counter_ref
-        end)
+    |> then(fn
+      [] ->
+        nil
+
+      [{^node, counter_ref}] ->
+        counter_ref
+    end)
   end
 
   def checkout_space_thread(solver, node \\ Node.self()) do
@@ -155,7 +163,8 @@ defmodule CPSolver.Shared do
   end
 
   def checkout_space_thread_impl(
-        solver, node
+        solver,
+        node
       ) do
     counter_ref = get_space_thread_counters(solver, node)
 
@@ -175,11 +184,11 @@ defmodule CPSolver.Shared do
         solver,
         node \\ Node.self()
       ) do
-    complete?(solver) && :ok ||
-    (
-    counter_ref = get_space_thread_counters(solver, node)
-    :counters.get(counter_ref, 1) > 0 && :counters.sub(counter_ref, 1, 1)
-    )
+    (complete?(solver) && :ok) ||
+      (
+        counter_ref = get_space_thread_counters(solver, node)
+        :counters.get(counter_ref, 1) > 0 && :counters.sub(counter_ref, 1, 1)
+      )
   end
 
   @active_node_count_pos 2
@@ -214,14 +223,14 @@ defmodule CPSolver.Shared do
   end
 
   def add_handler(
-    solver,
-    handler_id,
-    handler_fun
-  ) do
-(on_primary_node?(solver) &&
-   add_handler_impl(solver, handler_id, handler_fun)) ||
-  distributed_call(solver, :add_handler_impl, [handler_id, handler_fun])
-end
+        solver,
+        handler_id,
+        handler_fun
+      ) do
+    (on_primary_node?(solver) &&
+       add_handler_impl(solver, handler_id, handler_fun)) ||
+      distributed_call(solver, :add_handler_impl, [handler_id, handler_fun])
+  end
 
   def add_handler_impl(solver, :on_space_finalized, handler) when is_function(handler, 3) do
     update_handlers(solver, :on_space_finalized, handler)
@@ -232,16 +241,19 @@ end
   end
 
   defp update_handlers(solver, handler_id, handler) do
-    updated = case get_auxillary(solver, handler_id) do
-      handlers when is_list(handlers) ->
-        if handler in handlers do
-          handlers
-        else
-          [handler | handlers]
-        end
-      _ -> List.wrap(handler)
+    updated =
+      case get_auxillary(solver, handler_id) do
+        handlers when is_list(handlers) ->
+          if handler in handlers do
+            handlers
+          else
+            [handler | handlers]
+          end
 
-    end
+        _ ->
+          List.wrap(handler)
+      end
+
     put_auxillary(solver, handler_id, updated)
   end
 
@@ -320,12 +332,13 @@ end
       distributed_call(solver, :cleanup_impl)
   end
 
-  def cleanup_impl(
-        %{solver_pid: solver_pid, objective: objective} = solver
-      ) do
-    Enum.each([:solutions, :statistics, :active_nodes, :auxillary, :times, :complete_flag], fn item ->
-      Map.get(solver, item) |> safe_ets_delete()
-    end)
+  def cleanup_impl(%{solver_pid: solver_pid, objective: objective} = solver) do
+    Enum.each(
+      [:solutions, :statistics, :active_nodes, :auxillary, :times, :complete_flag],
+      fn item ->
+        Map.get(solver, item) |> safe_ets_delete()
+      end
+    )
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
     reset_objective(objective)
