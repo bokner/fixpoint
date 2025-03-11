@@ -32,12 +32,13 @@ defmodule CPSolver.Propagator.Circuit do
 
   defp initial_state(args) do
     l = Arrays.size(args)
+    max_vertices = Enum.reduce(args, l, fn var, acc -> acc + size(var) end)
 
     {circuit, unfixed_vertices, domain_graph} =
       args
       |> Enum.with_index()
       |> Enum.reduce(
-        {Arrays.new(List.duplicate(nil, l), implementation: Aja.Vector), [], Graph.new()},
+        {Arrays.new(List.duplicate(nil, l), implementation: Aja.Vector), [], BitGraph.new(max_vertices: max_vertices)},
         fn {var, idx}, {circuit_acc, unfixed_acc, graph_acc} ->
           initial_reduction(var, idx, l)
           fixed? = fixed?(var)
@@ -50,7 +51,7 @@ defmodule CPSolver.Propagator.Circuit do
 
           {circuit_acc, unfixed_acc,
            Enum.reduce(domain_values(var), graph_acc, fn value, g ->
-             Graph.add_edge(g, idx, value)
+             BitGraph.add_edge(g, idx, value)
            end)}
         end
       )
@@ -130,20 +131,21 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   ## Remove all out-edges for vertex_id except (vertex_id, successor_id) one
-  defp remove_out_edges(%Graph{} = graph, vertex_id, successor_id) do
-    Enum.reduce(Graph.out_edges(graph, vertex_id), graph, fn
-      %{v2: neighbour_id} = _out_edge, g_acc when neighbour_id == successor_id -> g_acc
-      %{v2: neighbour_id} = _out_edge, g_acc -> delete_edge(g_acc, vertex_id, neighbour_id)
+  defp remove_out_edges(graph, vertex_id, successor_id) do
+    Enum.reduce(BitGraph.out_neighbors(graph, vertex_id), graph, fn
+      neighbour_id, g_acc ->
+        neighbour_id == successor_id && g_acc
+        || delete_edge(g_acc, vertex_id, neighbour_id)
     end)
   end
 
   ## Remove all in-edges for successor_id except (vertex_id, successor_id)
-  def remove_in_edges(%Graph{} = graph, successor_id, vertex_id) do
-    Enum.reduce(Graph.in_edges(graph, successor_id), {graph, []}, fn
-      %{v1: neighbour_id} = _in_edge, acc when neighbour_id == vertex_id ->
+  def remove_in_edges(graph, successor_id, vertex_id) do
+    Enum.reduce(BitGraph.in_neighbors(graph, successor_id), {graph, []}, fn
+      neighbour_id, acc when neighbour_id == vertex_id ->
         acc
 
-      %{v1: neighbour_id} = _in_edge, {g_acc, in_neighbours_acc} ->
+      neighbour_id, {g_acc, in_neighbours_acc} ->
         {delete_edge(g_acc, neighbour_id, successor_id), [neighbour_id | in_neighbours_acc]}
     end)
   end
@@ -174,8 +176,15 @@ defmodule CPSolver.Propagator.Circuit do
     )
   end
 
-  defp check_graph(%Graph{} = graph, _fixed_vertices) do
-    length(Graph.strong_components(graph)) == 1
+  defp check_graph(graph, _fixed_vertices) do
+    try do
+    BitGraph.Algorithms.strong_components(graph, fn component ->
+      throw({:single_scc?, component && (MapSet.size(component) == BitGraph.num_vertices(graph))})
+
+      end)
+    catch
+      {:single_scc?, res} -> res
+    end
   end
 
   defp update_circuit(circuit, idx, value) do
@@ -183,10 +192,10 @@ defmodule CPSolver.Propagator.Circuit do
     |> tap(fn partial_circuit -> check_circuit(partial_circuit, idx) || fail() end)
   end
 
-  defp delete_edge(%Graph{} = graph, vertex1, vertex2) do
-    Graph.delete_edge(graph, vertex1, vertex2)
+  defp delete_edge(graph, vertex1, vertex2) do
+    BitGraph.delete_edge(graph, vertex1, vertex2)
     |> tap(fn g ->
-      Graph.out_neighbors(g, vertex1) == [] &&
+      Enum.empty?(BitGraph.out_neighbors(g, vertex1)) &&
         fail()
     end)
   end
