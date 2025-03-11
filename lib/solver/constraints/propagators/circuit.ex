@@ -6,6 +6,15 @@ defmodule CPSolver.Propagator.Circuit do
   """
 
   @impl true
+  def reset(_args, %{domain_graph: graph} = state) do
+    Map.put(state, :domain_graph, BitGraph.copy(graph))
+  end
+
+  def reset(_args, state) do
+    state
+  end
+
+  @impl true
   def variables(args) do
     Enum.map(args, fn x_el -> set_propagate_on(x_el, :fixed) end)
   end
