@@ -4,6 +4,6 @@ defmodule CPSolver.Constraint.Circuit do
 
   @impl true
   def propagators(x) do
-    [CircuitPropagator.new(x), CPSolver.Propagator.AllDifferent.DC.new(x)]
+    [CPSolver.Propagator.AllDifferent.DC.new(x), CircuitPropagator.new(x)]
   end
 end

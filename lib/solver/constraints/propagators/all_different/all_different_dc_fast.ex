@@ -350,8 +350,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           graph_acc
 
         {{:variable, var_idx} = var_vertex, scc_id}, graph_acc ->
-          Enum.reduce(Graph.in_edges(graph_acc, var_vertex), graph_acc, fn
-            %{v1: {:value, value} = value_vertex} = _edge, graph_acc2 ->
+          Enum.reduce(Graph.in_neighbors(graph_acc, var_vertex), graph_acc, fn
+            {:value, value} = value_vertex, graph_acc2 ->
               case Map.get(vertex_to_scc_map, value_vertex) do
                 ## Not a cross-edge
                 nil ->

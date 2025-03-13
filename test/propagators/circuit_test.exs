@@ -21,7 +21,7 @@ defmodule CPSolverTest.Propagator.Circuit do
           [1, 2, 0, 4, 5, 3]
         ]
 
-      Enum.all?(invalid_circuits, fn circuit ->
+      assert Enum.all?(invalid_circuits, fn circuit ->
         :fail ==
           try do
             filter(circuit)
@@ -53,7 +53,7 @@ defmodule CPSolverTest.Propagator.Circuit do
 
       propagator1 = propagator |> Map.put(:state, res1.state)
 
-      _res2 = Propagator.filter(propagator1)
+      _res2 = Propagator.filter(propagator1, changes: %{0 => :fixed})
 
       ## x0 is now a successor of x2
       assert Interface.fixed?(x2)
