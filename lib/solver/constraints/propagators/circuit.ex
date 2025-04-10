@@ -110,16 +110,7 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp check_state(%{domain_graph: graph} = _state) do
-    try do
-    BitGraph.Algorithms.strong_components(graph,
-    algorithm: :tarjan,
-    component_handler: fn component, _dfs_state ->
-      throw({:single_scc?, component && (MapSet.size(component) == BitGraph.num_vertices(graph))})
-
-      end)
-    catch
-      {:single_scc?, res} -> res
-    end
+    BitGraph.Algorithms.strongly_connected?(graph)
   end
 
   defp completed?(%{domain_graph: graph} = _state) do
