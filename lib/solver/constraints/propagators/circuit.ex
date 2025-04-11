@@ -110,7 +110,7 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp check_state(%{domain_graph: graph} = _state) do
-    BitGraph.Algorithms.strongly_connected?(graph)
+    BitGraph.Algorithms.strongly_connected?(graph, algorithm: Enum.random([:tarjan, :kozaraju]))
   end
 
   defp completed?(%{domain_graph: graph} = _state) do
