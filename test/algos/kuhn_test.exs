@@ -23,13 +23,13 @@ defmodule CPSolverTest.Algorithms.Kuhn do
 
       assert_matching(matching, 3)
 
-      bp_graph2 = Graph.delete_edge(bp_graph, {:L, 3}, {:R, 3})
+      bp_graph2 = BitGraph.delete_edge(bp_graph, {:L, 3}, {:R, 3})
 
       matching2 = Kuhn.run(bp_graph2, left_partition)
 
       assert_matching(matching2, 3)
 
-      bp_graph3 = Graph.delete_edge(bp_graph2, {:L, 3}, {:R, 4})
+      bp_graph3 = BitGraph.delete_edge(bp_graph2, {:L, 3}, {:R, 4})
 
       ## 3 nodes in the left partition, 2 nodes in the right partition
       matching3 = Kuhn.run(bp_graph3, left_partition)
@@ -46,7 +46,7 @@ defmodule CPSolverTest.Algorithms.Kuhn do
 
       assert_matching(matching, 6)
 
-      bp_graph2 = Graph.delete_edge(bp_graph, {:L, 6}, {:R, 5})
+      bp_graph2 = BitGraph.delete_edge(bp_graph, {:L, 6}, {:R, 5})
 
       matching2 = Kuhn.run(bp_graph2, left_partition)
 
@@ -54,8 +54,8 @@ defmodule CPSolverTest.Algorithms.Kuhn do
 
       bp_graph3 =
         bp_graph2
-        |> Graph.delete_edge({:L, 1}, {:R, 5})
-        |> Graph.delete_edge({:L, 4}, {:R, 5})
+        |> BitGraph.delete_edge({:L, 1}, {:R, 5})
+        |> BitGraph.delete_edge({:L, 4}, {:R, 5})
 
       matching3 = Kuhn.run(bp_graph3, left_partition)
 
@@ -107,9 +107,9 @@ defmodule CPSolverTest.Algorithms.Kuhn do
     graph_input = Enum.zip(left_partition, right_side_neighbors)
 
     bp_graph =
-      Enum.reduce(graph_input, Graph.new(), fn {ls_vertex, rs_neighbors}, g_acc ->
+      Enum.reduce(graph_input, BitGraph.new(), fn {ls_vertex, rs_neighbors}, g_acc ->
         edges = Enum.map(rs_neighbors, fn rsn -> {ls_vertex, {:R, rsn}} end)
-        Graph.add_edges(g_acc, edges)
+        BitGraph.add_edges(g_acc, edges)
       end)
 
     {bp_graph, MapSet.new(left_partition)}

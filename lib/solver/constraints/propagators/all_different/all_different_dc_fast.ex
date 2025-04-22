@@ -129,7 +129,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     ## Step 1: update value graph and matching.
     ## As a result of update, some variables could become unmatched
     {state, reduce_state?} = update_value_graph(state, changes)
-    # IO.inspect({state, unmatched_variables}, label: :interim)
     ## Step 2: update components that contain unmatched variables.
     # state = update_components(vars, unmatched_variables, state, reduction_callback(vars))
 
@@ -149,8 +148,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         var_domain = Utils.domain_values(Propagator.arg_at(vars, var_id))
         variable_vertex = {:variable, var_id}
 
-        Enum.reduce(Graph.edges(graph_acc, variable_vertex), acc, fn
-          %{v1: variable_vertex, v2: {:value, value} = value_vertex},
+        Enum.reduce(BitGraph.edges(graph_acc, variable_vertex), acc, fn
+          %{to: {:value, value}} = edge,
           {graph_acc2, matching_acc2, reduce_state_acc2?} = _acc2 ->
             ## This is a 'matching' edge (out-edge of variable vertex)
             ##
@@ -160,17 +159,17 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
               ## Matching is no longer valid, the value has been removed
               {updated_graph, updated_matching} = repair_matching(graph_acc2, matching_acc2, var_id, value, var_domain)
 
-              {Graph.delete_edge(updated_graph, variable_vertex, value_vertex), updated_matching,
+              {BitGraph.delete_edge(updated_graph, edge), updated_matching,
                true}
             end
 
-          %{v1: {:value, value} = value_vertex, v2: variable_vertex},
+          %{from: {:value, value}} = edge,
           {graph_acc2, matching_acc2, reduce_state_acc2?} = acc2 ->
             ## The edge is not in matching
             if value in var_domain do
               acc2
             else
-              {Graph.delete_edge(graph_acc2, value_vertex, variable_vertex), matching_acc2,
+              {BitGraph.delete_edge(graph_acc2, edge), matching_acc2,
                reduce_state_acc2?}
             end
         end)
@@ -232,9 +231,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def free_nodes(value_graph, variable_vertices) do
     Enum.reduce(variable_vertices, MapSet.new(), fn var_vertex, acc ->
-      Enum.reduce(Graph.in_neighbors(value_graph, var_vertex), acc, fn val_vertex, acc2 ->
+      Enum.reduce(BitGraph.in_neighbors(value_graph, var_vertex), acc, fn val_vertex, acc2 ->
         ## No matching for the value => it's a free node
-        (Graph.in_degree(value_graph, val_vertex) > 0 && acc2) ||
+        (BitGraph.in_degree(value_graph, val_vertex) > 0 && acc2) ||
           MapSet.put(acc2, val_vertex)
       end)
     end)
@@ -248,13 +247,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   defp flip_edge(graph, v1, v2) do
-    Graph.delete_edge(graph, v1, v2) |> Graph.add_edge(v2, v1)
+    BitGraph.delete_edge(graph, v1, v2) |> BitGraph.add_edge(v2, v1)
   end
 
   ## Collect Γ(A) and A nodes by following paths starting from each variable
   ## the free node connected to
   def collect_GA_nodes(graph, free_node, acc) do
-    Enum.reduce(Graph.out_neighbors(graph, free_node), acc, fn variable_vertex, acc2 ->
+    Enum.reduce(BitGraph.out_neighbors(graph, free_node), acc, fn variable_vertex, acc2 ->
       if MapSet.member?(acc2, variable_vertex) do
         acc2
       else
@@ -278,7 +277,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def alternating_path(graph, vertex, acc) do
-    case Graph.out_neighbors(graph, vertex) do
+    case BitGraph.out_neighbors(graph, vertex) |> MapSet.to_list() do
       [] ->
         acc
 
@@ -289,7 +288,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def remove_type1_edges(graph, ga_da_set, callback) do
-    Enum.reduce(Graph.vertices(graph), {graph, MapSet.new()}, fn
+    Enum.reduce(BitGraph.vertices(graph), {graph, MapSet.new()}, fn
       {:value, _value} = value_vertex, {graph_acc, complement_acc} = acc ->
         if MapSet.member?(ga_da_set, value_vertex) do
           acc
@@ -303,7 +302,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           ## (the ones that are will be 'out' edges
           graph_acc =
             Enum.reduce(
-              Graph.in_neighbors(graph_acc, variable_vertex),
+              BitGraph.in_neighbors(graph_acc, variable_vertex),
               graph_acc,
               fn value_vertex, graph_acc2 ->
                 if MapSet.member?(ga_da_set, {:value, value} = value_vertex) do
@@ -312,7 +311,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
                 else
                   ## This value node is not in Dc-A, remove the edge
                   callback.(var_idx, value)
-                  Graph.delete_edge(graph_acc2, value_vertex, variable_vertex)
+                  BitGraph.delete_edge(graph_acc2, value_vertex, variable_vertex)
                 end
               end
             )
@@ -326,8 +325,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def remove_type2_edges(value_graph, vertices, callback) do
     ## TODO: SCC detection without building a subgraph?
-    type2_graph = Graph.subgraph(value_graph, vertices)
-    sccs = Graph.strong_components(type2_graph)
+    type2_graph = BitGraph.subgraph(value_graph, vertices)
+    sccs = BitGraph.strong_components(type2_graph)
     ## Make maps var_vertex => scc_id, val_vertex => scc_id
     vertex_to_scc_map =
       Enum.reduce(
@@ -350,7 +349,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           graph_acc
 
         {{:variable, var_idx} = var_vertex, scc_id}, graph_acc ->
-          Enum.reduce(Graph.in_neighbors(graph_acc, var_vertex), graph_acc, fn
+          Enum.reduce(BitGraph.in_neighbors(graph_acc, var_vertex), graph_acc, fn
             {:value, value} = value_vertex, graph_acc2 ->
               case Map.get(vertex_to_scc_map, value_vertex) do
                 ## Not a cross-edge
@@ -363,7 +362,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
                 _different_scc ->
                   ## Cross-edge
                   callback.(var_idx, value)
-                  Graph.delete_edge(graph_acc2, value_vertex, var_vertex)
+                  BitGraph.delete_edge(graph_acc2, value_vertex, var_vertex)
               end
           end)
       end)
@@ -374,7 +373,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   ## Components with a single variable are "resolved" - they correspond to variables with the values
   ## that won't be shared with other variables.
   defp active_components_count(value_graph, matching, ga_da_set, sccs) do
-    active_sccs_count = Enum.count(sccs, fn component -> length(component) > 2 end)
+    active_sccs_count = Enum.count(sccs, fn component -> MapSet.size(component) > 2 end)
     active_sccs_count + (ga_da_set_active?(value_graph, matching, ga_da_set) && 1 || 0)
 
     # reduced_sccs =
@@ -382,7 +381,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     #     (length(component) > 2 && [component_record(component)]) || []
     #   end)
 
-    # ga_da_components = Graph.subgraph(value_graph, ga_da_set) |> Graph.components()
+    # ga_da_components = BitGraph.subgraph(value_graph, ga_da_set) |> BitGraph.components()
     # Enum.reduce(ga_da_components, reduced_sccs, fn component, components_acc ->
     # ## meaning there is more than 1 variable in subgraph induced by ga_da_set.
     # (div(length(component), 2) > 1 &&
@@ -396,7 +395,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     Enum.any?(matching, fn {value_vertex, _variable_vertex} ->
       # Are there value vertices that are connected to more than one variable vertex?
       value_vertex in ga_da_set
-      && Graph.out_degree(value_graph, value_vertex) > 0
+      && BitGraph.out_degree(value_graph, value_vertex) > 0
     end)
   end
 

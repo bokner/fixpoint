@@ -1,4 +1,4 @@
-defmodule CPSolver.Algorithms.Kuhn do
+defmodule CPSolver.Algorithms.Kuhn2 do
   @moduledoc """
   Kuhn's algorithm to find maximum matching in bipartite graph.
   https://cp-algorithms.com/graph/kuhn_maximum_bipartite_matching.html
@@ -9,8 +9,8 @@ defmodule CPSolver.Algorithms.Kuhn do
   and (optional) partial matching %{right_side_vertex => left_side_vertex},
   find maximum matching
   """
-  @spec run(BitGraph.t(), [any()], map()) :: map()
-  def run(graph, left_partition, fixed_matching \\ %{}, required_matching_size \\ nil) do
+  @spec run(Graph.t(), [any()], map()) :: map()
+  def run(%Graph{} = graph, left_partition, fixed_matching \\ %{}, required_matching_size \\ nil) do
     partial_matching = #fixed_matching
      initial_matching(graph, left_partition, fixed_matching)
     partition_size = MapSet.size(left_partition)
@@ -23,25 +23,25 @@ defmodule CPSolver.Algorithms.Kuhn do
 
     Enum.reduce_while(
       left_partition,
-      {partial_matching, MapSet.new(), unmatched_limit},
-      fn v, {matching_acc, visited_acc, unmatched_count} = acc ->
+      {partial_matching, MapSet.new(), unmatched_limit, MapSet.new()},
+      fn v, {matching_acc, visited_acc, unmatched_count, ga_da_acc} = acc ->
         if MapSet.member?(used, v) do
           {:cont, acc}
         else
-          case augment(graph, v, matching_acc, visited_acc) do
+          case augment(graph, v, matching_acc, visited_acc, ga_da_acc) do
             ## No augmenting path found for vertex v
-            {false, _matching, updated_visited} ->
+            {false, _matching, updated_visited, ga_da_acc} ->
               ## If the required size of matching can not be reached, we fail early.
               case unmatched_count - 1 do
                 new_unmatched_count when new_unmatched_count < 0 ->
                   {:halt, false}
 
                 new_unmatched_count ->
-                  {:cont, {matching_acc, updated_visited, new_unmatched_count}}
+                  {:cont, {matching_acc, updated_visited, new_unmatched_count, ga_da_acc}}
               end
 
-            {true, increased_matching} ->
-              {:cont, {increased_matching, MapSet.new(), unmatched_count}}
+            {true, increased_matching, ga_da} ->
+              {:cont, {increased_matching, MapSet.new(), unmatched_count, ga_da}}
           end
         end
       end
@@ -50,30 +50,30 @@ defmodule CPSolver.Algorithms.Kuhn do
       false ->
         nil
 
-      {matching, _, _} ->
-        if required_matching_size do
+      {matching, _, _, ga_da} ->
+        {if required_matching_size do
           map_size(matching) >= required_matching_size && matching
         else
           matching
-        end
+        end, ga_da}
     end)
   end
 
-  defp augment(graph, vertex, matching, visited_vertices) do
+  defp augment(graph, vertex, matching, visited_vertices, ga_da) do
     if MapSet.member?(visited_vertices, vertex) do
       ## Skip already visited vertices
       {false, matching, visited_vertices}
     else
-      ## Mark vertex from left partition as visited
+      ## Mark vertex as visited
       updated_visited = MapSet.put(visited_vertices, vertex)
 
       Enum.reduce_while(
-        BitGraph.neighbors(graph, vertex),
-        {false, matching, updated_visited},
-        fn neighbor_vertex, {_path_found?, matching_acc, visited_acc} = acc ->
+        Graph.neighbors(graph, vertex),
+        {false, matching, updated_visited, ga_da},
+        fn neighbor_vertex, {_path_found?, matching_acc, visited_acc, ga_da_acc} = acc ->
           case Map.get(matching_acc, neighbor_vertex) do
             nil ->
-              {:halt, {true, Map.put(matching_acc, neighbor_vertex, vertex)}}
+              {:halt, {true, Map.put(matching_acc, neighbor_vertex, vertex), ga_da_acc}}
 
             match when match == vertex ->
               {:cont, acc}
@@ -83,13 +83,14 @@ defmodule CPSolver.Algorithms.Kuhn do
                      graph,
                      match,
                      matching_acc,
-                     visited_acc
+                     visited_acc,
+                     ga_da_acc
                    ) do
-                {false, _matching, _visited} = path_not_found ->
+                {false, _matching, _visited, _ga_da} = path_not_found ->
                   {:cont, path_not_found}
 
-                {true, new_matching} ->
-                  {:halt, {true, Map.put(new_matching, neighbor_vertex, vertex)}}
+                {true, new_matching, ga_da} ->
+                  {:halt, {true, Map.put(new_matching, neighbor_vertex, vertex), ga_da}}
               end
           end
         end
@@ -100,11 +101,11 @@ defmodule CPSolver.Algorithms.Kuhn do
   def initial_matching(graph, left_partition, fixed_matching \\ %{}) do
     repaired_matching = # Remove matchings that are not edges
       Enum.reduce(fixed_matching, fixed_matching, fn {right_vertex, left_vertex}, matching_acc ->
-      BitGraph.get_edge(graph, right_vertex, left_vertex) && matching_acc || Map.delete(matching_acc, right_vertex) end)
+      Enum.empty?(Graph.edges(graph, right_vertex, left_vertex)) && Map.delete(matching_acc, right_vertex) || matching_acc end)
 
     Enum.reduce(left_partition, {repaired_matching, Map.values(repaired_matching) |> MapSet.new()}, fn ls_vertex, {_matching_acc, _used_left_acc} = acc->
       Enum.reduce_while(
-        BitGraph.neighbors(graph, ls_vertex),
+        Graph.neighbors(graph, ls_vertex),
         acc,
         fn rs_vertex, {matching_acc2, used_left_acc2} = acc2 ->
           Map.get(matching_acc2, rs_vertex) && {:cont, acc2} ||
