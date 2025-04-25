@@ -8,6 +8,19 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   based on bipartite maximum matching.
   """
   @impl true
+  def reset(_args, %{
+    sccs: sccs} = state) do
+    Map.put(state, :sccs,
+      Enum.map(sccs, fn %{value_graph: value_graph} = component ->
+        Map.put(component, :value_graph, BitGraph.copy(value_graph))
+      end))
+  end
+
+  def reset(_args, state) do
+    state
+  end
+
+  @impl true
   def arguments(args) do
     Arrays.new(args, implementation: Aja.Vector)
   end

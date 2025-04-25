@@ -12,6 +12,15 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   alias CPSolver.Algorithms.Kuhn
   alias CPSolver.Utils
 
+  @impl true
+  def reset(_args, %{value_graph: value_graph} = state) do
+    IO.inspect(label: :reset_dc_fast)
+    Map.put(state, :value_graph, BitGraph.copy(value_graph))
+  end
+
+  def reset(_args, state) do
+    state
+  end
 
   @impl true
   def arguments(args) do
