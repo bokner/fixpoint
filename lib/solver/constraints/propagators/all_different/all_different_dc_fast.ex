@@ -119,7 +119,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     value_graph
     |> remove_type1_edges(ga_da_set, remove_edge_callback)
     |> then(fn {t1_graph, complement_vertices} ->
-      {value_graph, sccs, _vertices_to_scc_map} =
+      {value_graph, sccs} =
         remove_type2_edges(t1_graph, complement_vertices, remove_edge_callback)
 
       %{
@@ -376,7 +376,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           end)
       end)
 
-    {value_graph, sccs, vertex_to_scc_map}
+    {value_graph, sccs}
   end
 
   ## Components with a single variable are "resolved" - they correspond to variables with the values

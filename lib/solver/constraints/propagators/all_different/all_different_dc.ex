@@ -229,13 +229,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   defp reduce_residual_graph(residual_graph, vars) do
-    sccs = BitGraph.strong_components(residual_graph) |> sccs_to_sets()
+    sccs = BitGraph.strong_components(residual_graph, algorithm: :tarjan) |> remove_sink()
     residual_graph = remove_cross_edges(residual_graph, sccs, vars)
     {residual_graph, postprocess_sccs(sccs)}
   end
 
-  defp sccs_to_sets(sccs_arrays) do
-    Enum.map(sccs_arrays, fn component -> MapSet.delete(component, :sink) end)
+  defp remove_sink(sccs_sets) do
+    Enum.map(sccs_sets, fn component -> MapSet.delete(component, :sink) end)
   end
 
   ## Move parts of matching to where SCCs they belong to are

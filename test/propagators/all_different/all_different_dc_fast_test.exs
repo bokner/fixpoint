@@ -28,7 +28,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       assert 3 == length(BitGraph.Algorithms.components(reduced_value_graph))
 
       assert 6 == length(BitGraph.edges(reduced_value_graph))
-      assert 9 == length(BitGraph.vertices(reduced_value_graph))
+      assert 9 == MapSet.size(BitGraph.vertices(reduced_value_graph))
 
       # The value graph is split into 2 single-edge components and one component with Γ(A) + A vertices
       assert Enum.map(BitGraph.Algorithms.components(reduced_value_graph), fn component -> MapSet.size(component) end) |> Enum.sort() == [2, 2, 5]
