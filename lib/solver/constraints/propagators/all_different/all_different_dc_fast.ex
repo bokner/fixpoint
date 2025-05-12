@@ -7,9 +7,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   use CPSolver.Propagator
 
-  alias CPSolver.Propagator.AllDifferent.DC
   alias CPSolver.Variable.Interface
-  alias CPSolver.Algorithms.Kuhn
+  #alias CPSolver.Algorithms.Kuhn
+  alias BitGraph.Algorithms.Matching.Kuhn
+  alias CPSolver.ValueGraph
   alias CPSolver.Utils
 
   @impl true
@@ -57,8 +58,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def initial_state(variables) do
-    {value_graph, variable_vertices, partial_matching} =
-      DC.build_value_graph(variables)
+    %{graph: value_graph, left_partition: variable_vertices, fixed: partial_matching} =
+      ValueGraph.build(variables)
 
     %{
       value_graph: value_graph,
@@ -97,8 +98,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     Kuhn.run(
       value_graph,
       variable_vertices,
-      partial_matching,
-      MapSet.size(variable_vertices)
+      fixed_matching: partial_matching,
+      required_size: MapSet.size(variable_vertices)
     )
     |> tap(fn matching -> matching || fail() end)
   end
@@ -110,11 +111,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   def reduce_impl(value_graph, variable_vertices, partial_matching, remove_edge_callback) do
     matching = find_matching(value_graph, variable_vertices, partial_matching)
     ## Flip edges that are in matching
-    value_graph = flip_matching(value_graph, matching)
+    value_graph = flip_matching(value_graph, matching.matching)
 
     ## Build sets Γ(A) (neighbors of free value vertices)
     ## and A (allowed nodes)
-    ga_da_set = build_GA(value_graph, variable_vertices)
+    ga_da_set = build_GA(value_graph, matching.free)
 
     value_graph
     |> remove_type1_edges(ga_da_set, remove_edge_callback)
@@ -238,16 +239,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   #   )
   # end
 
-  def free_nodes(value_graph, variable_vertices) do
-    Enum.reduce(variable_vertices, MapSet.new(), fn var_vertex, acc ->
-      Enum.reduce(BitGraph.in_neighbors(value_graph, var_vertex), acc, fn val_vertex, acc2 ->
-        ## No matching for the value => it's a free node
-        (BitGraph.in_degree(value_graph, val_vertex) > 0 && acc2) ||
-          MapSet.put(acc2, val_vertex)
-      end)
-    end)
-  end
-
   def flip_matching(value_graph, matching) do
     Enum.reduce(matching, value_graph, fn {val, var}, g_acc ->
       flip_edge(g_acc, val, var)
@@ -271,9 +262,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     end)
   end
 
-  def build_GA(value_graph, variable_vertices) do
-    free_nodes = free_nodes(value_graph, variable_vertices)
-
+  def build_GA(value_graph, free_nodes) do
     Enum.reduce(free_nodes, free_nodes, fn free_node, ga_set_acc ->
       collect_GA_nodes(value_graph, free_node, ga_set_acc)
     end)
@@ -311,7 +300,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           ## (the ones that are will be 'out' edges
           graph_acc =
             Enum.reduce(
-              BitGraph.in_neighbors(graph_acc, variable_vertex),
+              BitGraph.out_neighbors(graph_acc, variable_vertex),
               graph_acc,
               fn value_vertex, graph_acc2 ->
                 if MapSet.member?(ga_da_set, {:value, value} = value_vertex) do
@@ -358,7 +347,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           graph_acc
 
         {{:variable, var_idx} = var_vertex, scc_id}, graph_acc ->
-          Enum.reduce(BitGraph.in_neighbors(graph_acc, var_vertex), graph_acc, fn
+          Enum.reduce(BitGraph.out_neighbors(graph_acc, var_vertex), graph_acc, fn
             {:value, value} = value_vertex, graph_acc2 ->
               case Map.get(vertex_to_scc_map, value_vertex) do
                 ## Not a cross-edge
