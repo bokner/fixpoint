@@ -7,7 +7,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   use CPSolver.Propagator
 
-  alias CPSolver.Variable.Interface
   #alias CPSolver.Algorithms.Kuhn
   alias BitGraph.Algorithms.Matching.Kuhn
   alias CPSolver.ValueGraph
@@ -63,7 +62,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   defp build_reduction_callback(variables) do
     fn graph, var_vertex, value_vertex ->
-      Interface.remove(Propagator.arg_at(variables, get_index(var_vertex)), get_index(value_vertex))
+      remove(Propagator.arg_at(variables, get_index(var_vertex)), get_index(value_vertex))
       BitGraph.delete_edge(graph, get_variable_vertex(var_vertex), get_value_vertex(value_vertex))
     end
   end
