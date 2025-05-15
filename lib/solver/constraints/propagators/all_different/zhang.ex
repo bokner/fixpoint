@@ -71,7 +71,8 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
     |> then(fn {scc_components, reduced_graph} ->
       state
       |> Map.put(:value_graph, reduced_graph)
-      |> Map.update!(:components, fn type1_component -> [type1_component | scc_components] end)
+      |> Map.update!(:components, fn type1_component ->
+        MapSet.size(type1_component) > 0 && [type1_component | scc_components] || scc_components end)
     end)
 
   end

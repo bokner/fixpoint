@@ -75,7 +75,6 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       dc_propagator = Propagator.new(Fast, vars)
       %{active?: true, state: state1} =
         Propagator.filter(dc_propagator)
-
       ## Variable filtering
       assert Interface.fixed?(x1) && Interface.min(x1) == 2
       assert Interface.min(x2) == 3 && Interface.max(x2) == 4

@@ -137,7 +137,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def apply_changes(vars, state, changes) do
     :todo
-    initial_state(vars)
+    initial_reduction(vars)
   end
 
 end
