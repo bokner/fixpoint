@@ -9,8 +9,8 @@ defmodule CPSolver.Algorithms.Kuhn do
   and (optional) partial matching %{right_side_vertex => left_side_vertex},
   find maximum matching
   """
-  @spec run(BitGraph.t(), [any()], map()) :: map()
-  def run(graph, left_partition, fixed_matching \\ %{}, required_matching_size \\ nil) do
+  @spec run(Graph.t(), [any()], map()) :: map()
+  def run(%Graph{} = graph, left_partition, fixed_matching \\ %{}, required_matching_size \\ nil) do
     partial_matching = #fixed_matching
      initial_matching(graph, left_partition, fixed_matching)
     partition_size = MapSet.size(left_partition)
@@ -68,7 +68,7 @@ defmodule CPSolver.Algorithms.Kuhn do
       updated_visited = MapSet.put(visited_vertices, vertex)
 
       Enum.reduce_while(
-        BitGraph.neighbors(graph, vertex),
+        Graph.neighbors(graph, vertex),
         {false, matching, updated_visited},
         fn neighbor_vertex, {_path_found?, matching_acc, visited_acc} = acc ->
           case Map.get(matching_acc, neighbor_vertex) do
@@ -100,11 +100,11 @@ defmodule CPSolver.Algorithms.Kuhn do
   def initial_matching(graph, left_partition, fixed_matching \\ %{}) do
     repaired_matching = # Remove matchings that are not edges
       Enum.reduce(fixed_matching, fixed_matching, fn {right_vertex, left_vertex}, matching_acc ->
-      BitGraph.get_edge(graph, right_vertex, left_vertex) && matching_acc || Map.delete(matching_acc, right_vertex) end)
+      Enum.empty?(Graph.edges(graph, right_vertex, left_vertex)) && Map.delete(matching_acc, right_vertex) || matching_acc end)
 
     Enum.reduce(left_partition, {repaired_matching, Map.values(repaired_matching) |> MapSet.new()}, fn ls_vertex, {_matching_acc, _used_left_acc} = acc->
       Enum.reduce_while(
-        BitGraph.neighbors(graph, ls_vertex),
+        Graph.neighbors(graph, ls_vertex),
         acc,
         fn rs_vertex, {matching_acc2, used_left_acc2} = acc2 ->
           Map.get(matching_acc2, rs_vertex) && {:cont, acc2} ||

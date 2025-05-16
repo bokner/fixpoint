@@ -8,19 +8,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   based on bipartite maximum matching.
   """
   @impl true
-  def reset(_args, %{
-    sccs: sccs} = state) do
-    Map.put(state, :sccs,
-      Enum.map(sccs, fn %{value_graph: value_graph} = component ->
-        Map.put(component, :value_graph, BitGraph.copy(value_graph))
-      end))
-  end
-
-  def reset(_args, state) do
-    state
-  end
-
-  @impl true
   def arguments(args) do
     Arrays.new(args, implementation: Aja.Vector)
   end
@@ -151,7 +138,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   def build_value_graph_impl(variable_map) when is_map(variable_map) do
     Enum.reduce(
       variable_map,
-      {BitGraph.new(), MapSet.new(), Map.new()},
+      {Graph.new(), MapSet.new(), Map.new()},
       fn {var_id, var}, {graph_acc, var_vertices_acc, partial_matching_acc} ->
         var_vertex = {:variable, var_id}
         var_vertices_acc = MapSet.put(var_vertices_acc, var_vertex)
@@ -167,7 +154,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
         graph_acc  =
             Enum.reduce(domain_values(var), graph_acc, fn d, graph_acc2 ->
-              BitGraph.add_edge(graph_acc2, {:value, d}, var_vertex)
+              Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
           end)
 
         {graph_acc, var_vertices_acc, partial_matching_acc}
@@ -180,12 +167,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     Enum.reduce(variable_map, value_graph, fn {var_id, var}, graph_acc ->
       variable_vertex = {:variable, var_id}
 
-      if BitGraph.in_degree(value_graph, variable_vertex) > size(var) do
+      if Graph.in_degree(value_graph, variable_vertex) > size(var) do
         ## There are some edges to delete
-        Enum.reduce(BitGraph.in_edges(graph_acc, variable_vertex), graph_acc, fn %{from: {:value, val}} =
+        Enum.reduce(Graph.in_edges(graph_acc, variable_vertex), graph_acc, fn %{v1: {:value, val}} =
                                                                                 edge,
                                                                               g_acc2 ->
-          (contains?(var, val) && g_acc2) || BitGraph.delete_edge(g_acc2, edge)
+          (contains?(var, val) && g_acc2) || Graph.delete_edge(g_acc2, edge.v1, edge.v2)
         end)
       else
         graph_acc
@@ -202,23 +189,23 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   defp build_residual_graph(value_graph, maximum_matching) do
     ## The matching edges connect variables to values
     Enum.reduce(
-      BitGraph.edges(value_graph),
+      Graph.edges(value_graph),
       value_graph,
       fn %{
-           from: {:value, _value} = v1,
-           to: {:variable, _var_id} = v2
+           v1: {:value, _value} = v1,
+           v2: {:variable, _var_id} = v2
          } = _edge,
          residual_graph_acc ->
         case Map.get(maximum_matching, v1) do
           nil ->
             ## The vertices of unmatched values are connected to the sink vertex
-            BitGraph.add_edge(residual_graph_acc, :sink, v1)
+            Graph.add_edge(residual_graph_acc, :sink, v1)
 
           ## The edge is in matching - reverse
           var when var == v2 ->
-            BitGraph.delete_edge(residual_graph_acc, v1, v2)
-            |> BitGraph.add_edge(v2, v1)
-            |> BitGraph.add_edge(v1, :sink)
+            Graph.delete_edge(residual_graph_acc, v1, v2)
+            |> Graph.add_edge(v2, v1)
+            |> Graph.add_edge(v1, :sink)
 
           _var ->
             ## For values in the domain, but not in matching, keep value -> variable edge
@@ -229,13 +216,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   defp reduce_residual_graph(residual_graph, vars) do
-    sccs = BitGraph.strong_components(residual_graph, algorithm: :tarjan) |> remove_sink()
+    sccs = Graph.strong_components(residual_graph) |> sccs_to_sets()
     residual_graph = remove_cross_edges(residual_graph, sccs, vars)
     {residual_graph, postprocess_sccs(sccs)}
   end
 
-  defp remove_sink(sccs_sets) do
-    Enum.map(sccs_sets, fn component -> MapSet.delete(component, :sink) end)
+  defp sccs_to_sets(sccs_arrays) do
+    Enum.map(sccs_arrays, fn component -> MapSet.new(component) |> MapSet.delete(:sink) end)
   end
 
   ## Move parts of matching to where SCCs they belong to are
@@ -254,7 +241,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
         acc
       else
         {m, v_graph} =
-          Enum.reduce(component, {Map.new(), BitGraph.new()}, fn var_id,
+          Enum.reduce(component, {Map.new(), Graph.new()}, fn var_id,
                                                               {matching_acc, value_graph_acc} =
                                                                 acc ->
             case Map.get(matching_map, var_id) do
@@ -263,12 +250,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
               value ->
                 variable_vertex = {:variable, var_id}
-                value_edges = BitGraph.in_edges(value_graph, variable_vertex)
+                value_edges = Graph.in_edges(value_graph, variable_vertex)
                 ## We keep matching in the original form so we can reuse it
                 ## in in the consequent iterations
                 {
                   Map.put(matching_acc, {:value, value}, variable_vertex),
-                  BitGraph.add_edges(value_graph_acc, value_edges)
+                  Graph.add_edges(value_graph_acc, value_edges)
                 }
             end
           end)
@@ -286,12 +273,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     Enum.reduce(sccs, residual_graph, fn vertices, graph_acc ->
       Enum.reduce(vertices, graph_acc, fn
         {:variable, _var_id} = variable_vertex, graph_acc2 ->
-          edges = BitGraph.in_edges(graph_acc2, variable_vertex)
+          edges = Graph.in_edges(graph_acc2, variable_vertex)
 
           Enum.reduce(edges, graph_acc2, fn
-            %{from: {:value, value} = value_vertex} = _edge, graph_acc3 ->
+            %{v1: {:value, value} = value_vertex} = _edge, graph_acc3 ->
               (value_vertex in vertices && graph_acc3) ||
-                BitGraph.delete_edge(graph_acc3, value_vertex, variable_vertex)
+                Graph.delete_edge(graph_acc3, value_vertex, variable_vertex)
                 |> tap(fn _ ->
                   ## If this is 'value -> variable' edge, remove the value from the domain of variable
                   maybe_remove_domain_value(value, variable_vertex, vars)
