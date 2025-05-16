@@ -131,9 +131,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     |> Zhang.remove_type2_edges(remove_edge_fun)
   end
 
-  def apply_changes(_vars, state, changes) when is_nil(changes) or map_size(changes) == 0 do
-    state
-  end
+  #def apply_changes(vars, state, changes) when is_nil(changes) or map_size(changes) == 0 do
+  #  initial_reduction(vars)
+  #end
 
   def apply_changes(vars, state, changes) do
     :todo

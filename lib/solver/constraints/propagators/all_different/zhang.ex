@@ -73,8 +73,8 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         state
         |> Map.put(:value_graph, reduced_graph)
         |> Map.update!(:components, fn type1_component ->
-          (MapSet.size(type1_component) > 0 && [type1_component | scc_components]) ||
-            scc_components
+          Enum.empty?(type1_component) && scc_components
+          || [type1_component | scc_components]
         end)
       end)
   end
@@ -94,29 +94,34 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
           [var_vertex, value_vertex | acc]
         end),
       component_handler:
-        {fn component, {component_acc, graph_acc} = _handler_acc ->
-           Enum.reduce(component, {component_acc, graph_acc}, fn vertex_index,
-                                                                 {c_acc, g_acc} = acc ->
-             case BitGraph.V.get_vertex(graph_acc, vertex_index) do
-               ## We only need to remove out-edges from 'variable' vertices
-               ## that cross to other SCCS
-               {:variable, _variable_id} = v ->
-                 foreign_neighbors = BitGraph.E.out_neighbors(g_acc, vertex_index)
-
-                 ## drop 1-vertex sccs
-                 {(MapSet.size(component) > 1 && [component | c_acc]) || c_acc,
-                  Enum.reduce(foreign_neighbors, g_acc, fn neighbor, g_acc2
-                                                           when is_integer(neighbor) ->
-                    (neighbor in component && g_acc2) ||
-                      remove_edge_fun.(g_acc2, v, BitGraph.V.get_vertex(g_acc2, neighbor))
-                  end)}
-
-               {:value, _} ->
-                 acc
-             end
-           end)
-         end, {[], graph}},
-      algorithm: :kozaraju
+        {fn component, acc -> scc_component_handler(component, remove_edge_fun, acc) end, {[], graph}},
+      algorithm: :tarjan
     )
+
+  end
+
+  def scc_component_handler(component, remove_edge_fun, {component_acc, graph_acc} = current_acc) do
+    updated_graph = Enum.reduce(component, graph_acc, fn vertex_index, g_acc ->
+      case BitGraph.V.get_vertex(graph_acc, vertex_index) do
+        ## We only need to remove out-edges from 'variable' vertices
+        ## that cross to other SCCS
+        {:variable, _variable_id} = v ->
+          foreign_neighbors = BitGraph.E.out_neighbors(g_acc, vertex_index)
+
+           Enum.reduce(foreign_neighbors, g_acc, fn neighbor, g_acc2
+                                                    when is_integer(neighbor) ->
+             (neighbor in component && g_acc2) ||
+               remove_edge_fun.(g_acc2, v, BitGraph.V.get_vertex(g_acc2, neighbor))
+           end)
+
+        {:value, _} ->
+          g_acc
+      end
+    end)
+
+    ## drop 1-vertex sccs
+    updated_components = MapSet.size(component) > 1 && [component | component_acc] || component_acc
+
+    {updated_components, updated_graph}
   end
 end
