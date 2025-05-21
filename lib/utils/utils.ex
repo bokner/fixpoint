@@ -1,5 +1,6 @@
 defmodule CPSolver.Utils do
   alias CPSolver.Variable.Interface
+  alias CPSolver.IntVariable, as: Variable
   alias CPSolver.DefaultDomain, as: Domain
 
   def on_primary_node?(arg) when is_reference(arg) or is_pid(arg) or is_port(arg) do
@@ -53,9 +54,12 @@ defmodule CPSolver.Utils do
     end)
   end
 
-  def domain_values(variable_or_view) do
-    variable_or_view
-    |> Interface.domain()
+  def domain_values(variable_or_view, access \\ :interface) do
+    cond do
+      access == :interface -> Interface.domain(variable_or_view)
+      access == :variable -> Variable.domain(variable_or_view)
+      true -> throw{:error, :unknown_access_type}
+    end
     |> Domain.to_list()
   end
 

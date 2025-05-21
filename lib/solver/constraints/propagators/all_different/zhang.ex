@@ -13,19 +13,19 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         GA_complement_matching: matching,
         process_redundant_edges: process_redundant_fun,
         visited: MapSet.new(),
-        matching: matching
+        matching: matching,
+        free_nodes: free_nodes
       },
       fn node, acc ->
         process_right_partition_node(acc, node)
       end
     )
-    |> then(fn type1_state -> Map.put(type1_state, :components, type1_state.visited) end)
+    |> then(fn type1_state -> Map.put(type1_state, :components, MapSet.union(free_nodes, type1_state.visited)) end)
   end
 
   def process_right_partition_node(%{value_graph: graph} = state, node) do
     (visited?(state, node) && state) ||
       (
-        # |> add_to_A(node)
         state = mark_visited(state, node)
 
         Enum.reduce(BitGraph.in_neighbors(graph, node), state, fn left_partition_node, acc ->
@@ -45,12 +45,12 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
   end
 
   defp process_redundant_edges(
-         %{value_graph: graph, process_redundant_edges: process_redundant_fun} = state,
+         %{free_nodes: free, value_graph: graph, process_redundant_edges: process_redundant_fun} = state,
          node
        ) do
     BitGraph.out_neighbors(graph, node)
     |> Enum.reduce(graph, fn right_partition_node, g_acc ->
-      (visited?(state, right_partition_node) && g_acc) ||
+      (visited?(state, right_partition_node) || MapSet.member?(free, right_partition_node)) && g_acc ||
         process_redundant_fun.(g_acc, node, right_partition_node)
     end)
     |> then(fn g -> Map.put(state, :value_graph, g) end)
@@ -100,7 +100,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
 
   end
 
-  def scc_component_handler(component, remove_edge_fun, {component_acc, graph_acc} = current_acc) do
+  def scc_component_handler(component, remove_edge_fun, {component_acc, graph_acc} = _current_acc) do
     updated_graph = Enum.reduce(component, graph_acc, fn vertex_index, g_acc ->
       case BitGraph.V.get_vertex(graph_acc, vertex_index) do
         ## We only need to remove out-edges from 'variable' vertices

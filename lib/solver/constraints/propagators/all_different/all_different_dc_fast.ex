@@ -38,8 +38,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       |> finalize()
   end
 
-  defp finalize(state) do
-    Enum.empty?(state.components) && :passive ||
+  defp finalize(%{components: components} = state) do
+    components && Enum.empty?(components) && :passive ||
       {:state, state}
   end
 
@@ -50,13 +50,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def initial_state(variables) do
     %{graph: value_graph, left_partition: variable_vertices, fixed: partial_matching} =
-      ValueGraph.build(variables)
+      ValueGraph.build(variables, check_matching: true)
 
     %{
       value_graph: value_graph,
       variable_vertices: variable_vertices,
       matching: partial_matching,
-      reduction_callback: build_reduction_callback(variables)
+      reduction_callback: build_reduction_callback(variables),
+      components: nil
     }
   end
 
@@ -101,7 +102,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         matching: partial_matching,
         variable_vertices: variable_vertices,
         reduction_callback: reduction_callback
-      } = _state) do
+      } = state) do
+    value_graph_saturated?(value_graph, variable_vertices) && state ||
     reduce_impl(
       value_graph,
       variable_vertices,
@@ -120,15 +122,18 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     |> tap(fn matching -> matching || fail() end)
   end
 
+  defp value_graph_saturated?(value_graph, variable_vertices) do
+    num_vars = MapSet.size(variable_vertices)
+    Enum.all?(variable_vertices, fn v -> BitGraph.out_degree(value_graph, v) >= num_vars end)
+  end
+
   defp fail() do
     throw(:fail)
   end
 
   def reduce_impl(value_graph, variable_vertices, partial_matching, remove_edge_fun) do
     %{free: free_nodes, matching: matching} = find_matching(value_graph, variable_vertices, partial_matching)
-    value_graph
-    |> Zhang.remove_type1_edges(free_nodes, matching, remove_edge_fun)
-    |> Zhang.remove_type2_edges(remove_edge_fun)
+    Zhang.reduce(value_graph, free_nodes, matching, remove_edge_fun)
   end
 
   #def apply_changes(vars, state, changes) when is_nil(changes) or map_size(changes) == 0 do
