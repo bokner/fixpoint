@@ -14,19 +14,23 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         process_redundant_edges: process_redundant_fun,
         visited: MapSet.new(),
         matching: matching,
-        free_nodes: free_nodes
+        free_nodes: free_nodes,
+        scheduled_for_removal: Map.new()
       },
       fn node, acc ->
         process_right_partition_node(acc, node)
       end
     )
-    |> then(fn type1_state -> Map.put(type1_state, :components, MapSet.union(free_nodes, type1_state.visited)) end)
+    |> remove_redundant_type1_edges()
+    |> then(fn type1_state ->
+      Map.put(type1_state, :components, MapSet.union(free_nodes, type1_state.visited))
+    end)
   end
 
   def process_right_partition_node(%{value_graph: graph} = state, node) do
     (visited?(state, node) && state) ||
       (
-        state = mark_visited(state, node)
+        state = mark_visited(state, node) |> unschedule_removals(node)
 
         Enum.reduce(BitGraph.in_neighbors(graph, node), state, fn left_partition_node, acc ->
           (visited?(acc, left_partition_node) && acc) ||
@@ -41,20 +45,42 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       |> mark_visited(node)
       |> Map.update!(:GA_complement_matching, fn nodes -> Map.delete(nodes, node) end)
       |> process_right_partition_node(Map.get(matching, node))
-      |> process_redundant_edges(node)
+      |> schedule_removals(node)
   end
 
-  defp process_redundant_edges(
-         %{free_nodes: free, value_graph: graph, process_redundant_edges: process_redundant_fun} = state,
+  defp schedule_removals(
+         %{free_nodes: free, value_graph: graph, scheduled_for_removal: scheduled} = state,
          node
        ) do
     BitGraph.out_neighbors(graph, node)
-    |> Enum.reduce(graph, fn right_partition_node, g_acc ->
-      (visited?(state, right_partition_node) || MapSet.member?(free, right_partition_node)) && g_acc ||
-        process_redundant_fun.(g_acc, node, right_partition_node)
+    |> Enum.reduce(scheduled, fn right_partition_node, unvisited_acc ->
+      ((visited?(state, right_partition_node) || MapSet.member?(free, right_partition_node)) &&
+         unvisited_acc) ||
+        Map.update(unvisited_acc, right_partition_node, MapSet.new([node]), fn existing ->
+          MapSet.put(existing, node)
+        end)
     end)
-    |> then(fn g -> Map.put(state, :value_graph, g) end)
+    |> then(fn updated_schedule -> Map.put(state, :scheduled_for_removal, updated_schedule) end)
   end
+
+  ## If right partition node has been visited, we remove all
+  ## associated edges that were previously scheduled for removal.
+  defp unschedule_removals(%{scheduled_for_removal: scheduled} = state, right_partition_node) do
+    %{state | scheduled_for_removal: Map.delete(scheduled, right_partition_node)}
+  end
+
+  defp remove_redundant_type1_edges(
+    %{
+      value_graph: graph,
+      scheduled_for_removal: scheduled,
+      process_redundant_edges: process_redundant_fun} = state) do
+        updated_graph = Enum.reduce(scheduled, graph, fn {right_partition_vertex, left_neighbors}, acc ->
+          Enum.reduce(left_neighbors, acc, fn left_vertex, acc2 ->
+            process_redundant_fun.(acc2, left_vertex, right_partition_vertex)
+          end)
+        end)
+        %{state | value_graph: updated_graph}
+      end
 
   defp mark_visited(state, node) do
     Map.update!(state, :visited, fn visited -> MapSet.put(visited, node) end)
@@ -73,8 +99,8 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         state
         |> Map.put(:value_graph, reduced_graph)
         |> Map.update!(:components, fn type1_component ->
-          Enum.empty?(type1_component) && scc_components
-          || [type1_component | scc_components]
+          (Enum.empty?(type1_component) && scc_components) ||
+            [type1_component | scc_components]
         end)
       end)
   end
@@ -94,33 +120,35 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
           [var_vertex, value_vertex | acc]
         end),
       component_handler:
-        {fn component, acc -> scc_component_handler(component, remove_edge_fun, acc) end, {[], graph}},
+        {fn component, acc -> scc_component_handler(component, remove_edge_fun, acc) end,
+         {[], graph}},
       algorithm: :tarjan
     )
-
   end
 
   def scc_component_handler(component, remove_edge_fun, {component_acc, graph_acc} = _current_acc) do
-    updated_graph = Enum.reduce(component, graph_acc, fn vertex_index, g_acc ->
-      case BitGraph.V.get_vertex(graph_acc, vertex_index) do
-        ## We only need to remove out-edges from 'variable' vertices
-        ## that cross to other SCCS
-        {:variable, _variable_id} = v ->
-          foreign_neighbors = BitGraph.E.out_neighbors(g_acc, vertex_index)
+    updated_graph =
+      Enum.reduce(component, graph_acc, fn vertex_index, g_acc ->
+        case BitGraph.V.get_vertex(graph_acc, vertex_index) do
+          ## We only need to remove out-edges from 'variable' vertices
+          ## that cross to other SCCS
+          {:variable, _variable_id} = v ->
+            foreign_neighbors = BitGraph.E.out_neighbors(g_acc, vertex_index)
 
-           Enum.reduce(foreign_neighbors, g_acc, fn neighbor, g_acc2
-                                                    when is_integer(neighbor) ->
-             (neighbor in component && g_acc2) ||
-               remove_edge_fun.(g_acc2, v, BitGraph.V.get_vertex(g_acc2, neighbor))
-           end)
+            Enum.reduce(foreign_neighbors, g_acc, fn neighbor, g_acc2
+                                                     when is_integer(neighbor) ->
+              (neighbor in component && g_acc2) ||
+                remove_edge_fun.(g_acc2, v, BitGraph.V.get_vertex(g_acc2, neighbor))
+            end)
 
-        {:value, _} ->
-          g_acc
-      end
-    end)
+          {:value, _} ->
+            g_acc
+        end
+      end)
 
     ## drop 1-vertex sccs
-    updated_components = MapSet.size(component) > 1 && [component | component_acc] || component_acc
+    updated_components =
+      (MapSet.size(component) > 1 && [component | component_acc]) || component_acc
 
     {updated_components, updated_graph}
   end
