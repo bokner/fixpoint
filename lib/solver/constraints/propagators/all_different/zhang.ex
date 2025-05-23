@@ -34,7 +34,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
 
         Enum.reduce(BitGraph.in_neighbors(graph, node), state, fn left_partition_node, acc ->
           (visited?(acc, left_partition_node) && acc) ||
-            process_left_partition_node(state, left_partition_node)
+            process_left_partition_node(acc, left_partition_node)
         end)
       )
   end
@@ -83,7 +83,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       end
 
   defp mark_visited(state, node) do
-    Map.update!(state, :visited, fn visited -> MapSet.put(visited, node) end)
+     Map.update!(state, :visited, fn visited -> MapSet.put(visited, node) end)
   end
 
   defp visited?(%{visited: visited} = _state, node) do
