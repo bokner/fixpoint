@@ -91,7 +91,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
   end
 
   def remove_type2_edges(%{GA_complement_matching: matching} = state, remove_edge_fun) do
-    (Enum.empty?(matching) && state) ||
+    (Enum.empty?(matching) && Map.update!(state, :components, fn component -> List.wrap(component) end)) ||
       state
       |> flip_matching_edges()
       |> process_sccs(matching, remove_edge_fun)
