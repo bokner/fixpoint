@@ -5,6 +5,9 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
     |> remove_type2_edges(remove_edge_fun)
   end
 
+  ## TODO: handle multiple components
+  ## That is, free nodes could be distributed across components.
+  ## This could lead to multiple `type1 ` components.
   def remove_type1_edges(graph, free_nodes, matching, process_redundant_fun) do
     Enum.reduce(
       free_nodes,
@@ -12,18 +15,20 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         value_graph: graph,
         GA_complement_matching: matching,
         process_redundant_edges: process_redundant_fun,
+        GA: MapSet.new(),
         visited: MapSet.new(),
         matching: matching,
         free_nodes: free_nodes,
         scheduled_for_removal: Map.new()
       },
-      fn node, acc ->
-        process_right_partition_node(acc, node)
+      fn free_node, acc ->
+        (visited?(acc, free_node) && acc) ||
+          process_right_partition_node(acc, free_node)
       end
     )
     |> remove_redundant_type1_edges()
-    |> then(fn type1_state ->
-      Map.put(type1_state, :components, MapSet.union(free_nodes, type1_state.visited))
+    |> then(fn %{GA: ga} = type1_state ->
+      Map.put(type1_state, :components, ga)
     end)
   end
 
@@ -44,6 +49,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       state
       |> mark_visited(node)
       |> Map.update!(:GA_complement_matching, fn nodes -> Map.delete(nodes, node) end)
+      |> Map.update!(:GA, fn nodes -> MapSet.put(nodes, node) end)
       |> process_right_partition_node(Map.get(matching, node))
       |> schedule_removals(node)
   end
@@ -63,27 +69,31 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
     |> then(fn updated_schedule -> Map.put(state, :scheduled_for_removal, updated_schedule) end)
   end
 
-  ## If right partition node has been visited, we remove all
+  ## If right partition node has been visited, we unschedule all
   ## associated edges that were previously scheduled for removal.
   defp unschedule_removals(%{scheduled_for_removal: scheduled} = state, right_partition_node) do
     %{state | scheduled_for_removal: Map.delete(scheduled, right_partition_node)}
   end
 
   defp remove_redundant_type1_edges(
-    %{
-      value_graph: graph,
-      scheduled_for_removal: scheduled,
-      process_redundant_edges: process_redundant_fun} = state) do
-        updated_graph = Enum.reduce(scheduled, graph, fn {right_partition_vertex, left_neighbors}, acc ->
-          Enum.reduce(left_neighbors, acc, fn left_vertex, acc2 ->
-            process_redundant_fun.(acc2, left_vertex, right_partition_vertex)
-          end)
+         %{
+           value_graph: graph,
+           scheduled_for_removal: scheduled,
+           process_redundant_edges: process_redundant_fun
+         } = state
+       ) do
+    updated_graph =
+      Enum.reduce(scheduled, graph, fn {right_partition_vertex, left_neighbors}, acc ->
+        Enum.reduce(left_neighbors, acc, fn left_vertex, acc2 ->
+          process_redundant_fun.(acc2, left_vertex, right_partition_vertex)
         end)
-        %{state | value_graph: updated_graph}
-      end
+      end)
+
+    %{state | value_graph: updated_graph}
+  end
 
   defp mark_visited(state, node) do
-     Map.update!(state, :visited, fn visited -> MapSet.put(visited, node) end)
+    Map.update!(state, :visited, fn visited -> MapSet.put(visited, node) end)
   end
 
   defp visited?(%{visited: visited} = _state, node) do
@@ -127,28 +137,32 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
   end
 
   def scc_component_handler(component, remove_edge_fun, {component_acc, graph_acc} = _current_acc) do
-    updated_graph =
-      Enum.reduce(component, graph_acc, fn vertex_index, g_acc ->
+    {variable_vertices, updated_graph} =
+      Enum.reduce(component, {MapSet.new(), graph_acc}, fn vertex_index,
+                                                           {vertices_acc, g_acc} = acc ->
         case BitGraph.V.get_vertex(graph_acc, vertex_index) do
           ## We only need to remove out-edges from 'variable' vertices
           ## that cross to other SCCS
           {:variable, _variable_id} = v ->
             foreign_neighbors = BitGraph.E.out_neighbors(g_acc, vertex_index)
 
-            Enum.reduce(foreign_neighbors, g_acc, fn neighbor, g_acc2
-                                                     when is_integer(neighbor) ->
-              (neighbor in component && g_acc2) ||
-                remove_edge_fun.(g_acc2, v, BitGraph.V.get_vertex(g_acc2, neighbor))
-            end)
+            {
+              MapSet.put(vertices_acc, v),
+              Enum.reduce(foreign_neighbors, g_acc, fn neighbor, g_acc2
+                                                       when is_integer(neighbor) ->
+                (neighbor in component && g_acc2) ||
+                  remove_edge_fun.(g_acc2, v, BitGraph.V.get_vertex(g_acc2, neighbor))
+              end)
+            }
 
           {:value, _} ->
-            g_acc
+            acc
         end
       end)
 
     ## drop 1-vertex sccs
     updated_components =
-      (MapSet.size(component) > 1 && [component | component_acc]) || component_acc
+      (MapSet.size(variable_vertices) > 1 && [variable_vertices | component_acc]) || component_acc
 
     {updated_components, updated_graph}
   end
