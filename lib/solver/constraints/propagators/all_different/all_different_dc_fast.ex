@@ -38,10 +38,16 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       |> finalize()
   end
 
-  defp finalize(%{components: components} = state) do
-    components && Enum.empty?(components) && :passive ||
+  defp finalize(%{type1_components: type1, scc_components: sccs} = state) do
+    Enum.empty?(type1) && Enum.empty?(sccs) && :passive ||
       {:state, state}
   end
+
+  defp finalize(state) do
+    {:state, state}
+  end
+
+
 
   def initial_reduction(vars) do
     initial_state = initial_state(vars)

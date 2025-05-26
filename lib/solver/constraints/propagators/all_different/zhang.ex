@@ -19,17 +19,27 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         visited: MapSet.new(),
         matching: matching,
         free_nodes: free_nodes,
-        scheduled_for_removal: Map.new()
+        scheduled_for_removal: Map.new(),
+        type1_components: [],
+        scc_components: []
       },
       fn free_node, acc ->
-        (visited?(acc, free_node) && acc) ||
-          process_right_partition_node(acc, free_node)
+        if visited?(acc, free_node) do
+          acc
+        else
+          acc
+          |> Map.put(:GA, MapSet.new())
+          |> process_right_partition_node(free_node)
+          |> then(fn %{GA: ga} = type1_state ->
+            Map.update!(type1_state, :type1_components,
+            fn components ->   #(MapSet.size(ga) > 1) &&
+              [ga | components]   # || components
+            end)
+          end)
+        end
       end
     )
     |> remove_redundant_type1_edges()
-    |> then(fn %{GA: ga} = type1_state ->
-      Map.put(type1_state, :components, ga)
-    end)
   end
 
   def process_right_partition_node(%{value_graph: graph} = state, node) do
@@ -108,10 +118,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       |> then(fn {scc_components, reduced_graph} ->
         state
         |> Map.put(:value_graph, reduced_graph)
-        |> Map.update!(:components, fn type1_component ->
-          (Enum.empty?(type1_component) && scc_components) ||
-            [type1_component | scc_components]
-        end)
+        |> Map.put(:scc_components, scc_components)
       end)
   end
 
