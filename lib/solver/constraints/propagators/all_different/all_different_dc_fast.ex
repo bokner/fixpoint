@@ -38,13 +38,21 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       |> finalize()
   end
 
-  defp finalize(%{type1_components: type1, scc_components: sccs} = state) do
-    Enum.empty?(type1) && Enum.empty?(sccs) && :passive ||
+  defp finalize(state) do
+    entailed?(state) && :passive ||
       {:state, state}
   end
 
   defp finalize(state) do
     {:state, state}
+  end
+
+  def entailed?(%{type1_components: type1, scc_components: sccs} = state) do
+    Enum.empty?(type1) && Enum.empty?(sccs)
+  end
+
+  def entailed?(_state) do
+    false
   end
 
 

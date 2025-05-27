@@ -32,8 +32,8 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
           |> process_right_partition_node(free_node)
           |> then(fn %{GA: ga} = type1_state ->
             Map.update!(type1_state, :type1_components,
-            fn components ->   #(MapSet.size(ga) > 1) &&
-              [ga | components]   # || components
+            fn components -> (MapSet.size(ga) > 1) &&
+              [ga | components] || components
             end)
           end)
         end
@@ -173,4 +173,5 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
 
     {updated_components, updated_graph}
   end
+
 end
