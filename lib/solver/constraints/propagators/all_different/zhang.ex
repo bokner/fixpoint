@@ -21,7 +21,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         free_nodes: free_nodes,
         scheduled_for_removal: Map.new(),
         type1_components: [],
-        scc_components: []
+        sccs: []
       },
       fn free_node, acc ->
         if visited?(acc, free_node) do
@@ -115,10 +115,10 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       state
       |> flip_matching_edges()
       |> process_sccs(matching, remove_edge_fun)
-      |> then(fn {scc_components, reduced_graph} ->
+      |> then(fn {sccs, reduced_graph} ->
         state
         |> Map.put(:value_graph, reduced_graph)
-        |> Map.put(:scc_components, scc_components)
+        |> Map.put(:sccs, sccs)
       end)
   end
 
