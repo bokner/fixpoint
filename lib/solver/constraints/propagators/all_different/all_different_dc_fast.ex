@@ -7,10 +7,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   use CPSolver.Propagator
 
-  # alias CPSolver.Algorithms.Kuhn
   alias BitGraph.Algorithms.Matching.Kuhn
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Zhang
+  alias CPSolver.Utils
 
   @impl true
   def reset(_args, %{value_graph: value_graph} = state) do
@@ -123,28 +123,144 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     initial_reduction(vars)
   end
 
-  def apply_changes(vars, %{sccs: sccs, type1_components: type1_components} = state, changes) do
-    state
-    |> reduce_components(type1_components, vars, changes)
-    |> reduce_components(sccs, vars, changes)
+  def apply_changes(vars, state, changes) do
+    state =
+      state
+      |> Map.put(:component_locator, build_component_locator(state))
+      |> Map.put(:propagator_variables, vars)
 
-    ## TODO: for debugging only
+    Enum.reduce(changes, {state, changes}, fn {var_index, _domain_change} = _var_change,
+                                              {state_acc, remaining_changes_acc} = acc ->
+      (Map.has_key?(remaining_changes_acc, var_index) &&
+         apply_variable_change(state_acc, var_index, remaining_changes_acc)) ||
+        acc
+    end)
+
     initial_reduction(vars)
   end
 
-  defp reduce_components(%{matching: matching} = state, components, vars, changes) do
-    for component <- components, reduce: state do
-      acc ->
-        (matching_changed?(component, matching, vars) && update_state(acc, component, vars)) ||
-          acc
+  defp apply_variable_change(state, variable_index, changes) do
+    ## Get the component to apply the domain change to.
+    ## Note: there is only one component to apply the triggered by a single variable change.
+    ## There could be many variable changes applicable to a single component.
+    ##
+    ## - We get a component from a variable_index
+    ## - retrieve applicable changes
+    ## - apply them to a component (state, in general)
+    ## - return updated state and reminder of changes to be used on a next
+    ## reduction step
+    case get_component(state, variable_index) do
+      nil ->
+        {state, changes}
+
+      component ->
+        {applicable_changes, remaining_changes} =
+          Map.split_with(changes, fn {var_idx, _domain_change} -> var_idx in component end)
+
+        {apply_changes_to_component(state, component, applicable_changes), remaining_changes}
     end
   end
 
-  defp matching_changed?(component, matching, vars) do
-    Enum.any?(component, fn {:variable, var_index} = var_vertex ->
-      var = get_variable(vars, var_index)
-      {:value, matched_value} = Map.get(matching, var_vertex)
-      !contains?(var, matched_value)
+  defp apply_changes_to_component(state, component, changes) do
+    state
+  end
+
+  defp build_component_locator(%{matching: matching} = state) do
+    # Build an array with size equal to number of variables
+    num_variables = map_size(matching)
+    array_ref = :atomics.new(num_variables, signed: true)
+    Enum.each(state.type1_components, fn c -> build_component_locator_impl(array_ref, c) end)
+    Enum.each(state.sccs, fn c -> build_component_locator_impl(array_ref, c) end)
+
+    array_ref
+  end
+
+  def build_component_locator_impl(array_ref, component) do
+    {first, last} =
+      Enum.reduce(component, {nil, nil}, fn el, {first, prev} ->
+        if first do
+          :atomics.put(array_ref, prev, el + 1)
+          {first, el + 1}
+        else
+          {el + 1, el + 1}
+        end
+      end)
+
+    :atomics.put(array_ref, last, first)
+  end
+
+  ## Retrieve component vertices the variable given by it's idex
+  ## belongs to.
+  def get_component(%{component_locator: component_locator} = _state, var_index) do
+    get_component(component_locator, var_index)
+  end
+
+  def get_component(component_locator, var_index) do
+    base1_index = var_index + 1
+
+    if :atomics.info(component_locator)[:size] < base1_index do
+      nil
+    else
+      case :atomics.get(component_locator, base1_index) do
+        0 ->
+          nil
+
+        next ->
+          get_component_impl(
+            component_locator,
+            base1_index,
+            next,
+            MapSet.new([var_index, next - 1])
+          )
+      end
+    end
+  end
+
+  defp get_component_impl(component_locator, first_index, current_index, acc) do
+    next_index = :atomics.get(component_locator, current_index)
+
+    (next_index == first_index && acc) ||
+      get_component_impl(
+        component_locator,
+        first_index,
+        next_index,
+        MapSet.put(acc, next_index - 1)
+      )
+  end
+
+  defp apply_variable_change(state, variable, variable_index, changes) do
+    ## Get the component to apply the domain change to.
+    ## Note: there is only one component to apply the triggered by a single variable change.
+    ## There could be many variable changes applicable to a single component.
+    ##
+    ## - We get a component from a variable_index
+    ## - retrieve applicable changes
+    ## - apply them to a component (state, in general)
+    ## - return updated state and reminder of changes to be used on a next
+    ## reduction step
+    case get_component(state, variable_index) do
+      nil ->
+        {state, changes}
+
+      component ->
+        {applicable_changes, remaining_changes} = Map.split(changes, component)
+    end
+  end
+
+  defp matching_changed?(component, matching, vars, changes) do
+    Enum.any?(changes, fn {var_index, domain_change} = change ->
+      var_vertex = {:variable, var_index}
+
+      var_vertex in component &&
+        (
+          var = get_variable(vars, var_index)
+
+          fixed?(var) ||
+            (
+              {:value, matched_value} = Map.get(matching, var_vertex)
+              !contains?(var, matched_value)
+            )
+        )
     end)
   end
 

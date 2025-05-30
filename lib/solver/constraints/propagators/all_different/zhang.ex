@@ -54,12 +54,12 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       )
   end
 
-  def process_left_partition_node(%{matching: matching} = state, node) do
+  def process_left_partition_node(%{matching: matching} = state, {:variable, variable_id} = node) do
     (visited?(state, node) && state) ||
       state
       |> mark_visited(node)
       |> Map.update!(:GA_complement_matching, fn nodes -> Map.delete(nodes, node) end)
-      |> Map.update!(:GA, fn nodes -> MapSet.put(nodes, node) end)
+      |> Map.update!(:GA, fn nodes -> MapSet.put(nodes, variable_id) end)
       |> process_right_partition_node(Map.get(matching, node))
       |> schedule_removals(node)
   end
@@ -150,11 +150,11 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         case BitGraph.V.get_vertex(graph_acc, vertex_index) do
           ## We only need to remove out-edges from 'variable' vertices
           ## that cross to other SCCS
-          {:variable, _variable_id} = v ->
+          {:variable, variable_id} = v ->
             foreign_neighbors = BitGraph.E.out_neighbors(g_acc, vertex_index)
 
             {
-              MapSet.put(vertices_acc, v),
+              MapSet.put(vertices_acc, variable_id),
               Enum.reduce(foreign_neighbors, g_acc, fn neighbor, g_acc2
                                                        when is_integer(neighbor) ->
                 (neighbor in component && g_acc2) ||
