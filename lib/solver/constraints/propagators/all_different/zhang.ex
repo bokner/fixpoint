@@ -20,8 +20,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         matching: matching,
         free_nodes: free_nodes,
         scheduled_for_removal: Map.new(),
-        type1_components: [],
-        sccs: []
+        components: MapSet.new()
       },
       fn free_node, acc ->
         if visited?(acc, free_node) do
@@ -31,9 +30,9 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
           |> Map.put(:GA, MapSet.new())
           |> process_right_partition_node(free_node)
           |> then(fn %{GA: ga} = type1_state ->
-            Map.update!(type1_state, :type1_components,
+            Map.update!(type1_state, :components,
             fn components -> (MapSet.size(ga) > 1) &&
-              [ga | components] || components
+              MapSet.put(components, ga) || components
             end)
           end)
         end
@@ -118,7 +117,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       |> then(fn {sccs, reduced_graph} ->
         state
         |> Map.put(:value_graph, reduced_graph)
-        |> Map.put(:sccs, sccs)
+        |> Map.update!(:components, fn components -> MapSet.union(sccs, components) end)
       end)
   end
 
@@ -133,12 +132,12 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
   def process_sccs(graph, matching, remove_edge_fun) do
     BitGraph.Algorithms.strong_components(graph,
       vertices:
-        Enum.reduce(matching, [], fn {var_vertex, value_vertex}, acc ->
-          [var_vertex, value_vertex | acc]
+        Enum.reduce(matching, MapSet.new(), fn {var_vertex, value_vertex}, acc ->
+          MapSet.put(acc, var_vertex) |> MapSet.put(value_vertex)
         end),
       component_handler:
         {fn component, acc -> scc_component_handler(component, remove_edge_fun, acc) end,
-         {[], graph}},
+         {MapSet.new(), graph}},
       algorithm: :tarjan
     )
   end
@@ -169,7 +168,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
 
     ## drop 1-vertex sccs
     updated_components =
-      (MapSet.size(variable_vertices) > 1 && [variable_vertices | component_acc]) || component_acc
+      MapSet.size(variable_vertices) > 1 && MapSet.put(component_acc, variable_vertices) || component_acc
 
     {updated_components, updated_graph}
   end

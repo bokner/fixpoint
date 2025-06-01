@@ -32,9 +32,9 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
 
       # The value graph is split into 2 single-edge components and one component with Γ(A) + A vertices
       assert Enum.map(BitGraph.Algorithms.components(reduced_value_graph), fn component -> MapSet.size(component) end) |> Enum.sort() == [2, 2, 5]
-      # Single-edge SCCs are removed, one left is the one with reduced t1-type edges
-      assert length(state.sccs) == 0
-      assert length(state.type1_components) == 1
+      # Single-edge components are removed, one left is the one with reduced t1-type edges (variables x2 and x3)
+      assert MapSet.size(state.components) == 1
+      assert hd(MapSet.to_list(state.components)) == MapSet.new([2, 3])
     end
 
     test "cascading" do
