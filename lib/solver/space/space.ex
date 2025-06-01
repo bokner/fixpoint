@@ -298,16 +298,12 @@ defmodule CPSolver.Space do
 
   def checkpoint(propagators, constraint_graph) do
     Enum.reduce_while(propagators, :ok, fn p, acc ->
-      if ConstraintGraph.propagator_degree(constraint_graph, p.id) > 0 do
         bound_p = Propagator.bind(p, constraint_graph, :domain)
 
         case Propagator.filter(bound_p, constraint_graph: constraint_graph) do
           :fail -> {:halt, {:fail, p.id}}
           _ -> {:cont, acc}
         end
-      else
-        {:cont, acc}
-      end
     end)
 
     # :ok
