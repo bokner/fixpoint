@@ -85,8 +85,8 @@ defmodule CPSolver.Examples.Sudoku do
 
     ## Variables
     cells =
-      Enum.map(0..(dimension - 1), fn i ->
-        Enum.map(0..(dimension - 1), fn j ->
+      for i <- 0..(dimension - 1) do
+        for j <-  0..(dimension - 1) do
           cell = Enum.at(puzzle, i) |> Enum.at(j)
 
           cell_name = [i + 1, j + 1]
@@ -97,8 +97,8 @@ defmodule CPSolver.Examples.Sudoku do
           else
             IntVariable.new(numbers, name: cell_name)
           end
-        end)
-      end)
+        end
+      end
 
     alldifferent_constraint = opts[:alldifferent_constraint] || AllDifferent
     # Each row has different numbers
