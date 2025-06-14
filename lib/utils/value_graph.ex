@@ -98,4 +98,25 @@ defmodule CPSolver.ValueGraph do
   defp get_neighbors(_graph, {:value, _value}, _variables, :out) do
     MapSet.new([])
   end
+
+  ## Matching edges will be reversed
+  def matching_neighbor_finder(graph, variables, matching) do
+    default_neighbor_finder = default_neighbor_finder(variables)
+    {indexed_matching, reversed_indexed_matching} =
+      Enum.reduce(matching, {Map.new(), Map.new()}, fn {var_vertex, value_vertex}, {matching_acc, reverse_matching_acc} ->
+        var_index = BitGraph.V.get_vertex_index(graph, var_vertex)
+        value_index = BitGraph.V.get_vertex_index(graph, value_vertex)
+        {
+        Map.put(matching_acc, var_index, value_index),
+        Map.put(reverse_matching_acc, value_index, var_index)
+      }
+    end)
+    fn graph, vertex_index, direction ->
+      neighbors = default_neighbor_finder.(graph, vertex_index, direction)
+      matching_index =
+        (direction == :out && Map.get(indexed_matching, vertex_index)) ||
+        (direction == :in && Map.get(reversed_indexed_matching, vertex_index))
+      matching_index && MapSet.delete(neighbors, matching_index) || neighbors
+    end
+  end
 end
