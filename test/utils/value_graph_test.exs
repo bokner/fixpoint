@@ -148,9 +148,11 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
       ## With matching edges oriented from values to variables,
       ## the graph becomes a cycle.
+      matching_neighbor_finder =
+        ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching)
+
       assert BitGraph.strongly_connected?(graph,
-               neighbor_finder:
-                 ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching)
+               neighbor_finder: matching_neighbor_finder
              )
 
       ## Removing matching edge invalidates matching
@@ -159,13 +161,17 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
       refute :no_change == Interface.remove(Enum.at(variables, var_index), matching_value)
 
-      assert catch_throw(
-               {:invalid_matching, var_vertex, value_vertex} ==
-                 BitGraph.strongly_connected?(graph,
-                   neighbor_finder:
-                     ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching)
-                 )
-             )
+      ## Fails on invalid matching
+      ## 1. Previously used neighbor finder
+      assert catch_throw(BitGraph.strongly_connected?(graph,
+                   neighbor_finder: matching_neighbor_finder
+                 )) == {:invalid_matching, var_vertex, value_vertex}
+      ## ...or the new one, with the same matching and variables
+      assert catch_throw(BitGraph.strongly_connected?(graph,
+                   neighbor_finder: ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching)
+                 )) == {:invalid_matching, var_vertex, value_vertex}
+
+
     end
   end
 end
