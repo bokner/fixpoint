@@ -10,7 +10,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   alias BitGraph.Algorithms.Matching.Kuhn
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Zhang
-  alias CPSolver.Utils
 
   @impl true
   def reset(args, %{value_graph: value_graph} = state) do
