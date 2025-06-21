@@ -19,16 +19,15 @@ defmodule CPSolverTest.Utils.ValueGraph do
       domain = 1..5
       variables = Enum.map(1..num_variables, fn idx -> Variable.new(domain, name: "x#{idx}") end)
       %{graph: graph, left_partition: _left_partition} = ValueGraph.build(variables)
-      neighbor_finder = ValueGraph.default_neighbor_finder(variables)
       ## For 'variable' vertices, all neighbors are 'out' vertices {:value, domain_value}.
       ## The domain of variable represented by 'variable' vertex is covered by it's neighbors.
       assert Enum.all?(0..(num_variables - 1), fn var_idx ->
                variable_vertex = {:variable, var_idx}
 
-               BitGraph.out_neighbors(graph, variable_vertex, neighbor_finder: neighbor_finder) ==
+               BitGraph.out_neighbors(graph, variable_vertex) ==
                  MapSet.new(domain, fn val -> {:value, val} end) &&
                  Enum.empty?(
-                   BitGraph.in_neighbors(graph, variable_vertex, neighbor_finder: neighbor_finder)
+                   BitGraph.in_neighbors(graph, variable_vertex)
                  )
              end)
 
@@ -38,10 +37,10 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert Enum.all?(domain, fn value ->
                value_vertex = {:value, value}
 
-               BitGraph.in_neighbors(graph, value_vertex, neighbor_finder: neighbor_finder) ==
+               BitGraph.in_neighbors(graph, value_vertex) ==
                  MapSet.new(0..(num_variables - 1), fn var_index -> {:variable, var_index} end) &&
                  Enum.empty?(
-                   BitGraph.out_neighbors(graph, value_vertex, neighbor_finder: neighbor_finder)
+                   BitGraph.out_neighbors(graph, value_vertex)
                  )
              end)
 
@@ -51,15 +50,13 @@ defmodule CPSolverTest.Utils.ValueGraph do
       Interface.remove(Enum.at(variables, some_variable_index), some_value)
 
       ## The 'value' vertex is removed from neighbors of the 'variable' vertex
-      assert BitGraph.out_neighbors(graph, {:variable, some_variable_index},
-               neighbor_finder: neighbor_finder
-             ) ==
+      assert BitGraph.out_neighbors(graph, {:variable, some_variable_index}) ==
                MapSet.new(List.delete(Range.to_list(domain), some_value), fn val ->
                  {:value, val}
                end)
 
       # ... and vice versa
-      assert BitGraph.in_neighbors(graph, {:value, some_value}, neighbor_finder: neighbor_finder) ==
+      assert BitGraph.in_neighbors(graph, {:value, some_value}) ==
                MapSet.new(
                  List.delete(Range.to_list(0..(num_variables - 1)), some_variable_index),
                  fn var -> {:variable, var} end
@@ -67,15 +64,11 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
       ## ... nothing changes otherwise
       assert Enum.empty?(
-               BitGraph.out_neighbors(graph, {:value, some_value},
-                 neighbor_finder: neighbor_finder
-               )
+               BitGraph.out_neighbors(graph, {:value, some_value})
              )
 
       assert Enum.empty?(
-               BitGraph.in_neighbors(graph, {:variable, some_variable_index},
-                 neighbor_finder: neighbor_finder
-               )
+               BitGraph.in_neighbors(graph, {:variable, some_variable_index})
              )
     end
 
@@ -88,8 +81,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert %{matching: %{}} = BitGraph.Algorithms.bipartite_matching(graph, left_partition)
 
       matching =
-        BitGraph.Algorithms.bipartite_matching(graph, left_partition,
-          neighbor_finder: ValueGraph.default_neighbor_finder(variables)
+        BitGraph.Algorithms.bipartite_matching(graph, left_partition
         )
 
       assert MapSet.size(matching.free) == 1
@@ -112,9 +104,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       graph = BitGraph.delete_vertex(graph, free_vertex)
 
       matching2 =
-        BitGraph.Algorithms.bipartite_matching(graph, left_partition,
-          neighbor_finder: ValueGraph.default_neighbor_finder(variables)
-        )
+        BitGraph.Algorithms.bipartite_matching(graph, left_partition)
 
       ## No free nodes
       assert Enum.empty?(matching2.free)

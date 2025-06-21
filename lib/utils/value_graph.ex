@@ -55,7 +55,10 @@ defmodule CPSolver.ValueGraph do
 
     %{
       graph:
-        BitGraph.new(num_vertices: MapSet.size(value_vertices) + var_count)
+        BitGraph.new(
+          num_vertices: MapSet.size(value_vertices) + var_count,
+          neighbor_finder: default_neighbor_finder(variables)
+        )
         |> then(fn g ->
           Enum.reduce(0..(var_count - 1), g, fn idx, g_acc ->
             BitGraph.add_vertex(g_acc, {:variable, idx})
@@ -125,13 +128,11 @@ defmodule CPSolver.ValueGraph do
             var_vertex_index,
             {value_vertex_index, propagator_variable, value, var_vertex}
           ),
-          # value_vertex_index),
           Map.put(
             reverse_matching_acc,
             value_vertex_index,
             {var_vertex_index, propagator_variable, value, var_vertex}
           )
-          # var_vertex_index)
         }
       end)
 
