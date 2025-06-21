@@ -22,36 +22,40 @@ defmodule CPSolver.ValueGraph do
     check_matching? = Keyword.get(opts, :check_matching, false)
 
     {value_vertices, var_count, fixed, _fixed_values} =
-      Enum.reduce(variables, {MapSet.new(), 0, Map.new(), MapSet.new()}, fn var,
-                                                                            {
-                                                                              vertices_acc,
-                                                                              var_count_acc,
-                                                                              fixed_matching_acc,
-                                                                              fixed_values_acc
-                                                                            } ->
-        domain = Utils.domain_values(var)
-        domain_size = MapSet.size(domain)
+      Enum.reduce(
+        variables,
+        {MapSet.new(), 0, Map.new(), MapSet.new()},
+        fn var,
+           {
+             vertices_acc,
+             var_count_acc,
+             fixed_matching_acc,
+             fixed_values_acc
+           } ->
+          domain = Utils.domain_values(var)
+          domain_size = MapSet.size(domain)
 
-        vertices_acc =
-          Enum.reduce(domain, vertices_acc, fn value, acc ->
-            MapSet.put(acc, {:value, value})
-          end)
+          vertices_acc =
+            Enum.reduce(domain, vertices_acc, fn value, acc ->
+              MapSet.put(acc, {:value, value})
+            end)
 
-        {fixed_matching_acc, fixed_values_acc} =
-          if domain_size == 1 do
-            fixed_value = Enum.fetch!(domain, 0)
-            MapSet.member?(fixed_values_acc, fixed_value) && check_matching? && fail()
+          {fixed_matching_acc, fixed_values_acc} =
+            if domain_size == 1 do
+              fixed_value = Enum.fetch!(domain, 0)
+              MapSet.member?(fixed_values_acc, fixed_value) && check_matching? && fail()
 
-            {
-              Map.put(fixed_matching_acc, {:variable, var_count_acc}, {:value, fixed_value}),
-              MapSet.put(fixed_values_acc, fixed_value)
-            }
-          else
-            {fixed_matching_acc, fixed_values_acc}
-          end
+              {
+                Map.put(fixed_matching_acc, {:variable, var_count_acc}, {:value, fixed_value}),
+                MapSet.put(fixed_values_acc, fixed_value)
+              }
+            else
+              {fixed_matching_acc, fixed_values_acc}
+            end
 
-        {vertices_acc, var_count_acc + 1, fixed_matching_acc, fixed_values_acc}
-      end)
+          {vertices_acc, var_count_acc + 1, fixed_matching_acc, fixed_values_acc}
+        end
+      )
 
     %{
       graph:
