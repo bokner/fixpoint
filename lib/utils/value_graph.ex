@@ -207,4 +207,15 @@ defmodule CPSolver.ValueGraph do
         MapSet.delete(neighbors, variable_match)
     end
   end
+
+  def delete_edge(graph, {:value, _value} = value_vertex, {:variable, _var_index} = var_vertex, variables) do
+      delete_edge(graph, var_vertex, value_vertex, variables)
+  end
+
+  def delete_edge(graph, {:variable, var_index}, {:value, value} = value_vertex, variables) do
+    propagator_variable = Propagator.arg_at(variables, var_index)
+    Interface.remove(propagator_variable, value)
+    BitGraph.degree(graph, value_vertex) == 0 &&
+      BitGraph.delete_vertex(graph, value_vertex) || graph
+  end
 end
