@@ -106,24 +106,15 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
     MapSet.member?(visited, node)
   end
 
-  def remove_type2_edges(%{GA_complement_matching: matching} = state, remove_edge_fun) do
+  def remove_type2_edges(%{value_graph: graph, GA_complement_matching: matching} = state, remove_edge_fun) do
     (Enum.empty?(matching) && state) ||
-      state
-      |> flip_matching_edges()
+      graph
       |> process_sccs(matching, remove_edge_fun)
       |> then(fn {sccs, reduced_graph} ->
         state
         |> Map.put(:value_graph, reduced_graph)
         |> Map.update!(:components, fn components -> MapSet.union(sccs, components) end)
       end)
-  end
-
-  defp flip_matching_edges(%{value_graph: graph, GA_complement_matching: matching} = _state) do
-    Enum.reduce(matching, graph, fn {variable_vertex, value_vertex}, acc ->
-      acc
-      |> BitGraph.delete_edge(variable_vertex, value_vertex)
-      |> BitGraph.add_edge(value_vertex, variable_vertex)
-    end)
   end
 
   def process_sccs(graph, matching, remove_edge_fun) do
