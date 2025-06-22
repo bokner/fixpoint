@@ -16,10 +16,7 @@ defmodule CPSolver.Propagator.Variable do
   defdelegate max(var), to: Interface
   defdelegate contains?(var, val), to: Interface
   defdelegate id(var), to: Interface
-
-  def fixed?(var) do
-    Interface.fixed?(var)
-  end
+  defdelegate fixed?(var), to: Interface
 
   def remove(var, val) do
     wrap(:remove, var, val)

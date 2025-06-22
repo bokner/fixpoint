@@ -2,6 +2,7 @@ defmodule CPSolver.ValueGraph do
   alias CPSolver.Utils
   alias CPSolver.Variable.Interface
   alias CPSolver.Propagator
+  alias CPSolver.Propagator.Variable, as: PropagatorVariable
 
   def build(variables, opts \\ []) do
     ## Builds value graph and supporting structures
@@ -193,9 +194,9 @@ defmodule CPSolver.ValueGraph do
     case Map.get(reversed_indexed_matching, vertex_index) do
       nil ->
         case Map.get(indexed_matching, vertex_index) do
-          ## All variables have to have a matched value (unlikely failure!)
           nil ->
-            fail(:unmatched_variable)
+            ## Nowhere in matching; must be a free value
+            neighbors
 
           {value_match, variable, matching_value, variable_vertex} ->
             (Interface.contains?(variable, matching_value) &&
@@ -214,7 +215,7 @@ defmodule CPSolver.ValueGraph do
 
   def delete_edge(graph, {:variable, var_index}, {:value, value} = value_vertex, variables) do
     propagator_variable = Propagator.arg_at(variables, var_index)
-    Interface.remove(propagator_variable, value)
+    PropagatorVariable.remove(propagator_variable, value)
     BitGraph.degree(graph, value_vertex) == 0 &&
       BitGraph.delete_vertex(graph, value_vertex) || graph
   end

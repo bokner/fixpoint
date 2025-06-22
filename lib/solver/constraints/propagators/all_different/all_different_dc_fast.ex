@@ -72,8 +72,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   defp build_reduction_callback(variables) do
     fn graph, var_vertex, value_vertex ->
-      remove(get_variable(variables, get_index(var_vertex)), get_index(value_vertex))
-      BitGraph.delete_edge(graph, get_variable_vertex(var_vertex), get_value_vertex(value_vertex))
+      ValueGraph.delete_edge(graph, get_variable_vertex(var_vertex), get_value_vertex(value_vertex), variables)
     end
   end
 
@@ -111,6 +110,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           value_graph: value_graph,
           matching: partial_matching,
           variable_vertices: variable_vertices,
+          propagator_variables: variables,
           reduction_callback: remove_edge_fun
         } = state
       ) do
@@ -118,7 +118,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       find_matching(value_graph, variable_vertices, partial_matching)
 
     %{value_graph: reduced_value_graph, components: components} =
-      Zhang.reduce(value_graph, free_nodes, matching, remove_edge_fun)
+      value_graph
+      |> BitGraph.update_opts(neighbor_finder: ValueGraph.matching_neighbor_finder(value_graph, variables, matching))
+      |> Zhang.reduce(free_nodes, matching, remove_edge_fun)
 
     state
     |> Map.put(:value_graph, reduced_value_graph)

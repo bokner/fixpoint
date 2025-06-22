@@ -5,9 +5,6 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
     |> remove_type2_edges(remove_edge_fun)
   end
 
-  ## TODO: handle multiple components
-  ## That is, free nodes could be distributed across components.
-  ## This could lead to multiple `type1 ` components.
   def remove_type1_edges(graph, free_nodes, matching, process_redundant_fun) do
     Enum.reduce(
       free_nodes,
