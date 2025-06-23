@@ -170,7 +170,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       ## ...or the new one, with the same matching and variables
       assert catch_throw(BitGraph.strongly_connected?(graph,
                    neighbor_finder: ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching)
-                 )) == {:invalid_matching, var_vertex, value_vertex}
+                 )) == {:invalid_matches, var_vertex, value_vertex}
 
 
     end

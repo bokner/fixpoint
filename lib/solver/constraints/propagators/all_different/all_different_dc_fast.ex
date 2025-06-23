@@ -7,14 +7,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   use CPSolver.Propagator
 
-  alias BitGraph.Algorithms.Matching.Kuhn
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Zhang
 
   @impl true
   def reset(args, %{value_graph: value_graph} = state) do
     state
-    |> Map.put(:value_graph, BitGraph.copy(value_graph))
     |> Map.put(:reduction_callback, build_reduction_callback(args))
   end
 
@@ -61,10 +59,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     %{graph: value_graph, left_partition: variable_vertices, fixed: partial_matching} =
       ValueGraph.build(variables, check_matching: true)
 
+    %{free: free_nodes, matching: matching} =
+      find_matching(value_graph, variable_vertices, partial_matching)
+
     %{
       value_graph: value_graph,
       variable_vertices: variable_vertices,
-      matching: partial_matching,
+      matching: matching,
+      free_nodes: free_nodes,
       propagator_variables: variables,
       reduction_callback: build_reduction_callback(variables)
     }
@@ -87,7 +89,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def find_matching(value_graph, variable_vertices, partial_matching) do
-    Kuhn.run(
+    BitGraph.Algorithms.bipartite_matching(
       value_graph,
       variable_vertices,
       fixed_matching: partial_matching,
@@ -108,14 +110,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   def reduce_impl(
         %{
           value_graph: value_graph,
-          matching: partial_matching,
+          matching: matching,
+          free_nodes: free_nodes,
           variable_vertices: variable_vertices,
           propagator_variables: variables,
           reduction_callback: remove_edge_fun
         } = state
       ) do
-    %{free: free_nodes, matching: matching} =
-      find_matching(value_graph, variable_vertices, partial_matching)
+
 
     %{value_graph: reduced_value_graph, components: components} =
       value_graph
@@ -132,68 +134,29 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     initial_reduction(vars)
   end
 
-  def apply_changes(vars, %{value_graph: graph, matching: matching} = state, changes) do
-    #IO.inspect({self(), changes}, label: :changes)
-    updated_graph = Enum.reduce(changes, graph,
-    fn {var_index, domain_change}, graph_acc ->
-      apply_change(graph_acc, matching, vars, var_index, domain_change)
-      #|> tap(fn g -> var_index == 0 && IO.inspect({var_index, BitGraph.neighbors(g, {:variable, var_index})}, label: :after) end)
-    end)
-
-    # validate_value_graph(updated_graph, vars, changes, :updated_graph)
-    # %{state | value_graph: updated_graph, matching: %{},
-    #   reduction_callback: build_reduction_callback(vars)}
-
-    #|> tap(fn _ -> validate_value_graph(graph, vars) end)
-    #|> reduce_state()
-    # state =
-    #   state
-    #   |> Map.put(:component_locator, build_component_locator(state))
-    #   |> Map.put(:propagator_variables, vars)
-
-    # {updated_state, _} =
-    #   Enum.reduce(changes, {state, changes}, fn {var_index, _domain_change} = _var_change,
-    #                                             {state_acc, remaining_changes_acc} = acc ->
-    #     (Map.has_key?(remaining_changes_acc, var_index) &&
-    #        apply_variable_change(state_acc, var_index, remaining_changes_acc)) ||
-    #       acc
-    #   end)
-
-    ## TODO: remove
-    initial_reduction(vars)
-    # |> tap(fn final_state -> validate_value_graph(final_state.value_graph, vars, changes, :final_graph) end)
-
+  def apply_changes(vars, state, _changes) do
+    #initial_reduction(vars)
+    state
+    |> update_state(vars)
+    |> then(fn updated_state -> updated_state && reduce_state(updated_state) || state end)
+    |> reduce_state()
   end
 
-  defp validate_value_graph(graph, vars, changes, label) do
-    Enum.all?(Enum.with_index(vars, 0), fn {var, idx} ->
-      domain_size = size(var)
-      degree = BitGraph.degree(graph, {:variable, idx})
-      #domain_size != degree &&
-      #IO.inspect(%{pid: self(), index: idx, var_id: Interface.variable(var).name, domain: Utils.domain_values(var),
-      #neighbors: BitGraph.out_neighbors(graph, {:variable, idx}), changes: changes}, label: label)
-    end)
-  end
+  defp update_state(%{value_graph: graph} = state, vars) do
+    case maybe_repair_matching(state, vars) do
+      nil -> nil
+      {:ok, repaired_matching} ->
 
-  defp apply_change(graph, matching, vars, var_index, domain_change) do
-    var = get_variable(vars, var_index)
-    if Interface.variable(var).name == [1, 5] do
-      #IO.inspect({Interface.variable(var).name, Utils.domain_values(var, :interface)}, label: :changes)
+      %{state | value_graph:
+      BitGraph.update_opts(graph,
+      neighbor_finder: ValueGraph.matching_neighbor_finder(graph, vars, repaired_matching))}
     end
-
-    graph
-    |> reverse_matching_edge(matching, var_index)
-    |> update_value_graph(var, var_index)
   end
 
-  defp reverse_matching_edge(graph, matching, var_index) do
-    variable_vertex = {:variable, var_index}
-    value_vertex = Map.get(matching, variable_vertex)
-    graph
-    |> BitGraph.delete_edge(value_vertex, variable_vertex)
-    |> BitGraph.add_edge(variable_vertex, value_vertex)
-
+  defp maybe_repair_matching(%{value_graph: graph, matching: matching, variable_vertices: variable_vertices} = state, vars) do
+    :todo
   end
+
 
   defp apply_variable_change(
          %{component_locator: component_locator} = state,
@@ -214,49 +177,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         {state, changes}
 
       component ->
-        {applicable_changes, remaining_changes} =
+        {_applicable_changes, _remaining_changes} =
           Map.split_with(changes, fn {var_idx, _domain_change} -> var_idx in component end)
-
-        {reduce_component(state, component, applicable_changes), remaining_changes}
+       {state, changes}
     end
   end
 
-  defp reduce_component(
-         %{matching: matching, propagator_variables: vars} = state,
-         component,
-         changes
-       ) do
-    {updated_state, matching_changed?} =
-      Enum.reduce(changes, {state, false}, fn {var_index, domain_change},
-                                              {state_acc, change_flag_acc} ->
-        (matching_changed?(matching, vars, var_index, domain_change) &&
-           {state_acc, true}) ||
-          {
-            Map.update!(state_acc, :value_graph, fn value_graph ->
-              update_value_graph(value_graph, vars, var_index)
-            end),
-            change_flag_acc || false
-          }
-      end)
-
-    (matching_changed? && reduce_component_zhang(updated_state, component)) ||
-      updated_state
-  end
-
-  defp reduce_component_zhang(state, component) do
-    state
-    |> Map.put(:variable_vertices, Enum.reduce(component, MapSet.new(), fn x, acc -> MapSet.put(acc, {:variable, x}) end))
-    |> Map.put(:matching, %{})
-    # |> reduce_state()
-
-    #  |> then(fn %{components: subcomponents} = reduced_state ->
-    #    Map.update!(state, :components, fn components ->
-    #      components
-    #      |> MapSet.delete(component)
-    #      |> MapSet.union(subcomponents)
-    #    end)
-    #  end)
-  end
 
   defp build_component_locator(%{variable_vertices: variable_vertices} = state) do
     # Build an array with size equal to number of variables
@@ -322,34 +248,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       )
   end
 
-  defp matching_changed?(_matching, _vars, _var_index, :fixed) do
-    true
-  end
-
-  defp matching_changed?(matching, vars, var_index, _domain_change) do
-    var = get_variable(vars, var_index)
-
-    case Map.get(matching, {:variable, var_index}) do
-      {:value, matched_value} ->
-        !contains?(var, matched_value)
-      nil -> true
-    end
-
-  end
 
   ## Helpers
-  defp get_index({:variable, idx}) do
-    idx
-  end
-
-  defp get_index({:value, idx}) do
-    idx
-  end
-
-  defp get_index(idx) when is_integer(idx) do
-    idx
-  end
-
   defp get_variable_vertex({:variable, _vertex} = v) do
     v
   end
@@ -366,26 +266,4 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     {:value, vertex}
   end
 
-  defp get_variable(variables, var_index) do
-    Propagator.arg_at(variables, var_index)
-  end
-
-  defp update_value_graph(graph, propagator_variable, var_index) do
-    variable_vertex = {:variable, var_index}
-    neighbors = BitGraph.out_neighbors(graph, variable_vertex)
-    if Interface.variable(propagator_variable).name == [1, 5] do
-      #IO.inspect({Interface.variable(propagator_variable).name, Utils.domain_values(propagator_variable, :interface),
-      #neighbors}, label: :domain0)
-    end
-
-    Enum.reduce(neighbors, graph,
-        fn {:value, value} = value_vertex, acc ->
-          (contains?(propagator_variable, value) && acc) ||
-            BitGraph.delete_edge(acc, variable_vertex, value_vertex)
-        end
-      )
-    #|> tap(fn g ->
-    #  Interface.variable(propagator_variable).name == [1, 5] &&
-    #  IO.inspect(BitGraph.neighbors(g, variable_vertex), label: :after_update) end)
-    end
 end

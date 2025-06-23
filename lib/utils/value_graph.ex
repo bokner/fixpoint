@@ -115,14 +115,14 @@ defmodule CPSolver.ValueGraph do
   def matching_neighbor_finder(graph, variables, matching) do
     default_neighbor_finder = default_neighbor_finder(variables)
 
-    {indexed_matching, reversed_indexed_matching} =
-      Enum.reduce(matching, {Map.new(), Map.new()}, fn {{:variable, var_index} = var_vertex,
+    {indexed_matching, reversed_indexed_matching, invalid_matches} =
+      Enum.reduce(matching, {Map.new(), Map.new(), Map.new()}, fn {{:variable, var_index} = var_vertex,
                                                         {:value, value} = value_vertex},
-                                                       {matching_acc, reverse_matching_acc} ->
+                                                       {matching_acc, reverse_matching_acc, invalid_matches_acc} ->
         propagator_variable = Propagator.arg_at(variables, var_index)
 
-        Interface.contains?(propagator_variable, value) ||
-          fail({:invalid_matching, var_vertex, value_vertex})
+        invalid_matches = Interface.contains?(propagator_variable, value) && invalid_matches_acc
+          || Map.put(invalid_matches_acc, var_vertex, value_vertex)
 
         var_vertex_index = BitGraph.V.get_vertex_index(graph, var_vertex)
         value_vertex_index = BitGraph.V.get_vertex_index(graph, value_vertex)
@@ -137,10 +137,12 @@ defmodule CPSolver.ValueGraph do
             reverse_matching_acc,
             value_vertex_index,
             {var_vertex_index, propagator_variable, value, var_vertex}
-          )
+          ),
+          invalid_matches
         }
       end)
 
+    Enum.empty?(invalid_matches) &&
     fn graph, vertex_index, direction ->
       neighbors = default_neighbor_finder.(graph, vertex_index, direction)
 
@@ -151,7 +153,7 @@ defmodule CPSolver.ValueGraph do
         reversed_indexed_matching,
         direction
       )
-    end
+    end || fail({:invalid_matches, invalid_matches})
   end
 
   ## Out-neighbors
