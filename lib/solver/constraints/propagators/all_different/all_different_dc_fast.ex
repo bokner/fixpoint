@@ -7,7 +7,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   use CPSolver.Propagator
 
-  alias BitGraph.Algorithms.Matching.Kuhn
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Zhang
 
@@ -86,7 +85,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def find_matching(value_graph, variable_vertices, partial_matching) do
-    Kuhn.run(
+    BitGraph.Algorithms.bipartite_matching(
       value_graph,
       variable_vertices,
       fixed_matching: partial_matching,
@@ -114,7 +113,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         } = state
       ) do
     %{free: free_nodes, matching: matching} =
-      find_matching(value_graph, variable_vertices, partial_matching)
+      value_graph
+      |> BitGraph.update_opts(
+        neighbor_finder: ValueGraph.default_neighbor_finder(variables)
+      )
+      |> find_matching(variable_vertices, partial_matching)
 
     %{value_graph: reduced_value_graph, components: components} =
       value_graph
