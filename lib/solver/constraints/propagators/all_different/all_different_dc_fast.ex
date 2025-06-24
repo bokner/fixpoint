@@ -14,7 +14,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   @impl true
   def reset(args, %{value_graph: value_graph} = state) do
     state
-    |> Map.put(:value_graph, BitGraph.copy(value_graph))
     |> Map.put(:reduction_callback, build_reduction_callback(args))
   end
 
