@@ -10,22 +10,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Zhang
 
-
-  @impl true
-  def reset(args, %{value_graph: value_graph} = state) do
-    updated_value_graph = BitGraph.update_opts(value_graph, neighbor_finder: ValueGraph.default_neighbor_finder(args))
-
-    state
-    |> Map.put(:reduction_callback, build_reduction_callback(updated_value_graph, args))
-    |> Map.put(:propagator_variables, args)
-    |> Map.put(:value_graph, updated_value_graph)
-
-  end
-
-  def reset(_args, state) do
-    state
-  end
-
   @impl true
   def arguments(args) do
     Arrays.new(args, implementation: Aja.Vector)
