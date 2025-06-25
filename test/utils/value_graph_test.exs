@@ -7,7 +7,10 @@ defmodule CPSolverTest.Utils.ValueGraph do
     alias CPSolver.Variable.Interface
 
     test "build" do
-      variables = Enum.map(1..4, fn idx -> Variable.new(1..5, name: "x#{idx}") end)
+      num_variables = 4
+      domain = 1..5
+      variables = Enum.map(1..num_variables, fn idx -> Variable.new(domain, name: "x#{idx}") end)
+
       %{graph: graph, left_partition: left_partition} = ValueGraph.build(variables)
       assert MapSet.size(left_partition) == length(variables)
       ## 4 variables and 5 values
@@ -23,7 +26,8 @@ defmodule CPSolverTest.Utils.ValueGraph do
       ## The domain of variable represented by 'variable' vertex is covered by it's neighbors.
       assert Enum.all?(0..(num_variables - 1), fn var_idx ->
                variable_vertex = {:variable, var_idx}
-
+               BitGraph.out_degree(graph, variable_vertex) == Range.size(domain) &&
+               BitGraph.in_degree(graph, variable_vertex) == 0 &&
                BitGraph.out_neighbors(graph, variable_vertex) ==
                  MapSet.new(domain, fn val -> {:value, val} end) &&
                  Enum.empty?(
@@ -36,6 +40,8 @@ defmodule CPSolverTest.Utils.ValueGraph do
       ## in their domain
       assert Enum.all?(domain, fn value ->
                value_vertex = {:value, value}
+               BitGraph.in_degree(graph, value_vertex) == num_variables &&
+               BitGraph.out_degree(graph, value_vertex) == 0 &&
 
                BitGraph.in_neighbors(graph, value_vertex) ==
                  MapSet.new(0..(num_variables - 1), fn var_index -> {:variable, var_index} end) &&
@@ -91,17 +97,22 @@ defmodule CPSolverTest.Utils.ValueGraph do
       # 4 values in reverse matching map
       assert map_size(Map.new(matching.matching, fn {var, value} -> {value, var} end)) == 4
 
-      ## Remove free node
+      ## Remove all edges to free node
       {:value, free_node_value} = free_vertex = MapSet.to_list(matching.free) |> hd()
+      ## free node is in the graph before edge removals
+      assert BitGraph.get_vertex(graph, free_vertex)
 
-      Enum.each(variables, fn v -> Interface.remove(v, free_node_value) end)
+      graph = Enum.reduce(0..num_variables-1, graph, fn var_idx, graph_acc ->
+        ValueGraph.delete_edge(graph_acc, {:variable, var_idx}, free_vertex, variables) end)
 
-      ## Removal of values reflects in neighborhood
-      ## , without expilicit removal of edges
-      assert Enum.empty?(BitGraph.neighbors(graph, free_vertex))
+      ## Free node is no longer in the graph
+      refute BitGraph.get_vertex(graph, free_vertex)
 
-      ## TODO: do it in ValueGraph
-      graph = BitGraph.delete_vertex(graph, free_vertex)
+      ## Free node value is no longer in variable's domains
+      refute Enum.any?(variables, fn var ->
+        Interface.contains?(var, free_node_value)
+      end)
+
 
       matching2 =
         BitGraph.Algorithms.bipartite_matching(graph, left_partition)

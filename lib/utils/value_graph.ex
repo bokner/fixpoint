@@ -2,6 +2,7 @@ defmodule CPSolver.ValueGraph do
   alias CPSolver.Utils
   alias CPSolver.Variable.Interface
   alias CPSolver.Propagator
+  alias CPSolver.Propagator.Variable, as: PropagatorVariable
 
   def build(variables, opts \\ []) do
     ## Builds value graph and supporting structures
@@ -22,36 +23,40 @@ defmodule CPSolver.ValueGraph do
     check_matching? = Keyword.get(opts, :check_matching, false)
 
     {value_vertices, var_count, fixed, _fixed_values} =
-      Enum.reduce(variables, {MapSet.new(), 0, Map.new(), MapSet.new()}, fn var,
-                                                                            {
-                                                                              vertices_acc,
-                                                                              var_count_acc,
-                                                                              fixed_matching_acc,
-                                                                              fixed_values_acc
-                                                                            } ->
-        domain = Utils.domain_values(var)
-        domain_size = MapSet.size(domain)
+      Enum.reduce(
+        variables,
+        {MapSet.new(), 0, Map.new(), MapSet.new()},
+        fn var,
+           {
+             vertices_acc,
+             var_count_acc,
+             fixed_matching_acc,
+             fixed_values_acc
+           } ->
+          domain = Utils.domain_values(var)
+          domain_size = MapSet.size(domain)
 
-        vertices_acc =
-          Enum.reduce(domain, vertices_acc, fn value, acc ->
-            MapSet.put(acc, {:value, value})
-          end)
+          vertices_acc =
+            Enum.reduce(domain, vertices_acc, fn value, acc ->
+              MapSet.put(acc, {:value, value})
+            end)
 
-        {fixed_matching_acc, fixed_values_acc} =
-          if domain_size == 1 do
-            fixed_value = Enum.fetch!(domain, 0)
-            MapSet.member?(fixed_values_acc, fixed_value) && check_matching? && fail()
+          {fixed_matching_acc, fixed_values_acc} =
+            if domain_size == 1 do
+              fixed_value = Enum.fetch!(domain, 0)
+              MapSet.member?(fixed_values_acc, fixed_value) && check_matching? && fail()
 
-            {
-              Map.put(fixed_matching_acc, {:variable, var_count_acc}, {:value, fixed_value}),
-              MapSet.put(fixed_values_acc, fixed_value)
-            }
-          else
-            {fixed_matching_acc, fixed_values_acc}
-          end
+              {
+                Map.put(fixed_matching_acc, {:variable, var_count_acc}, {:value, fixed_value}),
+                MapSet.put(fixed_values_acc, fixed_value)
+              }
+            else
+              {fixed_matching_acc, fixed_values_acc}
+            end
 
-        {vertices_acc, var_count_acc + 1, fixed_matching_acc, fixed_values_acc}
-      end)
+          {vertices_acc, var_count_acc + 1, fixed_matching_acc, fixed_values_acc}
+        end
+      )
 
     %{
       graph:
@@ -189,9 +194,9 @@ defmodule CPSolver.ValueGraph do
     case Map.get(reversed_indexed_matching, vertex_index) do
       nil ->
         case Map.get(indexed_matching, vertex_index) do
-          ## All variables have to have a matched value (unlikely failure!)
           nil ->
-            fail(:unmatched_variable)
+            ## Nowhere in matching; must be a free value
+            neighbors
 
           {value_match, variable, matching_value, variable_vertex} ->
             (Interface.contains?(variable, matching_value) &&
@@ -202,5 +207,16 @@ defmodule CPSolver.ValueGraph do
       {variable_match, _, _, _} ->
         MapSet.delete(neighbors, variable_match)
     end
+  end
+
+  def delete_edge(graph, {:value, _value} = value_vertex, {:variable, _var_index} = var_vertex, variables) do
+      delete_edge(graph, var_vertex, value_vertex, variables)
+  end
+
+  def delete_edge(graph, {:variable, var_index}, {:value, value} = value_vertex, variables) do
+    propagator_variable = Propagator.arg_at(variables, var_index)
+    PropagatorVariable.remove(propagator_variable, value)
+    BitGraph.degree(graph, value_vertex) == 0 &&
+      BitGraph.delete_vertex(graph, value_vertex) || graph
   end
 end
