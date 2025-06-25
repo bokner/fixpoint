@@ -146,6 +146,7 @@ defmodule CPSolver.Propagator do
           nil
       end
     end)
+    |> tap(fn _ -> reset_filter_changes() end)
   end
 
   defp maybe_reset_state(%{mod: mod, args: args, state: state} = propagator, opts) do

@@ -10,10 +10,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Zhang
 
+
   @impl true
-  def reset(args, %{value_graph: _value_graph} = state) do
+  def reset(args, %{value_graph: value_graph} = state) do
     state
     |> Map.put(:reduction_callback, build_reduction_callback(args))
+    |> Map.put(:propagator_variables, args)
+    |> Map.put(:value_graph, BitGraph.update_opts(value_graph, neighbor_finder: ValueGraph.default_neighbor_finder(args)))
+
   end
 
   def reset(_args, state) do
@@ -63,7 +67,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       value_graph: value_graph,
       variable_vertices: variable_vertices,
       partial_matching: partial_matching,
-      fixed_values: MapSet.new(partial_matching, fn {_var_vetex, {:value, value}} -> value end),
       propagator_variables: variables,
       reduction_callback: build_reduction_callback(variables)
     }
@@ -118,43 +121,31 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     initial_reduction(vars)
   end
 
-  def apply_changes(%{value_graph: _value_graph, fixed_values: _fixed_values, propagator_variables: vars, partial_matching: _partial_matching} = _state, _changes) do
+  def apply_changes(%{value_graph: value_graph, propagator_variables: vars, partial_matching: _partial_matching} = state, _changes) do
     initial_reduction(vars)
-    # {new_fixed_values, new_partial_matching} = update_partial_matching(vars, partial_matching, fixed_values, changes)
-
     # state
-    # |> Map.put(:value_graph,
-    #   BitGraph.update_opts(value_graph,
-    #     neighbor_finder: ValueGraph.default_neighbor_finder(vars)
-    #   ))
-    # |> Map.put(:partial_matching, new_partial_matching)
-    # |> Map.put(:fixed_values, new_fixed_values)
-    # |> reduce_state()
+    #  |> Map.put(:value_graph,
+    #    BitGraph.update_opts(value_graph,
+    #      neighbor_finder: ValueGraph.default_neighbor_finder(vars)
+    #    ))
+    #  #|> Map.put(:partial_matching, %{})
+    #  #|> Map.put(:fixed_values, new_fixed_values)
+    #  |> reduce_state()
   end
 
-  # defp update_partial_matching(variables, partial_matching, fixed_values, changes) do
-  #   #{fixed_values, partial_matching}
-  #   Enum.reduce(changes, {fixed_values, partial_matching},
-  #     fn {var_index, :fixed}, {fixed_values_acc, partial_matching_acc} = acc ->
-  #       var = get_variable(variables, var_index)
-  #       fixed_value = min(var)
-  #       case Map.get(partial_matching_acc, {:variable, var_index}) do
-  #         nil ->
-  #           ## New fixed variable
-  #           ## Check if some other variable is fixed to the same value
-  #           fixed_value in fixed_values_acc && fail()
-  #           || {
-  #             MapSet.put(fixed_values_acc, fixed_value),
-  #             Map.put(partial_matching_acc, {:variable, var_index}, {:value, fixed_value})
-  #             }
-  #         {:value, value} ->
-  #           value != fixed_value && fail(:fix_to_new_value) ## Fixed to new value? Should not ever happen, but we'll check
-  #           || acc
-  #       end
+  defp update_fixed_matching(variables) do
+    Enum.reduce(variables, {0, MapSet.new(), Map.new()}, fn var, {idx, fixed_values_acc, fixed_matching_acc} = acc ->
+      fixed?(var) &&
+        (
+          fixed_value = min(var)
+          if fixed_value in fixed_values_acc, do: fail()
 
-  #     _, acc -> acc
-  #   end)
-  # end
+            {idx + 1,
+          MapSet.put(fixed_values_acc, fixed_value),
+          Map.put(fixed_matching_acc, {:variable, idx}, {:value, fixed_value})}) || acc
+    end)
+    |> elem(2)
+  end
 
   defp build_component_locator(%{variable_vertices: variable_vertices} = state) do
     # Build an array with size equal to number of variables
