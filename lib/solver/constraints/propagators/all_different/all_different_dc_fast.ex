@@ -13,10 +13,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   @impl true
   def reset(args, %{value_graph: value_graph} = state) do
+    updated_value_graph = BitGraph.update_opts(value_graph, neighbor_finder: ValueGraph.default_neighbor_finder(args))
+
     state
-    |> Map.put(:reduction_callback, build_reduction_callback(args))
+    |> Map.put(:reduction_callback, build_reduction_callback(updated_value_graph, args))
     |> Map.put(:propagator_variables, args)
-    |> Map.put(:value_graph, BitGraph.update_opts(value_graph, neighbor_finder: ValueGraph.default_neighbor_finder(args)))
+    |> Map.put(:value_graph, updated_value_graph)
 
   end
 
@@ -68,11 +70,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       variable_vertices: variable_vertices,
       partial_matching: partial_matching,
       propagator_variables: variables,
-      reduction_callback: build_reduction_callback(variables)
+      reduction_callback: build_reduction_callback(value_graph, variables)
     }
   end
 
-  defp build_reduction_callback(variables) do
+  defp build_reduction_callback(graph, variables) do
     fn graph, var_vertex, value_vertex ->
       ValueGraph.delete_edge(graph, get_variable_vertex(var_vertex), get_value_vertex(value_vertex), variables)
     end
@@ -122,15 +124,18 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def apply_changes(%{value_graph: value_graph, propagator_variables: vars, partial_matching: _partial_matching} = state, _changes) do
-    initial_reduction(vars)
-    # state
-    #  |> Map.put(:value_graph,
-    #    BitGraph.update_opts(value_graph,
-    #      neighbor_finder: ValueGraph.default_neighbor_finder(vars)
-    #    ))
-    #  #|> Map.put(:partial_matching, %{})
-    #  #|> Map.put(:fixed_values, new_fixed_values)
-    #  |> reduce_state()
+    #initial_reduction(vars)
+    updated_value_graph = BitGraph.update_opts(value_graph,
+         neighbor_finder: ValueGraph.default_neighbor_finder(vars)
+       )
+
+    state
+     |> Map.put(:reduction_callback, build_reduction_callback(updated_value_graph, vars))
+     |> Map.put(:value_graph, updated_value_graph)
+
+     #|> Map.put(:partial_matching, %{})
+     #|> Map.put(:fixed_values, new_fixed_values)
+     |> reduce_state()
   end
 
   defp update_fixed_matching(variables) do
