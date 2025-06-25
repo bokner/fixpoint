@@ -119,10 +119,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
 
   def process_sccs(graph, matching, remove_edge_fun) do
     BitGraph.Algorithms.strong_components(graph,
-      vertices:
-        Enum.reduce(matching, MapSet.new(), fn {var_vertex, value_vertex}, acc ->
-          MapSet.put(acc, var_vertex) |> MapSet.put(value_vertex)
-        end),
+      vertices: Map.keys(matching),
       component_handler:
         {fn component, acc -> scc_component_handler(component, remove_edge_fun, acc) end,
          {MapSet.new(), graph}},
