@@ -200,7 +200,7 @@ defmodule CPSolver.ValueGraph do
            MapSet.new([variable_match])) ||
           fail(
             {:invalid_matching,
-             {:value_not_in_domain, %{value: matching_value, variable: variable_vertex}}}
+             variable_vertex, {:value, matching_value}}
           )
     end
   end
@@ -221,7 +221,7 @@ defmodule CPSolver.ValueGraph do
            MapSet.new([value_match])) ||
           fail(
             {:invalid_matching,
-             {:value_not_in_domain, %{value: matching_value, variable: variable_vertex}}}
+             variable_vertex, value_match}
           )
     end
   end

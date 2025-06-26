@@ -51,7 +51,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
     %{
       value_graph: value_graph,
-      #variable_vertices: variable_vertices,
+      variable_vertices: variable_vertices,
       partial_matching: partial_matching,
       propagator_variables: variables,
       reduction_callback: build_reduction_callback(value_graph, variables)
@@ -64,29 +64,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     end
   end
 
-  def find_matching(value_graph, variables, partial_matching) do
-    {_, {_fixed_values, variable_vertices, value_graph}} = Enum.reduce(variables, {0, {MapSet.new(), MapSet.new(), value_graph}},
-        fn var, {idx, {fixed_values, vertices_acc, g_acc}} ->
-          {idx + 1,
-           if fixed?(var) do
-            new_fixed = min(var)
-            (new_fixed in fixed_values) && fail()
-            || {MapSet.put(fixed_values, new_fixed),
-               #vertices_acc,
-               MapSet.put(vertices_acc, {:variable, idx}),
-              g_acc
-            }
-           else
-            {fixed_values,
-              #vertices_acc,
-              MapSet.put(vertices_acc, {:variable, idx}),
-              g_acc}
-           end}
-        end)
+  def find_matching(value_graph, variable_vertices, partial_matching) do
     BitGraph.Algorithms.bipartite_matching(
       value_graph,
       variable_vertices,
-      #fixed_matching: partial_matching,
+      fixed_matching: partial_matching,
       required_size: MapSet.size(variable_vertices)
     )
     |> tap(fn matching -> matching || fail() end)
@@ -101,22 +83,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         %{
           value_graph: value_graph,
           partial_matching: partial_matching,
-          #variable_vertices: variable_vertices,
+          variable_vertices: variable_vertices,
           propagator_variables: variables,
           reduction_callback: remove_edge_fun
         } = state
       ) do
-    # _unfixed_vertices = MapSet.reject(variable_vertices,
-    #   fn {:variable, var_index} ->
-    #     fixed?(get_variable(variables, var_index))
-    #     #false
-    #   end)
-
-
-
     %{free: free_nodes, matching: matching} =
       value_graph
-      |> find_matching(variables, %{})
+      |> find_matching(variable_vertices, partial_matching)
 
     %{value_graph: reduced_value_graph, components: components} =
       value_graph
@@ -126,7 +100,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     state
     |> Map.put(:value_graph, reduced_value_graph)
     |> Map.put(:components, components)
-    #|> Map.put(:variable_vertices, variable_vertices)
+    |> Map.put(:matching, matching)
   end
 
   def apply_changes(%{propagator_variables: vars} = _state, changes) when is_nil(changes) or map_size(changes) == 0 do
@@ -143,7 +117,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
      |> Map.put(:reduction_callback, build_reduction_callback(updated_value_graph, vars))
      |> Map.put(:value_graph, updated_value_graph)
 
-     #|> Map.put(:partial_matching, update_fixed_matching(vars))
+     #|> Map.put(:partial_matching, %{})
      #|> Map.put(:fixed_values, new_fixed_values)
      |> reduce_state()
   end
@@ -160,7 +134,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           Map.put(fixed_matching_acc, {:variable, idx}, {:value, fixed_value})}) || acc
     end)
     |> elem(2)
-    #|> IO.inspect(label: :fixed_matching)
   end
 
   defp build_component_locator(%{variable_vertices: variable_vertices} = state) do
@@ -244,10 +217,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   defp get_value_vertex(vertex) when is_integer(vertex) do
     {:value, vertex}
-  end
-
-  defp get_variable(variables, var_index) do
-    Propagator.arg_at(variables, var_index)
   end
 
 end
