@@ -114,20 +114,22 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     propagator_variables: vars,
     variable_vertices: variable_vertices,
     partial_matching: partial_matching
-    } = state, _changes) do
+    } = state, changes) do
     #initial_reduction(vars)
     updated_value_graph = BitGraph.update_opts(value_graph,
          neighbor_finder: ValueGraph.default_neighbor_finder(vars)
        )
 
-    partial_matching = Enum.reduce(variable_vertices, partial_matching,
-    fn {:variable, var_index} = var_vertex, fixed_acc ->
+    partial_matching = Enum.reduce(changes, partial_matching,
+    fn {var_index, :fixed}, fixed_acc ->
       var = get_variable(vars, var_index)
       if fixed?(var) do
-          Map.put(fixed_acc, var_vertex, {:value, min(var)})
+          Map.put(fixed_acc, {:variable, var_index}, {:value, min(var)})
       else
         fixed_acc
       end
+
+      _change, fixed_acc -> fixed_acc
     end)
 
     state
