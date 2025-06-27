@@ -22,7 +22,7 @@ defmodule CPSolver.ValueGraph do
     ##
     check_matching? = Keyword.get(opts, :check_matching, false)
 
-    {value_vertices, var_count, fixed, _fixed_values} =
+    {value_vertices, var_count, fixed, fixed_values} =
       Enum.reduce(
         variables,
         {MapSet.new(), 0, Map.new(), MapSet.new()},
@@ -71,7 +71,8 @@ defmodule CPSolver.ValueGraph do
         end)
         |> BitGraph.add_vertices(value_vertices),
       left_partition: MapSet.new(0..(var_count - 1), fn idx -> {:variable, idx} end),
-      fixed: fixed
+      fixed_matching: fixed,
+      fixed_values: fixed_values
     }
   end
 
@@ -210,7 +211,7 @@ defmodule CPSolver.ValueGraph do
   ##
   ## If vertex is a 'value', remove matched variable from 'in' neighbors.
   ##
-  defp adjust_neighbors(neighbors, vertex_index, :variable, vertex_matching, :in) do
+  defp adjust_neighbors(_neighbors, vertex_index, :variable, vertex_matching, :in) do
     case Map.get(vertex_matching, vertex_index) do
       nil ->
         ## variables must have matching value assigned
