@@ -106,10 +106,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     |> Map.put(:components, components)
   end
 
-  def apply_changes(%{propagator_variables: vars} = _state, changes) when is_nil(changes) or map_size(changes) == 0 do
-    initial_reduction(vars)
-  end
-
   def apply_changes(%{value_graph: value_graph,
     propagator_variables: vars,
     variable_vertices: variable_vertices,
