@@ -25,15 +25,19 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       assert Interface.min(x3) == 4 && Interface.max(x3) == 5
 
       ## Reduced value graph consists of 3 components, as per paper
-      assert 3 == length(Graph.components(reduced_value_graph))
+      assert 3 == length(BitGraph.Algorithms.components(reduced_value_graph))
 
-      assert 6 == length(Graph.edges(reduced_value_graph))
-      assert 9 == length(Graph.vertices(reduced_value_graph))
+      ## the number of edges is 6 (Figure 2 of the paper)
+      assert 6 ==
+        Enum.reduce(BitGraph.vertices(reduced_value_graph), 0, fn v, sum_acc -> sum_acc + BitGraph.out_degree(reduced_value_graph, v) end)
+
+      assert 9 == MapSet.size(BitGraph.vertices(reduced_value_graph))
 
       # The value graph is split into 2 single-edge components and one component with Γ(A) + A vertices
-      assert Enum.map(Graph.components(reduced_value_graph), fn component -> length(component) end) |> Enum.sort() == [2, 2, 5]
-      # Single-edge SCCs are removed, one left is the one with reduced t2-type edges
-      assert state.components == 1
+      assert Enum.map(BitGraph.Algorithms.components(reduced_value_graph), fn component -> MapSet.size(component) end) |> Enum.sort() == [2, 2, 5]
+      # Single-edge components are removed, one left is the one with reduced t1-type edges (variables x2 and x3)
+      assert MapSet.size(state.components) == 1
+      assert hd(MapSet.to_list(state.components)) == MapSet.new([2, 3])
     end
 
     test "cascading" do
@@ -75,7 +79,6 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       dc_propagator = Propagator.new(Fast, vars)
       %{active?: true, state: state1} =
         Propagator.filter(dc_propagator)
-
       ## Variable filtering
       assert Interface.fixed?(x1) && Interface.min(x1) == 2
       assert Interface.min(x2) == 3 && Interface.max(x2) == 4
