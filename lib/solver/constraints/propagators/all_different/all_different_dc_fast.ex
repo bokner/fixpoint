@@ -22,8 +22,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   @impl true
   def filter(vars, state, changes) do
-    ((state && apply_changes(Map.replace!(state, :propagator_variables, vars), changes)) ||
-       initial_reduction(vars))
+    state = state && Map.replace!(state, :propagator_variables, vars) || initial_state(vars)
+
+    state
+    |> apply_changes(changes)
     |> finalize()
   end
 
@@ -46,13 +48,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def initial_state(variables) do
-    %{graph: value_graph, left_partition: variable_vertices, fixed_matching: partial_matching} =
+    %{graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
       ValueGraph.build(variables, check_matching: true)
 
     %{
       value_graph: value_graph,
       variable_vertices: variable_vertices,
-      partial_matching: partial_matching,
+      fixed_matching: fixed_matching,
       propagator_variables: variables,
       reduction_callback: build_reduction_callback(variables)
     }
@@ -64,12 +66,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     end
   end
 
-  def find_matching(value_graph, variable_vertices, partial_matching) do
+  def find_matching(value_graph, variable_vertices, fixed_matching) do
     try do
     BitGraph.Algorithms.bipartite_matching(
       value_graph,
       variable_vertices,
-      fixed_matching: partial_matching,
+      fixed_matching: fixed_matching,
       required_size: MapSet.size(variable_vertices)
     )
     |> tap(fn matching -> matching || fail() end)
@@ -86,7 +88,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   def reduce_state(
         %{
           value_graph: value_graph,
-          partial_matching: partial_matching,
+          fixed_matching: fixed_matching,
           variable_vertices: variable_vertices,
           propagator_variables: variables,
           reduction_callback: remove_edge_fun
@@ -94,7 +96,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       ) do
     %{free: free_nodes, matching: matching} =
       value_graph
-      |> find_matching(variable_vertices, partial_matching)
+      |> find_matching(variable_vertices, fixed_matching)
 
     %{value_graph: reduced_value_graph, components: components} =
       value_graph
@@ -109,14 +111,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   def apply_changes(%{value_graph: value_graph,
     propagator_variables: vars,
     variable_vertices: variable_vertices,
-    partial_matching: partial_matching
+    fixed_matching: fixed_matching
     } = state, changes) do
     #initial_reduction(vars)
     updated_value_graph = BitGraph.update_opts(value_graph,
          neighbor_finder: ValueGraph.default_neighbor_finder(vars)
        )
 
-    partial_matching = Enum.reduce(changes, partial_matching,
+    fixed_matching = Enum.reduce(changes, fixed_matching,
     fn {var_index, :fixed}, fixed_acc ->
       var = get_variable(vars, var_index)
       if fixed?(var) do
@@ -131,7 +133,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     state
      |> Map.put(:reduction_callback, build_reduction_callback(vars))
      |> Map.put(:value_graph, updated_value_graph)
-     |> Map.put(:partial_matching, partial_matching)
+     |> Map.put(:fixed_matching, fixed_matching)
      |> reduce_state()
   end
 

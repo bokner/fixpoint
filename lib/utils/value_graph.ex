@@ -176,7 +176,10 @@ defmodule CPSolver.ValueGraph do
     case Map.get(vertex_matching, vertex_index) do
       nil ->
         ## variables must have matching value assigned
-        fail({:invalid_matching, {:variable_not_matched, vertex_index}})
+        #fail({:invalid_matching, {:variable_not_matched, vertex_index}})
+
+        ## Revised: we could use matching that ignores already fixed variable
+        MapSet.new()
 
       {value_match, _, _, _} ->
         ## Remove value from 'out' neighbors of variable vertex
@@ -215,7 +218,10 @@ defmodule CPSolver.ValueGraph do
     case Map.get(vertex_matching, vertex_index) do
       nil ->
         ## variables must have matching value assigned
-        fail({:invalid_matching, {:variable_not_matched, vertex_index}})
+        ## fail({:invalid_matching, {:variable_not_matched, vertex_index}})
+
+        ## Revised: we may want to use matching that ignores fixed variables
+        MapSet.new()
 
       {value_match, variable, matching_value, variable_vertex} ->
         (Interface.contains?(variable, matching_value) &&
