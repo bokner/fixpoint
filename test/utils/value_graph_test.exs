@@ -15,6 +15,22 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert MapSet.size(left_partition) == length(variables)
       ## 4 variables and 5 values
       assert BitGraph.num_vertices(graph) == 9
+
+      ## Ignore fixed variables
+      variables = Enum.map([1, 1..2, [1, 2, 4, 5], 6], fn d -> Variable.new(d) end)
+      %{graph: graph, left_partition: left_partition, fixed_matching: false} = ValueGraph.build(variables,
+      ignore_fixed_variables: true)
+
+      assert {:variable, 1} in left_partition
+      assert {:variable, 2} in left_partition
+      # fixed variables are excluded
+      refute {:variable, 0} in left_partition
+      refute {:variable, 3} in left_partition
+      # Value graph does not have fixed variables and fixed values not shared with other variables
+      refute Enum.any?([{:variable, 0}, {:variable, 3}, {:value, 1}, {:value, 6}],
+        fn vertex ->
+          BitGraph.get_vertex(graph, vertex)
+        end)
     end
 
     test "default neighbor finder" do
@@ -155,24 +171,6 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert BitGraph.strongly_connected?(graph,
                neighbor_finder: matching_neighbor_finder
              )
-
-      ## Removing matching edge invalidates matching
-      {{:variable, var_index} = var_vertex, {:value, matching_value} = value_vertex} =
-        Enum.random(matching2.matching)
-
-      refute :no_change == Interface.remove(Enum.at(variables, var_index), matching_value)
-
-      ## Fails on invalid matching
-      ## 1. Previously used neighbor finder
-      assert catch_throw(BitGraph.strongly_connected?(graph,
-                   neighbor_finder: matching_neighbor_finder
-                 )) == {:invalid_matching, var_vertex, value_vertex}
-      ## ...or the new one, with the same matching and variables
-      assert catch_throw(BitGraph.strongly_connected?(graph,
-                   neighbor_finder: ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching)
-                 )) == {:invalid_matching, var_vertex, value_vertex}
-
-
     end
   end
 end

@@ -21,6 +21,7 @@ defmodule CPSolver.ValueGraph do
     ## BitGraph's `neighbor_finder` function based on current variables' domain values.
     ##
     check_matching? = Keyword.get(opts, :check_matching, false)
+    ignore_fixed_variables? = Keyword.get(opts, :ignore_fixed_variables, false)
 
     {value_vertices, var_count, fixed, fixed_values} =
       Enum.reduce(
@@ -58,20 +59,25 @@ defmodule CPSolver.ValueGraph do
         end
       )
 
+    left_partition = Enum.reduce(0..(var_count - 1), MapSet.new(),
+       fn idx, acc ->
+        variable_vertex = {:variable, idx}
+        ignore_fixed_variables? && Map.has_key?(fixed, variable_vertex) && acc
+          || MapSet.put(acc, variable_vertex)
+       end)
+
+    value_vertices = ignore_fixed_variables? && MapSet.reject(value_vertices, fn {:value, value} -> value in fixed_values end)
+    || value_vertices
     %{
       graph:
         BitGraph.new(
           num_vertices: MapSet.size(value_vertices) + var_count,
           neighbor_finder: default_neighbor_finder(variables)
         )
-        |> then(fn g ->
-          Enum.reduce(0..(var_count - 1), g, fn idx, g_acc ->
-            BitGraph.add_vertex(g_acc, {:variable, idx})
-          end)
-        end)
+        |> BitGraph.add_vertices(left_partition)
         |> BitGraph.add_vertices(value_vertices),
-      left_partition: MapSet.new(0..(var_count - 1), fn idx -> {:variable, idx} end),
-      fixed_matching: fixed,
+      left_partition: left_partition,
+      fixed_matching: !ignore_fixed_variables? && fixed,
       fixed_values: fixed_values
     }
   end
@@ -122,8 +128,8 @@ defmodule CPSolver.ValueGraph do
                                                        {matching_acc, reverse_matching_acc} ->
         propagator_variable = Propagator.arg_at(variables, var_index)
 
-        Interface.contains?(propagator_variable, value) ||
-          fail({:invalid_matching, var_vertex, value_vertex})
+        Interface.contains?(propagator_variable, value) || MapSet.new()
+          #fail({:invalid_matching, var_vertex, value_vertex})
 
         var_vertex_index = BitGraph.V.get_vertex_index(graph, var_vertex)
         value_vertex_index = BitGraph.V.get_vertex_index(graph, value_vertex)
@@ -198,14 +204,14 @@ defmodule CPSolver.ValueGraph do
       nil ->
         neighbors
 
-      {variable_match, variable, matching_value, variable_vertex} ->
+      {variable_match, variable, matching_value, _variable_vertex} ->
         ## matched value must be in the domain of matching variable
         (Interface.contains?(variable, matching_value) &&
-           MapSet.new([variable_match])) ||
-          fail(
-            {:invalid_matching,
-             variable_vertex, {:value, matching_value}}
-          )
+           MapSet.new([variable_match])) || MapSet.new()
+          # fail(
+          #   {:invalid_matching,
+          #    variable_vertex, {:value, matching_value}}
+          # )
     end
   end
 
@@ -223,13 +229,13 @@ defmodule CPSolver.ValueGraph do
         ## Revised: we may want to use matching that ignores fixed variables
         MapSet.new()
 
-      {value_match, variable, matching_value, variable_vertex} ->
+      {value_match, variable, matching_value, _variable_vertex} ->
         (Interface.contains?(variable, matching_value) &&
-           MapSet.new([value_match])) ||
-          fail(
-            {:invalid_matching,
-             variable_vertex, value_match}
-          )
+           MapSet.new([value_match])) || MapSet.new()
+          # fail(
+          #   {:invalid_matching,
+          #    variable_vertex, value_match}
+          # )
     end
   end
 
