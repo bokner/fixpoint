@@ -119,7 +119,9 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert BitGraph.get_vertex(graph, free_vertex)
 
       graph = Enum.reduce(0..num_variables-1, graph, fn var_idx, graph_acc ->
-        ValueGraph.delete_edge(graph_acc, {:variable, var_idx}, free_vertex, variables) end)
+        ValueGraph.delete_edge(graph_acc, {:variable, var_idx}, free_vertex, variables)
+        |> Map.get(:graph)
+      end)
 
       ## Free node is no longer in the graph
       refute BitGraph.get_vertex(graph, free_vertex)
@@ -171,6 +173,24 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert BitGraph.strongly_connected?(graph,
                neighbor_finder: matching_neighbor_finder
              )
+    end
+
+    test "forward checking" do
+      domains = [
+        1, [2, 3, 5], [1, 4], [1, 5]
+      ]
+      [x0, x1, x2, x3] = variables = Enum.map(domains, fn d -> Variable.new(d) end)
+      %{graph: graph, fixed_matching: fixed} = ValueGraph.build(variables)
+
+      #{updated_graph, updated_fixed} =
+        ValueGraph.forward_checking(graph, fixed, variables)
+
+      assert CPSolver.Utils.domain_values(x1) == MapSet.new([2, 3])
+      assert Interface.fixed?(x2) && Interface.min(x2) == 4
+      assert Interface.fixed?(x3) && Interface.min(x3) == 5
+      #assert Enum.empty?(updated_fixed)
+
+
     end
   end
 end
