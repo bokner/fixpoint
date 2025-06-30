@@ -59,15 +59,19 @@ defmodule CPSolver.ValueGraph do
         end
       )
 
-    left_partition = Enum.reduce(0..(var_count - 1), MapSet.new(),
-       fn idx, acc ->
+    left_partition =
+      Enum.reduce(0..(var_count - 1), MapSet.new(), fn idx, acc ->
         variable_vertex = {:variable, idx}
-        ignore_fixed_variables? && Map.has_key?(fixed, variable_vertex) && acc
-          || MapSet.put(acc, variable_vertex)
-       end)
 
-    value_vertices = ignore_fixed_variables? && MapSet.reject(value_vertices, fn {:value, value} -> value in fixed_values end)
-    || value_vertices
+        (ignore_fixed_variables? && Map.has_key?(fixed, variable_vertex) && acc) ||
+          MapSet.put(acc, variable_vertex)
+      end)
+
+    value_vertices =
+      (ignore_fixed_variables? &&
+         MapSet.reject(value_vertices, fn {:value, value} -> value in fixed_values end)) ||
+        value_vertices
+
     %{
       graph:
         BitGraph.new(
@@ -82,6 +86,46 @@ defmodule CPSolver.ValueGraph do
     }
   end
 
+  ## Forward checking (cascading removal of fixed variables).
+  ## Note: value graph with default neighbor finder
+  ## has edges oriented from variables to values.
+  ## The result of forward checking will be a value graph with
+  ## removed fixed variable vertices, and the side effect will be
+  ## a domain reduction such that no domain value is shared between fixed variables.
+  def forward_checking(graph, fixed_vertices, variables) do
+    {updated_graph, _} = forward_checking_impl(graph, fixed_vertices, variables)
+    updated_graph
+  end
+
+  defp forward_checking_impl(graph, fixed_vertices, variables) do
+    for {var_vertex, value_vertex} <- fixed_vertices, reduce: {graph, Map.new()} do
+      {graph_acc, fixed_acc} = _acc ->
+        graph = BitGraph.delete_vertex(graph_acc, var_vertex)
+
+        {updated_graph, updated_fixed_vertices} =
+          Enum.reduce(BitGraph.in_neighbors(graph, value_vertex), {graph, fixed_acc}, fn {:variable, _var_index} =
+                                                                            var_neighbor,
+                                                                          {g_acc, f_acc} ->
+            %{graph: g_acc, change: change} =
+              delete_edge(g_acc, var_neighbor, value_vertex, variables)
+
+            f_acc =
+              case change do
+                {:fixed, fixed_value} ->
+                  Map.put(f_acc, var_neighbor, {:value, fixed_value})
+
+                _domain_change ->
+                  f_acc
+              end
+
+            {g_acc, f_acc}
+          end)
+
+        forward_checking_impl(
+          BitGraph.delete_vertex(updated_graph, value_vertex), updated_fixed_vertices, variables)
+    end
+  end
+
   defp fail(reason \\ :fail) do
     throw(reason)
   end
@@ -89,20 +133,20 @@ defmodule CPSolver.ValueGraph do
   def default_neighbor_finder(variables) do
     fn graph, vertex_index, direction ->
       vertex = BitGraph.V.get_vertex(graph, vertex_index)
-      get_neighbors(graph, vertex, variables, direction)
+      (vertex && get_neighbors(graph, vertex, variables, direction)) || MapSet.new()
     end
   end
 
   defp get_neighbors(_graph, {:variable, _var_index}, _variables, :in) do
-    MapSet.new([])
+    MapSet.new()
   end
 
   defp get_neighbors(_graph, {:value, _value}, _variables, :out) do
-    MapSet.new([])
+    MapSet.new()
   end
 
   defp get_neighbors(graph, {:variable, var_index}, variables, :out) do
-    Propagator.arg_at(variables, var_index)
+    get_variable(variables, var_index)
     |> Utils.domain_values()
     |> Enum.reduce(MapSet.new(), fn value, acc ->
       MapSet.put(acc, BitGraph.V.get_vertex_index(graph, {:value, value}))
@@ -126,10 +170,10 @@ defmodule CPSolver.ValueGraph do
       Enum.reduce(matching, {Map.new(), Map.new()}, fn {{:variable, var_index} = var_vertex,
                                                         {:value, value} = value_vertex},
                                                        {matching_acc, reverse_matching_acc} ->
-        propagator_variable = Propagator.arg_at(variables, var_index)
+        propagator_variable = get_variable(variables, var_index)
 
         Interface.contains?(propagator_variable, value) || MapSet.new()
-          #fail({:invalid_matching, var_vertex, value_vertex})
+        # fail({:invalid_matching, var_vertex, value_vertex})
 
         var_vertex_index = BitGraph.V.get_vertex_index(graph, var_vertex)
         value_vertex_index = BitGraph.V.get_vertex_index(graph, value_vertex)
@@ -182,7 +226,7 @@ defmodule CPSolver.ValueGraph do
     case Map.get(vertex_matching, vertex_index) do
       nil ->
         ## variables must have matching value assigned
-        #fail({:invalid_matching, {:variable_not_matched, vertex_index}})
+        # fail({:invalid_matching, {:variable_not_matched, vertex_index}})
 
         ## Revised: we could use matching that ignores already fixed variable
         MapSet.new()
@@ -208,10 +252,11 @@ defmodule CPSolver.ValueGraph do
         ## matched value must be in the domain of matching variable
         (Interface.contains?(variable, matching_value) &&
            MapSet.new([variable_match])) || MapSet.new()
-          # fail(
-          #   {:invalid_matching,
-          #    variable_vertex, {:value, matching_value}}
-          # )
+
+        # fail(
+        #   {:invalid_matching,
+        #    variable_vertex, {:value, matching_value}}
+        # )
     end
   end
 
@@ -232,10 +277,11 @@ defmodule CPSolver.ValueGraph do
       {value_match, variable, matching_value, _variable_vertex} ->
         (Interface.contains?(variable, matching_value) &&
            MapSet.new([value_match])) || MapSet.new()
-          # fail(
-          #   {:invalid_matching,
-          #    variable_vertex, value_match}
-          # )
+
+        # fail(
+        #   {:invalid_matching,
+        #    variable_vertex, value_match}
+        # )
     end
   end
 
@@ -260,10 +306,26 @@ defmodule CPSolver.ValueGraph do
   end
 
   def delete_edge(graph, {:variable, var_index}, {:value, value} = value_vertex, variables) do
-    propagator_variable = Propagator.arg_at(variables, var_index)
-    PropagatorVariable.remove(propagator_variable, value)
+    propagator_variable = get_variable(variables, var_index)
 
-    (BitGraph.degree(graph, value_vertex) == 0 &&
-       BitGraph.delete_vertex(graph, value_vertex)) || graph
+    change =
+      case PropagatorVariable.remove(propagator_variable, value) do
+        :fixed ->
+          {:fixed, Interface.min(propagator_variable)}
+
+        domain_change ->
+          domain_change
+      end
+
+    %{
+      graph:
+        (BitGraph.degree(graph, value_vertex) == 0 &&
+           BitGraph.delete_vertex(graph, value_vertex)) || graph,
+      change: change
+    }
+  end
+
+  defp get_variable(variables, var_index) do
+    Propagator.arg_at(variables, var_index)
   end
 end
