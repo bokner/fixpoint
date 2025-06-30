@@ -180,12 +180,15 @@ defmodule CPSolverTest.Utils.ValueGraph do
         1, [2, 3, 5], [1, 4], [1, 5]
       ]
       [x0, x1, x2, x3] = variables = Enum.map(domains, fn d -> Variable.new(d) end)
-      %{graph: graph, fixed_matching: fixed} = ValueGraph.build(variables)
+      %{graph: graph} = ValueGraph.build(variables)
 
       assert BitGraph.num_vertices(graph) == 9
 
-      updated_graph =
-        ValueGraph.forward_checking(graph, fixed, variables)
+      %{graph: updated_graph, new_fixed: new_fixed} =
+        ValueGraph.forward_checking(graph, MapSet.new([{:variable, 0}]), variables)
+
+      ## Newly fixed variables
+      assert new_fixed == MapSet.new([{:variable, 2}, {:variable, 3}])
 
       ## Domain reductions
       assert CPSolver.Utils.domain_values(x1) == MapSet.new([2, 3])

@@ -93,16 +93,21 @@ defmodule CPSolver.ValueGraph do
   ## removed fixed variable vertices, and the side effect will be
   ## a domain reduction such that no domain value is shared between fixed variables.
   def forward_checking(graph, fixed_vertices, variables) do
-    {updated_graph, _} = forward_checking_impl(graph, fixed_vertices, variables)
-    updated_graph
+    {updated_graph, _, newly_fixed_vertices} = forward_checking_impl(graph, fixed_vertices, variables)
+    %{graph: updated_graph, new_fixed: newly_fixed_vertices}
   end
 
   defp forward_checking_impl(graph, fixed_vertices, variables) do
-    for {var_vertex, value_vertex} <- fixed_vertices, reduce: {graph, Map.new()} do
-      {graph_acc, fixed_acc} = _acc ->
+    forward_checking_impl(graph, fixed_vertices, variables, MapSet.new())
+  end
+
+  defp forward_checking_impl(graph, fixed_vertices, variables, newly_fixed) do
+    for var_vertex <- fixed_vertices, reduce: {graph, MapSet.new(), newly_fixed} do
+      {graph_acc, fixed_acc, newly_fixed_acc} = _acc ->
+        value_vertex = BitGraph.out_neighbors(graph, var_vertex) |> MapSet.to_list() |> hd
         graph = BitGraph.delete_vertex(graph_acc, var_vertex)
 
-        {updated_graph, updated_fixed_vertices} =
+        {updated_graph, new_fixed_vertices} =
           Enum.reduce(BitGraph.in_neighbors(graph, value_vertex), {graph, fixed_acc}, fn {:variable, _var_index} =
                                                                             var_neighbor,
                                                                           {g_acc, f_acc} ->
@@ -111,8 +116,8 @@ defmodule CPSolver.ValueGraph do
 
             f_acc =
               case change do
-                {:fixed, fixed_value} ->
-                  Map.put(f_acc, var_neighbor, {:value, fixed_value})
+                :fixed ->
+                  MapSet.put(f_acc, var_neighbor)
 
                 _domain_change ->
                   f_acc
@@ -122,7 +127,7 @@ defmodule CPSolver.ValueGraph do
           end)
 
         forward_checking_impl(
-          BitGraph.delete_vertex(updated_graph, value_vertex), updated_fixed_vertices, variables)
+          BitGraph.delete_vertex(updated_graph, value_vertex), new_fixed_vertices, variables, MapSet.union(newly_fixed_acc, new_fixed_vertices))
     end
   end
 
@@ -308,14 +313,7 @@ defmodule CPSolver.ValueGraph do
   def delete_edge(graph, {:variable, var_index}, {:value, value} = value_vertex, variables) do
     propagator_variable = get_variable(variables, var_index)
 
-    change =
-      case PropagatorVariable.remove(propagator_variable, value) do
-        :fixed ->
-          {:fixed, Interface.min(propagator_variable)}
-
-        domain_change ->
-          domain_change
-      end
+    change = PropagatorVariable.remove(propagator_variable, value)
 
     %{
       graph:
