@@ -81,7 +81,8 @@ defmodule CPSolver.ValueGraph do
         |> BitGraph.add_vertices(left_partition)
         |> BitGraph.add_vertices(value_vertices),
       left_partition: left_partition,
-      fixed_matching: !ignore_fixed_variables? && fixed,
+      fixed_matching: #!ignore_fixed_variables? &&
+      fixed,
       fixed_values: fixed_values
     }
   end
