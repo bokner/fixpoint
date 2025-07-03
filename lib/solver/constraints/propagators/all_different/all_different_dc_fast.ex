@@ -55,14 +55,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     %{graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
       ValueGraph.build(variables, check_matching: true)
 
-    fixed_variable_vertices = Map.keys(fixed_matching) |> MapSet.new()
-
-    %{graph: updated_graph, new_fixed: newly_fixed_vertices} =
-      ValueGraph.forward_checking(value_graph, fixed_variable_vertices, variables)
-
     %{
-      value_graph: updated_graph,
-      variable_vertices: MapSet.difference(variable_vertices, fixed_variable_vertices) |> MapSet.difference(newly_fixed_vertices),
+      value_graph: value_graph,
+      variable_vertices: variable_vertices,
       propagator_variables: variables,
       reduction_callback: build_reduction_callback(variables)
     }
@@ -101,9 +96,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           reduction_callback: remove_edge_fun
         } = state
       ) do
-     Enum.empty?(variable_vertices) && :all_fixed
-     ||
-     (
     %{free: free_nodes, matching: matching} =
       value_graph
       |> find_matching(variable_vertices)
@@ -115,43 +107,21 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
     state
     |> Map.put(:value_graph, reduced_value_graph)
-    |> Map.put(:components, components))
+    |> Map.put(:components, components)
   end
 
   def apply_changes(%{value_graph: value_graph,
     propagator_variables: vars,
     variable_vertices: variable_vertices,
     } = state, changes) do
-    {fixed_vertices, unfixed_vertices} =
-      MapSet.split_with(variable_vertices,
-        fn {:variable, var_index} ->
-          Map.get(changes, var_index) == :fixed
-        end)
-
-      variable_vertices = unfixed_vertices #MapSet.difference(variable_vertices, fixed_vertices)
-      if Enum.empty?(variable_vertices) do
-        :all_fixed
-      else
-
-        %{graph: updated_value_graph, new_fixed: newly_fixed_vertices} =
-
-      #updated_value_graph  =
+      updated_value_graph  =
         BitGraph.update_opts(value_graph,
           neighbor_finder: ValueGraph.default_neighbor_finder(vars)
         )
-        |> ValueGraph.forward_checking(fixed_vertices, vars)
-
-        variable_vertices = MapSet.difference(variable_vertices, newly_fixed_vertices)
-        if Enum.empty?(variable_vertices) do
-          :all_fixed
-        else
           state
           |> Map.put(:reduction_callback, build_reduction_callback(vars))
           |> Map.put(:value_graph, updated_value_graph)
-          |> Map.put(:variable_vertices, MapSet.difference(variable_vertices, newly_fixed_vertices))
           |> reduce_state()
-          end
-        end
   end
 
 
