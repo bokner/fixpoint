@@ -122,13 +122,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     propagator_variables: vars,
     variable_vertices: variable_vertices,
     } = state, changes) do
-    {fixed_vertices, _unfixed_vertices} =
+    {fixed_vertices, unfixed_vertices} =
       MapSet.split_with(variable_vertices,
         fn {:variable, var_index} ->
-          fixed?(get_variable(vars, var_index))
+          Map.get(changes, var_index) == :fixed
         end)
 
-      variable_vertices = MapSet.difference(variable_vertices, fixed_vertices)
+      variable_vertices = unfixed_vertices #MapSet.difference(variable_vertices, fixed_vertices)
       if Enum.empty?(variable_vertices) do
         :all_fixed
       else

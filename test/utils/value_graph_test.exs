@@ -18,7 +18,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
       ## Ignore fixed variables
       variables = Enum.map([1, 1..2, [1, 2, 4, 5], 6], fn d -> Variable.new(d) end)
-      %{graph: graph, left_partition: left_partition, fixed_matching: false} = ValueGraph.build(variables,
+      %{graph: graph, left_partition: left_partition} = ValueGraph.build(variables,
       ignore_fixed_variables: true)
 
       assert {:variable, 1} in left_partition
