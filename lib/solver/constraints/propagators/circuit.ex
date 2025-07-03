@@ -40,13 +40,12 @@ defmodule CPSolver.Propagator.Circuit do
 
   defp initial_state(args) do
     l = Arrays.size(args)
-    max_vertices = Enum.reduce(args, l, fn var, acc -> acc + size(var) end)
 
     domain_graph =
       args
       |> Enum.with_index()
       |> Enum.reduce(
-        BitGraph.new(max_vertices: max_vertices),
+        BitGraph.new(max_vertices: l),
         fn {var, idx}, graph_acc ->
           initial_reduction(var, idx, l)
 
