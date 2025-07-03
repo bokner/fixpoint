@@ -38,8 +38,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       {:state, state}
   end
 
-  def entailed?(%{components: components, variable_vertices: unfixed_vertices} = _state) do
-    Enum.empty?(components) || Enum.empty?(unfixed_vertices)
+  def entailed?(%{components: components} = _state) do
+    Enum.empty?(components)
   end
 
   def entailed?(_state) do
@@ -206,10 +206,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   defp get_value_vertex(vertex) when is_integer(vertex) do
     {:value, vertex}
-  end
-
-  defp get_variable(vars, var_index) when is_integer(var_index) do
-    Propagator.arg_at(vars, var_index)
   end
 
 end
