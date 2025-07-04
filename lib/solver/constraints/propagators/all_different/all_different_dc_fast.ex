@@ -115,7 +115,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def apply_changes(%{value_graph: value_graph,
     propagator_variables: vars,
-    variable_vertices: variable_vertices,
+    variable_vertices: _variable_vertices,
     fixed_matching: fixed_matching
     } = state, changes) do
 
