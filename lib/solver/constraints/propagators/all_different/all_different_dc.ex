@@ -1,7 +1,7 @@
 defmodule CPSolver.Propagator.AllDifferent.DC do
   use CPSolver.Propagator
 
-  alias CPSolver.Algorithms.Kuhn
+  alias CPSolver.ValueGraph
 
   @moduledoc """
   The domain-consistent propagator for AllDifferent constraint,
@@ -18,23 +18,19 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   @impl true
-  def filter(all_vars, state, changes) do
+  def filter(vars, state, changes) do
     new_state =
-      (state && filter_impl(all_vars, state, changes)) ||
-        initial_state(all_vars)
+      (state && apply_changes(Map.put(state, :propagator_variables, vars), changes)) ||
+        initial_state(vars)
 
     (new_state == :resolved && :passive) ||
       {:state, new_state}
   end
 
-  defp filter_impl(_all_vars, state, changes) when is_nil(changes) or map_size(changes) == 0 do
-    state
-  end
-
-  defp filter_impl(
-         all_vars,
+  defp apply_changes(
          %{
-           sccs: sccs
+           sccs: sccs,
+           propagator_variables: vars
          } =
            _state,
          changes
@@ -49,7 +45,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       if MapSet.size(component_triggers) == 0 do
         [component_rec | sccs_acc]
       else
-        update_component(all_vars, component_rec) ++ sccs_acc
+        update_component(vars, component_rec) ++ sccs_acc
       end
     end)
     |> final_state()
@@ -65,8 +61,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     ## The difference is that we'll only run maximum matching
     ## if any of the trigger variables doesn't have the value associated with the matching edge.
 
-    {component_variable_map, repair_matching?} = component_variables(component_rec, all_vars)
-    value_graph = update_value_graph(component_variable_map, value_graph)
+    {_component_variable_map, repair_matching?} = component_variables(component_rec, all_vars)
 
     ## If matching hasn't changed, reuse;
     ## otherwise, start with partial matching built from fixed variables.
@@ -101,9 +96,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     end)
   end
 
-  def initial_state(vars) do
-    {value_graph, variable_vertices, partial_matching} = build_value_graph(vars)
-    {_residual_graph, sccs} = reduction(vars, value_graph, variable_vertices, partial_matching)
+  def initial_state(variables) do
+        %{graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
+      ValueGraph.build(variables, check_matching: true)
+    {_residual_graph, sccs} = reduction(variables, value_graph, variable_vertices, fixed_matching)
     final_state(sccs)
   end
 
@@ -114,115 +110,78 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       }
   end
 
-  def reduction(vars, value_graph, variable_vertices, partial_matching, repair_matching? \\ true) do
-    maximum_matching =
+  def reduction(vars, value_graph, variable_vertices, fixed_matching, repair_matching? \\ true) do
+    %{matching: matching} =
       (repair_matching? &&
-         compute_maximum_matching(value_graph, variable_vertices, partial_matching)) ||
-        partial_matching
+         compute_maximum_matching(value_graph, variable_vertices, fixed_matching)) ||
+        fixed_matching
 
     {residual_graph, sccs} =
-      build_residual_graph(value_graph, maximum_matching)
+      build_residual_graph(value_graph, vars, matching)
       |> reduce_residual_graph(vars)
 
-    {residual_graph, localize_state(sccs, value_graph, maximum_matching)}
+    {residual_graph, localize_state(sccs, value_graph, matching)}
   end
 
-  def build_value_graph(var_list) do
-    Enum.reduce(var_list, {0, Map.new()}, fn var, {idx_acc, map_acc} ->
-      {idx_acc + 1, Map.put(map_acc, idx_acc, var)}
-    end)
-    |> elem(1)
-    |> build_value_graph_impl()
-  end
-
-  def build_value_graph_impl(variable_map) when is_map(variable_map) do
-    Enum.reduce(
-      variable_map,
-      {Graph.new(), MapSet.new(), Map.new()},
-      fn {var_id, var}, {graph_acc, var_vertices_acc, partial_matching_acc} ->
-        var_vertex = {:variable, var_id}
-        var_vertices_acc = MapSet.put(var_vertices_acc, var_vertex)
-
-        fixed? = fixed?(var)
-
-        partial_matching_acc =
-          if fixed? do
-            Map.put(partial_matching_acc, {:value, min(var)}, var_vertex)
-          else
-            partial_matching_acc
-          end
-
-        graph_acc  =
-            Enum.reduce(domain_values(var), graph_acc, fn d, graph_acc2 ->
-              Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
-          end)
-
-        {graph_acc, var_vertices_acc, partial_matching_acc}
-      end
-    )
-  end
-
-
-  defp update_value_graph(variable_map, value_graph) do
-    Enum.reduce(variable_map, value_graph, fn {var_id, var}, graph_acc ->
-      variable_vertex = {:variable, var_id}
-
-      if Graph.in_degree(value_graph, variable_vertex) > size(var) do
-        ## There are some edges to delete
-        Enum.reduce(Graph.in_edges(graph_acc, variable_vertex), graph_acc, fn %{v1: {:value, val}} =
-                                                                                edge,
-                                                                              g_acc2 ->
-          (contains?(var, val) && g_acc2) || Graph.delete_edge(g_acc2, edge.v1, edge.v2)
-        end)
-      else
-        graph_acc
-      end
-    end)
-
-    end
-
-  def compute_maximum_matching(value_graph, variable_ids, partial_matching) do
-    Kuhn.run(value_graph, variable_ids, partial_matching, MapSet.size(variable_ids))
-    || fail()
-  end
-
-  defp build_residual_graph(value_graph, maximum_matching) do
-    ## The matching edges connect variables to values
-    Enum.reduce(
-      Graph.edges(value_graph),
+  def compute_maximum_matching(value_graph, variable_vertices, fixed_matching) do
+    try do
+    BitGraph.Algorithms.bipartite_matching(
       value_graph,
-      fn %{
-           v1: {:value, _value} = v1,
-           v2: {:variable, _var_id} = v2
-         } = _edge,
-         residual_graph_acc ->
-        case Map.get(maximum_matching, v1) do
-          nil ->
-            ## The vertices of unmatched values are connected to the sink vertex
-            Graph.add_edge(residual_graph_acc, :sink, v1)
-
-          ## The edge is in matching - reverse
-          var when var == v2 ->
-            Graph.delete_edge(residual_graph_acc, v1, v2)
-            |> Graph.add_edge(v2, v1)
-            |> Graph.add_edge(v1, :sink)
-
-          _var ->
-            ## For values in the domain, but not in matching, keep value -> variable edge
-            residual_graph_acc
-        end
-      end
+      variable_vertices,
+      fixed_matching: fixed_matching,
+      required_size: MapSet.size(variable_vertices)
     )
+    |> tap(fn matching -> matching || fail() end)
+    catch {:error, _} ->
+      fail()
+    end
+  end
+
+  defp build_residual_graph(value_graph, variables, %{free: free_nodes, matching: matching}) do
+    value_graph
+    |> BitGraph.add_vertex(:sink)
+    |> BitGraph.update_opts(neighbor_finder: residual_graph_neighbor_finder(value_graph, variables, free_nodes, matching))
+  end
+
+  defp residual_graph_neighbor_finder(value_graph, variables, free_nodes, matching) do
+    num_variables = Arrays.size(variables)
+    base_neighbor_finder = ValueGraph.matching_neighbor_finder(value_graph, variables, matching)
+    free_node_indices = Stream.map(free_nodes, fn value_vertex -> BitGraph.V.get_vertex_index(value_graph, value_vertex) end)
+    matching_value_indices = Stream.map(Map.values(matching), fn value_vertex -> BitGraph.V.get_vertex_index(value_graph, value_vertex) end)
+    sink_node_index = BitGraph.V.get_vertex_index(value_graph, :sink)
+
+
+    fn graph, vertex_index, direction ->
+      neighbors = base_neighbor_finder.(graph, vertex_index, direction)
+      ## By construction of value graph, the variable vertices go first,
+      ## followed by value vertices; the last on is 'sink' vertex
+        cond do
+          vertex_index == sink_node_index  && direction == :out->
+            matching_value_indices
+          vertex_index == sink_node_index  && direction == :in ->
+            free_node_indices
+          vertex_index <= num_variables ->
+            neighbors
+          vertex_index in matching_value_indices ->
+            :matched_value
+          direction == :in && vertex_index in free_node_indices ->
+            neighbors
+          direction == :out && vertex_index in free_node_indices ->
+            MapSet.new([sink_node_index])
+          direction == :in && vertex_index in matching_value_indices ->
+            MapSet.put(neighbors, sink_node_index)
+          direction == :out && vertex_index in matching_value_indices ->
+            neighbors
+
+        end
+
+      end
   end
 
   defp reduce_residual_graph(residual_graph, vars) do
-    sccs = Graph.strong_components(residual_graph) |> sccs_to_sets()
+    sccs = BitGraph.strong_components(residual_graph)
     residual_graph = remove_cross_edges(residual_graph, sccs, vars)
     {residual_graph, postprocess_sccs(sccs)}
-  end
-
-  defp sccs_to_sets(sccs_arrays) do
-    Enum.map(sccs_arrays, fn component -> MapSet.new(component) |> MapSet.delete(:sink) end)
   end
 
   ## Move parts of matching to where SCCs they belong to are
