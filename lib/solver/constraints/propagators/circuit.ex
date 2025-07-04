@@ -6,8 +6,10 @@ defmodule CPSolver.Propagator.Circuit do
   """
 
   @impl true
-  def reset(_args, %{domain_graph: graph} = state) do
-    Map.put(state, :domain_graph, BitGraph.copy(graph))
+  def reset(args, %{domain_graph: graph} = state) do
+    state
+    |> Map.put(:domain_graph, BitGraph.update_opts(graph, neighbor_finder: neighbor_finder(args)))
+    |> Map.put(:propagator_variables, args)
   end
 
   def reset(_args, state) do
@@ -48,15 +50,14 @@ defmodule CPSolver.Propagator.Circuit do
         BitGraph.new(max_vertices: l),
         fn {var, idx}, graph_acc ->
           initial_reduction(var, idx, l)
-
-           Enum.reduce(domain_values(var), graph_acc, fn value, g ->
-             BitGraph.add_edge(g, idx, value)
-           end)
+          BitGraph.add_vertex(graph_acc, idx)
         end
       )
+      |> BitGraph.update_opts(neighbor_finder: neighbor_finder(args))
 
     %{
-      domain_graph: domain_graph
+      domain_graph: domain_graph,
+      propagator_variables: args
     }
   end
 
@@ -90,33 +91,38 @@ defmodule CPSolver.Propagator.Circuit do
       predessor == var_idx && graph_acc ||
       (
         res = remove(Propagator.arg_at(vars, predessor), successor)
-        g = BitGraph.delete_edge(graph_acc, predessor, successor)
-          reduce_var(vars, predessor, g, res)
+        reduce_var(vars, predessor, graph_acc, res)
       )
     end)
   end
 
 
-  defp reduce_var(vars, var_idx, graph, _domain_change) do
-    new_successors = domain_values(Propagator.arg_at(vars, var_idx))
-    current_successors = BitGraph.out_neighbors(graph, var_idx)
-    ## `new_successors` is always a subset of `current_successors`
-    ## We remove edges that are a difference between these two sets
-    Enum.reduce(MapSet.difference(current_successors, new_successors),
-      graph, fn s, graph_acc ->
-        BitGraph.delete_edge(graph_acc, var_idx, s)
-      end)
+  defp reduce_var(_vars, _var_idx, graph, _domain_change) do
+    graph
   end
 
   defp check_state(%{domain_graph: graph} = _state) do
     BitGraph.Algorithms.strongly_connected?(graph, algorithm: Enum.random([:tarjan, :kozaraju]))
   end
 
-  defp completed?(%{domain_graph: graph} = _state) do
-    BitGraph.num_vertices(graph) == BitGraph.num_edges(graph)
+  defp completed?(%{domain_graph: graph, propagator_variables: variables} = _state) do
+    Enum.all?(variables, fn var -> fixed?(var) end)
   end
 
   defp fail() do
     throw(:fail)
+  end
+
+  defp neighbor_finder(vars) do
+    fn _graph, vertex_index, :out ->
+        Stream.map(domain_values(Propagator.arg_at(vars, vertex_index - 1)), fn val -> val + 1 end)
+      _graph, vertex_index, :in ->
+        for v <- vars, reduce: {1, MapSet.new()} do
+          {idx, n_acc} ->
+             {idx + 1,
+             contains?(v, vertex_index - 1) && MapSet.put(n_acc, idx) || n_acc}
+        end
+        |> elem(1)
+    end
   end
 end
