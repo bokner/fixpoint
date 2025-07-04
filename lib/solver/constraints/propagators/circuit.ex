@@ -76,36 +76,57 @@ defmodule CPSolver.Propagator.Circuit do
          %{domain_graph: graph} = state,
          changes
        ) do
-        Map.put(state, :domain_graph,
-        Enum.reduce(changes, graph, fn {var_idx, domain_change}, graph_acc ->
-          reduce_var(vars, var_idx, graph_acc, domain_change)
+        ## Side effect - the domain graph doesn't need to be updated,
+        ## as the graph's neighbor finder for is backed by variable domains.
+        Enum.each(changes, fn {var_idx, domain_change} ->
+          reduce_var(vars, var_idx, graph, domain_change)
         end)
-        )
+
+        state
+
       end
 
   defp reduce_var(vars, var_idx, graph, :fixed) do
-    successor = min(Propagator.arg_at(vars, var_idx))
+    successor = min(get_variable(vars, var_idx))
+    short_loop_check(vars, successor)
     ## No other variables can share the successor, so
     ## we will remove the successor from their domains
-    Enum.reduce(BitGraph.in_neighbors(graph, successor), graph, fn predessor, graph_acc ->
-      predessor == var_idx && graph_acc ||
+    Enum.each(BitGraph.in_neighbors(graph, successor), fn predessor ->
+      predessor == var_idx ||
       (
-        res = remove(Propagator.arg_at(vars, predessor), successor)
-        reduce_var(vars, predessor, graph_acc, res)
+        res = remove(get_variable(vars, predessor), successor)
+        reduce_var(vars, predessor, graph, res)
       )
     end)
   end
 
 
-  defp reduce_var(_vars, _var_idx, graph, _domain_change) do
-    graph
+  defp reduce_var(_vars, _var_idx, _graph, _domain_change) do
+    :ok
+  end
+
+  defp short_loop_check(vars, fixed_value) do
+    short_loop_check(vars, fixed_value, MapSet.new([fixed_value]))
+  end
+
+  defp short_loop_check(vars, fixed_value, fixed_chain) do
+    next = get_variable(vars, fixed_value)
+    if fixed?(next) do
+      next_value = min(next)
+      if next_value in fixed_chain do
+        ## short loop?
+        if MapSet.size(fixed_chain) < Arrays.size(vars), do: fail()
+        ## follow the chain
+        short_loop_check(vars, next_value, MapSet.put(fixed_chain, next_value))
+      end
+    end
   end
 
   defp check_state(%{domain_graph: graph} = _state) do
     BitGraph.Algorithms.strongly_connected?(graph, algorithm: Enum.random([:tarjan, :kozaraju]))
   end
 
-  defp completed?(%{domain_graph: graph, propagator_variables: variables} = _state) do
+  defp completed?(%{propagator_variables: variables} = _state) do
     Enum.all?(variables, fn var -> fixed?(var) end)
   end
 
@@ -113,9 +134,13 @@ defmodule CPSolver.Propagator.Circuit do
     throw(:fail)
   end
 
+  defp get_variable(vars, var_index) do
+    Propagator.arg_at(vars, var_index)
+  end
+
   defp neighbor_finder(vars) do
     fn _graph, vertex_index, :out ->
-        Stream.map(domain_values(Propagator.arg_at(vars, vertex_index - 1)), fn val -> val + 1 end)
+        Stream.map(domain_values(get_variable(vars, vertex_index - 1)), fn val -> val + 1 end)
       _graph, vertex_index, :in ->
         for v <- vars, reduce: {1, MapSet.new()} do
           {idx, n_acc} ->
