@@ -30,7 +30,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   defp apply_changes(
          %{
            sccs: sccs,
-           propagator_variables: vars
+           propagator_variables: vars,
+           value_graph: value_graph
          } =
            _state,
          changes
@@ -48,7 +49,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
         update_component(vars, component_rec) ++ sccs_acc
       end
     end)
-    |> final_state()
+    |> final_state(value_graph)
   end
 
   defp update_component(
@@ -100,27 +101,28 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
         %{graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
       ValueGraph.build(variables, check_matching: true)
     {_residual_graph, sccs} = reduction(variables, value_graph, variable_vertices, fixed_matching)
-    final_state(sccs)
+    final_state(sccs, value_graph)
   end
 
-  def final_state(sccs) do
+  def final_state(sccs, value_graph) do
     (Enum.empty?(sccs) && :resolved) ||
       %{
-        sccs: sccs
+        sccs: sccs,
+        value_graph: value_graph
       }
   end
 
   def reduction(vars, value_graph, variable_vertices, fixed_matching, repair_matching? \\ true) do
-    %{matching: matching} =
+    matching =
       (repair_matching? &&
          compute_maximum_matching(value_graph, variable_vertices, fixed_matching)) ||
         fixed_matching
 
     {residual_graph, sccs} =
       build_residual_graph(value_graph, vars, matching)
-      |> reduce_residual_graph(vars)
+      |> reduce_residual_graph(vars, matching.matching)
 
-    {residual_graph, localize_state(sccs, value_graph, matching)}
+    #{residual_graph, localize_state(sccs, value_graph, matching)}
   end
 
   def compute_maximum_matching(value_graph, variable_vertices, fixed_matching) do
@@ -137,7 +139,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     end
   end
 
-  defp build_residual_graph(value_graph, variables, %{free: free_nodes, matching: matching}) do
+  def build_residual_graph(value_graph, variables, %{free: free_nodes, matching: matching}) do
     value_graph
     |> BitGraph.add_vertex(:sink)
     |> BitGraph.update_opts(neighbor_finder: residual_graph_neighbor_finder(value_graph, variables, free_nodes, matching))
@@ -162,8 +164,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
             free_node_indices
           vertex_index <= num_variables ->
             neighbors
-          vertex_index in matching_value_indices ->
-            :matched_value
           direction == :in && vertex_index in free_node_indices ->
             neighbors
           direction == :out && vertex_index in free_node_indices ->
@@ -178,9 +178,15 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       end
   end
 
-  defp reduce_residual_graph(residual_graph, vars) do
-    sccs = BitGraph.strong_components(residual_graph)
-    residual_graph = remove_cross_edges(residual_graph, sccs, vars)
+  def reduce_residual_graph(residual_graph, vars, matching) do
+    sccs = BitGraph.Algorithms.strong_components(residual_graph,
+      vertices: Map.keys(matching),
+      #component_handler:
+      #  {fn component, acc -> scc_component_handler(component, remove_edge_fun, acc) end,
+      #   {MapSet.new(), residual_graph}},
+      algorithm: :tarjan
+    )
+    #residual_graph = remove_cross_edges(residual_graph, sccs, vars)
     {residual_graph, postprocess_sccs(sccs)}
   end
 
