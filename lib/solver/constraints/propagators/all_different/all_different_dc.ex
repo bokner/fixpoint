@@ -18,45 +18,50 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   @impl true
-  def filter(all_vars, state, changes) do
-    new_state =
-      (state && filter_impl(all_vars, state, changes)) ||
-        initial_state(all_vars)
+  def filter(vars, state, changes) do
+    state = state && Map.put(state, :propagator_variables, vars) || initial_state(vars)
 
-    (new_state == :resolved && :passive) ||
-      {:state, new_state}
-  end
-
-  defp filter_impl(_all_vars, state, changes) when is_nil(changes) or map_size(changes) == 0 do
     state
+    |> apply_changes(changes)
+    |> finalize()
   end
 
-  defp filter_impl(
-         all_vars,
+  defp finalize(state) do
+    (entailed?(state) && :passive) ||
+      {:state, state}
+  end
+
+  defp entailed?(%{sccs: sccs} = _state) do
+    Enum.empty?(sccs)
+  end
+
+  defp apply_changes(
          %{
-           sccs: sccs
+           sccs: sccs,
+           propagator_variables: vars
          } =
-           _state,
+           state,
          changes
        ) do
     ## Apply changes to affected SCCs
     trigger_vars =
       Map.keys(changes) |> MapSet.new()
 
-    Enum.reduce(sccs, [], fn %{component: component} = component_rec, sccs_acc ->
+    sccs = Enum.reduce(sccs, [], fn %{component: component} = component_rec, sccs_acc ->
       component_triggers = MapSet.intersection(trigger_vars, component)
 
       if MapSet.size(component_triggers) == 0 do
         [component_rec | sccs_acc]
       else
-        update_component(all_vars, component_rec) ++ sccs_acc
+        update_component(vars, component_rec) ++ sccs_acc
       end
     end)
-    |> final_state()
+
+    Map.put(state, :sccs, sccs)
   end
 
   defp update_component(
-         all_vars,
+         vars,
          %{value_graph: value_graph, component: component} = component_rec
        ) do
     ## We will mostly do what initial reduction does, but on a (lesser) subset of variables
@@ -65,7 +70,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     ## The difference is that we'll only run maximum matching
     ## if any of the trigger variables doesn't have the value associated with the matching edge.
 
-    {component_variable_map, repair_matching?} = component_variables(component_rec, all_vars)
+    {component_variable_map, repair_matching?} = component_variables(component_rec, vars)
     value_graph = update_value_graph(component_variable_map, value_graph)
 
     ## If matching hasn't changed, reuse;
@@ -74,7 +79,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
     {_residual_graph, sccs} =
       reduction(
-        all_vars,
+        vars,
         value_graph,
         MapSet.new(component, fn var_id -> {:variable, var_id} end),
         matching,
@@ -102,23 +107,22 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   def initial_state(vars) do
-    {value_graph, variable_vertices, partial_matching} = build_value_graph(vars)
-    {_residual_graph, sccs} = reduction(vars, value_graph, variable_vertices, partial_matching)
-    final_state(sccs)
+    {value_graph, variable_vertices, fixed_matching} = build_value_graph(vars)
+    {_residual_graph, sccs} = reduction(vars, value_graph, variable_vertices, fixed_matching)
+    %{
+      propagator_variables: vars,
+      sccs: sccs,
+      value_graph: value_graph,
+      variable_vertices: variable_vertices,
+
+    }
   end
 
-  def final_state(sccs) do
-    (Enum.empty?(sccs) && :resolved) ||
-      %{
-        sccs: sccs
-      }
-  end
-
-  def reduction(vars, value_graph, variable_vertices, partial_matching, repair_matching? \\ true) do
+  def reduction(vars, value_graph, variable_vertices, fixed_matching, repair_matching? \\ true) do
     maximum_matching =
       (repair_matching? &&
-         compute_maximum_matching(value_graph, variable_vertices, partial_matching)) ||
-        partial_matching
+         compute_maximum_matching(value_graph, variable_vertices, fixed_matching)) ||
+        fixed_matching
 
     {residual_graph, sccs} =
       build_residual_graph(value_graph, maximum_matching)
@@ -139,17 +143,17 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     Enum.reduce(
       variable_map,
       {Graph.new(), MapSet.new(), Map.new()},
-      fn {var_id, var}, {graph_acc, var_vertices_acc, partial_matching_acc} ->
+      fn {var_id, var}, {graph_acc, var_vertices_acc, fixed_matching_acc} ->
         var_vertex = {:variable, var_id}
         var_vertices_acc = MapSet.put(var_vertices_acc, var_vertex)
 
         fixed? = fixed?(var)
 
-        partial_matching_acc =
+        fixed_matching_acc =
           if fixed? do
-            Map.put(partial_matching_acc, {:value, min(var)}, var_vertex)
+            Map.put(fixed_matching_acc, {:value, min(var)}, var_vertex)
           else
-            partial_matching_acc
+            fixed_matching_acc
           end
 
         graph_acc  =
@@ -157,7 +161,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
               Graph.add_edge(graph_acc2, {:value, d}, var_vertex)
           end)
 
-        {graph_acc, var_vertices_acc, partial_matching_acc}
+        {graph_acc, var_vertices_acc, fixed_matching_acc}
       end
     )
   end
@@ -181,8 +185,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
     end
 
-  def compute_maximum_matching(value_graph, variable_ids, partial_matching) do
-    Kuhn.run(value_graph, variable_ids, partial_matching, MapSet.size(variable_ids))
+  def compute_maximum_matching(value_graph, variable_ids, fixed_matching) do
+    Kuhn.run(value_graph, variable_ids, fixed_matching, MapSet.size(variable_ids))
     || fail()
   end
 
