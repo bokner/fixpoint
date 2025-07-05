@@ -1,4 +1,6 @@
 defmodule CPSolver.Propagator.AllDifferent.Zhang do
+  alias CPSolver.Propagator.AllDifferent.Utils, as: AllDiffUtils
+
   def reduce(value_graph, free_nodes, matching, remove_edge_fun) do
     value_graph
     |> remove_type1_edges(free_nodes, matching, remove_edge_fun)
@@ -118,44 +120,9 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
   end
 
   def process_sccs(graph, matching, remove_edge_fun) do
-    BitGraph.Algorithms.strong_components(graph,
-      vertices: Map.keys(matching),
-      component_handler:
-        {fn component, acc -> scc_component_handler(component, remove_edge_fun, acc) end,
-         {MapSet.new(), graph}},
-      algorithm: :tarjan
-    )
+    AllDiffUtils.split_to_sccs(graph, Map.keys(matching), remove_edge_fun)
   end
 
-  def scc_component_handler(component, remove_edge_fun, {component_acc, graph_acc} = _current_acc) do
-    {variable_vertices, updated_graph} =
-      Enum.reduce(component, {MapSet.new(), graph_acc}, fn vertex_index,
-                                                           {vertices_acc, g_acc} = acc ->
-        case BitGraph.V.get_vertex(graph_acc, vertex_index) do
-          ## We only need to remove out-edges from 'variable' vertices
-          ## that cross to other SCCS
-          {:variable, variable_id} = v ->
-            foreign_neighbors = BitGraph.E.out_neighbors(g_acc, vertex_index)
 
-            {
-              MapSet.put(vertices_acc, variable_id),
-              Enum.reduce(foreign_neighbors, g_acc, fn neighbor, g_acc2
-                                                       when is_integer(neighbor) ->
-                (neighbor in component && g_acc2) ||
-                  remove_edge_fun.(g_acc2, v, BitGraph.V.get_vertex(g_acc2, neighbor))
-              end)
-            }
-
-          {:value, _} ->
-            acc
-        end
-      end)
-
-    ## drop 1-vertex sccs
-    updated_components =
-      MapSet.size(variable_vertices) > 1 && MapSet.put(component_acc, variable_vertices) || component_acc
-
-    {updated_components, updated_graph}
-  end
 
 end
