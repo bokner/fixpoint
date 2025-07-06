@@ -1,4 +1,4 @@
-defmodule CPSolver.Propagator.AllDifferent.DC.BitGraph do
+defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   use CPSolver.Propagator
 
   alias CPSolver.ValueGraph
@@ -19,13 +19,27 @@ defmodule CPSolver.Propagator.AllDifferent.DC.BitGraph do
   end
 
   @impl true
-  def filter(vars, state, changes) do
-    state = (state && Map.put(state, :propagator_variables, vars)) || initial_state(vars)
-
-    state
-    |> apply_changes(changes)
-    |> finalize()
+  def reset(args, state) do
+    state && Map.put(state, :propagator_variables, args) || initial_state(args)
   end
+
+  @impl true
+  def filter(vars, state, changes) do
+    state = (state && apply_changes(state, changes)) || initial_state(vars)
+    finalize(state)
+  end
+
+  def initial_state(vars) do
+      %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
+        ValueGraph.build(vars, check_matching: true)
+
+    %{
+      propagator_variables: vars,
+      variable_vertices: variable_vertices
+    }
+    |> Map.merge(reduction(vars, value_graph, variable_vertices, fixed_matching))
+  end
+
 
   defp finalize(state) do
     (entailed?(state) && :passive) ||
@@ -38,35 +52,36 @@ defmodule CPSolver.Propagator.AllDifferent.DC.BitGraph do
 
   defp apply_changes(
          %{
-           sccs: _sccs,
+           sccs: sccs,
            propagator_variables: _vars,
            value_graph: _graph
          } = state,
-         changes
+         _changes
        ) do
-    if Enum.empty?(changes) do
-      state
-    else
       ## Apply changes to affected SCCs
-    end
+      Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
+        fn component, state_acc ->
+          %{value_graph: reduced_graph, sccs: derived_sccs} =
+          reduce_component(component, state_acc)
+
+          state_acc
+          |> Map.put(:value_graph, reduced_graph)
+          |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
+        end)
   end
 
-  def initial_state(vars) do
-      %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
-        ValueGraph.build(vars, check_matching: true)
-
-
+  defp reduce_component(%{matching: matching} = _component,
     %{
       propagator_variables: vars,
-      variable_vertices: variable_vertices
-    }
-    |> Map.merge(reduction(vars, value_graph, variable_vertices, fixed_matching))
+      value_graph: value_graph
+    } = _state) do
+    reduction(vars, value_graph, Map.keys(matching) |> MapSet.new(), %{})
   end
 
   def reduction(vars, value_graph, variable_vertices, fixed_matching) do
     matching = find_matching(value_graph, variable_vertices, fixed_matching)
 
-    %{value_graph: _reduced_graph, sccs: _sccs, matching: _matching} =
+    %{value_graph: _reduced_graph, sccs: _sccs} =
       reduce_graph(value_graph, vars, matching)
   end
 
@@ -98,8 +113,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.BitGraph do
       AllDiffUtils.default_remove_edge_fun(variables))
     |> then(fn {sccs, reduced_graph} ->
       %{
-        matching: matching,
-        sccs: sccs,
+        sccs: MapSet.new(sccs, fn component ->
+          %{component: component, matching: Map.take(matching, Enum.map(component, fn c -> {:variable, c} end))}
+        end),
         value_graph:
           reduced_graph
           |> BitGraph.delete_vertex(:sink)
