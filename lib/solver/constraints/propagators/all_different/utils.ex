@@ -10,6 +10,7 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
   ## fn(graph, from_vertex, to_vertex)
   ## that returns (possibly modified) graph.
   ##
+  ## Returns tuple {sccs, reduced_graph}
   def split_to_sccs(graph, vertices, remove_edge_fun \\ fn graph, from, to -> BitGraph.delete_edge(graph, from, to) end) do
     BitGraph.Algorithms.strong_components(graph,
       vertices: vertices,

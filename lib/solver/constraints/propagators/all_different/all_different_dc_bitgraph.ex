@@ -200,8 +200,19 @@ defmodule CPSolver.Propagator.AllDifferent.DC.BitGraph do
   end
 
   ## Move parts of matching to where SCCs they belong to are
-  defp localize_state(sccs, value_graph, matching) do
-    sccs
+  defp localize_state(sccs, _value_graph, matching) do
+    MapSet.new(sccs, fn component ->
+      ## Component is a set of variable indices
+      matching = Enum.reduce(component, Map.new(), fn c, m_acc ->
+        var_vertex = {:variable, c}
+        case Map.get(matching, var_vertex) do
+          nil -> m_acc
+          {:value, _value} = value_vertex ->
+            Map.put(m_acc, var_vertex, value_vertex)
+          end
+        end)
+        %{matching: matching, component: component}
+      end)
     # ## Matching is value => var_id map
     # ## We want to reverse it, so we can do a lookup by var_id later on
     # matching_map =
