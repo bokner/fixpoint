@@ -41,6 +41,8 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
 
           {:value, _} ->
             acc
+          _ ->
+            acc
         end
       end)
 

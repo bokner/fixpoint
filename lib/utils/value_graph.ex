@@ -167,6 +167,10 @@ defmodule CPSolver.ValueGraph do
     |> elem(1)
   end
 
+  defp get_neighbors(_graph, _additional_vertex, _variables, _direction) do
+    MapSet.new()
+  end
+
   ## Matching edges will be reversed
   def matching_neighbor_finder(graph, variables, matching) do
     default_neighbor_finder = default_neighbor_finder(variables)
