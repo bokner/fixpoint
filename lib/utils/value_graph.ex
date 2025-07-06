@@ -73,7 +73,7 @@ defmodule CPSolver.ValueGraph do
         value_vertices
 
     %{
-      graph:
+      value_graph:
         BitGraph.new(
           max_vertices: MapSet.size(value_vertices) + var_count,
           neighbor_finder: default_neighbor_finder(variables)
@@ -94,7 +94,7 @@ defmodule CPSolver.ValueGraph do
   ## a domain reduction such that no domain value is shared between fixed variables.
   def forward_checking(graph, fixed_vertices, variables) do
     {updated_graph, _, newly_fixed_vertices} = forward_checking_impl(graph, fixed_vertices, variables)
-    %{graph: updated_graph, new_fixed: newly_fixed_vertices}
+    %{value_graph: updated_graph, new_fixed: newly_fixed_vertices}
   end
 
   defp forward_checking_impl(graph, fixed_vertices, variables) do

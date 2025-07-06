@@ -11,14 +11,14 @@ defmodule CPSolverTest.Utils.ValueGraph do
       domain = 1..5
       variables = Enum.map(1..num_variables, fn idx -> Variable.new(domain, name: "x#{idx}") end)
 
-      %{graph: graph, left_partition: left_partition} = ValueGraph.build(variables)
+      %{value_graph: graph, left_partition: left_partition} = ValueGraph.build(variables)
       assert MapSet.size(left_partition) == length(variables)
       ## 4 variables and 5 values
       assert BitGraph.num_vertices(graph) == 9
 
       ## Ignore fixed variables
       variables = Enum.map([1, 1..2, [1, 2, 4, 5], 6], fn d -> Variable.new(d) end)
-      %{graph: graph, left_partition: left_partition} = ValueGraph.build(variables,
+      %{value_graph: graph, left_partition: left_partition} = ValueGraph.build(variables,
       ignore_fixed_variables: true)
 
       assert {:variable, 1} in left_partition
@@ -37,7 +37,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       num_variables = 4
       domain = 1..5
       variables = Enum.map(1..num_variables, fn idx -> Variable.new(domain, name: "x#{idx}") end)
-      %{graph: graph, left_partition: _left_partition} = ValueGraph.build(variables)
+      %{value_graph: graph, left_partition: _left_partition} = ValueGraph.build(variables)
       ## For 'variable' vertices, all neighbors are 'out' vertices {:value, domain_value}.
       ## The domain of variable represented by 'variable' vertex is covered by it's neighbors.
       assert Enum.all?(0..(num_variables - 1), fn var_idx ->
@@ -99,7 +99,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       num_variables = 4
 
       variables = Enum.map(1..num_variables, fn idx -> Variable.new(domain, name: "x#{idx}") end)
-      %{graph: graph, left_partition: left_partition} = ValueGraph.build(variables)
+      %{value_graph: graph, left_partition: left_partition} = ValueGraph.build(variables)
       assert %{matching: %{}} = BitGraph.Algorithms.bipartite_matching(graph, left_partition)
 
       matching =
@@ -180,11 +180,11 @@ defmodule CPSolverTest.Utils.ValueGraph do
         1, [2, 3, 5], [1, 4], [1, 5]
       ]
       [x0, x1, x2, x3] = variables = Enum.map(domains, fn d -> Variable.new(d) end)
-      %{graph: graph} = ValueGraph.build(variables)
+      %{value_graph: graph} = ValueGraph.build(variables)
 
       assert BitGraph.num_vertices(graph) == 9
 
-      %{graph: updated_graph, new_fixed: new_fixed} =
+      %{value_graph: updated_graph, new_fixed: new_fixed} =
         ValueGraph.forward_checking(graph, MapSet.new([{:variable, 0}]), variables)
 
       ## Newly fixed variables
