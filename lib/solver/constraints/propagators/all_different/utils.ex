@@ -1,5 +1,6 @@
 defmodule CPSolver.Propagator.AllDifferent.Utils do
   alias CPSolver.ValueGraph
+  alias CPSolver.Variable.Interface
   ## Splits graph into SCCs,
   ## and removes cross-edges.
   ## `vertices` is a subset of graph vertices
@@ -22,9 +23,10 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
   end
 
     def scc_component_handler(component, remove_edge_fun, {component_acc, graph_acc} = _current_acc) do
-    {variable_vertices, updated_graph} =
-      Enum.reduce(component, {MapSet.new(), graph_acc}, fn vertex_index,
+      {variable_vertices, updated_graph} =
+        Enum.reduce(component, {MapSet.new(), graph_acc}, fn vertex_index,
                                                            {vertices_acc, g_acc} = acc ->
+
         case BitGraph.V.get_vertex(graph_acc, vertex_index) do
           ## We only need to remove out-edges from 'variable' vertices
           ## that cross to other SCCS
@@ -55,9 +57,13 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
   end
 
   def default_remove_edge_fun(vars) do
-      fn graph, var_vertex, value_vertex ->
-      ValueGraph.delete_edge(graph, get_variable_vertex(var_vertex), get_value_vertex(value_vertex), vars)
-      |> Map.get(:graph)
+      fn graph, {:variable, var_index} = var_vertex, value_vertex ->
+        var = ValueGraph.get_variable(vars, var_index)
+        if Interface.fixed?(var) do
+          graph
+        else
+          ValueGraph.delete_edge(graph, get_variable_vertex(var_vertex), get_value_vertex(value_vertex), vars)
+        end
     end
   end
 

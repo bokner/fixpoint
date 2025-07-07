@@ -9,6 +9,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Zhang
+  alias CPSolver.Propagator.AllDifferent.Utils
 
   @impl true
   def arguments(args) do
@@ -60,15 +61,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       variable_vertices: variable_vertices,
       propagator_variables: variables,
       fixed_matching: fixed_matching,
-      reduction_callback: build_reduction_callback(variables)
+      reduction_callback: reduction_callback(variables)
     }
   end
 
-  defp build_reduction_callback(variables) do
-    fn graph, var_vertex, value_vertex ->
-      ValueGraph.delete_edge(graph, get_variable_vertex(var_vertex), get_value_vertex(value_vertex), variables)
-      |> Map.get(:graph)
-    end
+  defp reduction_callback(variables) do
+    Utils.default_remove_edge_fun(variables)
   end
 
   def find_matching(value_graph, variable_vertices, fixed_matching \\ Map.new()) do
@@ -128,7 +126,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           neighbor_finder: ValueGraph.default_neighbor_finder(vars)
         )
           state
-          |> Map.put(:reduction_callback, build_reduction_callback(vars))
+          |> Map.put(:reduction_callback, reduction_callback(vars))
           |> Map.put(:value_graph, updated_value_graph)
           |> Map.put(:fixed_matching, fixed_matching)
           |> reduce_state()
@@ -199,23 +197,5 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       )
   end
 
-
-
-  ## Helpers
-  defp get_variable_vertex({:variable, _vertex} = v) do
-    v
-  end
-
-  defp get_variable_vertex(vertex) when is_integer(vertex) do
-    {:variable, vertex}
-  end
-
-  defp get_value_vertex({:value, _vertex} = v) do
-    v
-  end
-
-  defp get_value_vertex(vertex) when is_integer(vertex) do
-    {:value, vertex}
-  end
 
 end

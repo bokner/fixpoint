@@ -109,8 +109,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
       )
     end)
     ## split to sccs
-    |> AllDiffUtils.split_to_sccs(Map.keys(matching),
-      AllDiffUtils.default_remove_edge_fun(variables))
+    |> reduce_residual_graph(matching, variables)
     |> then(fn {sccs, reduced_graph} ->
       %{
         sccs: MapSet.new(sccs, fn component ->

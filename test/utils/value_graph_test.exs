@@ -120,7 +120,6 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
       graph = Enum.reduce(0..num_variables-1, graph, fn var_idx, graph_acc ->
         ValueGraph.delete_edge(graph_acc, {:variable, var_idx}, free_vertex, variables)
-        |> Map.get(:graph)
       end)
 
       ## Free node is no longer in the graph

@@ -108,20 +108,14 @@ defmodule CPSolver.ValueGraph do
         graph = BitGraph.delete_vertex(graph_acc, var_vertex)
 
         {updated_graph, new_fixed_vertices} =
-          Enum.reduce(BitGraph.in_neighbors(graph, value_vertex), {graph, fixed_acc}, fn {:variable, _var_index} =
+          Enum.reduce(BitGraph.in_neighbors(graph, value_vertex), {graph, fixed_acc}, fn {:variable, var_index} =
                                                                             var_neighbor,
                                                                           {g_acc, f_acc} ->
-            %{graph: g_acc, change: change} =
-              delete_edge(g_acc, var_neighbor, value_vertex, variables)
+            g_acc = delete_edge(g_acc, var_neighbor, value_vertex, variables)
 
             f_acc =
-              case change do
-                :fixed ->
-                  MapSet.put(f_acc, var_neighbor)
-
-                _domain_change ->
-                  f_acc
-              end
+              PropagatorVariable.fixed?(get_variable(variables, var_index)) &&
+                  MapSet.put(f_acc, var_neighbor) || f_acc
 
             {g_acc, f_acc}
           end)
@@ -317,17 +311,13 @@ defmodule CPSolver.ValueGraph do
   def delete_edge(graph, {:variable, var_index}, {:value, value} = value_vertex, variables) do
     propagator_variable = get_variable(variables, var_index)
 
-    change = PropagatorVariable.remove(propagator_variable, value)
+    _change = PropagatorVariable.remove(propagator_variable, value)
 
-    %{
-      graph:
-        (BitGraph.degree(graph, value_vertex) == 0 &&
-           BitGraph.delete_vertex(graph, value_vertex)) || graph,
-      change: change
-    }
+    (BitGraph.degree(graph, value_vertex) == 0 &&
+        BitGraph.delete_vertex(graph, value_vertex)) || graph
   end
 
-  defp get_variable(variables, var_index) do
+  def get_variable(variables, var_index) do
     Propagator.arg_at(variables, var_index)
   end
 end
