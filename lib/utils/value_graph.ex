@@ -320,4 +320,18 @@ defmodule CPSolver.ValueGraph do
   def get_variable(variables, var_index) do
     Propagator.arg_at(variables, var_index)
   end
+
+  def show_graph(graph, context \\ nil) do
+    "context: " <> (context && inspect(context) || "") <> "\n"
+    <> Enum.map_join(BitGraph.vertices(graph), "\n", fn vertex ->
+      neighbors = BitGraph.out_neighbors(graph, vertex)
+      Enum.empty?(neighbors) && "#{inspect vertex} []" ||
+      (
+      edges =  Enum.map_join(neighbors,
+          ", ", fn neighbor -> "#{inspect neighbor}" end)
+      "#{inspect vertex} -> [ #{edges} ]"
+      )
+    end)
+  end
+
 end

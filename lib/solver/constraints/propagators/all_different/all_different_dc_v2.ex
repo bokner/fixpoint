@@ -29,18 +29,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     finalize(state)
   end
 
-  def initial_state(vars) do
-      %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
-        ValueGraph.build(vars, check_matching: true)
-
-    %{
-      propagator_variables: vars,
-      variable_vertices: variable_vertices
-    }
-    |> Map.merge(reduction(vars, value_graph, variable_vertices, fixed_matching))
-  end
-
-
   defp finalize(state) do
     (entailed?(state) && :passive) ||
       {:state, state}
@@ -49,6 +37,15 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   defp entailed?(%{sccs: sccs} = _state) do
     Enum.empty?(sccs)
   end
+
+  # defp apply_changes(
+  #        %{
+  #          sccs: _sccs,
+  #          propagator_variables: _vars,
+  #          value_graph: _graph
+  #        } = state, _changes) do
+  #         initial_state(state[:propagator_variables])
+  #        end
 
   defp apply_changes(
          %{
@@ -70,12 +67,23 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
         end)
   end
 
-  defp reduce_component(%{matching: matching} = _component,
+  def initial_state(vars) do
+    %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
+      ValueGraph.build(vars, check_matching: true)
+    %{
+      propagator_variables: vars,
+      variable_vertices: variable_vertices
+    }
+    |> Map.merge(reduction(vars, value_graph, variable_vertices, fixed_matching))
+  end
+
+
+  defp reduce_component(component,
     %{
       propagator_variables: vars,
       value_graph: value_graph
     } = _state) do
-    reduction(vars, value_graph, Map.keys(matching) |> MapSet.new(), %{})
+    reduction(vars, value_graph, MapSet.new(component, fn var_idx -> {:variable, var_idx} end), %{})
   end
 
   def reduction(vars, value_graph, variable_vertices, fixed_matching) do
@@ -102,27 +110,31 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   def reduce_graph(value_graph, variables, %{free: free_nodes, matching: matching} = _matching_record) do
     ## build residual graph
     value_graph
-    |> BitGraph.add_vertex(:sink)
-    |> then(fn g ->
-      BitGraph.update_opts(g,
-        neighbor_finder: residual_graph_neighbor_finder(g, variables, free_nodes, matching)
-      )
-    end)
+    |> build_residual_graph(variables, free_nodes, matching)
+    |> tap(fn graph -> ValueGraph.show_graph(graph, {self(), :before_split}) end)
     ## split to sccs
-    |> reduce_residual_graph(matching, variables)
+    |> reduce_residual_graph(variables, matching)
     |> then(fn {sccs, reduced_graph} ->
+      ValueGraph.show_graph(reduced_graph, {self(), :after_split})
       %{
-        sccs: MapSet.new(sccs, fn component ->
-          %{component: component, matching: Map.take(matching, Enum.map(component, fn c -> {:variable, c} end))}
-        end),
+        sccs: sccs,
         value_graph:
           reduced_graph
           |> BitGraph.delete_vertex(:sink)
           |> BitGraph.update_opts(neighbor_finder: ValueGraph.default_neighbor_finder(variables))
         }
     end)
+    |> Map.put(:matching, matching)
+  end
 
-
+  def build_residual_graph(graph, variables, free_nodes, matching) do
+    graph
+    |> BitGraph.add_vertex(:sink)
+    |> then(fn g ->
+      BitGraph.update_opts(g,
+        neighbor_finder: residual_graph_neighbor_finder(g, variables, free_nodes, matching)
+      )
+    end)
   end
 
 
