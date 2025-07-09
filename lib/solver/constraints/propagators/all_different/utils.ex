@@ -62,20 +62,12 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
         if Interface.fixed?(var) do
           graph
         else
-          ValueGraph.delete_edge(graph, get_variable_vertex(var_vertex), get_value_vertex(value_vertex), vars)
+          ValueGraph.delete_edge(graph, var_vertex, get_value_vertex(value_vertex), vars)
         end
     end
   end
 
-    ## Helpers
-  defp get_variable_vertex({:variable, _vertex} = v) do
-    v
-  end
-
-  defp get_variable_vertex(vertex) when is_integer(vertex) do
-    {:variable, vertex}
-  end
-
+  ## Helpers
   defp get_value_vertex({:value, _vertex} = v) do
     v
   end
