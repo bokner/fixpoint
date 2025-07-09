@@ -103,8 +103,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert %{matching: %{}} = BitGraph.Algorithms.bipartite_matching(graph, left_partition)
 
       matching =
-        BitGraph.Algorithms.bipartite_matching(graph, left_partition
-        )
+        BitGraph.Algorithms.bipartite_matching(graph, left_partition)
 
       assert MapSet.size(matching.free) == 1
       ## Matching is valid
