@@ -145,7 +145,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     matching_value_indices = Stream.map(Map.values(matching), fn value_vertex -> BitGraph.V.get_vertex_index(value_graph, value_vertex) end)
     sink_node_index = BitGraph.V.get_vertex_index(value_graph, :sink)
 
-    fn graph, vertex_index, direction ->
+    fn _graph, nil, _direction ->
+      ## "Stray" vertex index.
+      ## This could happen if the vertex is not in the graph,
+      ## for instance, as a result of it being removed during graph processing;
+      ## TODO: review
+      MapSet.new()
+
+      graph, vertex_index, direction ->
       neighbors = base_neighbor_finder.(graph, vertex_index, direction)
       ## By construction of value graph, the variable vertices go first,
       ## followed by value vertices; the last on is 'sink' vertex
@@ -164,7 +171,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
             MapSet.put(neighbors, sink_node_index)
           direction == :out && vertex_index in matching_value_indices ->
             neighbors
-
         end
 
       end
