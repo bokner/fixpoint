@@ -58,12 +58,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
       ## Apply changes to affected SCCs
       Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
         fn component, state_acc ->
-          %{value_graph: reduced_graph, sccs: derived_sccs} =
-          reduce_component(component, state_acc)
-
-          state_acc
-          |> Map.put(:value_graph, reduced_graph)
-          |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
+          case reduce_component(component, state_acc) do
+            nil -> state_acc
+            %{value_graph: reduced_graph, sccs: derived_sccs} ->
+              state_acc
+              |> Map.put(:value_graph, reduced_graph)
+              |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
+          end
         end)
   end
 
@@ -83,7 +84,15 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
       propagator_variables: vars,
       value_graph: value_graph
     } = _state) do
-    reduction(vars, value_graph, MapSet.new(component, fn var_idx -> {:variable, var_idx} end), %{})
+      variable_vertices = Enum.reduce(component, MapSet.new(),
+        fn var_index, acc ->
+          fixed?(ValueGraph.get_variable(vars, var_index)) && acc
+          || MapSet.put(acc, {:variable, var_index})
+      end)
+
+    MapSet.size(variable_vertices) > 1 &&
+    reduction(vars, value_graph, variable_vertices, %{})
+    || nil
   end
 
   def reduction(vars, value_graph, variable_vertices, fixed_matching) do
@@ -111,11 +120,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     ## build residual graph
     value_graph
     |> build_residual_graph(variables, free_nodes, matching)
-    |> tap(fn graph -> ValueGraph.show_graph(graph, {self(), :before_split}) end)
+    #|> tap(fn graph -> ValueGraph.show_graph(graph, {self(), :before_split}) |> IO.puts end)
     ## split to sccs
     |> reduce_residual_graph(variables, matching)
     |> then(fn {sccs, reduced_graph} ->
-      ValueGraph.show_graph(reduced_graph, {self(), :after_split})
+      #ValueGraph.show_graph(reduced_graph, {self(), :after_split}) |> IO.puts
       %{
         sccs: sccs,
         value_graph:
@@ -171,6 +180,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
             MapSet.put(neighbors, sink_node_index)
           direction == :out && vertex_index in matching_value_indices ->
             neighbors
+          true ->
+            MapSet.new()
         end
 
       end
