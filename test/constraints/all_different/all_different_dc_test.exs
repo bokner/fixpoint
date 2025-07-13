@@ -26,7 +26,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
     end
 
     test "produces all possible permutations" do
-      var_nums = 3
+      var_nums = 4
       domain = 1..var_nums
       variables = Enum.map(domain, fn _ -> IntVariable.new(domain) end)
 

@@ -119,7 +119,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   def reduce_graph(value_graph, variables, %{free: free_nodes, matching: matching} = _matching_record) do
     ## build residual graph
     value_graph
-    |> build_residual_graph(variables, free_nodes, matching)
+    |> build_residual_graph(variables, matching, free_nodes)
     #|> tap(fn graph -> ValueGraph.show_graph(graph, {self(), :before_split}) |> IO.puts end)
     ## split to sccs
     |> reduce_residual_graph(variables, matching)
@@ -132,6 +132,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
           |> BitGraph.delete_vertex(:sink)
           |> BitGraph.update_opts(neighbor_finder: ValueGraph.default_neighbor_finder(variables))
         }
+
+        unexpected ->
+          IO.inspect({unexpected, free_nodes, matching}, label: :unexpected)
+          #IO.inspect(value_graph, label: :failed_graph)
     end)
     |> Map.put(:matching, matching)
   end
@@ -141,15 +145,15 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     |> BitGraph.add_vertex(:sink)
     |> then(fn g ->
       BitGraph.update_opts(g,
-        neighbor_finder: residual_graph_neighbor_finder(g, variables, free_nodes, matching)
+        neighbor_finder: residual_graph_neighbor_finder(g, variables, matching, free_nodes)
       )
     end)
   end
 
 
-  defp residual_graph_neighbor_finder(value_graph, variables, free_nodes, matching) do
-    num_variables = Arrays.size(variables)
-    base_neighbor_finder = ValueGraph.matching_neighbor_finder(value_graph, variables, matching)
+  defp residual_graph_neighbor_finder(value_graph, variables, matching, free_nodes) do
+    num_variables = ValueGraph.get_variable_count(value_graph)
+    base_neighbor_finder = ValueGraph.matching_neighbor_finder(value_graph, variables, matching, free_nodes)
     free_node_indices = Stream.map(free_nodes, fn value_vertex -> BitGraph.V.get_vertex_index(value_graph, value_vertex) end)
     matching_value_indices = Stream.map(Map.values(matching), fn value_vertex -> BitGraph.V.get_vertex_index(value_graph, value_vertex) end)
     sink_node_index = BitGraph.V.get_vertex_index(value_graph, :sink)

@@ -12,7 +12,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       variables = Enum.map(1..num_variables, fn idx -> Variable.new(domain, name: "x#{idx}") end)
 
       %{value_graph: graph, left_partition: left_partition} = ValueGraph.build(variables)
-      assert MapSet.size(left_partition) == length(variables)
+      assert ValueGraph.get_variable_count(graph) == num_variables
       ## 4 variables and 5 values
       assert BitGraph.num_vertices(graph) == 9
 
@@ -140,7 +140,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert map_size(matching2.matching) == 4
 
       matching_neighbor_finder =
-        ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching)
+        ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching, matching2.free)
 
       assert Enum.all?(matching2.matching, fn {var_vertex, value_vertex} ->
                BitGraph.out_neighbors(graph, value_vertex,
@@ -166,11 +166,46 @@ defmodule CPSolverTest.Utils.ValueGraph do
       ## With matching edges oriented from values to variables,
       ## the graph becomes a cycle.
       matching_neighbor_finder =
-        ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching)
+        ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching, matching2.free)
 
       assert BitGraph.strongly_connected?(graph,
                neighbor_finder: matching_neighbor_finder
              )
+    end
+
+    test "matching neighbor finder with fixed variables" do
+      domain = 1..3
+
+      variables = Enum.map(domain, fn idx -> Variable.new(domain, name: "x#{idx}") end)
+      %{value_graph: value_graph, left_partition: variable_vertices} = ValueGraph.build(variables)
+
+      %{matching: matching, free: free_nodes}
+        = BitGraph.Algorithms.bipartite_matching(value_graph, variable_vertices)
+
+      var_index = 0
+      ## Fix a variable...
+      :fixed = Interface.fix(Enum.at(variables, var_index), 1)
+      fixed_variable_vertex = {:variable, 0}
+      matched_value_vertex = Map.get(matching, fixed_variable_vertex)
+      reduced_matching = Map.delete(matching, fixed_variable_vertex)
+      ## Create a 'matching' graph with reduced matching
+      neighbor_finder =  ValueGraph.matching_neighbor_finder(value_graph, variables, reduced_matching, free_nodes)
+      matching_graph = BitGraph.update_opts(value_graph, neighbor_finder: neighbor_finder)
+
+      #IO.puts(ValueGraph.show_graph(value_graph, :value_grah))
+      #IO.puts(ValueGraph.show_graph(matching_graph, :matching_graph))
+
+      ## 'Variable' vertices that are not part of (reduced) matching are isolated
+      assert BitGraph.degree(matching_graph, fixed_variable_vertex) == 0
+      ## The values for excluded matches are isolated.
+      assert BitGraph.degree(matching_graph, matched_value_vertex) == 0
+      refute fixed_variable_vertex in BitGraph.in_neighbors(matching_graph, matched_value_vertex)
+      ## The variables in the matching do not have matched value vertex as a neighbor
+      refute Enum.any?(reduced_matching, fn {var_vertex, _value_vertex} ->
+        matched_value_vertex in (BitGraph.neighbors(matching_graph, var_vertex))
+      end)
+
+
     end
 
     test "forward checking" do
