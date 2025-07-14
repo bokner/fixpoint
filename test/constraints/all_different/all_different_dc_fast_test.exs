@@ -26,23 +26,19 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC.Fast do
     end
 
     test "produces all possible permutations" do
-      domain = 1..3
-      variables = Enum.map(1..3, fn _ -> IntVariable.new(domain) end)
+      var_nums = 4
+      domain = 1..var_nums
+      variables = Enum.map(domain, fn _ -> IntVariable.new(domain) end)
+
+      permutations = Permutation.permute!(Enum.to_list(domain))
 
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
 
-      {:ok, result} = CPSolver.solve(model, timeout: 100, search: {:first_fail, :indomain_split})
+      {:ok, result} = CPSolver.solve(model)
 
-      assert result.statistics.solution_count == 6
+      assert result.statistics.solution_count == MapSet.size(permutations)
 
-      assert result.solutions |> Enum.sort() == [
-               [1, 2, 3],
-               [1, 3, 2],
-               [2, 1, 3],
-               [2, 3, 1],
-               [3, 1, 2],
-               [3, 2, 1]
-             ]
+      assert result.solutions |> MapSet.new() == permutations
     end
 
     test "unsatisfiable (duplicates)" do

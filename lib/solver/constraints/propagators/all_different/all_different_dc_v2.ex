@@ -103,12 +103,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   end
 
   def find_matching(value_graph, variable_vertices, fixed_matching) do
+    ##IO.inspect(value_graph[:opts], label: :opts)
     try do
-    BitGraph.Algorithms.bipartite_matching(
-      value_graph,
-      variable_vertices,
-      fixed_matching: fixed_matching,
-      required_size: MapSet.size(variable_vertices)
+      BitGraph.Algorithms.bipartite_matching(
+        value_graph,
+        variable_vertices,
+        fixed_matching: fixed_matching,
+        required_size: MapSet.size(variable_vertices)
     )
     |> tap(fn matching -> matching || fail() end)
     catch {:error, _} ->
@@ -117,9 +118,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   end
 
   def reduce_graph(value_graph, variables, %{free: free_nodes, matching: matching} = _matching_record) do
+#    IO.inspect(matching_record, label: :matching_record)
     ## build residual graph
     value_graph
     |> build_residual_graph(variables, matching, free_nodes)
+
     #|> tap(fn graph -> ValueGraph.show_graph(graph, {self(), :before_split}) |> IO.puts end)
     ## split to sccs
     |> reduce_residual_graph(variables, matching)
@@ -140,7 +143,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     |> Map.put(:matching, matching)
   end
 
-  def build_residual_graph(graph, variables, free_nodes, matching) do
+  def build_residual_graph(graph, variables, matching, free_nodes) do
     graph
     |> BitGraph.add_vertex(:sink)
     |> then(fn g ->

@@ -34,7 +34,8 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
 
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
 
-      {:ok, result} = CPSolver.solve(model, timeout: 100, search: {:first_fail, :indomain_split})
+      {:ok, result} = CPSolver.solve(model)
+
 
       assert result.statistics.solution_count == MapSet.size(permutations)
 

@@ -22,24 +22,19 @@ defmodule CPSolverTest.Constraint.AllDifferent do
     end
 
     test "produces all possible permutations" do
-      domain = 1..3
-      variables = Enum.map(1..3, fn _ -> IntVariable.new(domain) end)
+      var_nums = 4
+      domain = 1..var_nums
+      variables = Enum.map(domain, fn _ -> IntVariable.new(domain) end)
+
+      permutations = Permutation.permute!(Enum.to_list(domain))
 
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
 
-      {:ok, solver} = CPSolver.solve_async(model)
+      {:ok, result} = CPSolver.solve(model)
 
-      Process.sleep(100)
-      assert CPSolver.statistics(solver).solution_count == 6
+      assert result.statistics.solution_count == MapSet.size(permutations)
 
-      assert CPSolver.solutions(solver) |> Enum.sort() == [
-               [1, 2, 3],
-               [1, 3, 2],
-               [2, 1, 3],
-               [2, 3, 1],
-               [3, 1, 2],
-               [3, 2, 1]
-             ]
+      assert result.solutions |> MapSet.new() == permutations
     end
   end
 end
