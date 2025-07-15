@@ -28,10 +28,12 @@ defmodule CPSolver.MixProject do
     [
       {:libgraph, "~> 0.16.0"},
       {:bitgraph, "~> 0.1"},
+      #{:bitgraph, path: Path.join([System.get_env("HOME"), "projects", "bitgraph"])},
       {:arrays, "~> 2.1"},
       {:arrays_aja, "~> 0.2.0"},
       {:math, "~> 0.7.0", only: :test},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:permutation, "~> 0.1.0", only: [:dev, :test]},
+      {:ex_doc, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.2", only: [:dev], runtime: false},
       {:ex_united, "~> 0.1.5", only: :test},
       {:local_cluster, "~> 1.2", only: :test},

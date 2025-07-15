@@ -126,7 +126,7 @@ defmodule CPSolver.Shared do
     :ok
   end
 
-  ## This is a map nodes => atomics
+  ## This is a %{nodes => atomics} map.
   ## The value is 2-element (:counters) array
   ## First element is a thread counter, 2nd is the max number of
   ## space processes allowed to run simultaneously on a given node.

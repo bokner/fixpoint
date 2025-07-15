@@ -73,10 +73,11 @@ defmodule CPSolver.ValueGraph do
         value_vertices
 
     %{
-      graph:
+      value_graph:
         BitGraph.new(
           max_vertices: MapSet.size(value_vertices) + var_count,
-          neighbor_finder: default_neighbor_finder(variables)
+          neighbor_finder: default_neighbor_finder(variables),
+          variable_count: var_count
         )
         |> BitGraph.add_vertices(left_partition)
         |> BitGraph.add_vertices(value_vertices),
@@ -94,7 +95,7 @@ defmodule CPSolver.ValueGraph do
   ## a domain reduction such that no domain value is shared between fixed variables.
   def forward_checking(graph, fixed_vertices, variables) do
     {updated_graph, _, newly_fixed_vertices} = forward_checking_impl(graph, fixed_vertices, variables)
-    %{graph: updated_graph, new_fixed: newly_fixed_vertices}
+    %{value_graph: updated_graph, new_fixed: newly_fixed_vertices}
   end
 
   defp forward_checking_impl(graph, fixed_vertices, variables) do
@@ -108,20 +109,14 @@ defmodule CPSolver.ValueGraph do
         graph = BitGraph.delete_vertex(graph_acc, var_vertex)
 
         {updated_graph, new_fixed_vertices} =
-          Enum.reduce(BitGraph.in_neighbors(graph, value_vertex), {graph, fixed_acc}, fn {:variable, _var_index} =
+          Enum.reduce(BitGraph.in_neighbors(graph, value_vertex), {graph, fixed_acc}, fn {:variable, var_index} =
                                                                             var_neighbor,
                                                                           {g_acc, f_acc} ->
-            %{graph: g_acc, change: change} =
-              delete_edge(g_acc, var_neighbor, value_vertex, variables)
+            g_acc = delete_edge(g_acc, var_neighbor, value_vertex, variables)
 
             f_acc =
-              case change do
-                :fixed ->
-                  MapSet.put(f_acc, var_neighbor)
-
-                _domain_change ->
-                  f_acc
-              end
+              PropagatorVariable.fixed?(get_variable(variables, var_index)) &&
+                  MapSet.put(f_acc, var_neighbor) || f_acc
 
             {g_acc, f_acc}
           end)
@@ -133,6 +128,10 @@ defmodule CPSolver.ValueGraph do
 
   defp fail(reason \\ :fail) do
     throw(reason)
+  end
+
+  def get_variable_count(value_graph) do
+    get_in(value_graph, [:opts, :variable_count])
   end
 
   def default_neighbor_finder(variables) do
@@ -167,8 +166,12 @@ defmodule CPSolver.ValueGraph do
     |> elem(1)
   end
 
+  defp get_neighbors(_graph, _additional_vertex, _variables, _direction) do
+    MapSet.new()
+  end
+
   ## Matching edges will be reversed
-  def matching_neighbor_finder(graph, variables, matching) do
+  def matching_neighbor_finder(graph, variables, matching, free_nodes) do
     default_neighbor_finder = default_neighbor_finder(variables)
 
     {indexed_matching, reversed_indexed_matching} =
@@ -197,19 +200,24 @@ defmodule CPSolver.ValueGraph do
         }
       end)
 
+      free_nodes = MapSet.new(free_nodes, fn node -> BitGraph.V.get_vertex_index(graph, node) end)
+
     fn graph, vertex_index, direction ->
       neighbors = default_neighbor_finder.(graph, vertex_index, direction)
+      #IO.inspect({vertex_index, neighbors, direction}, label: :original_neighbors)
 
       ## By construction, 'variable' vertex indices go first
-      {vertex_type, vertex_matching} =
-        (vertex_index <= map_size(indexed_matching) && {:variable, indexed_matching}) ||
-          {:value, reversed_indexed_matching}
+      vertex_type =
+        vertex_index <= get_variable_count(graph) && :variable ||
+          :value
 
       adjust_neighbors(
         neighbors,
         vertex_index,
         vertex_type,
-        vertex_matching,
+        indexed_matching,
+        reversed_indexed_matching,
+        free_nodes,
         direction
       )
     end
@@ -225,31 +233,32 @@ defmodule CPSolver.ValueGraph do
          neighbors,
          vertex_index,
          :variable,
-         vertex_matching,
+         variable_matching,
+         value_matching,
+         free_nodes,
          :out
        ) do
-    case Map.get(vertex_matching, vertex_index) do
+    case Map.get(variable_matching, vertex_index) do
       nil ->
-        ## variables must have matching value assigned
-        # fail({:invalid_matching, {:variable_not_matched, vertex_index}})
-
-        ## Revised: we could use matching that ignores already fixed variable
         MapSet.new()
 
       {value_match, _, _, _} ->
         ## Remove value from 'out' neighbors of variable vertex
         MapSet.delete(neighbors, value_match)
     end
+    |> MapSet.filter(fn nbr -> Map.has_key?(value_matching, nbr) || nbr in free_nodes end)
   end
 
   defp adjust_neighbors(
          neighbors,
          vertex_index,
          :value,
-         vertex_matching,
+         variable_matching,
+         value_matching,
+         _free_nodes,
          :out
        ) do
-    case Map.get(vertex_matching, vertex_index) do
+    case Map.get(value_matching, vertex_index) do
       nil ->
         neighbors
 
@@ -257,12 +266,8 @@ defmodule CPSolver.ValueGraph do
         ## matched value must be in the domain of matching variable
         (Interface.contains?(variable, matching_value) &&
            MapSet.new([variable_match])) || MapSet.new()
-
-        # fail(
-        #   {:invalid_matching,
-        #    variable_vertex, {:value, matching_value}}
-        # )
     end
+    |> MapSet.filter(fn nbr -> Map.has_key?(variable_matching, nbr) end)
   end
 
   ## In-neighbors
@@ -270,35 +275,29 @@ defmodule CPSolver.ValueGraph do
   ##
   ## If vertex is a 'value', remove matched variable from 'in' neighbors.
   ##
-  defp adjust_neighbors(_neighbors, vertex_index, :variable, vertex_matching, :in) do
-    case Map.get(vertex_matching, vertex_index) do
+  defp adjust_neighbors(_neighbors, vertex_index, :variable, variable_matching,
+         _value_matching, _free_nodes, :in) do
+    case Map.get(variable_matching, vertex_index) do
       nil ->
-        ## variables must have matching value assigned
-        ## fail({:invalid_matching, {:variable_not_matched, vertex_index}})
-
-        ## Revised: we may want to use matching that ignores fixed variables
         MapSet.new()
 
       {value_match, variable, matching_value, _variable_vertex} ->
         (Interface.contains?(variable, matching_value) &&
            MapSet.new([value_match])) || MapSet.new()
-
-        # fail(
-        #   {:invalid_matching,
-        #    variable_vertex, value_match}
-        # )
     end
   end
 
-  defp adjust_neighbors(neighbors, vertex_index, :value, vertex_matching, :in) do
-    case Map.get(vertex_matching, vertex_index) do
+  defp adjust_neighbors(neighbors, vertex_index, :value, variable_matching, value_matching, free_nodes, :in) do
+    case Map.get(value_matching, vertex_index) do
       nil ->
-        ## Nowhere in matching; must be a free value
-        neighbors
+        ## Nowhere in matching; could be a free node;
+        ## otherwise it'd be part of excluded matching
+        vertex_index in free_nodes && neighbors || MapSet.new()
 
       {variable_match, _, _, _} ->
         MapSet.delete(neighbors, variable_match)
     end
+    |> MapSet.filter(fn nbr -> Map.has_key?(variable_matching, nbr) end)
   end
 
   def delete_edge(
@@ -313,17 +312,42 @@ defmodule CPSolver.ValueGraph do
   def delete_edge(graph, {:variable, var_index}, {:value, value} = value_vertex, variables) do
     propagator_variable = get_variable(variables, var_index)
 
-    change = PropagatorVariable.remove(propagator_variable, value)
+    _change = PropagatorVariable.remove(propagator_variable, value)
 
-    %{
-      graph:
-        (BitGraph.degree(graph, value_vertex) == 0 &&
-           BitGraph.delete_vertex(graph, value_vertex)) || graph,
-      change: change
+    (BitGraph.degree(graph, value_vertex) == 0 &&
+        BitGraph.delete_vertex(graph, value_vertex)) || graph
+  end
+
+  def get_variable(variables, var_index) do
+    Propagator.arg_at(variables, var_index)
+  end
+
+  def show_graph_v1(graph, context \\ nil) do
+    "context: " <> (context && inspect(context) || "") <> "\n"
+    <> Enum.map_join(BitGraph.vertices(graph), "\n", fn vertex ->
+      neighbors = BitGraph.out_neighbors(graph, vertex)
+      Enum.empty?(neighbors) && "#{inspect vertex} []" ||
+      (
+      edges =  Enum.map_join(neighbors,
+          ", ", fn neighbor -> "#{inspect neighbor}" end)
+      "#{inspect vertex} -> [ #{edges} ]"
+      )
+    end)
+    |> IO.puts()
+  end
+
+  def show_graph(graph, context \\ nil) do
+    %{context: context,
+      edges:
+    BitGraph.E.edges(graph) |> Enum.map(fn %{from: from_index, to: to_index} ->
+      {
+        BitGraph.V.get_vertex(graph, from_index),
+        BitGraph.V.get_vertex(graph, to_index)
+      }
+    end)
+    |> Enum.group_by(fn {from, _to} -> from end, fn {_from, to} -> to end)
     }
   end
 
-  defp get_variable(variables, var_index) do
-    Propagator.arg_at(variables, var_index)
-  end
+
 end

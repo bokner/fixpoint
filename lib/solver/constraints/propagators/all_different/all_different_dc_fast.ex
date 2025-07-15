@@ -9,7 +9,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Zhang
-  alias CPSolver.Propagator.AllDifferent.Utils, as: AllDiffUtils
+  alias CPSolver.Propagator.AllDifferent.Utils
 
   @impl true
   def arguments(args) do
@@ -53,7 +53,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def initial_state(variables) do
-    %{graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
+    %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
       ValueGraph.build(variables, check_matching: true)
 
     %{
@@ -61,12 +61,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       variable_vertices: variable_vertices,
       propagator_variables: variables,
       fixed_matching: fixed_matching,
-      reduction_callback: build_reduction_callback(variables)
+      reduction_callback: reduction_callback(variables)
     }
   end
 
-  defp build_reduction_callback(variables) do
-    AllDiffUtils.default_remove_edge_fun(variables)
+  defp reduction_callback(variables) do
+    Utils.default_remove_edge_fun(variables)
   end
 
   def find_matching(value_graph, variable_vertices, fixed_matching \\ Map.new()) do
@@ -103,7 +103,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
     %{value_graph: reduced_value_graph, components: components} =
       value_graph
-      |> BitGraph.update_opts(neighbor_finder: ValueGraph.matching_neighbor_finder(value_graph, variables, matching))
+      |> BitGraph.update_opts(neighbor_finder: ValueGraph.matching_neighbor_finder(value_graph, variables, matching, free_nodes))
       |> Zhang.reduce(free_nodes, matching, remove_edge_fun)
 
     state
@@ -126,7 +126,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           neighbor_finder: ValueGraph.default_neighbor_finder(vars)
         )
           state
-          |> Map.put(:reduction_callback, build_reduction_callback(vars))
+          |> Map.put(:reduction_callback, reduction_callback(vars))
           |> Map.put(:value_graph, updated_value_graph)
           |> Map.put(:fixed_matching, fixed_matching)
           |> reduce_state()
@@ -196,5 +196,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         MapSet.put(acc, next_index - 1)
       )
   end
+
 
 end

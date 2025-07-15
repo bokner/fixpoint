@@ -19,12 +19,13 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
 
       state = Fast.initial_reduction(vars)
       reduced_value_graph = state[:value_graph]
-
       assert Interface.fixed?(x1) && Interface.min(x1) == 2
       assert Interface.min(x2) == 3 && Interface.max(x2) == 4
+
       assert Interface.min(x3) == 4 && Interface.max(x3) == 5
 
       ## Reduced value graph consists of 3 components, as per paper
+
       assert 3 == length(BitGraph.Algorithms.components(reduced_value_graph))
 
       ## the number of edges is 6 (Figure 2 of the paper)

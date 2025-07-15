@@ -31,16 +31,15 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
       {:state, state}
   end
 
-  defp entailed?(%{sccs: sccs} = _state) do
-    Enum.empty?(sccs)
+  defp entailed?(%{sccs: sccs, propagator_variables: vars} = _state) do
+    Enum.empty?(sccs) || Enum.all?(vars, &fixed?/1)
   end
 
   defp apply_changes(
          %{
            sccs: sccs,
            propagator_variables: vars
-         } =
-           state,
+         } = state,
          changes
        ) do
     if Enum.empty?(changes) do
