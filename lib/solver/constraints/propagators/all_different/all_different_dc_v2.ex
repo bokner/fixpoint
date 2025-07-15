@@ -47,7 +47,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   #         initial_state(state[:propagator_variables])
   #        end
 
-  defp apply_changes(
+  def apply_changes(
          %{
            sccs: sccs,
            propagator_variables: _vars,
@@ -69,26 +69,29 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   end
 
   def initial_state(vars) do
-    %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
+    %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: _fixed_matching} =
       ValueGraph.build(vars, check_matching: true)
-    %{
-      propagator_variables: vars,
-      variable_vertices: variable_vertices
-    }
-    |> Map.merge(reduction(vars, value_graph, variable_vertices, fixed_matching))
+
+    reduce_component(MapSet.new(variable_vertices, fn {:variable, var_index} -> var_index end),
+      value_graph, vars)
+    |> Map.put(:propagator_variables, vars)
   end
 
 
-  defp reduce_component(component,
+  def reduce_component(component,
     %{
       propagator_variables: vars,
       value_graph: value_graph
     } = _state) do
-      variable_vertices = Enum.reduce(component, MapSet.new(),
-        fn var_index, acc ->
-          fixed?(ValueGraph.get_variable(vars, var_index)) && acc
-          || MapSet.put(acc, {:variable, var_index})
-      end)
+      reduce_component(component, value_graph, vars)
+    end
+
+  def reduce_component(component, value_graph, vars) do
+    variable_vertices = Enum.reduce(component, MapSet.new(),
+      fn var_index, acc ->
+        fixed?(ValueGraph.get_variable(vars, var_index)) && acc
+        || MapSet.put(acc, {:variable, var_index})
+    end)
 
     MapSet.size(variable_vertices) > 1 &&
     reduction(vars, value_graph, variable_vertices, %{})

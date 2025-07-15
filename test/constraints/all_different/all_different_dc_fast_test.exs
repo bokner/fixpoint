@@ -3,7 +3,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC.Fast do
 
   describe "AllDifferent" do
     alias CPSolver.Constraint.AllDifferent.DC.Fast, as: AllDifferent
-    alias CPSolver.IntVariable
+    alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Constraint
     alias CPSolver.Model
     import CPSolver.Variable.View.Factory
@@ -28,7 +28,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC.Fast do
     test "produces all possible permutations" do
       var_nums = 4
       domain = 1..var_nums
-      variables = Enum.map(domain, fn _ -> IntVariable.new(domain) end)
+      variables = Enum.map(domain, fn _ -> Variable.new(domain) end)
 
       permutations = Permutation.permute!(Enum.to_list(domain))
 
