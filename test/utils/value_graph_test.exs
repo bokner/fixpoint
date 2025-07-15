@@ -11,7 +11,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       domain = 1..5
       variables = Enum.map(1..num_variables, fn idx -> Variable.new(domain, name: "x#{idx}") end)
 
-      %{value_graph: graph, left_partition: left_partition} = ValueGraph.build(variables)
+      %{value_graph: graph, left_partition: _left_partition} = ValueGraph.build(variables)
       assert ValueGraph.get_variable_count(graph) == num_variables
       ## 4 variables and 5 values
       assert BitGraph.num_vertices(graph) == 9

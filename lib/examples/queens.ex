@@ -1,6 +1,6 @@
 defmodule CPSolver.Examples.Queens do
   alias CPSolver.Constraint
-  alias CPSolver.Constraint.AllDifferent.DC.Fast, as: AllDifferent
+  alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
   alias CPSolver.Constraint.Less
   alias CPSolver.IntVariable
   alias CPSolver.Model

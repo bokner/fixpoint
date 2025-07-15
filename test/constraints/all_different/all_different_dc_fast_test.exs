@@ -9,7 +9,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC.Fast do
     import CPSolver.Variable.View.Factory
 
     test "all fixed" do
-      variables = Enum.map(1..5, fn i -> IntVariable.new(i) end)
+      variables = Enum.map(1..5, fn i -> Variable.new(i) end)
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
       {:ok, result} = CPSolver.solve(model)
 
@@ -19,7 +19,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC.Fast do
 
     test "reduction" do
       minizinc_solutions = [[1, 2, 4, 5], [1, 2, 3, 4], [1, 2, 3, 5]]
-      variables = Enum.map([1, 1..2, 1..4, [1, 2, 4, 5]], fn d -> IntVariable.new(d) end)
+      variables = Enum.map([1, 1..2, 1..4, [1, 2, 4, 5]], fn d -> Variable.new(d) end)
       model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
       {:ok, result} = CPSolver.solve(model)
       assert Enum.sort(result.solutions) == Enum.sort(minizinc_solutions)
@@ -42,19 +42,19 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC.Fast do
     end
 
     test "unsatisfiable (duplicates)" do
-      variables = Enum.map(1..3, fn _ -> IntVariable.new(1) end)
+      variables = Enum.map(1..3, fn _ -> Variable.new(1) end)
       assert catch_throw({:fail, _} = Model.new(variables, [Constraint.new(AllDifferent, variables)]))
 
     end
 
     test "unsatisfiable(pigeonhole)" do
-      variables = Enum.map(1..4, fn _ -> IntVariable.new(1..3) end)
+      variables = Enum.map(1..4, fn _ -> Variable.new(1..3) end)
       assert catch_throw({:fail, _} = Model.new(variables, [Constraint.new(AllDifferent, variables)]))
     end
 
     test "views in variable list" do
       n = 3
-      variables = Enum.map(1..n, fn i -> IntVariable.new(1..n, name: "row#{i}") end)
+      variables = Enum.map(1..n, fn i -> Variable.new(1..n, name: "row#{i}") end)
 
       diagonal_down =
         Enum.map(Enum.with_index(variables, 1), fn {var, idx} -> linear(var, 1, -idx) end)
