@@ -197,13 +197,16 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
       ## 'Variable' vertices that are not part of (reduced) matching are isolated
       assert BitGraph.degree(matching_graph, fixed_variable_vertex) == 0
-      ## The values for excluded matches are isolated.
-      assert BitGraph.degree(matching_graph, matched_value_vertex) == 0
+      ## The 'fixed value' vertex is still connected to 'non-fixed' variable vertices
+      assert BitGraph.in_degree(matching_graph, matched_value_vertex) == 2
+      ## No out-neighbors for the 'fixed value' vertex.
+      assert BitGraph.out_degree(matching_graph, matched_value_vertex) == 0
+      
       refute fixed_variable_vertex in BitGraph.in_neighbors(matching_graph, matched_value_vertex)
       ## The variables in the matching do not have matched value vertex as a neighbor
-      refute Enum.any?(reduced_matching, fn {var_vertex, _value_vertex} ->
-        matched_value_vertex in (BitGraph.neighbors(matching_graph, var_vertex))
-      end)
+#      refute Enum.any?(reduced_matching, fn {var_vertex, _value_vertex} ->
+#        matched_value_vertex in (BitGraph.neighbors(matching_graph, var_vertex))
+#      end)
 
 
     end

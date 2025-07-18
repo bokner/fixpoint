@@ -300,7 +300,7 @@ defmodule CPSolver.Space do
     Enum.reduce_while(propagators, :ok, fn p, acc ->
         bound_p = Propagator.bind(p, constraint_graph, :domain)
 
-        case Propagator.filter(bound_p, constraint_graph: constraint_graph) do
+        case Propagator.filter(bound_p, reset: true, constraint_graph: constraint_graph) do
           :fail -> {:halt, {:fail, p.id}}
           _ -> {:cont, acc}
         end

@@ -171,8 +171,8 @@ defmodule CPSolver.ValueGraph do
   end
 
   ## Matching edges will be reversed
-  def matching_neighbor_finder(graph, variables, matching, free_nodes) do
-    default_neighbor_finder = default_neighbor_finder(variables)
+  def matching_neighbor_finder(graph, variables, matching, _free_nodes) do
+    neighbor_finder = default_neighbor_finder(variables)
 
     {indexed_matching, reversed_indexed_matching} =
       Enum.reduce(matching, {Map.new(), Map.new()}, fn {{:variable, var_index} = var_vertex,
@@ -200,25 +200,19 @@ defmodule CPSolver.ValueGraph do
         }
       end)
 
-      free_nodes = MapSet.new(free_nodes, fn node -> BitGraph.V.get_vertex_index(graph, node) end)
-
     fn graph, vertex_index, direction ->
-      neighbors = default_neighbor_finder.(graph, vertex_index, direction)
-      #IO.inspect({vertex_index, neighbors, direction}, label: :original_neighbors)
-
       ## By construction, 'variable' vertex indices go first
       vertex_type =
         vertex_index <= get_variable_count(graph) && :variable ||
           :value
 
       adjust_neighbors(
-        neighbors,
+        graph, neighbor_finder,
         vertex_index,
         vertex_type,
+        direction,
         indexed_matching,
-        reversed_indexed_matching,
-        free_nodes,
-        direction
+        reversed_indexed_matching
       )
     end
   end
@@ -230,13 +224,12 @@ defmodule CPSolver.ValueGraph do
   ## Otherwise, keep neighbors as is.
   ##
   defp adjust_neighbors(
-         neighbors,
+         graph, neighbor_finder,
          vertex_index,
          :variable,
+         :out,
          variable_matching,
-         value_matching,
-         free_nodes,
-         :out
+         _value_matching
        ) do
     case Map.get(variable_matching, vertex_index) do
       nil ->
@@ -244,30 +237,25 @@ defmodule CPSolver.ValueGraph do
 
       {value_match, _, _, _} ->
         ## Remove value from 'out' neighbors of variable vertex
-        MapSet.delete(neighbors, value_match)
+        MapSet.delete(neighbor_finder.(graph, vertex_index, :out), value_match)
     end
-    |> MapSet.filter(fn nbr -> Map.has_key?(value_matching, nbr) || nbr in free_nodes end)
   end
 
   defp adjust_neighbors(
-         neighbors,
+         _graph, _neighbor_finder,
          vertex_index,
          :value,
-         variable_matching,
-         value_matching,
-         _free_nodes,
-         :out
+         :out,
+         _variable_matching,
+         value_matching
        ) do
     case Map.get(value_matching, vertex_index) do
       nil ->
-        neighbors
+        MapSet.new()
 
-      {variable_match, variable, matching_value, _variable_vertex} ->
-        ## matched value must be in the domain of matching variable
-        (Interface.contains?(variable, matching_value) &&
-           MapSet.new([variable_match])) || MapSet.new()
+      {variable_match, _variable, _matching_value, _variable_vertex} ->
+           MapSet.new([variable_match])
     end
-    |> MapSet.filter(fn nbr -> Map.has_key?(variable_matching, nbr) end)
   end
 
   ## In-neighbors
@@ -275,28 +263,31 @@ defmodule CPSolver.ValueGraph do
   ##
   ## If vertex is a 'value', remove matched variable from 'in' neighbors.
   ##
-  defp adjust_neighbors(_neighbors, vertex_index, :variable, variable_matching,
-         _value_matching, _free_nodes, :in) do
+  defp adjust_neighbors(_graph, _neighbor_finder, vertex_index, :variable, :in, variable_matching,
+         _value_matching
+         ) do
     case Map.get(variable_matching, vertex_index) do
       nil ->
+        ## Variable outside matching
         MapSet.new()
-
-      {value_match, variable, matching_value, _variable_vertex} ->
-        (Interface.contains?(variable, matching_value) &&
-           MapSet.new([value_match])) || MapSet.new()
+      {value_match, _variable, _matching_value, _variable_vertex} ->
+        ## Matching value is the only in-neighbor
+           MapSet.new([value_match])
     end
   end
 
-  defp adjust_neighbors(neighbors, vertex_index, :value, variable_matching, value_matching, free_nodes, :in) do
+  defp adjust_neighbors(graph, neighbor_finder,
+    vertex_index, :value, :in, variable_matching, value_matching
+    ) do
+    neighbors = neighbor_finder.(graph, vertex_index, :in)
     case Map.get(value_matching, vertex_index) do
       nil ->
-        ## Nowhere in matching; could be a free node;
-        ## otherwise it'd be part of excluded matching
-        vertex_index in free_nodes && neighbors || MapSet.new()
+        neighbors
 
       {variable_match, _, _, _} ->
         MapSet.delete(neighbors, variable_match)
     end
+    ## No in-edges from variables that are not in matching
     |> MapSet.filter(fn nbr -> Map.has_key?(variable_matching, nbr) end)
   end
 

@@ -18,14 +18,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     Enum.map(args, fn x_el -> set_propagate_on(x_el, :domain_change) end)
   end
 
-  @impl true
-  def reset(args, state) do
-    state && Map.put(state, :propagator_variables, args) || initial_state(args)
-  end
+  # @impl true
+  # def reset(args, state) do
+  #   state && Map.put(state, :propagator_variables, args) || initial_state(args)
+  # end
 
   @impl true
   def filter(vars, state, changes) do
-    state = (state && apply_changes(state, changes)) || initial_state(vars)
+    state = (state && apply_changes(Map.put(state, :propagator_variables, vars), changes)) || initial_state(vars)
     finalize(state)
   end
 
@@ -55,6 +55,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
          } = state,
          _changes
        ) do
+
       ## Apply changes to affected SCCs
       Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
         fn component, state_acc ->
@@ -69,12 +70,18 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   end
 
   def initial_state(vars) do
+    #domains = Enum.map(vars, &CPSolver.Utils.domain_values/1)
+    #try do
     %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: _fixed_matching} =
       ValueGraph.build(vars, check_matching: true)
 
     reduce_component(MapSet.new(variable_vertices, fn {:variable, var_index} -> var_index end),
-      value_graph, vars)
+      value_graph, vars, false)
     |> Map.put(:propagator_variables, vars)
+    # catch :fail ->
+    #   IO.inspect(domains, label: :initial_failure)
+    #   fail()
+    # end
   end
 
 
@@ -82,14 +89,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     %{
       propagator_variables: vars,
       value_graph: value_graph
-    } = _state) do
-      reduce_component(component, value_graph, vars)
+    } = _state, remove_fixed? \\ true) do
+      reduce_component(component, value_graph, vars, remove_fixed?)
     end
 
-  def reduce_component(component, value_graph, vars) do
+  def reduce_component(component, value_graph, vars, remove_fixed?) do
     variable_vertices = Enum.reduce(component, MapSet.new(),
       fn var_index, acc ->
-        fixed?(ValueGraph.get_variable(vars, var_index)) && acc
+        remove_fixed? && fixed?(ValueGraph.get_variable(vars, var_index)) && acc
         || MapSet.put(acc, {:variable, var_index})
     end)
 
@@ -106,7 +113,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   end
 
   def find_matching(value_graph, variable_vertices, fixed_matching) do
-    ##IO.inspect(value_graph[:opts], label: :opts)
     try do
       BitGraph.Algorithms.bipartite_matching(
         value_graph,
@@ -121,8 +127,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   end
 
   def reduce_graph(value_graph, variables, %{free: free_nodes, matching: matching} = _matching_record) do
-#    IO.inspect(matching_record, label: :matching_record)
-    ## build residual graph
     value_graph
     |> build_residual_graph(variables, matching, free_nodes)
 
@@ -138,10 +142,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
           |> BitGraph.delete_vertex(:sink)
           |> BitGraph.update_opts(neighbor_finder: ValueGraph.default_neighbor_finder(variables))
         }
-
-        unexpected ->
-          IO.inspect({unexpected, free_nodes, matching}, label: :unexpected)
-          #IO.inspect(value_graph, label: :failed_graph)
     end)
     |> Map.put(:matching, matching)
   end
