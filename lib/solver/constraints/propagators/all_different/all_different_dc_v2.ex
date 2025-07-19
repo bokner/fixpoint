@@ -60,18 +60,16 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
            sccs: sccs,
            propagator_variables: vars
          } = state,
-         _changes
+         changes
        ) do
       ## Apply changes to affected SCCs
+      #change_set = MapSet.new(changes, fn {var_position, _domain_change} -> var_position + 1 end)
       Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
         fn component, state_acc ->
-          case reduce_component(component, state_acc) do
-            nil -> state_acc
-            %{value_graph: reduced_graph, sccs: derived_sccs} ->
-              state_acc
-              |> Map.put(:value_graph, reduced_graph)
-              |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
-          end
+          %{value_graph: reduced_graph, sccs: derived_sccs} = reduce_component(component, state_acc)
+          state_acc
+          |> Map.put(:value_graph, reduced_graph)
+          |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
         end)
   end
 
@@ -98,16 +96,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     end
 
   def reduce_component(component, value_graph, vars) do
-    variable_vertices = Enum.reduce(component, MapSet.new(),
-      fn component_index, acc ->
-        #remove_fixed? && fixed?(ValueGraph.get_variable(vars, component_index)) && acc
-        #||
-        MapSet.put(acc, {:variable, component_index})
-    end)
-
-    MapSet.size(variable_vertices) > 1 &&
-    reduction(vars, value_graph, variable_vertices, %{})
-    || nil
+    reduction(vars, value_graph, MapSet.new(component,
+      fn component_index -> {:variable, component_index}
+    end), %{})
   end
 
   def reduction(vars, value_graph, variable_vertices, fixed_matching) do
