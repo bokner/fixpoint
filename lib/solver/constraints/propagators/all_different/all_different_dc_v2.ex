@@ -3,10 +3,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
 
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Utils, as: AllDiffUtils
+  alias CPSolver.Utils, as: SolverUtils
 
   @moduledoc """
   The domain-consistent propagator for AllDifferent constraint,
-  based on bipartite maximum matching.
+  based on:
+  J.-C. Régin, A filtering algorithm for constraints of difference in CSPs
   """
   @impl true
   def arguments(args) do
@@ -50,12 +52,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   def apply_changes(
          %{
            sccs: sccs,
-           propagator_variables: _vars,
+           propagator_variables: vars,
            value_graph: _graph
          } = state,
          _changes
        ) do
-
+      before_state = %{domains_before: domains(vars), sccs_before: sccs}
       ## Apply changes to affected SCCs
       Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
         fn component, state_acc ->
@@ -67,6 +69,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
               |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
           end
         end)
+      |> Map.merge(before_state)
+      |> Map.put(:domains_after, domains(vars))
+  end
+
+  defp domains(vars) do
+    Enum.map(vars, fn var -> SolverUtils.domain_values(var) end)
   end
 
   def initial_state(vars) do
@@ -75,7 +83,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: _fixed_matching} =
       ValueGraph.build(vars, check_matching: true)
 
-    reduce_component(MapSet.new(variable_vertices, fn {:variable, var_index} -> var_index end),
+    reduce_component(MapSet.new(variable_vertices, fn {:variable, var_index} -> var_index + 1 end),
       value_graph, vars, false)
     |> Map.put(:propagator_variables, vars)
     # catch :fail ->
@@ -95,7 +103,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
 
   def reduce_component(component, value_graph, vars, remove_fixed?) do
     variable_vertices = Enum.reduce(component, MapSet.new(),
-      fn var_index, acc ->
+      fn component_index, acc ->
+        var_index = component_index - 1
         remove_fixed? && fixed?(ValueGraph.get_variable(vars, var_index)) && acc
         || MapSet.put(acc, {:variable, var_index})
     end)
