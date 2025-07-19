@@ -21,8 +21,19 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   end
 
   @impl true
+  def reset(args, %{value_graph: graph} = state) do
+    state
+    |> Map.put(:value_graph, BitGraph.update_opts(graph, neighbor_finder: ValueGraph.default_neighbor_finder(args)))
+    |> Map.put(:propagator_variables, args)
+  end
+
+  def reset(_args, state) do
+    state
+  end
+
+  @impl true
   def filter(vars, state, changes) do
-    state = (state && apply_changes(Map.put(state, :propagator_variables, vars), changes)) || initial_state(vars)
+    state = (state && apply_changes(state, changes)) || initial_state(vars)
     finalize(state)
   end
 
@@ -35,29 +46,22 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     Enum.empty?(sccs)
   end
 
-  defp apply_changes(
-         %{
-           sccs: _sccs,
-           propagator_variables: _vars,
-           value_graph: _graph
-         } = state, _changes) do
-          initial_state(state[:propagator_variables])
-         end
+  # defp apply_changes(
+  #        %{
+  #          sccs: _sccs,
+  #          propagator_variables: _vars,
+  #          value_graph: _graph
+  #        } = state, _changes) do
+  #         initial_state(state[:propagator_variables])
+  #        end
 
-  def apply_changes_(
+  def apply_changes(
          %{
            sccs: sccs,
            propagator_variables: vars
          } = state,
          _changes
        ) do
-      #before_state = %{domains_before: domains(vars), sccs_before: sccs}
-
-      state = Map.update!(state, :value_graph, fn graph ->
-              BitGraph.update_opts(graph,
-          neighbor_finder: ValueGraph.default_neighbor_finder(vars)
-        )
-      end)
       ## Apply changes to affected SCCs
       Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
         fn component, state_acc ->
@@ -69,8 +73,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
               |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
           end
         end)
-      #|> Map.merge(before_state)
-      #|> Map.put(:domains_after, domains(vars))
   end
 
   defp domains(vars) do
@@ -81,8 +83,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: _fixed_matching} =
       ValueGraph.build(vars, check_matching: true)
 
-    reduce_component(MapSet.new(variable_vertices, fn {:variable, var_index} -> var_index + 1 end),
-      value_graph, vars, false)
+    reduce_component(MapSet.new(variable_vertices, fn {:variable, var_index} -> var_index end),
+      value_graph, vars)
     |> Map.put(:propagator_variables, vars)
   end
 
@@ -91,16 +93,16 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     %{
       propagator_variables: vars,
       value_graph: value_graph
-    } = _state, remove_fixed? \\ true) do
-      reduce_component(component, value_graph, vars, remove_fixed?)
+    } = _state) do
+      reduce_component(component, value_graph, vars)
     end
 
-  def reduce_component(component, value_graph, vars, remove_fixed?) do
+  def reduce_component(component, value_graph, vars) do
     variable_vertices = Enum.reduce(component, MapSet.new(),
       fn component_index, acc ->
-        var_index = component_index - 1
-        remove_fixed? && fixed?(ValueGraph.get_variable(vars, var_index)) && acc
-        || MapSet.put(acc, {:variable, var_index})
+        #remove_fixed? && fixed?(ValueGraph.get_variable(vars, component_index)) && acc
+        #||
+        MapSet.put(acc, {:variable, component_index})
     end)
 
     MapSet.size(variable_vertices) > 1 &&
@@ -132,17 +134,13 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   def reduce_graph(value_graph, variables, %{free: free_nodes, matching: matching} = _matching_record) do
     value_graph
     |> build_residual_graph(variables, matching, free_nodes)
-
-    #|> tap(fn graph -> ValueGraph.show_graph(graph, {self(), :before_split}) |> IO.puts end)
-    ## split to sccs
     |> reduce_residual_graph(variables, matching)
     |> then(fn {sccs, reduced_graph} ->
-      #ValueGraph.show_graph(reduced_graph, {self(), :after_split}) |> IO.puts
       %{
         sccs: sccs,
         value_graph:
           reduced_graph
-          |> BitGraph.delete_vertex(:sink)
+          |> remove_sink_node()
           |> BitGraph.update_opts(neighbor_finder: ValueGraph.default_neighbor_finder(variables))
         }
     end)
@@ -151,7 +149,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
 
   def build_residual_graph(graph, variables, matching, free_nodes) do
     graph
-    |> BitGraph.add_vertex(:sink)
+    |> add_sink_node(free_nodes)
     |> then(fn g ->
       BitGraph.update_opts(g,
         neighbor_finder: residual_graph_neighbor_finder(g, variables, matching, free_nodes)
@@ -159,6 +157,17 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     end)
   end
 
+  defp add_sink_node(graph, free_nodes) do
+    Enum.empty?(free_nodes) && graph ||
+    BitGraph.add_vertex(graph, :sink)
+  end
+
+  defp remove_sink_node(graph) do
+    case BitGraph.V.get_vertex_index(graph, :sink) do
+      nil -> graph
+      sink_index -> BitGraph.V.delete_vertex(graph, sink_index)
+    end
+  end
 
   defp residual_graph_neighbor_finder(value_graph, variables, matching, free_nodes) do
     num_variables = ValueGraph.get_variable_count(value_graph)
