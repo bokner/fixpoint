@@ -38,7 +38,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC do
 
       dc_propagator = DC.new(x_vars)
       %{changes: changes, active?: active?} = Propagator.filter(dc_propagator)
-      ## The propagators is passive
+      ## The propagator is passive
       refute active?
       assert map_size(changes) == length(x_vars) - 1
       assert Enum.all?(Map.values(changes), fn change -> change == :fixed end)

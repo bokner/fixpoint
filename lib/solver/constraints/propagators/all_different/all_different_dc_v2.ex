@@ -46,37 +46,27 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     Enum.empty?(sccs)
   end
 
-  # defp apply_changes(
-  #        %{
-  #          sccs: _sccs,
-  #          propagator_variables: _vars,
-  #          value_graph: _graph
-  #        } = state, _changes) do
-  #         initial_state(state[:propagator_variables])
-  #        end
+  def apply_changes(state, changes, repetitions) do
+    Enum.reduce_while(1..repetitions, state, fn _, acc ->
+      new_acc = apply_changes(acc, changes)
+      (entailed?(new_acc) || new_acc.sccs == acc.sccs) && {:halt, acc} || {:cont, apply_changes(acc, changes)}
+    end)
+  end
 
   def apply_changes(
          %{
-           sccs: sccs,
-           propagator_variables: vars
+           sccs: sccs
          } = state,
          _changes
        ) do
       ## Apply changes to affected SCCs
       Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
         fn component, state_acc ->
-          case reduce_component(component, state_acc) do
-            nil -> state_acc
-            %{value_graph: reduced_graph, sccs: derived_sccs} ->
-              state_acc
-              |> Map.put(:value_graph, reduced_graph)
-              |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
-          end
+        %{value_graph: reduced_graph, sccs: derived_sccs} = reduce_component(component, state_acc)
+        state_acc
+        |> Map.put(:value_graph, reduced_graph)
+        |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
         end)
-  end
-
-  defp domains(vars) do
-    Enum.map(vars, fn var -> SolverUtils.domain_values(var) end)
   end
 
   def initial_state(vars) do
@@ -98,16 +88,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     end
 
   def reduce_component(component, value_graph, vars) do
-    variable_vertices = Enum.reduce(component, MapSet.new(),
-      fn component_index, acc ->
-        #remove_fixed? && fixed?(ValueGraph.get_variable(vars, component_index)) && acc
-        #||
-        MapSet.put(acc, {:variable, component_index})
-    end)
-
-    MapSet.size(variable_vertices) > 1 &&
-    reduction(vars, value_graph, variable_vertices, %{})
-    || nil
+    reduction(vars, value_graph, MapSet.new(component,
+      fn component_index -> {:variable, component_index}
+    end), %{})
   end
 
   def reduction(vars, value_graph, variable_vertices, fixed_matching) do
