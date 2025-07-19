@@ -143,7 +143,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
           |> BitGraph.update_opts(neighbor_finder: ValueGraph.default_neighbor_finder(variables))
         }
     end)
-    |> Map.put(:matching, matching)
   end
 
   def build_residual_graph(graph, variables, matching, free_nodes) do
