@@ -20,11 +20,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     Enum.map(args, fn x_el -> set_propagate_on(x_el, :domain_change) end)
   end
 
-  # @impl true
-  # def reset(args, state) do
-  #   state && Map.put(state, :propagator_variables, args) || initial_state(args)
-  # end
-
   @impl true
   def filter(vars, state, changes) do
     state = (state && apply_changes(Map.put(state, :propagator_variables, vars), changes)) || initial_state(vars)
@@ -40,24 +35,29 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     Enum.empty?(sccs)
   end
 
-  # defp apply_changes(
-  #        %{
-  #          sccs: _sccs,
-  #          propagator_variables: _vars,
-  #          value_graph: _graph
-  #        } = state, _changes) do
-  #         initial_state(state[:propagator_variables])
-  #        end
+  defp apply_changes(
+         %{
+           sccs: _sccs,
+           propagator_variables: _vars,
+           value_graph: _graph
+         } = state, _changes) do
+          initial_state(state[:propagator_variables])
+         end
 
-  def apply_changes(
+  def apply_changes_(
          %{
            sccs: sccs,
-           propagator_variables: vars,
-           value_graph: _graph
+           propagator_variables: vars
          } = state,
          _changes
        ) do
-      before_state = %{domains_before: domains(vars), sccs_before: sccs}
+      #before_state = %{domains_before: domains(vars), sccs_before: sccs}
+
+      state = Map.update!(state, :value_graph, fn graph ->
+              BitGraph.update_opts(graph,
+          neighbor_finder: ValueGraph.default_neighbor_finder(vars)
+        )
+      end)
       ## Apply changes to affected SCCs
       Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
         fn component, state_acc ->
@@ -69,8 +69,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
               |> Map.update!(:sccs, fn existing -> MapSet.union(existing, derived_sccs) end)
           end
         end)
-      |> Map.merge(before_state)
-      |> Map.put(:domains_after, domains(vars))
+      #|> Map.merge(before_state)
+      #|> Map.put(:domains_after, domains(vars))
   end
 
   defp domains(vars) do
@@ -78,18 +78,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   end
 
   def initial_state(vars) do
-    #domains = Enum.map(vars, &CPSolver.Utils.domain_values/1)
-    #try do
     %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: _fixed_matching} =
       ValueGraph.build(vars, check_matching: true)
 
     reduce_component(MapSet.new(variable_vertices, fn {:variable, var_index} -> var_index + 1 end),
       value_graph, vars, false)
     |> Map.put(:propagator_variables, vars)
-    # catch :fail ->
-    #   IO.inspect(domains, label: :initial_failure)
-    #   fail()
-    # end
   end
 
 
