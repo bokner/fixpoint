@@ -57,9 +57,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
          %{
            sccs: sccs
          } = state,
-         _changes
+         changes
        ) do
       ## Apply changes to affected SCCs
+      #change_set = MapSet.new(changes, fn {var_position, _domain_change} -> var_position + 1 end)
       Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
         fn component, state_acc ->
         %{value_graph: reduced_graph, sccs: derived_sccs} = reduce_component(component, state_acc)
