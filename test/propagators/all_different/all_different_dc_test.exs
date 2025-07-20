@@ -4,7 +4,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
   alias CPSolver.Propagator
-  alias CPSolver.Propagator.AllDifferent.DC
+  alias CPSolver.Propagator.AllDifferent.DC.V2, as: DC
 
   describe "Initial filtering" do
     test "reduction" do

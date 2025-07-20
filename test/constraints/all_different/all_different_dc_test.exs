@@ -2,7 +2,7 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC do
   use ExUnit.Case, async: false
 
   describe "AllDifferent" do
-    alias CPSolver.Constraint.AllDifferent.DC, as: AllDifferent
+    alias CPSolver.Constraint.AllDifferent.DC.V2, as: AllDifferent
     alias CPSolver.IntVariable
     alias CPSolver.Constraint
     alias CPSolver.Model

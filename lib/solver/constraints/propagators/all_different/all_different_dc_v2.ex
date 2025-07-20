@@ -3,7 +3,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
 
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Utils, as: AllDiffUtils
-  alias CPSolver.Utils, as: SolverUtils
 
   @moduledoc """
   The domain-consistent propagator for AllDifferent constraint,
@@ -21,19 +20,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
   end
 
   @impl true
-  def reset(args, %{value_graph: graph} = state) do
-    state
-    |> Map.put(:value_graph, BitGraph.update_opts(graph, neighbor_finder: ValueGraph.default_neighbor_finder(args)))
-    |> Map.put(:propagator_variables, args)
-  end
-
-  def reset(_args, state) do
-    state
-  end
-
-  @impl true
   def filter(vars, state, changes) do
-    state = (state && apply_changes(state, changes)) || initial_state(vars)
+    state = (state &&
+      state
+      |> Map.put(:propagator_variables, vars)
+      |> apply_changes(changes)) || initial_state(vars)
     finalize(state)
   end
 
@@ -46,19 +37,15 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     Enum.empty?(sccs)
   end
 
-  def apply_changes(state, changes, repetitions) do
-    Enum.reduce_while(1..repetitions, state, fn _, acc ->
-      new_acc = apply_changes(acc, changes)
-      (entailed?(new_acc) || new_acc.sccs == acc.sccs) && {:halt, acc} || {:cont, apply_changes(acc, changes)}
-    end)
-  end
-
   def apply_changes(
          %{
-           sccs: sccs
-         } = state,
-         _changes
+           sccs: sccs,
+           value_graph: value_graph,
+           propagator_variables: vars
+         } = state, _changes
        ) do
+      state = Map.put(state, :value_graph,
+        set_neighbor_finder(value_graph, ValueGraph.default_neighbor_finder(vars)))
       ## Apply changes to affected SCCs
       Enum.reduce(sccs, Map.put(state, :sccs, MapSet.new()),
         fn component, state_acc ->
@@ -124,7 +111,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
         value_graph:
           reduced_graph
           |> remove_sink_node()
-          |> BitGraph.update_opts(neighbor_finder: ValueGraph.default_neighbor_finder(variables))
+          |> set_neighbor_finder(ValueGraph.default_neighbor_finder(variables))
         }
     end)
   end
@@ -133,10 +120,14 @@ defmodule CPSolver.Propagator.AllDifferent.DC.V2 do
     graph
     |> add_sink_node(free_nodes)
     |> then(fn g ->
-      BitGraph.update_opts(g,
-        neighbor_finder: residual_graph_neighbor_finder(g, variables, matching, free_nodes)
+      set_neighbor_finder(g,
+        residual_graph_neighbor_finder(g, variables, matching, free_nodes)
       )
     end)
+  end
+
+  defp set_neighbor_finder(graph, neighbor_finder) do
+    BitGraph.update_opts(graph, neighbor_finder: neighbor_finder)
   end
 
   defp add_sink_node(graph, free_nodes) do
