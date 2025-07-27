@@ -79,12 +79,13 @@ defmodule CPSolver.Shared do
 
   def get_auxillary(shared, key) do
     try do
-      !complete?(shared) &&
+      if !complete?(shared) do
         :ets.lookup(shared[:auxillary], key)
         |> then(fn
           [] -> nil
           [{^key, value}] -> value
         end)
+      end
     rescue
       _ -> nil
     end
