@@ -247,6 +247,10 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     delete_edges(graph, edges(graph, variable_vertex(variable_id)))
   end
 
+  def disconnect_propagator(graph, propagator_id) do
+    delete_edges(graph, edges(graph, propagator_vertex(propagator_id)))
+  end
+
   ### This is called on creation of new space.
   ###
   ### Stop notifications from fixed variables and update propagators with variable domains.
