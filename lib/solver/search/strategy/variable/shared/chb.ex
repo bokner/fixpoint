@@ -111,7 +111,7 @@ defmodule CPSolver.Search.VariableSelector.CHB do
 
   def update_chbs(variables, failure?, shared) do
     case Shared.get_auxillary(shared, :chb) do
-      false -> :ok
+      nil -> :ok
       %{variable_chbs: chb_table} ->
         Enum.reduce_while(variables, :ok,
         fn var, _acc ->
