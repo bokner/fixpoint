@@ -42,6 +42,8 @@ defmodule CPSolver.Space do
     initial_constraint_graph = ConstraintGraph.create(propagators)
 
     space_data = %{
+      parent_id: nil,
+      id: make_ref(),
       variables: variables,
       propagators: propagators,
       constraint_graph: initial_constraint_graph,
@@ -166,7 +168,6 @@ defmodule CPSolver.Space do
   defp init_impl(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
     space_data =
       data
-      |> Map.put(:id, make_ref())
       |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
       |> Map.put(:objective, update_objective(space_opts[:objective], variables))
       |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
@@ -300,7 +301,7 @@ defmodule CPSolver.Space do
     Enum.reduce_while(propagators, :ok, fn p, acc ->
         bound_p = Propagator.bind(p, constraint_graph, :domain)
 
-        case Propagator.filter(bound_p, reset: true, constraint_graph: constraint_graph) do
+        case Propagator.filter(bound_p, reset: false, constraint_graph: constraint_graph) do
           :fail -> {:halt, {:fail, p.id}}
           _ -> {:cont, acc}
         end
@@ -315,6 +316,7 @@ defmodule CPSolver.Space do
 
   def distribute(
         %{
+          id: id,
           variables: variables,
           constraint_graph: _graph,
           search: search
@@ -327,6 +329,8 @@ defmodule CPSolver.Space do
         !CPSolver.complete?(get_shared(data)) &&
           spawn_space(
             data
+            |> Map.put(:parent_id, id)
+            |> Map.put(:id, make_ref())
             |> Map.put(:variables, branch_variables)
             |> put_in([:opts, :branch_constraint], constraint)
           )
@@ -360,8 +364,4 @@ defmodule CPSolver.Space do
     |> tap(fn _ -> Shared.finalize_space(get_shared(data), data, self(), reason) end)
   end
 
-  @impl true
-  def terminate(reason, data) do
-    shutdown(data, reason)
-  end
 end

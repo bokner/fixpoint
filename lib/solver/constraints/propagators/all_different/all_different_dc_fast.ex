@@ -30,10 +30,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     |> finalize()
   end
 
-  defp finalize(:all_fixed) do
-    :passive
-  end
-
   defp finalize(state) do
     (entailed?(state) && :passive) ||
       {:state, state}

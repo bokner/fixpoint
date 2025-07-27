@@ -76,5 +76,18 @@ defmodule CPSolverTest.Constraint.AllDifferent.DC.Fast do
 
       assert res.status == :unsatisfiable
     end
+
+    test "solves disjoint domains by a single reduction" do
+      domains = [1..5, 6..10, 11..15]
+      variables =
+        Enum.map(domains, fn d -> Variable.new(d) end)
+      model = Model.new(variables, [Constraint.new(AllDifferent, variables)])
+      {:ok, res} = CPSolver.solve(model)
+
+      assert Enum.sort(res.solutions) == CPSolver.Utils.cartesian(domains)
+      assert res.statistics.solution_count ==
+        Enum.reduce(domains, 1, fn d, acc -> Range.size(d) * acc end)
+      assert res.statistics.node_count == 1
+    end
   end
 end
