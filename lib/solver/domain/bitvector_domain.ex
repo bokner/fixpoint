@@ -8,19 +8,11 @@ defmodule CPSolver.BitVectorDomain do
     fail()
   end
 
-  def new(value) when is_integer(value) do
-    new([value])
-  end
-
   def new(domain) when is_integer(domain) do
     new([domain])
   end
 
-  def new({{:bit_vector, _ref} = _bitmap, _offset} = domain) do
-    domain
-  end
-
-  def new(domain) do
+  def new(domain) when is_list(domain) or is_struct(domain, Range) or is_struct(domain, MapSet) do
     offset = -Enum.min(domain)
     domain_size = Enum.max(domain) + offset + 1
     bv = :bit_vector.new(domain_size)
@@ -60,7 +52,12 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   ## Reduce over domain values
-  def reduce( {{:bit_vector, ref} = bit_vector, offset} = domain, value_mapper_fun, reduce_fun \\ &MapSet.union/2, acc_init \\ MapSet.new()) do
+  def reduce(
+        {{:bit_vector, ref} = bit_vector, offset} = domain,
+        value_mapper_fun,
+        acc_init \\ MapSet.new(),
+        reduce_fun \\ &MapSet.union/2
+      ) do
     %{
       min_addr: %{block: current_min_block, offset: _min_offset},
       max_addr: %{block: current_max_block, offset: _max_offset}
@@ -79,16 +76,19 @@ defmodule CPSolver.BitVectorDomain do
       else
         reduce_fun.(
           acc,
-          bit_positions(n, fn val -> {lb, ub, value_mapper_fun.(val + 64 * (idx - 1) - offset)} end)
+          bit_positions(n, fn val ->
+            {lb, ub, value_mapper_fun.(val + 64 * (idx - 1) - offset)}
+          end)
         )
       end
     end)
   end
 
   def to_list(
-        domain, value_mapper_fun \\ &Function.identity/1
+        domain,
+        value_mapper_fun \\ &Function.identity/1
       ) do
-        reduce(domain, value_mapper_fun, &MapSet.union/2, MapSet.new())
+    reduce(domain, value_mapper_fun, MapSet.new(), &MapSet.union/2)
   end
 
   def fixed?({bit_vector, _offset} = _domain) do
@@ -235,7 +235,7 @@ defmodule CPSolver.BitVectorDomain do
     }
   end
 
-  ## Last 2 bytes of bit_vector are min and max
+  ## Last byte of bit_vector contains (packed) min and max
   def last_index({:bit_vector, ref} = _bit_vector) do
     :atomics.info(ref).size - 1
   end
