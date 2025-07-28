@@ -2,7 +2,7 @@ defmodule CPSolver.BitVectorDomain do
   import Bitwise
 
   @failure_value (1 <<< 64) - 1
-  @max64_value 1 <<< 64
+  @atomic_byte_size 64
 
   def new([]) do
     fail()
@@ -68,16 +68,20 @@ defmodule CPSolver.BitVectorDomain do
 
     {lb, ub} = (mapped_lb <= mapped_ub && {mapped_lb, mapped_ub}) || {mapped_ub, mapped_lb}
 
-    Enum.reduce(current_min_block..current_max_block, acc_init, fn idx, acc ->
-      n = :atomics.get(ref, idx)
+    Enum.reduce(current_min_block..current_max_block, acc_init, fn block_idx, acc ->
+      block = :atomics.get(ref, block_idx)
 
-      if n == 0 do
+      if block == 0 do
         acc
       else
         reduce_fun.(
           acc,
-          bit_positions(n, fn val ->
-            {lb, ub, value_mapper_fun.(val + 64 * (idx - 1) - offset)}
+          bit_positions(block, fn val ->
+            case value_mapper_fun.(val + 64 * (block_idx - 1) - offset) do
+              value when value >= lb and value <= ub ->
+                value
+              _out_of_bounds -> nil
+            end
           end)
         )
       end
@@ -88,6 +92,7 @@ defmodule CPSolver.BitVectorDomain do
         domain,
         value_mapper_fun \\ &Function.identity/1
       ) do
+        fixed?(domain) && MapSet.new([value_mapper_fun.(min(domain))]) ||
     reduce(domain, value_mapper_fun, MapSet.new(), &MapSet.union/2)
   end
 
@@ -520,19 +525,20 @@ defmodule CPSolver.BitVectorDomain do
     bit_positions(n, 1, 0, mapper, MapSet.new())
   end
 
-  def bit_positions(_n, @max64_value, _iteration, _mapper, positions) do
+  def bit_positions(_n, _shift, @atomic_byte_size, _mapper, positions) do
     positions
   end
 
   def bit_positions(n, shift, iteration, mapper, positions) do
     acc =
-      ((n &&& shift) > 0 &&
+      (n &&& shift) > 0 &&
          (
-           {lb, ub, new_value} = mapper.(iteration)
+           case mapper.(iteration) do
+            nil -> positions
+            new_value -> MapSet.put(positions, new_value)
+           end
 
-           (new_value >= lb && new_value <= ub &&
-              MapSet.put(positions, new_value)) || positions
-         )) ||
+         ) ||
         positions
 
     bit_positions(n, shift <<< 1, iteration + 1, mapper, acc)
