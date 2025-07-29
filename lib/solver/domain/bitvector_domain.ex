@@ -486,20 +486,26 @@ defmodule CPSolver.BitVectorDomain do
       lsb(n >>> 1, idx + 1)
   end
 
-  defp msb(0) do
+  # int result = 0;
+  # while (n > 0) {
+  #   n >>= 1;
+  #   result++;
+  # }
+
+  def msb(0) do
     nil
   end
 
-  defp msb(n) do
-    msb = floor(:math.log2(n))
-    ## Check if there is no precision loss.
-    ## We really want to throw away the fraction part even if it may
-    ## get very close to 1.
-    if floor(:math.pow(2, msb)) > n do
-      msb - 1
-    else
-      msb
-    end
+  def msb(n) do
+    msb(n, -1)
+  end
+
+  defp msb(0, acc) do
+    acc
+  end
+
+  defp msb(n, acc) do
+    msb(n >>> 1, acc + 1)
   end
 
   def bit_count_iter(n) do
@@ -521,9 +527,14 @@ defmodule CPSolver.BitVectorDomain do
     (n &&& 0x00000000FFFFFFFF) + (n >>> 32 &&& 0x00000000FFFFFFFF)
   end
 
+  def bit_positions(0, _mapper) do
+    MapSet.new()
+  end
+
   def bit_positions(n, mapper) do
     bit_positions(n, 1, 0, mapper, MapSet.new())
   end
+
 
   def bit_positions(_n, _shift, @atomic_byte_size, _mapper, positions) do
     positions
