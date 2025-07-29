@@ -486,12 +486,6 @@ defmodule CPSolver.BitVectorDomain do
       lsb(n >>> 1, idx + 1)
   end
 
-  # int result = 0;
-  # while (n > 0) {
-  #   n >>= 1;
-  #   result++;
-  # }
-
   def msb(0) do
     nil
   end
@@ -506,12 +500,6 @@ defmodule CPSolver.BitVectorDomain do
 
   defp msb(n, acc) do
     msb(n >>> 1, acc + 1)
-  end
-
-  def bit_count_iter(n) do
-    for <<bit::1 <- :binary.encode_unsigned(n)>>, reduce: 0 do
-      acc -> acc + bit
-    end
   end
 
   def bit_count(0) do
