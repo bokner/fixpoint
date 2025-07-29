@@ -2,7 +2,6 @@ defmodule CPSolver.BitVectorDomain do
   import Bitwise
 
   @failure_value (1 <<< 64) - 1
-  @atomic_byte_size 64
 
   def new([]) do
     fail()
@@ -80,7 +79,9 @@ defmodule CPSolver.BitVectorDomain do
             case value_mapper_fun.(val + 64 * (block_idx - 1) - offset) do
               value when value >= lb and value <= ub ->
                 value
-              _out_of_bounds -> nil
+
+              _out_of_bounds ->
+                nil
             end
           end)
         )
@@ -92,8 +93,8 @@ defmodule CPSolver.BitVectorDomain do
         domain,
         value_mapper_fun \\ &Function.identity/1
       ) do
-        fixed?(domain) && MapSet.new([value_mapper_fun.(min(domain))]) ||
-    reduce(domain, value_mapper_fun, MapSet.new(), &MapSet.union/2)
+    (fixed?(domain) && MapSet.new([value_mapper_fun.(min(domain))])) ||
+      reduce(domain, value_mapper_fun, MapSet.new(), &MapSet.union/2)
   end
 
   def fixed?({bit_vector, _offset} = _domain) do
@@ -469,11 +470,11 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   ## Find least significant bit
-  defp lsb(0) do
+  def lsb(0) do
     nil
   end
 
-  defp lsb(n) do
+  def lsb(n) do
     lsb(n, 0)
   end
 
@@ -486,20 +487,31 @@ defmodule CPSolver.BitVectorDomain do
       lsb(n >>> 1, idx + 1)
   end
 
-  def msb(0) do
-    nil
+  def msb_(n) do
+    if n > 0 do
+      msb_impl(n, -1)
+    end
   end
 
-  def msb(n) do
-    msb(n, -1)
-  end
-
-  defp msb(0, acc) do
+  defp msb_impl(0, acc) do
     acc
   end
 
-  defp msb(n, acc) do
-    msb(n >>> 1, acc + 1)
+  defp msb_impl(n, acc) do
+    msb_impl(n >>> 1, acc + 1)
+  end
+
+  def msb(n) do
+    if n > 0 do
+      n = n ||| n >>> 1
+      n = n ||| n >>> 2
+      n = n ||| n >>> 4
+      n = n ||| n >>> 8
+      n = n ||| n >>> 16
+      n = n ||| n >>> 32
+
+      log2(n - (n >>> 1))
+    end
   end
 
   def bit_count(0) do
@@ -520,26 +532,110 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   def bit_positions(n, mapper) do
-    bit_positions(n, 1, 0, mapper, MapSet.new())
+    lsb = lsb(n)
+    msb = msb(n)
+
+    initial_set =
+      Enum.reduce([lsb, msb], MapSet.new(), fn value, acc ->
+        case mapper.(value) do
+          nil ->
+            acc
+
+          new_value ->
+            MapSet.put(acc, new_value)
+        end
+      end)
+
+    bit_positions(n >>> lsb, 1, lsb, msb, mapper, initial_set)
   end
 
-
-  def bit_positions(_n, _shift, @atomic_byte_size, _mapper, positions) do
+  def bit_positions(_n, _shift, iteration, msb, _mapper, positions) when iteration == msb do
     positions
   end
 
-  def bit_positions(n, shift, iteration, mapper, positions) do
+  def bit_positions(n, shift, iteration, msb, mapper, positions) do
     acc =
-      (n &&& shift) > 0 &&
-         (
-           case mapper.(iteration) do
-            nil -> positions
-            new_value -> MapSet.put(positions, new_value)
-           end
-
-         ) ||
+      ((n &&& shift) > 0 &&
+         case mapper.(iteration) do
+           nil -> positions
+           new_value -> MapSet.put(positions, new_value)
+         end) ||
         positions
 
-    bit_positions(n, shift <<< 1, iteration + 1, mapper, acc)
+    bit_positions(n, shift <<< 1, iteration + 1, msb, mapper, acc)
   end
+
+  ## Precompiled log2 values for powers of 2
+  defp log2(1), do: 0
+  defp log2(2), do: 1
+  defp log2(4), do: 2
+  defp log2(8), do: 3
+  defp log2(16), do: 4
+  defp log2(32), do: 5
+  defp log2(64), do: 6
+  defp log2(128), do: 7
+  defp log2(256), do: 8
+  defp log2(512), do: 9
+  defp log2(1024), do: 10
+  defp log2(2048), do: 11
+  defp log2(4096), do: 12
+  defp log2(8192), do: 13
+  defp log2(16384), do: 14
+  defp log2(32768), do: 15
+  defp log2(65536), do: 16
+  defp log2(131_072), do: 17
+  defp log2(262_144), do: 18
+  defp log2(524_288), do: 19
+  defp log2(1_048_576), do: 20
+  defp log2(2_097_152), do: 21
+  defp log2(4_194_304), do: 22
+  defp log2(8_388_608), do: 23
+  defp log2(16_777_216), do: 24
+  defp log2(33_554_432), do: 25
+  defp log2(67_108_864), do: 26
+  defp log2(134_217_728), do: 27
+  defp log2(268_435_456), do: 28
+  defp log2(536_870_912), do: 29
+  defp log2(1_073_741_824), do: 30
+  defp log2(2_147_483_648), do: 31
+  defp log2(4_294_967_296), do: 32
+  defp log2(8_589_934_592), do: 33
+  defp log2(17_179_869_184), do: 34
+  defp log2(34_359_738_368), do: 35
+  defp log2(68_719_476_736), do: 36
+  defp log2(137_438_953_472), do: 37
+  defp log2(274_877_906_944), do: 38
+  defp log2(549_755_813_888), do: 39
+  defp log2(1_099_511_627_776), do: 40
+  defp log2(2_199_023_255_552), do: 41
+  defp log2(4_398_046_511_104), do: 42
+  defp log2(8_796_093_022_208), do: 43
+  defp log2(17_592_186_044_416), do: 44
+  defp log2(35_184_372_088_832), do: 45
+  defp log2(70_368_744_177_664), do: 46
+  defp log2(140_737_488_355_328), do: 47
+  defp log2(281_474_976_710_656), do: 48
+  defp log2(562_949_953_421_312), do: 49
+  defp log2(1_125_899_906_842_624), do: 50
+  defp log2(2_251_799_813_685_248), do: 51
+  defp log2(4_503_599_627_370_496), do: 52
+  defp log2(9_007_199_254_740_992), do: 53
+  defp log2(18_014_398_509_481_984), do: 54
+  defp log2(36_028_797_018_963_968), do: 55
+  defp log2(72_057_594_037_927_936), do: 56
+  defp log2(144_115_188_075_855_872), do: 57
+  defp log2(288_230_376_151_711_744), do: 58
+  defp log2(576_460_752_303_423_488), do: 59
+  defp log2(1_152_921_504_606_846_976), do: 60
+  defp log2(2_305_843_009_213_693_952), do: 61
+  defp log2(4_611_686_018_427_387_904), do: 62
+  defp log2(9_223_372_036_854_775_808), do: 63
+
+  ## Stream of domain values
+  # def stream( {{:bit_vector, ref} = bit_vector, offset} = domain,
+  #       value_mapper_fun) do
+  #    Stream.resource(
+  #       fn ->
+  #    )
+  # end
 end
