@@ -483,7 +483,7 @@ defmodule CPSolver.BitVectorDomain do
   def lsb(n, :debruijn) do
     deBruijnSequence = 0x022FDD63CC95386D
     ## Complement, multiply and normalize to 64-bit
-    normalized = (n &&& -n) * deBruijnSequence &&& (1 <<< 64) - 1
+    normalized = (n &&& -n) * deBruijnSequence &&& ((1 <<< 64) - 1)
     ## Use first 6 bits to locate in index table
     normalized >>> 58
     ## || lsb(n, :shift)
