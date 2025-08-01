@@ -469,22 +469,34 @@ defmodule CPSolver.BitVectorDomain do
     {block_index(n), rem(n, 64)}
   end
 
-  ## Find least significant bit
-  def lsb(0) do
+  ## Find least significant bit for given number
+  def lsb(n, method \\ :debruijn)
+
+  def lsb(0, _method) do
     nil
   end
 
-  def lsb(n) do
-    lsb(n, 0)
+  def lsb(n, :shift) do
+    lsb_impl(n, 0)
   end
 
-  defp lsb(1, idx) do
+  def lsb(n, :debruijn) do
+    deBruijnSequence = 0x022FDD63CC95386D
+    ## Complement, multiply and normalize to 64-bit
+    normalized = (n &&& -n) * deBruijnSequence &&& (1 <<< 64) - 1
+    ## Use first 6 bits to locate in index table
+    normalized >>> 58
+    ## || lsb(n, :shift)
+    |> deBruijnTable()
+  end
+
+  defp lsb_impl(1, idx) do
     idx
   end
 
-  defp lsb(n, idx) do
+  defp lsb_impl(n, idx) do
     ((n &&& 1) == 1 && idx) ||
-      lsb(n >>> 1, idx + 1)
+      lsb_impl(n >>> 1, idx + 1)
   end
 
   def msb_(n) do
@@ -631,11 +643,69 @@ defmodule CPSolver.BitVectorDomain do
   defp log2(4_611_686_018_427_387_904), do: 62
   defp log2(9_223_372_036_854_775_808), do: 63
 
-  ## Stream of domain values
-  # def stream( {{:bit_vector, ref} = bit_vector, offset} = domain,
-  #       value_mapper_fun) do
-  #    Stream.resource(
-  #       fn ->
-  #    )
-  # end
+  ## De Bruijn table for sequence 0x022FDD63CC95386D
+  defp deBruijnTable(0), do: 0
+  defp deBruijnTable(1), do: 1
+  defp deBruijnTable(2), do: 2
+  defp deBruijnTable(3), do: 53
+  defp deBruijnTable(4), do: 3
+  defp deBruijnTable(5), do: 7
+  defp deBruijnTable(6), do: 54
+  defp deBruijnTable(7), do: 27
+  defp deBruijnTable(8), do: 4
+  defp deBruijnTable(9), do: 38
+  defp deBruijnTable(10), do: 41
+  defp deBruijnTable(11), do: 8
+  defp deBruijnTable(12), do: 34
+  defp deBruijnTable(13), do: 55
+  defp deBruijnTable(14), do: 48
+  defp deBruijnTable(15), do: 28
+  defp deBruijnTable(16), do: 62
+  defp deBruijnTable(17), do: 5
+  defp deBruijnTable(18), do: 39
+  defp deBruijnTable(19), do: 46
+  defp deBruijnTable(20), do: 44
+  defp deBruijnTable(21), do: 42
+  defp deBruijnTable(22), do: 22
+  defp deBruijnTable(23), do: 9
+  defp deBruijnTable(24), do: 24
+  defp deBruijnTable(25), do: 35
+  defp deBruijnTable(26), do: 59
+  defp deBruijnTable(27), do: 56
+  defp deBruijnTable(28), do: 49
+  defp deBruijnTable(29), do: 18
+  defp deBruijnTable(30), do: 29
+  defp deBruijnTable(31), do: 11
+  defp deBruijnTable(32), do: 63
+  defp deBruijnTable(33), do: 52
+  defp deBruijnTable(34), do: 6
+  defp deBruijnTable(35), do: 26
+  defp deBruijnTable(36), do: 37
+  defp deBruijnTable(37), do: 40
+  defp deBruijnTable(38), do: 33
+  defp deBruijnTable(39), do: 47
+  defp deBruijnTable(40), do: 61
+  defp deBruijnTable(41), do: 45
+  defp deBruijnTable(42), do: 43
+  defp deBruijnTable(43), do: 21
+  defp deBruijnTable(44), do: 23
+  defp deBruijnTable(45), do: 58
+  defp deBruijnTable(46), do: 17
+  defp deBruijnTable(47), do: 10
+  defp deBruijnTable(48), do: 51
+  defp deBruijnTable(49), do: 25
+  defp deBruijnTable(50), do: 36
+  defp deBruijnTable(51), do: 32
+  defp deBruijnTable(52), do: 60
+  defp deBruijnTable(53), do: 20
+  defp deBruijnTable(54), do: 57
+  defp deBruijnTable(55), do: 16
+  defp deBruijnTable(56), do: 50
+  defp deBruijnTable(57), do: 31
+  defp deBruijnTable(58), do: 19
+  defp deBruijnTable(59), do: 15
+  defp deBruijnTable(60), do: 30
+  defp deBruijnTable(61), do: 14
+  defp deBruijnTable(62), do: 13
+  defp deBruijnTable(63), do: 12
 end
