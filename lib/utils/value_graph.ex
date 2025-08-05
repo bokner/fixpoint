@@ -76,6 +76,7 @@ defmodule CPSolver.ValueGraph do
       value_graph:
         BitGraph.new(
           max_vertices: MapSet.size(value_vertices) + var_count,
+          allocate_adjacency_table?: false,
           neighbor_finder: default_neighbor_finder(variables),
           variable_count: var_count
         )

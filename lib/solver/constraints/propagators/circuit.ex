@@ -47,7 +47,7 @@ defmodule CPSolver.Propagator.Circuit do
       args
       |> Enum.with_index()
       |> Enum.reduce(
-        BitGraph.new(max_vertices: l),
+        BitGraph.new(max_vertices: l, allocate_adjacency_table?: false),
         fn {var, idx}, graph_acc ->
           initial_reduction(var, idx, l)
           BitGraph.add_vertex(graph_acc, idx)

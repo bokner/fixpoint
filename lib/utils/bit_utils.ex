@@ -47,7 +47,7 @@ defmodule CPSolver.BitUtils do
       n = n ||| n >>> 16
       n = n ||| n >>> 32
 
-      normalized = n * sequence &&& @all_ones_mask
+      normalized = (n * sequence) &&& @all_ones_mask
 
       deBruijnTable(sequence, normalized >>> 58)
     end

@@ -15,7 +15,8 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert ValueGraph.get_variable_count(graph) == num_variables
       ## 4 variables and 5 values
       assert BitGraph.num_vertices(graph) == 9
-
+      ## No adjacency table allocation
+      refute get_in(graph, [:adjacency, :bit_vector])
       ## Ignore fixed variables
       variables = Enum.map([1, 1..2, [1, 2, 4, 5], 6], fn d -> Variable.new(d) end)
       %{value_graph: graph, left_partition: left_partition} = ValueGraph.build(variables,
@@ -201,7 +202,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert BitGraph.in_degree(matching_graph, matched_value_vertex) == 2
       ## No out-neighbors for the 'fixed value' vertex.
       assert BitGraph.out_degree(matching_graph, matched_value_vertex) == 0
-      
+
       refute fixed_variable_vertex in BitGraph.in_neighbors(matching_graph, matched_value_vertex)
       ## The variables in the matching do not have matched value vertex as a neighbor
 #      refute Enum.any?(reduced_matching, fn {var_vertex, _value_vertex} ->
