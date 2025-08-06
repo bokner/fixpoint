@@ -63,29 +63,27 @@ defmodule CPSolver.BitVectorDomain do
       max_addr: %{block: current_max_block, offset: _max_offset}
     } = get_bound_addrs(bit_vector)
 
-    mapped_lb = value_mapper_fun.(min(domain))
-    mapped_ub = value_mapper_fun.(max(domain))
-
-    {lb, ub} = (mapped_lb <= mapped_ub && {mapped_lb, mapped_ub}) || {mapped_ub, mapped_lb}
+    lb = min(domain)
+    ub = max(domain)
 
     Enum.reduce(current_min_block..current_max_block, acc_init, fn block_idx, acc ->
-      block = :atomics.get(ref, block_idx)
+      case :atomics.get(ref, block_idx) do
+        0 ->
+          acc
 
-      if block == 0 do
-        acc
-      else
-        reduce_fun.(
-          acc,
-          bit_positions(block, fn val ->
-            case value_mapper_fun.(val + 64 * (block_idx - 1) - offset) do
-              value when value >= lb and value <= ub ->
-                value
+        block ->
+          reduce_fun.(
+            acc,
+            bit_positions(block, fn val ->
+              case val + 64 * (block_idx - 1) - offset do
+                value when value >= lb and value <= ub ->
+                  value_mapper_fun.(value)
 
-              _out_of_bounds ->
-                nil
-            end
-          end)
-        )
+                _out_of_bounds ->
+                  nil
+              end
+            end)
+          )
       end
     end)
   end
@@ -470,7 +468,6 @@ defmodule CPSolver.BitVectorDomain do
     {block_index(n), rem(n, 64)}
   end
 
-
   def bit_positions(0, _mapper) do
     MapSet.new()
   end
@@ -508,5 +505,4 @@ defmodule CPSolver.BitVectorDomain do
 
     bit_positions(n, shift <<< 1, iteration + 1, msb, mapper, acc)
   end
-
 end
