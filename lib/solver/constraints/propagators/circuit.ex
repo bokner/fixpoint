@@ -140,7 +140,7 @@ defmodule CPSolver.Propagator.Circuit do
 
   defp neighbor_finder(vars) do
     fn _graph, vertex_index, :out ->
-        Stream.map(domain_values(get_variable(vars, vertex_index - 1)), fn val -> val + 1 end)
+        MapSet.new(domain_values(get_variable(vars, vertex_index - 1)), fn val -> val + 1 end)
       _graph, vertex_index, :in ->
         for v <- vars, reduce: {1, MapSet.new()} do
           {idx, n_acc} ->
