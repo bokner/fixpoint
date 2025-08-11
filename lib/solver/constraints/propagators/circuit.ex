@@ -1,6 +1,8 @@
 defmodule CPSolver.Propagator.Circuit do
   use CPSolver.Propagator
 
+  alias Iter.{Iterable, Iterable.WithIndexer, Iterable.FlatMapper}
+
   @moduledoc """
   The propagator for 'circuit' constraint.
   """
@@ -91,11 +93,13 @@ defmodule CPSolver.Propagator.Circuit do
     short_loop_check(vars, successor)
     ## No other variables can share the successor, so
     ## we will remove the successor from their domains
-    Enum.each(BitGraph.in_neighbors(graph, successor), fn predessor ->
-      predessor == var_idx ||
+    successor_vertex_index = successor + 1
+    Enum.each(BitGraph.E.in_neighbors(graph, successor_vertex_index), fn predessor ->
+      predessor_var_index = predessor - 1
+      predessor_var_index == var_idx ||
       (
-        res = remove(get_variable(vars, predessor), successor)
-        reduce_var(vars, predessor, graph, res)
+        res = remove(get_variable(vars, predessor_var_index), successor)
+        reduce_var(vars, predessor_var_index, graph, res)
       )
     end)
   end
@@ -142,12 +146,25 @@ defmodule CPSolver.Propagator.Circuit do
     fn _graph, vertex_index, :out ->
         MapSet.new(domain_values(get_variable(vars, vertex_index - 1)), fn val -> val + 1 end)
       _graph, vertex_index, :in ->
-        for v <- vars, reduce: {1, MapSet.new()} do
-          {idx, n_acc} ->
-             {idx + 1,
-             contains?(v, vertex_index - 1) && MapSet.put(n_acc, idx) || n_acc}
-        end
-        |> elem(1)
+        # Iter.Iterable.Filterer.new(1..Arrays.size(vars),
+        #   fn idx ->
+        #     contains?(get_variable(vars, idx - 1), vertex_index - 1) && [idx] || []
+        #   end
+        # ) |> Iter.Iterable.to_list() |> MapSet.new()
+
+        WithIndexer.new(Arrays.to_list(vars))
+        |> FlatMapper.new(fn {var, idx} ->
+          contains?(var, vertex_index - 1) && [idx + 1] || []
+         end)
+         |> Iterable.to_list()
+
+        # Enum.flat_map(Enum.with_index(vars, 1), fn {var, idx} ->
+        #   contains?(var, vertex_index - 1) && [idx] || []
+        # end)
+        # for {v, idx} <- Enum.with_index(vars, 1), reduce: MapSet.new() do
+        #   n_acc ->
+        #      contains?(v, vertex_index - 1) && MapSet.put(n_acc, idx) || n_acc
+        # end
     end
   end
 end
