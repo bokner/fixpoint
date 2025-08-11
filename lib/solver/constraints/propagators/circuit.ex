@@ -1,6 +1,8 @@
 defmodule CPSolver.Propagator.Circuit do
   use CPSolver.Propagator
 
+  alias Iter.{Iterable, Iterable.FlatMapper}
+
   @moduledoc """
   The propagator for 'circuit' constraint.
   """
@@ -91,18 +93,38 @@ defmodule CPSolver.Propagator.Circuit do
     short_loop_check(vars, successor)
     ## No other variables can share the successor, so
     ## we will remove the successor from their domains
-    Enum.each(BitGraph.in_neighbors(graph, successor), fn predessor ->
-      predessor == var_idx ||
-      (
-        res = remove(get_variable(vars, predessor), successor)
-        reduce_var(vars, predessor, graph, res)
-      )
-    end)
+    successor_vertex_index = successor + 1
+    iterate_reduction(BitGraph.E.in_neighbors(graph, successor_vertex_index), successor, graph, vars, var_idx)
+    #Enum.each(BitGraph.E.in_neighbors(graph, successor_vertex_index)
+    #  |> Iterable.to_list(),
+    #   fn predessor ->
+    #   predessor_var_index = predessor - 1
+    #   predessor_var_index == var_idx ||
+    #   (
+    #     res = remove(get_variable(vars, predessor_var_index), successor)
+    #     reduce_var(vars, predessor_var_index, graph, res)
+    #   )
+    # end)
   end
-
 
   defp reduce_var(_vars, _var_idx, _graph, _domain_change) do
     :ok
+  end
+
+
+  defp iterate_reduction(iterator, successor, graph, vars, var_idx) do
+    case Iterable.next(iterator) do
+      :done -> :ok
+      {:ok, predessor, new_iterator} ->
+        predessor_var_index = predessor - 1
+        predessor_var_index == var_idx ||
+        (
+          res = remove(get_variable(vars, predessor_var_index), successor)
+          reduce_var(vars, predessor_var_index, graph, res)
+        )
+        iterate_reduction(new_iterator, successor, graph, vars, var_idx)
+
+    end
   end
 
   defp short_loop_check(vars, fixed_value) do
@@ -142,12 +164,11 @@ defmodule CPSolver.Propagator.Circuit do
     fn _graph, vertex_index, :out ->
         MapSet.new(domain_values(get_variable(vars, vertex_index - 1)), fn val -> val + 1 end)
       _graph, vertex_index, :in ->
-        for v <- vars, reduce: {1, MapSet.new()} do
-          {idx, n_acc} ->
-             {idx + 1,
-             contains?(v, vertex_index - 1) && MapSet.put(n_acc, idx) || n_acc}
-        end
-        |> elem(1)
+        FlatMapper.new(1..Arrays.size(vars),
+          fn idx ->
+            contains?(get_variable(vars, idx - 1), vertex_index - 1) && [idx] || []
+          end
+        )
     end
   end
 end
