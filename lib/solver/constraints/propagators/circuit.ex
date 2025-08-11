@@ -1,11 +1,7 @@
 defmodule CPSolver.Propagator.Circuit do
   use CPSolver.Propagator
 
-<<<<<<< HEAD
   alias Iter.{Iterable, Iterable.FlatMapper}
-=======
-  alias Iter.{Iterable, Iterable.WithIndexer, Iterable.FlatMapper}
->>>>>>> 361faf2761dbd127dd7689e734366b6a35e2475b
 
   @moduledoc """
   The propagator for 'circuit' constraint.
@@ -168,33 +164,11 @@ defmodule CPSolver.Propagator.Circuit do
     fn _graph, vertex_index, :out ->
         MapSet.new(domain_values(get_variable(vars, vertex_index - 1)), fn val -> val + 1 end)
       _graph, vertex_index, :in ->
-<<<<<<< HEAD
         FlatMapper.new(1..Arrays.size(vars),
           fn idx ->
             contains?(get_variable(vars, idx - 1), vertex_index - 1) && [idx] || []
           end
         )
-=======
-        # Iter.Iterable.Filterer.new(1..Arrays.size(vars),
-        #   fn idx ->
-        #     contains?(get_variable(vars, idx - 1), vertex_index - 1) && [idx] || []
-        #   end
-        # ) |> Iter.Iterable.to_list() |> MapSet.new()
-
-        WithIndexer.new(Arrays.to_list(vars))
-        |> FlatMapper.new(fn {var, idx} ->
-          contains?(var, vertex_index - 1) && [idx + 1] || []
-         end)
-         |> Iterable.to_list()
-
-        # Enum.flat_map(Enum.with_index(vars, 1), fn {var, idx} ->
-        #   contains?(var, vertex_index - 1) && [idx] || []
-        # end)
-        # for {v, idx} <- Enum.with_index(vars, 1), reduce: MapSet.new() do
-        #   n_acc ->
-        #      contains?(v, vertex_index - 1) && MapSet.put(n_acc, idx) || n_acc
-        # end
->>>>>>> 361faf2761dbd127dd7689e734366b6a35e2475b
     end
   end
 end
