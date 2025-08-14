@@ -35,6 +35,12 @@ defmodule CPSolver.DefaultDomain do
     Domain.removeBelow(domain, val)
   end
 
+  def next(domain, _value) when is_integer(domain), do: nil
+
+  def next(domain, value) do
+    Domain.next(domain, value)
+  end
+
   def to_list(arg) when is_integer(arg) do
     MapSet.new([arg])
   end

@@ -49,11 +49,18 @@ defmodule CPSolver.BitVectorDomain do
 
   ## 'next' value in the domain
   def next({{:bit_vector, ref} = bit_vector, offset} = _domain, value) do
-    {block_index, position} = vector_address(value + offset)
-    case next(block_index, position, ref, last_index(bit_vector)) do
-      nil -> nil
-      positional_value -> positional_value - offset
-    end
+    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+
+    cond do
+      value + offset < min_value -> min_value - offset
+      value + offset >= max_value -> nil
+      true ->
+        {block_index, position} = vector_address(value + offset)
+        case next(block_index, position, ref, last_index(bit_vector)) do
+          nil -> nil
+          positional_value -> positional_value - offset
+        end
+      end
   end
 
   defp next(block_index, _position, _atomics_ref, last_index) when block_index > last_index do
