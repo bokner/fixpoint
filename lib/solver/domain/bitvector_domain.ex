@@ -47,6 +47,32 @@ defmodule CPSolver.BitVectorDomain do
     {new_bit_vector, offset}
   end
 
+  ## 'next' value in the domain
+  def next({{:bit_vector, ref} = bit_vector, offset} = _domain, value) do
+    {block_index, position} = vector_address(value + offset)
+    case next(block_index, position, ref, last_index(bit_vector)) do
+      nil -> nil
+      positional_value -> positional_value - offset
+    end
+  end
+
+  defp next(block_index, _position, _atomics_ref, last_index) when block_index > last_index do
+    nil
+  end
+
+  defp next(block_index, position, atomics_ref, last_index) do
+    block = :atomics.get(atomics_ref, block_index)
+    ## Check if the block has bits on the right of the position of initial value.
+    shift = position + 1
+    shifted_left = block >>> shift
+    case lsb(shifted_left) do
+      nil -> ## nothing in this block, try next one
+        next(block_index + 1, -1, atomics_ref, last_index)
+      next_lsb ->
+        positional_value(block_index, next_lsb + shift)
+    end
+  end
+
   def map(domain, mapper_fun) when is_function(mapper_fun) do
     to_list(domain, mapper_fun)
   end
@@ -240,6 +266,10 @@ defmodule CPSolver.BitVectorDomain do
     }
   end
 
+  def bits({{:bit_vector, ref} = _bit_vector, _offset} = _domain) do
+    Enum.map(1..:atomics.info(ref)[:size] - 1, fn idx -> :atomics.get(ref, idx) |> Integer.to_string(2) |> String.reverse() end)
+  end
+
   ## Last byte of bit_vector contains (packed) min and max
   def last_index({:bit_vector, ref} = _bit_vector) do
     :atomics.info(ref).size - 1
@@ -397,7 +427,7 @@ defmodule CPSolver.BitVectorDomain do
               end
 
             (block_lsb &&
-               {:halt, (idx - 1) * 64 + block_lsb}) || {:cont, true}
+               {:halt, positional_value(idx, block_lsb)}) || {:cont, true}
         end
       end)
 
@@ -435,7 +465,7 @@ defmodule CPSolver.BitVectorDomain do
                 end
 
               (block_msb &&
-                 {:halt, (idx - 1) * 64 + block_msb}) || {:cont, true}
+                 {:halt, positional_value(idx, block_msb)}) || {:cont, true}
           end
         end
       )
@@ -464,8 +494,13 @@ defmodule CPSolver.BitVectorDomain do
     div(n, 64) + 1
   end
 
-  defp vector_address(n) do
+  def vector_address(n) do
     {block_index(n), rem(n, 64)}
+  end
+
+  ## Domain value, computed off the block index and position within the block
+  def positional_value(block_index, position) do
+    (block_index - 1) * 64 + position
   end
 
   def bit_positions(0, _mapper) do
