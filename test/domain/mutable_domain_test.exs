@@ -256,4 +256,46 @@ defmodule CPSolverTest.MutableDomain do
       assert catch_throw(Domain.fix(1, 2)) == :fail
     end
   end
+
+  describe "iterating" do
+    alias CPSolver.DefaultDomain, as: Domain
+
+    test "next value" do
+      ## interval domain
+      interval = -1000..1000
+      assert_next(interval)
+      ## enumerable domain
+      enum_domain = [-100, -65, -1, 0, 1, 22, 64, 65, 228, 1002]
+      assert_next(enum_domain)
+    end
+
+    test "iterator" do
+      interval = -1000..1000
+      values = Enum.take_random(interval, 10)
+      domain = Domain.new(values)
+      iterator = Domain.iterator(domain)
+      assert Enum.sort(Iter.Iterable.to_list(iterator)) == Enum.sort(values)
+      ## Pipe iterator into another one
+      mapper = fn val -> val * 2 end
+      piped_iterator = Iter.Iterable.Mapper.new(iterator, mapper)
+
+      assert Enum.sort(Iter.Iterable.to_list(piped_iterator)) ==
+               Enum.sort(Enum.map(values, mapper))
+    end
+
+    defp assert_next(values) do
+      domain = Domain.new(values)
+      ## next(domain, value) takes next value for all but the max(domain)
+      assert Enum.drop(values, -1)
+             |> Enum.with_index(0)
+             |> Enum.all?(fn {val, pos} ->
+               Domain.next(domain, val) == Enum.at(values, pos + 1)
+             end)
+
+      ## No next for the max value
+      refute Domain.next(domain, Domain.max(domain))
+      ## next is min(domain) for values less than min
+      assert Domain.next(domain, Domain.min(domain) - 1) == Domain.min(domain)
+    end
+  end
 end
