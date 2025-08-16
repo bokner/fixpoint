@@ -59,8 +59,7 @@ defmodule CPSolver.Propagator.Modulo do
     m_value = min(m)
     x_value = min(x)
 
-    domain(y)
-    |> Domain.to_list()
+    domain_values(y)
     |> Enum.each(fn y_value ->
       rem(x_value, y_value) != m_value &&
         remove(y, y_value)
@@ -73,8 +72,7 @@ defmodule CPSolver.Propagator.Modulo do
     m_value = min(m)
     y_value = min(y)
 
-    domain(x)
-    |> Domain.to_list()
+    domain_values(x)
     |> Enum.each(fn x_value ->
       rem(x_value, y_value) != m_value &&
         remove(x, x_value)

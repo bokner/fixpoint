@@ -19,7 +19,6 @@ defmodule CPSolver.Propagator do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils.TupleArray
-  alias CPSolver.Utils
   alias CPSolver.Common
 
   require Logger
@@ -317,9 +316,7 @@ defmodule CPSolver.Propagator do
   end
 
   def arg_at(args, pos) do
-    (Enumerable.impl_for(args) &&
-       Arrays.get(args, pos)) ||
-      throw({:error, :unknown_type, args})
+       Arrays.get(args, pos)
   end
 
   def arg_map(%{args: args} = _propagator, mapper) do
@@ -335,9 +332,7 @@ defmodule CPSolver.Propagator do
   end
 
   def arg_map(args, mapper) when is_function(mapper) do
-    (Enumerable.impl_for(args) &&
-       Arrays.map(args, mapper)) ||
-      throw({:error, :unknown_type, args})
+       Arrays.map(args, mapper)
   end
 
   def args_to_list(args) when is_tuple(args) do
@@ -346,12 +341,6 @@ defmodule CPSolver.Propagator do
 
   def args_to_list(args) do
     args
-  end
-
-  def domain_values(%{args: args} = _p) do
-    arg_map(args, fn arg ->
-      (is_constant_arg(arg) && arg) || {Interface.variable(arg).name, Utils.domain_values(arg)}
-    end)
   end
 
   defp copy_args(args) do
