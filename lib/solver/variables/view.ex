@@ -27,6 +27,10 @@ defmodule CPSolver.Variable.View do
     Map.put(view, :mapper, chained_mapper(a, b, mapper))
   end
 
+  def get_mapper(%{mapper: mapper} = _view) do
+    mapper
+  end
+
   defp make_mapper_fun(a, b) do
     fn
       ## Given value from variable domain, returns mapped value from view domain

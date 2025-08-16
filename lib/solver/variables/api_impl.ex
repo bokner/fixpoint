@@ -26,7 +26,7 @@ defimpl Interface, for: View do
 
   def variable(view), do: view.variable
 
-  def map(view, value), do: view.mapper.(value)
+  def map(view, value), do: View.get_mapper(view).(value)
 
   def domain(view), do: View.domain(view)
   def size(view), do: View.size(view)
