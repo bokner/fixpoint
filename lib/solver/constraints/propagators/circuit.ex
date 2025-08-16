@@ -162,7 +162,6 @@ defmodule CPSolver.Propagator.Circuit do
 
   defp neighbor_finder(vars) do
     fn _graph, vertex_index, :out ->
-      variable =
       vars |> get_variable(vertex_index - 1) |> domain_iterator()
       _graph, vertex_index, :in ->
         FlatMapper.new(1..Arrays.size(vars),
