@@ -13,7 +13,6 @@ defmodule CPSolver.Variable do
   alias CPSolver.Variable
   alias CPSolver.Variable.View
   alias CPSolver.DefaultDomain, as: Domain
-  alias CPSolver.ConstraintStore
 
   require Logger
 
@@ -48,82 +47,66 @@ defmodule CPSolver.Variable do
     end
   end
 
-  def domain(variable) do
-    store_op(:domain, variable)
+  def domain(variable, _shape \\ :handle) do
+    apply_op(:domain, variable)
   end
 
   def size(variable) do
-    store_op(:size, variable)
+    apply_op(:size, variable)
   end
 
   def fixed?(variable) do
-    store_op(:fixed?, variable)
+    apply_op(:fixed?, variable)
   end
 
   def min(variable) do
-    store_op(:min, variable)
+    apply_op(:min, variable)
   end
 
   def max(variable) do
-    store_op(:max, variable)
+    apply_op(:max, variable)
   end
 
   def contains?(variable, value) do
-    store_op(:contains?, variable, value)
+    apply_op(:contains?, variable, value)
   end
 
   def remove(variable, value) do
-    store_op(:remove, variable, value)
+    apply_op(:remove, variable, value)
   end
 
   def removeAbove(variable, value) do
-    store_op(:removeAbove, variable, value)
+    apply_op(:removeAbove, variable, value)
   end
 
   def removeBelow(variable, value) do
-    store_op(:removeBelow, variable, value)
+    apply_op(:removeBelow, variable, value)
   end
 
   def fix(variable, value) do
-    store_op(:fix, variable, value)
+    apply_op(:fix, variable, value)
   end
 
-  defp store_op(op, %{store: store, domain: domain} = variable, value)
+  defp apply_op(op, %{domain: domain} = _variable, value)
        when op in [:remove, :removeAbove, :removeBelow, :fix] do
-    if domain do
       apply(Domain, op, [domain, value]) |> normalize_update_result()
-    else
-      ConstraintStore.update(store, variable, op, [value])
-    end
   end
 
-  defp store_op(:contains?, %{store: store, domain: domain} = variable, value) do
-    if domain do
+  defp apply_op(:contains?, %{domain: domain} = _variable, value) do
       Domain.contains?(domain, value)
-    else
-      ConstraintStore.get(store, variable, :contains?, [value])
-    end
   end
 
-  defp store_op(op, %View{variable: variable}) do
-    store_op(op, variable)
+  defp apply_op(op, %View{variable: variable}) do
+    apply_op(op, variable)
   end
 
-  defp store_op(op, %{store: store, domain: domain} = variable)
+  defp apply_op(op, %{domain: domain} = _variable)
        when op in [:size, :fixed?, :min, :max] do
-    if domain do
-      apply(Domain, op, [domain])
-    else
-      ConstraintStore.get(store, variable, op)
-    end
+    apply(Domain, op, [domain])
   end
 
-  defp store_op(:domain, %{domain: domain}) when not is_nil(domain) do
+  defp apply_op(:domain, %{domain: domain}) when not is_nil(domain) do
     domain
-  end
-
-  defp store_op(:domain, %{store: store} = variable) do
-    ConstraintStore.domain(store, variable)
   end
 
   defp normalize_update_result({change, _}), do: change

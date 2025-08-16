@@ -11,10 +11,6 @@ defmodule CPSolver.Test.Helpers do
     string |> String.split(pattern) |> length() |> Kernel.-(1)
   end
 
-  def create_store(variables) do
-    {:ok, _store} = CPSolver.ConstraintStore.create_store(variables)
-  end
-
   def space_setup(x, y, z) do
     variables =
       Enum.map([{x, "x"}, {y, "y"}, {z, "z"}], fn {d, name} -> Variable.new(d, name: name) end)
