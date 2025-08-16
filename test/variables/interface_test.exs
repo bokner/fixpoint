@@ -1,12 +1,14 @@
 defmodule CPSolverTest.Variable.Interface do
   use ExUnit.Case
 
-  describe "Views" do
+  describe "Interface (variables and views)" do
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Variable.Interface
+    alias Iter.Iterable
 
     import CPSolver.Variable.View.Factory
     import CPSolver.Utils
+
 
     test "view vs variable" do
       v1_values = 1..10
@@ -75,6 +77,23 @@ defmodule CPSolverTest.Variable.Interface do
       assert :fixed == Interface.fix(view2, -2)
       assert Interface.fixed?(view2)
       assert :fail == catch_throw(Interface.fix(view2, 1))
+    end
+
+    test "Iterators" do
+      ## Variables
+      variable = Variable.new(1..10)
+      variable_iterator = Interface.iterator(variable)
+      {:ok, var_iterator_min, _iterator} = Iterable.next(variable_iterator)
+      assert Interface.min(variable) == var_iterator_min
+      assert domain_values(variable) == MapSet.new(Iterable.to_list(variable_iterator))
+      ## Views
+      view = linear(variable, 2, 1)
+      view_iterator = Interface.iterator(view)
+      {:ok, view_iterator_min, _iterator} = Iterable.next(view_iterator)
+      assert 2 * var_iterator_min + 1 == view_iterator_min
+      assert Interface.min(view) == view_iterator_min
+      assert domain_values(view) == MapSet.new(Iterable.to_list(view_iterator))
+
     end
   end
 end

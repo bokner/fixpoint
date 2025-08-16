@@ -1,5 +1,6 @@
 defmodule CPSolver.DefaultDomain do
   alias CPSolver.BitVectorDomain, as: Domain
+  alias Iter.Iterable.{Resource, Mapper}
 
   defdelegate new(values), to: Domain
 
@@ -57,8 +58,17 @@ defmodule CPSolver.DefaultDomain do
     Domain.to_list(domain)
   end
 
+  def iterator(value) when is_integer(value) do
+    List.wrap(value)
+  end
+
+  def iterator(list) when is_list(list) do
+    list
+  end
+
+
   def iterator(domain) do
-    Iter.Iterable.Resource.new(
+    Resource.new(
       fn -> min(domain) - 1 end,
       fn current ->
         case next(domain, current) do
