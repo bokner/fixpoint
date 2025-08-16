@@ -1,7 +1,7 @@
 defmodule CPSolver.Propagator.Circuit do
   use CPSolver.Propagator
 
-  alias Iter.{Iterable, Iterable.FlatMapper, Iterable.Mapper}
+  alias Iter.{Iterable, Iterable.FlatMapper}
 
   @moduledoc """
   The propagator for 'circuit' constraint.
@@ -95,16 +95,6 @@ defmodule CPSolver.Propagator.Circuit do
     ## we will remove the successor from their domains
     successor_vertex_index = successor + 1
     iterate_reduction(BitGraph.E.in_neighbors(graph, successor_vertex_index), successor, graph, vars, var_idx)
-    #Enum.each(BitGraph.E.in_neighbors(graph, successor_vertex_index)
-    #  |> Iterable.to_list(),
-    #   fn predessor ->
-    #   predessor_var_index = predessor - 1
-    #   predessor_var_index == var_idx ||
-    #   (
-    #     res = remove(get_variable(vars, predessor_var_index), successor)
-    #     reduce_var(vars, predessor_var_index, graph, res)
-    #   )
-    # end)
   end
 
   defp reduce_var(_vars, _var_idx, _graph, _domain_change) do
@@ -162,11 +152,7 @@ defmodule CPSolver.Propagator.Circuit do
 
   defp neighbor_finder(vars) do
     fn _graph, vertex_index, :out ->
-        # vars
-        # |> get_variable(vertex_index - 1)
-        # |> domain_iterator()
-        # |> Mapper.new(fn val -> val + 1 end)
-        MapSet.new(domain_values(get_variable(vars, vertex_index - 1)), fn val -> val + 1 end)
+          MapSet.new(domain_values(get_variable(vars, vertex_index - 1)), fn val -> val + 1 end)
       _graph, vertex_index, :in ->
         FlatMapper.new(1..Arrays.size(vars),
           fn idx ->
