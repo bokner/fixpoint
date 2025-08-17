@@ -47,8 +47,12 @@ defmodule CPSolver.Variable do
     end
   end
 
-  def domain(variable, _shape \\ :handle) do
+  def domain(variable) do
     apply_op(:domain, variable)
+  end
+
+  def iterator(%{domain: domain} = _variable, _opts \\ []) do
+    Domain.iterator(domain)
   end
 
   def size(variable) do

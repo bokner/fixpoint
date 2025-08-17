@@ -207,7 +207,7 @@ defmodule CPSolver.ValueGraph do
         vertex_index <= get_variable_count(graph) && :variable ||
           :value
 
-      adjust_neighbors(
+      adjust_to_matching(
         graph, neighbor_finder,
         vertex_index,
         vertex_type,
@@ -224,7 +224,7 @@ defmodule CPSolver.ValueGraph do
   ## If vertex is a 'value', make matched variable a single 'out' neighbor.
   ## Otherwise, keep neighbors as is.
   ##
-  defp adjust_neighbors(
+  defp adjust_to_matching(
          graph, neighbor_finder,
          vertex_index,
          :variable,
@@ -242,7 +242,7 @@ defmodule CPSolver.ValueGraph do
     end
   end
 
-  defp adjust_neighbors(
+  defp adjust_to_matching(
          _graph, _neighbor_finder,
          vertex_index,
          :value,
@@ -264,7 +264,7 @@ defmodule CPSolver.ValueGraph do
   ##
   ## If vertex is a 'value', remove matched variable from 'in' neighbors.
   ##
-  defp adjust_neighbors(_graph, _neighbor_finder, vertex_index, :variable, :in, variable_matching,
+  defp adjust_to_matching(_graph, _neighbor_finder, vertex_index, :variable, :in, variable_matching,
          _value_matching
          ) do
     case Map.get(variable_matching, vertex_index) do
@@ -277,7 +277,7 @@ defmodule CPSolver.ValueGraph do
     end
   end
 
-  defp adjust_neighbors(graph, neighbor_finder,
+  defp adjust_to_matching(graph, neighbor_finder,
     vertex_index, :value, :in, variable_matching, value_matching
     ) do
     neighbors = neighbor_finder.(graph, vertex_index, :in)

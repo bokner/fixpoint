@@ -9,6 +9,7 @@ defimpl Interface, for: Variable do
   def variable(var), do: var
   def map(_var, value), do: value
   def domain(var), do: Variable.domain(var)
+  def iterator(var, opts \\ []), do: Variable.iterator(var, opts)
   def size(var), do: Variable.size(var)
   def min(var), do: Variable.min(var)
   def max(var), do: Variable.max(var)
@@ -26,9 +27,10 @@ defimpl Interface, for: View do
 
   def variable(view), do: view.variable
 
-  def map(view, value), do: view.mapper.(value)
+  def map(view, value), do: View.get_mapper(view).(value)
 
   def domain(view), do: View.domain(view)
+  def iterator(var, opts \\ []), do: View.iterator(var, opts)
   def size(view), do: View.size(view)
   def min(view), do: View.min(view)
   def max(view), do: View.max(view)
@@ -49,6 +51,7 @@ defimpl Interface, for: Integer do
   def variable(_any), do: nil
   def id(_val), do: nil
   defdelegate map(val, mapper), to: Domain
+  def iterator(var, _opts), do: List.wrap(var)
   def domain(val), do: val
   defdelegate size(val), to: Domain
   defdelegate min(val), to: Domain
@@ -66,6 +69,7 @@ defimpl Interface, for: Any do
   def variable(_any), do: nil
   def id(non_var), do: not_supported(:id, non_var)
   def map(non_var, _value), do: non_var
+  def iterator(non_var, _opts), do: not_supported(:domain, non_var)
   def domain(non_var), do: not_supported(:domain, non_var)
   def size(non_var), do: not_supported(:size, non_var)
   def min(non_var), do: not_supported(:min, non_var)
@@ -91,7 +95,7 @@ defmodule CPSolver.Variable.Interface.ThrowIfFails do
 
   defdelegate variable(var), to: Interface
   defdelegate map(var, value), to: Interface
-
+  def iterator(_var, _opts), do: :ignore
   def domain(var), do: handle_fail(Interface.domain(var), var)
   def size(var), do: handle_fail(Interface.size(var), var)
   def min(var), do: handle_fail(Interface.min(var), var)

@@ -5,6 +5,7 @@ defmodule CPSolver.Variable.View do
   """
   alias CPSolver.Variable
   alias CPSolver.DefaultDomain, as: Domain
+  alias Iter.Iterable.Mapper
   alias __MODULE__, as: View
 
   defstruct [:mapper, :variable]
@@ -25,6 +26,10 @@ defmodule CPSolver.Variable.View do
 
   def new(%{mapper: mapper} = view, a, b) when is_struct(view, View) do
     Map.put(view, :mapper, chained_mapper(a, b, mapper))
+  end
+
+  def get_mapper(%{mapper: mapper} = _view) do
+    mapper
   end
 
   defp make_mapper_fun(a, b) do
@@ -71,6 +76,11 @@ defmodule CPSolver.Variable.View do
   def domain(%{mapper: mapper_fun, variable: variable} = _view) do
     Variable.domain(variable)
     |> Domain.map(mapper_fun)
+  end
+
+  def iterator(%{mapper: mapper_fun, variable: variable} = _view, opts \\ []) do
+    Variable.iterator(variable, opts)
+    |> Mapper.new(mapper_fun)
   end
 
   def size(%{variable: variable} = _view) do

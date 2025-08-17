@@ -13,6 +13,9 @@ defprotocol CPSolver.Variable.Interface do
   @spec map(Variable.t() | View.t(), integer()) :: integer()
   def map(variable, value)
 
+  @spec iterator(Variable.t() | View.t(), Keyword.t()) :: any()
+  def iterator(variable, opts \\ [])
+
   @spec domain(Variable.t() | View.t()) :: any()
   def domain(variable)
 
