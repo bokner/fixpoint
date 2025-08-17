@@ -95,17 +95,7 @@ defmodule CPSolver.Propagator.Circuit do
     ## we will remove the successor from their domains
     successor_vertex_index = successor + 1
     iterate_reduction(BitGraph.E.in_neighbors(graph, successor_vertex_index), successor, graph, vars, var_idx)
-    #Enum.each(BitGraph.E.in_neighbors(graph, successor_vertex_index)
-    #  |> Iterable.to_list(),
-    #   fn predessor ->
-    #   predessor_var_index = predessor - 1
-    #   predessor_var_index == var_idx ||
-    #   (
-    #     res = remove(get_variable(vars, predessor_var_index), successor)
-    #     reduce_var(vars, predessor_var_index, graph, res)
-    #   )
-    # end)
-  end
+    end
 
   defp reduce_var(_vars, _var_idx, _graph, _domain_change) do
     :ok
