@@ -31,7 +31,7 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
           ## We only need to remove out-edges from 'variable' vertices
           ## that cross to other SCCS
           {:variable, variable_id} = v ->
-            foreign_neighbors = BitGraph.E.out_neighbors(g_acc, vertex_index)
+            foreign_neighbors = BitGraph.V.out_neighbors(g_acc, vertex_index)
 
             {
               MapSet.put(vertices_acc, variable_id),

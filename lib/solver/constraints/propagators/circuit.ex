@@ -94,7 +94,7 @@ defmodule CPSolver.Propagator.Circuit do
     ## No other variables can share the successor, so
     ## we will remove the successor from their domains
     successor_vertex_index = successor + 1
-    iterate_reduction(BitGraph.E.in_neighbors(graph, successor_vertex_index), successor, graph, vars, var_idx)
+    iterate_reduction(BitGraph.V.in_neighbors(graph, successor_vertex_index), successor, graph, vars, var_idx)
   end
 
   defp reduce_var(_vars, _var_idx, _graph, _domain_change) do
