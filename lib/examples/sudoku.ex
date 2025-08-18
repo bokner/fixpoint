@@ -1,6 +1,6 @@
 defmodule CPSolver.Examples.Sudoku do
   alias CPSolver.Constraint
-  alias CPSolver.Constraint.AllDifferent.DC.V2, as: AllDifferent
+  alias CPSolver.Constraint.AllDifferent.DC.Fast, as: AllDifferent
   alias CPSolver.IntVariable
   alias CPSolver.Model
 
