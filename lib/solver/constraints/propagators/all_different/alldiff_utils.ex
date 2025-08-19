@@ -1,6 +1,8 @@
 defmodule CPSolver.Propagator.AllDifferent.Utils do
   alias CPSolver.ValueGraph
   alias CPSolver.Variable.Interface
+  alias BitGraph.Neighbor, as: N
+
   ## Splits graph into SCCs,
   ## and removes cross-edges.
   ## `vertices` is a subset of graph vertices
@@ -30,16 +32,11 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
         case BitGraph.V.get_vertex(graph_acc, vertex_index) do
           ## We only need to remove out-edges from 'variable' vertices
           ## that cross to other SCCS
-          {:variable, variable_id} = v ->
-            foreign_neighbors = BitGraph.V.out_neighbors(g_acc, vertex_index)
-
+          {:variable, variable_id} = variable_vertex ->
+            cross_neighbors = BitGraph.V.out_neighbors(graph_acc, vertex_index)
             {
               MapSet.put(vertices_acc, variable_id),
-              Enum.reduce(foreign_neighbors, g_acc, fn neighbor, g_acc2
-                                                       when is_integer(neighbor) ->
-                (neighbor in component && g_acc2) ||
-                  remove_edge_fun.(g_acc2, v, BitGraph.V.get_vertex(g_acc2, neighbor))
-              end)
+              remove_cross_edges(g_acc, variable_vertex, cross_neighbors, component, remove_edge_fun)
             }
 
           {:value, _} ->
@@ -55,6 +52,29 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
 
     {updated_components, updated_graph}
   end
+
+  # defp remove_cross_edges(graph, variable_vertex, neighbors, component, remove_edge_fun) do
+  #   case Iterable.next(neighbors) do
+  #     :done -> graph
+  #     {:ok, neighbor, rest} ->
+  #       updated_graph =
+  #         (neighbor in component) && graph ||
+  #         remove_edge_fun.(graph, variable_vertex, BitGraph.V.get_vertex(graph, neighbor))
+
+  #         remove_cross_edges(updated_graph, variable_vertex, rest, component, remove_edge_fun)
+  #   end
+  # end
+
+  defp remove_cross_edges(graph, variable_vertex, neighbors, component, remove_edge_fun) do
+    N.iterate(neighbors, graph, fn neighbor, acc ->
+          if neighbor in component do
+            {:cont, acc}
+          else
+            {:cont, remove_edge_fun.(acc, variable_vertex, BitGraph.V.get_vertex(acc, neighbor))}
+          end
+    end)
+  end
+
 
   def default_remove_edge_fun(vars) do
       fn graph, {:variable, var_index} = var_vertex, value_vertex ->
