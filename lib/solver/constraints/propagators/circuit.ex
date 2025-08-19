@@ -1,7 +1,8 @@
 defmodule CPSolver.Propagator.Circuit do
   use CPSolver.Propagator
 
-  alias Iter.{Iterable, Iterable.FlatMapper, Iterable.Mapper}
+  alias Iter.{Iterable.FlatMapper, Iterable.Mapper}
+  alias BitGraph.Neighbor, as: N
 
   @moduledoc """
   The propagator for 'circuit' constraint.
@@ -102,19 +103,16 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
 
-  defp iterate_reduction(iterator, successor, graph, vars, var_idx) do
-    case Iterable.next(iterator) do
-      :done -> :ok
-      {:ok, predessor, new_iterator} ->
-        predessor_var_index = predessor - 1
-        predessor_var_index == var_idx ||
-        (
-          res = remove(get_variable(vars, predessor_var_index), successor)
-          reduce_var(vars, predessor_var_index, graph, res)
-        )
-        iterate_reduction(new_iterator, successor, graph, vars, var_idx)
-
-    end
+  defp iterate_reduction(neighbors, successor, graph, vars, var_idx) do
+    N.iterate(neighbors, :ok, fn predessor, _acc ->
+      predessor_var_index = predessor - 1
+      if predessor_var_index == var_idx do
+        {:cont, :ok}
+      else
+        res = remove(get_variable(vars, predessor_var_index), successor)
+        {:cont, reduce_var(vars, predessor_var_index, graph, res)}
+      end
+    end)
   end
 
   defp short_loop_check(vars, fixed_value) do
@@ -172,6 +170,5 @@ defmodule CPSolver.Propagator.Circuit do
 
   def domain_set(variable) do
     MapSet.new(domain_values(variable), fn val -> val + 1 end)
-
   end
 end
