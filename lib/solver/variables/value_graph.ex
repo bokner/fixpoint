@@ -191,9 +191,6 @@ defmodule CPSolver.ValueGraph do
                                                        {matching_acc, reverse_matching_acc} ->
         propagator_variable = get_variable(variables, var_index)
 
-        Interface.contains?(propagator_variable, value) || MapSet.new()
-        # fail({:invalid_matching, var_vertex, value_vertex})
-
         var_vertex_index = BitGraph.V.get_vertex_index(graph, var_vertex)
         value_vertex_index = BitGraph.V.get_vertex_index(graph, value_vertex)
 

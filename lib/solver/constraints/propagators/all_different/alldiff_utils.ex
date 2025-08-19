@@ -77,23 +77,14 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
 
 
   def default_remove_edge_fun(vars) do
-      fn graph, {:variable, var_index} = var_vertex, value_vertex ->
+      fn graph, {:variable, var_index} = var_vertex, {:value, value} = value_vertex ->
         var = ValueGraph.get_variable(vars, var_index)
         if Interface.fixed?(var) do
-          graph
+          Interface.min(var) == value && graph || throw(:fail)
         else
-          ValueGraph.delete_edge(graph, var_vertex, get_value_vertex(value_vertex), vars)
+          ValueGraph.delete_edge(graph, var_vertex, value_vertex, vars)
         end
     end
-  end
-
-  ## Helpers
-  defp get_value_vertex({:value, _vertex} = v) do
-    v
-  end
-
-  defp get_value_vertex(vertex) when is_integer(vertex) do
-    {:value, vertex}
   end
 
 end
