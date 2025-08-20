@@ -3,6 +3,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
   alias CPSolver.ValueGraph
   alias CPSolver.Propagator.AllDifferent.Utils, as: AllDiffUtils
+  alias Iter.Iterable
 
   @moduledoc """
   The domain-consistent propagator for AllDifferent constraint,
@@ -172,7 +173,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
           direction == :out && vertex_index in free_node_indices ->
             MapSet.new([sink_node_index])
           direction == :in && vertex_index in matching_value_indices ->
-            MapSet.put(neighbors, sink_node_index)
+            Iterable.append(neighbors, sink_node_index)
           direction == :out && vertex_index in matching_value_indices ->
             neighbors
           true ->
