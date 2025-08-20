@@ -3,7 +3,7 @@ defmodule CPSolver.ValueGraph do
   alias CPSolver.Variable.Interface
   alias CPSolver.Propagator
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
-  alias Iter.Iterable.{Mapper, FlatMapper, Filterer}
+  alias Iter.Iterable.{Empty, Mapper, FlatMapper, Filterer}
 
   def build(variables, opts \\ []) do
     ## Builds value graph and supporting structures
@@ -100,16 +100,16 @@ defmodule CPSolver.ValueGraph do
   def default_neighbor_finder(variables) do
     fn graph, vertex_index, direction ->
       vertex = BitGraph.V.get_vertex(graph, vertex_index)
-      (vertex && get_neighbors(graph, vertex, variables, direction)) || MapSet.new()
+      (vertex && get_neighbors(graph, vertex, variables, direction)) || Empty.new()
     end
   end
 
   defp get_neighbors(_graph, {:variable, _var_index}, _variables, :in) do
-    MapSet.new()
+    Empty.new()
   end
 
   defp get_neighbors(_graph, {:value, _value}, _variables, :out) do
-    MapSet.new()
+    Empty.new()
   end
 
   defp get_neighbors(graph, {:variable, var_index}, variables, :out) do
@@ -130,7 +130,7 @@ defmodule CPSolver.ValueGraph do
   end
 
   defp get_neighbors(_graph, _additional_vertex, _variables, _direction) do
-    MapSet.new()
+    Empty.new()
   end
 
   ## Matching edges will be reversed
@@ -195,7 +195,7 @@ defmodule CPSolver.ValueGraph do
        ) do
     case Map.get(variable_matching, vertex_index) do
       nil ->
-        MapSet.new()
+        Empty.new()
 
       {value_match, _, _, _} ->
         ## Remove value from 'out' neighbors of variable vertex
@@ -214,10 +214,10 @@ defmodule CPSolver.ValueGraph do
        ) do
     case Map.get(value_matching, vertex_index) do
       nil ->
-        MapSet.new()
+        Empty.new()
 
       {variable_match, _variable, _matching_value, _variable_vertex} ->
-        MapSet.new([variable_match])
+        [variable_match]
     end
   end
 
@@ -238,11 +238,11 @@ defmodule CPSolver.ValueGraph do
     case Map.get(variable_matching, vertex_index) do
       nil ->
         ## Variable outside matching
-        MapSet.new()
+        Empty.new()
 
       {value_match, _variable, _matching_value, _variable_vertex} ->
         ## Matching value is the only in-neighbor
-        MapSet.new([value_match])
+        [value_match]
     end
   end
 
