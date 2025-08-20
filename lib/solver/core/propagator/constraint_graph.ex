@@ -6,8 +6,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   """
   alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
-  alias CPSolver.Utils.Digraph
-
+  
   require Logger
 
   @spec create([Propagator.t()]) :: Graph.t()
@@ -19,11 +18,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
 
   def copy(%Graph{} = graph) do
     graph
-  end
-
-  def copy(graph) when elem(graph, 0) == :digraph do
-    #:digraph_utils.subgraph(graph, :digraph.vertices(graph))
-    Digraph.copy(graph)
   end
 
   def get_propagators(constraint_graph) do
@@ -72,41 +66,20 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     Graph.vertices(constraint_graph)
   end
 
-  def vertices(constraint_graph) when elem(constraint_graph, 0) == :digraph do
-    Digraph.vertices(constraint_graph)
-  end
-
   def edges(%Graph{} = graph) do
     Graph.edges(graph)
   end
 
-  def edges(graph) when elem(graph, 0) == :digraph do
-    Digraph.edges(graph)
-  end
-
-
   def edges(%Graph{} = constraint_graph, vertex) do
     Graph.edges(constraint_graph, vertex)
-  end
-
-  def edges(constraint_graph, vertex) when elem(constraint_graph, 0) == :digraph do
-    Digraph.edges(constraint_graph, vertex)
   end
 
   def add_vertex(%Graph{} = graph, vertex, label) do
     Graph.add_vertex(graph, vertex, label)
   end
 
-  def add_vertex(graph, vertex, label) when elem(graph, 0) == :digraph do
-    Digraph.add_vertex(graph, vertex, label)
-  end
-
   def add_edge(%Graph{} = graph, from, to, label) do
     Graph.add_edge(graph, from, to, label: label)
-  end
-
-  def add_edge(graph, from, to, label) when elem(graph, 0) == :digraph do
-    Digraph.add_edge(graph, from, to, label)
   end
 
   defp propagators_by_variable(constraint_graph, variable_id, reduce_fun)
@@ -195,17 +168,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end
   end
 
-  def update_propagator(
-        graph,
-        propagator_id,
-        propagator
-      )
-      when elem(graph, 0) == :digraph do
-    vertex = propagator_vertex(propagator_id)
-
-    Digraph.add_vertex(graph, vertex, propagator)
-  end
-
   def variable_vertex(variable_id) do
     {:variable, variable_id}
   end
@@ -277,33 +239,16 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     end
   end
 
-  defp get_label(graph, vertex) when elem(graph, 0) == :digraph do
-    {_vertex, label} = Digraph.vertex(graph, vertex)
-    label
-  end
-
   defp in_degree(%Graph{} = graph, vertex) do
     Graph.in_degree(graph, vertex)
-  end
-
-  defp in_degree(graph, vertex) when elem(graph, 0) == :digraph do
-    Digraph.in_degree(graph, vertex)
   end
 
   defp out_degree(%Graph{} = graph, vertex) do
     Graph.out_degree(graph, vertex)
   end
 
-  defp out_degree(graph, vertex) when elem(graph, 0) == :digraph do
-    Digraph.out_degree(graph, vertex)
-  end
-
   defp in_neighbors(%Graph{} = graph, vertex) do
     Graph.in_neighbors(graph, vertex)
-  end
-
-  defp in_neighbors(graph, vertex) when elem(graph, 0) == :digraph do
-    Digraph.in_neighbours(graph, vertex)
   end
 
   def update_variable(
@@ -316,29 +261,11 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     #graph
   end
 
-  def update_variable(
-        graph,
-        variable
-      )
-      when elem(graph, 0) == :digraph do
-    vertex = variable_vertex(Interface.id(variable))
-
-    Digraph.add_vertex(graph, vertex, variable)
-  end
-
   defp delete_vertex(%Graph{} = graph, vertex) do
     Graph.delete_vertex(graph, vertex)
   end
 
-  defp delete_vertex(graph, vertex) when elem(graph, 0) == :digraph do
-    Digraph.delete_vertex(graph, vertex)
-  end
-
   defp delete_edges(%Graph{} = graph, edges) do
     Graph.delete_edges(graph, edges)
-  end
-
-  defp delete_edges(graph, edges) when elem(graph, 0) == :digraph do
-    Digraph.delete_edges(graph, edges)
   end
 end

@@ -53,18 +53,6 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
     {updated_components, updated_graph}
   end
 
-  # defp remove_cross_edges(graph, variable_vertex, neighbors, component, remove_edge_fun) do
-  #   case Iterable.next(neighbors) do
-  #     :done -> graph
-  #     {:ok, neighbor, rest} ->
-  #       updated_graph =
-  #         (neighbor in component) && graph ||
-  #         remove_edge_fun.(graph, variable_vertex, BitGraph.V.get_vertex(graph, neighbor))
-
-  #         remove_cross_edges(updated_graph, variable_vertex, rest, component, remove_edge_fun)
-  #   end
-  # end
-
   defp remove_cross_edges(graph, variable_vertex, neighbors, component, remove_edge_fun) do
     N.iterate(neighbors, graph, fn neighbor, acc ->
           if neighbor in component do
