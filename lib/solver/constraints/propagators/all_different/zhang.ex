@@ -1,6 +1,8 @@
 defmodule CPSolver.Propagator.AllDifferent.Zhang do
   alias CPSolver.Propagator.AllDifferent.Utils, as: AllDiffUtils
 
+  alias BitGraph.Neighbor, as: N
+
   def reduce(value_graph, free_nodes, matching, remove_edge_fun) do
     value_graph
     |> remove_type1_edges(free_nodes, matching, remove_edge_fun)
@@ -27,7 +29,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         else
           acc
           |> Map.put(:GA, MapSet.new())
-          |> process_right_partition_node(free_node)
+          |> process_value_partition_node(free_node)
           |> then(fn %{GA: ga} = type1_state ->
             Map.update!(type1_state, :components,
             fn components -> (MapSet.size(ga) > 1) &&
@@ -40,25 +42,27 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
     |> remove_redundant_type1_edges()
   end
 
-  def process_right_partition_node(%{value_graph: graph} = state, node) do
-    (visited?(state, node) && state) ||
+  def process_value_partition_node(%{value_graph: graph} = state, node) do
+    visited?(state, node) && state ||
       (
         state = mark_visited(state, node) |> unschedule_removals(node)
-
-        Enum.reduce(BitGraph.in_neighbors(graph, node), state, fn left_partition_node, acc ->
+        neighbors = BitGraph.in_neighbors(graph, node, shape: :iterator)
+        N.iterate(neighbors, state, fn left_partition_node, acc ->
+          {:cont,
           (visited?(acc, left_partition_node) && acc) ||
-            process_left_partition_node(acc, left_partition_node)
+            process_variable_partition_node(acc, left_partition_node)
+          }
         end)
       )
   end
 
-  def process_left_partition_node(%{matching: matching} = state, {:variable, variable_id} = node) do
+  def process_variable_partition_node(%{matching: matching} = state, {:variable, variable_id} = node) do
     (visited?(state, node) && state) ||
       state
       |> mark_visited(node)
       |> Map.update!(:GA_complement_matching, fn nodes -> Map.delete(nodes, node) end)
       |> Map.update!(:GA, fn nodes -> MapSet.put(nodes, variable_id) end)
-      |> process_right_partition_node(Map.get(matching, node))
+      |> process_value_partition_node(Map.get(matching, node))
       |> schedule_removals(node)
   end
 
@@ -66,13 +70,15 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
          %{free_nodes: free, value_graph: graph, scheduled_for_removal: scheduled} = state,
          node
        ) do
-    BitGraph.out_neighbors(graph, node)
-    |> Enum.reduce(scheduled, fn right_partition_node, unvisited_acc ->
+    BitGraph.out_neighbors(graph, node, shape: :iterator)
+    |> N.iterate(scheduled, fn right_partition_node, unvisited_acc ->
+      {:cont,
       ((visited?(state, right_partition_node) || MapSet.member?(free, right_partition_node)) &&
          unvisited_acc) ||
         Map.update(unvisited_acc, right_partition_node, MapSet.new([node]), fn existing ->
           MapSet.put(existing, node)
         end)
+      }
     end)
     |> then(fn updated_schedule -> Map.put(state, :scheduled_for_removal, updated_schedule) end)
   end

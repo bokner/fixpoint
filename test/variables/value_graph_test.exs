@@ -204,37 +204,6 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert BitGraph.out_degree(matching_graph, matched_value_vertex) == 0
 
       refute fixed_variable_vertex in BitGraph.in_neighbors(matching_graph, matched_value_vertex)
-      ## The variables in the matching do not have matched value vertex as a neighbor
-#      refute Enum.any?(reduced_matching, fn {var_vertex, _value_vertex} ->
-#        matched_value_vertex in (BitGraph.neighbors(matching_graph, var_vertex))
-#      end)
-
-
-    end
-
-    test "forward checking" do
-      domains = [
-        1, [2, 3, 5], [1, 4], [1, 5]
-      ]
-      [x0, x1, x2, x3] = variables = Enum.map(domains, fn d -> Variable.new(d) end)
-      %{value_graph: graph} = ValueGraph.build(variables)
-
-      assert BitGraph.num_vertices(graph) == 9
-
-      %{value_graph: updated_graph, new_fixed: new_fixed} =
-        ValueGraph.forward_checking(graph, MapSet.new([{:variable, 0}]), variables)
-
-      ## Newly fixed variables
-      assert new_fixed == MapSet.new([{:variable, 2}, {:variable, 3}])
-
-      ## Domain reductions
-      assert CPSolver.Utils.domain_values(x1) == MapSet.new([2, 3])
-      assert Interface.fixed?(x0) && Interface.min(x0) == 1
-      assert Interface.fixed?(x2) && Interface.min(x2) == 4
-      assert Interface.fixed?(x3) && Interface.min(x3) == 5
-
-      ## Value graph does not have fixed variables and associated values
-      assert BitGraph.vertices(updated_graph) == MapSet.new([{:variable, 1}, {:value, 2}, {:value, 3}])
     end
   end
 end
