@@ -85,7 +85,10 @@ defmodule CPSolver.ValueGraph do
         |> BitGraph.add_vertices(value_vertices),
       left_partition: left_partition,
       fixed_matching: fixed,
-      fixed_values: fixed_values
+      fixed_values: fixed_values,
+      unfixed_indices: Enum.reduce(left_partition,
+        MapSet.new(), fn {:variable, idx}, acc ->
+          Map.has_key?(fixed, {:variable, idx}) && acc || MapSet.put(acc, idx) end)
     }
   end
 

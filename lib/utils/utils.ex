@@ -2,6 +2,7 @@ defmodule CPSolver.Utils do
   alias CPSolver.Variable.Interface
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.DefaultDomain, as: Domain
+  alias Iter.Iterable
 
   def on_primary_node?(arg) when is_reference(arg) or is_pid(arg) or is_port(arg) do
     Node.self() == node(arg)
@@ -91,4 +92,16 @@ defmodule CPSolver.Utils do
     |> elem(0)
   end
 
+  def iterate(iterator, acc, fun) do
+    case Iterable.next(iterator) do
+      :done -> acc
+      {:ok, neighbor, rest} ->
+        case fun.(neighbor, acc) do
+          {:halt, acc_new} ->
+            acc_new
+          {:cont, acc_new} ->
+            iterate(rest, acc_new, fun)
+        end
+    end
+  end
 end
