@@ -33,32 +33,35 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
 
   def scc_component_handler(component, remove_edge_fun, {component_acc, graph_acc} = _current_acc) do
     {variable_vertices, updated_graph} =
-      Enum.reduce(component, {MapSet.new(), graph_acc}, fn vertex_index,
-                                                           {vertices_acc, g_acc} = acc ->
-        case BitGraph.V.get_vertex(graph_acc, vertex_index) do
-          ## We only need to remove out-edges from 'variable' vertices
-          ## that cross to other SCCS
-          {:variable, variable_id} = variable_vertex ->
-            cross_neighbors = BitGraph.V.out_neighbors(graph_acc, vertex_index)
+      Enum.reduce(
+        component,
+        {MapSet.new(), graph_acc},
+        fn vertex_index, {vertices_acc, g_acc} = acc ->
+          case BitGraph.V.get_vertex(graph_acc, vertex_index) do
+            ## We only need to remove out-edges from 'variable' vertices
+            ## that cross to other SCCS
+            {:variable, variable_id} = variable_vertex ->
+              cross_neighbors = BitGraph.V.out_neighbors(graph_acc, vertex_index)
 
-            {
-              MapSet.put(vertices_acc, variable_id),
-              remove_cross_edges(
-                g_acc,
-                variable_vertex,
-                cross_neighbors,
-                component,
-                remove_edge_fun
-              )
-            }
+              {
+                MapSet.put(vertices_acc, variable_id),
+                remove_cross_edges(
+                  g_acc,
+                  variable_vertex,
+                  cross_neighbors,
+                  component,
+                  remove_edge_fun
+                )
+              }
 
-          {:value, _} ->
-            acc
+            {:value, _} ->
+              acc
 
-          _ ->
-            acc
+            _ ->
+              acc
+          end
         end
-      end)
+      )
 
     ## drop 1-vertex sccs
     updated_components =
@@ -94,7 +97,7 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
   ## `unfixed_indices` is the list of indexes for yet (known) unfixed variables.
   ## We will be checking if they are really unfixed anyway.
   def forward_checking(variables) do
-    forward_checking(variables, MapSet.new(0..length(variables) - 1), MapSet.new())
+    forward_checking(variables, MapSet.new(0..(length(variables) - 1)), MapSet.new())
   end
 
   def forward_checking(variables, unfixed_indices, fixed_values) do
@@ -108,27 +111,30 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
   end
 
   def fwc_impl(variables, unfixed_indices, fixed_values) do
-    iterate(unfixed_indices, {unfixed_indices, fixed_values, false}, fn unfixed_idx,
-                                                                        {u_acc, f_acc, _new_fixes?} =
-                                                                          acc ->
-      var = Propagator.arg_at(variables, unfixed_idx)
-      ## Not fixed
-      {:cont,
-      if PropagatorVariable.fixed?(var) do
-        update_new_fixed(PropagatorVariable.min(var), unfixed_idx, u_acc, f_acc)
-      else
-        ## Go over all fixed values
-        iterate(f_acc, acc, fn fixed_value, {u_acc2, f_acc2, _} = acc2 ->
-          {:cont,
-          if PropagatorVariable.remove(var, fixed_value) == :fixed do
-            update_new_fixed(PropagatorVariable.min(var), unfixed_idx, u_acc2, f_acc2)
-          else
-            acc2
-          end
-        }
-        end)
-      end}
-    end)
+    iterate(
+      unfixed_indices,
+      {unfixed_indices, fixed_values, false},
+      fn unfixed_idx,
+         {u_acc, f_acc, _new_fixes?} =
+           acc ->
+        var = Propagator.arg_at(variables, unfixed_idx)
+        ## Not fixed
+        {:cont,
+         if PropagatorVariable.fixed?(var) do
+           update_new_fixed(PropagatorVariable.min(var), unfixed_idx, u_acc, f_acc)
+         else
+           ## Go over all fixed values
+           iterate(f_acc, acc, fn fixed_value, {u_acc2, f_acc2, _} = acc2 ->
+             {:cont,
+              if PropagatorVariable.remove(var, fixed_value) == :fixed do
+                update_new_fixed(PropagatorVariable.min(var), unfixed_idx, u_acc2, f_acc2)
+              else
+                acc2
+              end}
+           end)
+         end}
+      end
+    )
   end
 
   defp update_new_fixed(new_fixed_value, var_idx, current_unfixed, current_fixed) do
