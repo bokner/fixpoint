@@ -118,7 +118,6 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
          {u_acc, f_acc, _new_fixes?} =
            acc ->
         var = Propagator.arg_at(variables, unfixed_idx)
-        ## Not fixed
         {:cont,
          if PropagatorVariable.fixed?(var) do
            update_new_fixed(PropagatorVariable.min(var), unfixed_idx, u_acc, f_acc)
