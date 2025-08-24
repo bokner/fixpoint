@@ -39,7 +39,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     state
     |> Map.put(:propagator_variables, vars)
     |> Map.put(:reduction_callback, reduction_callback(vars))
-    |> reset_value_graph()
   end
 
   defp finalize(state) do
@@ -117,6 +116,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       ) do
     %{free: free_nodes, matching: matching} =
       value_graph
+      |> reset_value_graph(variables)
       |> find_matching(
         to_vertices(component),
         fixed_matching
@@ -141,15 +141,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       # |> reduce_state()
   end
 
-  defp reset_value_graph(%{value_graph: value_graph,
-    propagator_variables: vars
-    } = state) do
-    state
-    |> Map.put(:value_graph,
+  defp reset_value_graph(value_graph, vars) do
         BitGraph.update_opts(value_graph,
           neighbor_finder: ValueGraph.default_neighbor_finder(vars)
         )
-    )
   end
 
 
