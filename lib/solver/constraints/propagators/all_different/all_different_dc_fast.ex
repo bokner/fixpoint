@@ -23,11 +23,19 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   @impl true
   def filter(vars, state, changes) do
-    state = state && Map.replace!(state, :propagator_variables, vars) || initial_state(vars)
-
-    state
+    if state do
+      update_state(state, vars)
+    else
+     initial_state(vars)
+    end
     |> apply_changes(changes)
     |> finalize()
+  end
+
+  defp update_state(state, vars) do
+    state
+    |> Map.put(:propagator_variables, vars)
+    |> Map.put(:reduction_callback, reduction_callback(vars))
   end
 
   defp finalize(state) do
@@ -49,16 +57,21 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def initial_state(variables) do
-    %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: fixed_matching} =
-      ValueGraph.build(variables, check_matching: true)
+    %{
+      value_graph: value_graph,
+      left_partition: variable_vertices,
+      fixed_matching: fixed_matching,
+      unfixed_indices: unfixed_indices,
+      } = ValueGraph.build(variables, check_matching: true)
 
     %{
       value_graph: value_graph,
       variable_vertices: variable_vertices,
-      propagator_variables: variables,
       fixed_matching: fixed_matching,
-      reduction_callback: reduction_callback(variables)
+      unfixed_indices: unfixed_indices,
+      components: MapSet.new(variable_vertices) ## We start with a single component wrapped in a set
     }
+    |> update_state(variables)
   end
 
   defp reduction_callback(variables) do
@@ -88,14 +101,23 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         %{
           value_graph: value_graph,
           variable_vertices: variable_vertices,
+          unfixed_indices: unfixed_indices,
           fixed_matching: fixed_matching,
           propagator_variables: variables,
           reduction_callback: remove_edge_fun
         } = state
       ) do
+        # if 0 != MapSet.size(unfixed_indices) do
+        #   IO.inspect(Map.take(state, [:unfixed_indices]), label: :reduce_state)
+        # end
     %{free: free_nodes, matching: matching} =
       value_graph
-      |> find_matching(variable_vertices, fixed_matching)
+      |> find_matching(
+        #MapSet.new(unfixed_indices, fn idx -> {:variable, idx} end),
+        variable_vertices,
+        fixed_matching
+        #Map.new()
+        )
 
     %{value_graph: reduced_value_graph, components: components} =
       value_graph
@@ -107,25 +129,24 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     |> Map.put(:components, components)
   end
 
-  def apply_changes(%{value_graph: value_graph,
-    propagator_variables: vars,
-    variable_vertices: _variable_vertices,
-    fixed_matching: fixed_matching
-    } = state, changes) do
+  def apply_changes(%{components: components} = state, changes) do
+      #Enum.reduce(components, state, fn c, acc ->
 
-      fixed_matching = Enum.reduce(changes, fixed_matching, fn {var_index, :fixed}, acc ->
-        Map.put(acc, {:variable, var_index}, {:value, Propagator.arg_at(vars, var_index) |> min()})
-          _, acc -> acc
-        end)
-      updated_value_graph  =
+      #end)
+      state
+      |> reset_value_graph()
+      |> reduce_state()
+  end
+
+  defp reset_value_graph(%{value_graph: value_graph,
+    propagator_variables: vars
+    } = state) do
+    state
+    |> Map.put(:value_graph,
         BitGraph.update_opts(value_graph,
           neighbor_finder: ValueGraph.default_neighbor_finder(vars)
         )
-          state
-          |> Map.put(:reduction_callback, reduction_callback(vars))
-          |> Map.put(:value_graph, updated_value_graph)
-          |> Map.put(:fixed_matching, fixed_matching)
-          |> reduce_state()
+    )
   end
 
 
