@@ -17,7 +17,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
           Variable.new(d, name: "x#{idx}")
         end)
 
-      state = Fast.initial_reduction(vars)
+      {:state, state} = Fast.filter(vars)
       reduced_value_graph = state[:value_graph]
       assert Interface.fixed?(x1) && Interface.min(x1) == 2
       assert Interface.min(x2) == 3 && Interface.max(x2) == 4
@@ -48,7 +48,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
           Variable.new(d, name: name)
         end)
 
-      Fast.initial_reduction(vars)
+      Fast.filter(vars)
       ## all variables are fixed
       assert Interface.fixed?(x2) && Interface.min(x2) == 2
       assert Interface.fixed?(x3) && Interface.min(x3) == 3
@@ -62,7 +62,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       vars =
         Enum.map(domains, fn d -> Variable.new(d) end)
 
-      assert catch_throw(Fast.initial_reduction(vars)) == :fail
+      assert catch_throw(Fast.filter(vars)) == :fail
     end
   end
 

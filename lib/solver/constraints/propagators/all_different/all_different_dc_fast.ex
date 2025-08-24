@@ -23,24 +23,33 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   @impl true
   def filter(vars, state, changes) do
-    if state do
-      update_state(state, vars)
-    else
-     initial_state(vars)
-    end
+    (
+      state || initial_state(vars)
+    )
+    |> update_state(vars)
     |> apply_changes(changes)
     |> finalize()
+  end
+
+  def filter(vars) do
+    filter(vars, nil, %{})
   end
 
   defp update_state(state, vars) do
     state
     |> Map.put(:propagator_variables, vars)
     |> Map.put(:reduction_callback, reduction_callback(vars))
+    |> reset_value_graph()
   end
 
   defp finalize(state) do
     (entailed?(state) && :passive) ||
-      {:state, state}
+      {:state, cleanup_state(state)}
+  end
+
+  defp cleanup_state(state) do
+    ## Do not use fixed matching other than for initial run
+    Map.replace!(state, :fixed_matching, Map.new())
   end
 
   def entailed?(%{components: components} = _state) do
@@ -49,11 +58,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def entailed?(_state) do
     false
-  end
-
-  def initial_reduction(vars) do
-    initial_state = initial_state(vars)
-    reduce_state(initial_state)
   end
 
   def initial_state(variables) do
@@ -69,7 +73,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       variable_vertices: variable_vertices,
       fixed_matching: fixed_matching,
       unfixed_indices: unfixed_indices,
-      components: MapSet.new(variable_vertices) ## We start with a single component wrapped in a set
+      ## We start with a single component wrapped in a set; normalize for compatibility with
+      ## the shape of components (i.e., bare variable ids) produced by Zhang.
+      components: MapSet.new(List.wrap(to_component(variable_vertices)))
     }
     |> update_state(variables)
   end
@@ -97,45 +103,42 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     throw(reason)
   end
 
+  def reduce_state(state) do
+    reduce_state(state, state.components)
+  end
+
   def reduce_state(
         %{
           value_graph: value_graph,
-          variable_vertices: variable_vertices,
-          unfixed_indices: unfixed_indices,
           fixed_matching: fixed_matching,
           propagator_variables: variables,
           reduction_callback: remove_edge_fun
-        } = state
+        } = state, component
       ) do
-        # if 0 != MapSet.size(unfixed_indices) do
-        #   IO.inspect(Map.take(state, [:unfixed_indices]), label: :reduce_state)
-        # end
     %{free: free_nodes, matching: matching} =
       value_graph
       |> find_matching(
-        #MapSet.new(unfixed_indices, fn idx -> {:variable, idx} end),
-        variable_vertices,
+        to_vertices(component),
         fixed_matching
-        #Map.new()
         )
 
-    %{value_graph: reduced_value_graph, components: components} =
+    %{value_graph: reduced_value_graph, components: new_components} =
       value_graph
       |> BitGraph.update_opts(neighbor_finder: ValueGraph.matching_neighbor_finder(value_graph, variables, matching, free_nodes))
       |> Zhang.reduce(free_nodes, matching, remove_edge_fun)
 
     state
     |> Map.put(:value_graph, reduced_value_graph)
-    |> Map.put(:components, components)
+    |> Map.update!(:components, fn components -> MapSet.union(components, new_components) end)
   end
 
-  def apply_changes(%{components: components} = state, changes) do
-      #Enum.reduce(components, state, fn c, acc ->
-
-      #end)
-      state
-      |> reset_value_graph()
-      |> reduce_state()
+  def apply_changes(%{components: components} = state, _changes) do
+      Enum.reduce(components, state |> Map.put(:components, MapSet.new()), fn c, state_acc ->
+        reduce_state(state_acc, c)
+      end)
+      # state
+      # |> reset_value_graph()
+      # |> reduce_state()
   end
 
   defp reset_value_graph(%{value_graph: value_graph,
@@ -212,6 +215,19 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         next_index,
         MapSet.put(acc, next_index - 1)
       )
+  end
+
+  ## The below is due to mismatch between BitGraph API
+  ## and Zhang required shape for vertices.
+  ## TODO: consider fixing
+  defp to_component(variable_vertices) do
+    MapSet.new(
+        variable_vertices, fn {:variable, idx} -> idx end)
+  end
+
+  defp to_vertices(component) do
+    MapSet.new(
+        component, fn idx -> {:variable, idx} end)
   end
 
 
