@@ -35,10 +35,11 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     filter(vars, nil, %{})
   end
 
-  defp update_state(state, vars) do
+  defp update_state(%{unfixed_indices: unfixed} = state, vars) do
     state
     |> Map.put(:propagator_variables, vars)
     |> Map.put(:reduction_callback, reduction_callback(vars))
+    |> Map.put(:unfixed_indices, MapSet.reject(unfixed, fn idx -> fixed?(Propagator.arg_at(vars, idx)) end))
   end
 
   defp finalize(state) do
@@ -134,7 +135,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def apply_changes(%{components: components} = state, _changes) do
       Enum.reduce(components, state |> Map.put(:components, MapSet.new()), fn c, state_acc ->
-        reduce_state(state_acc, c)
+        reduce_state(state_acc, c
+        #MapSet.intersection(c, state.unfixed_indices)
+        )
       end)
       # state
       # |> reset_value_graph()
