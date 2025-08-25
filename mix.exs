@@ -27,7 +27,8 @@ defmodule CPSolver.MixProject do
   defp deps do
     [
       {:libgraph, "~> 0.16.0"},
-      {:bitgraph, "~> 0.2.2"},
+      {:bitgraph, "~> 0.2.5"},
+      ##{:bitgraph, path: Path.join([System.get_env("HOME"), "projects", "bitgraph"])},
       {:iterex, "~> 0.1"},
       {:arrays, "~> 2.1"},
       {:arrays_aja, "~> 0.2.0"},

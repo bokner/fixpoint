@@ -1,7 +1,7 @@
 defmodule CPSolver.Propagator.AllDifferent.Zhang do
   alias CPSolver.Propagator.AllDifferent.Utils, as: AllDiffUtils
 
-  alias BitGraph.Neighbor, as: N
+  import CPSolver.Utils
 
   def reduce(value_graph, free_nodes, matching, remove_edge_fun) do
     value_graph
@@ -47,7 +47,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       (
         state = mark_visited(state, node) |> unschedule_removals(node)
         neighbors = BitGraph.in_neighbors(graph, node, shape: :iterator)
-        N.iterate(neighbors, state, fn left_partition_node, acc ->
+        iterate(neighbors, state, fn left_partition_node, acc ->
           {:cont,
           (visited?(acc, left_partition_node) && acc) ||
             process_variable_partition_node(acc, left_partition_node)
@@ -71,7 +71,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
          node
        ) do
     BitGraph.out_neighbors(graph, node, shape: :iterator)
-    |> N.iterate(scheduled, fn right_partition_node, unvisited_acc ->
+    |> iterate(scheduled, fn right_partition_node, unvisited_acc ->
       {:cont,
       ((visited?(state, right_partition_node) || MapSet.member?(free, right_partition_node)) &&
          unvisited_acc) ||

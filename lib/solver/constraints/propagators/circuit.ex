@@ -2,7 +2,7 @@ defmodule CPSolver.Propagator.Circuit do
   use CPSolver.Propagator
 
   alias Iter.{Iterable.FlatMapper, Iterable.Mapper}
-  alias BitGraph.Neighbor, as: N
+  import CPSolver.Utils
 
   @moduledoc """
   The propagator for 'circuit' constraint.
@@ -104,7 +104,7 @@ defmodule CPSolver.Propagator.Circuit do
 
 
   defp iterate_reduction(neighbors, successor, graph, vars, var_idx) do
-    N.iterate(neighbors, :ok, fn predessor, _acc ->
+    iterate(neighbors, :ok, fn predessor, _acc ->
       predessor_var_index = predessor - 1
       if predessor_var_index == var_idx do
         {:cont, :ok}
