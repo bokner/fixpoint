@@ -141,6 +141,74 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
     {MapSet.delete(current_unfixed, var_idx), MapSet.put(current_fixed, new_fixed_value), true}
   end
 
+  #### Component locator.
+  ### This is the structure to (quickly) locate the component the verex belongs to.
+  ### Given the list of disjoint sets (of vertices), and an element (vertex):
+  ### what set (component) the element (vertex) belongs to?
+  ### Motivation: to be able to pick out components for the reduction, based on domain changes.
+  ### That is, if we get the {0, domain_change}, what component is to process?
+  ###
+  def build_component_locator(vertices, components) do
+    # Build an array with size equal to number of variables
+    array_ref = :atomics.new(
+      Enum.reduce(vertices, 0, fn index, max_acc -> index > max_acc && index || max_acc end) + 1, signed: true)
+    Enum.each(components, fn c -> build_component_locator_impl(array_ref, c) end)
+
+    array_ref
+  end
+
+  ## Mind 1-based (indices in component finder) vs. 0-based (variable indices in the component)
+  ##
+  def build_component_locator_impl(component_finder, component) do
+    {first, last} =
+      Enum.reduce(component, {nil, nil}, fn el, {first, prev} ->
+        if first do
+          :atomics.put(component_finder, prev, el + 1)
+          {first, el + 1}
+        else
+          {el + 1, el + 1}
+        end
+      end)
+
+    :atomics.put(component_finder, last, first)
+  end
+
+  ## Retrieve component vertices the variable given by it's idex
+  ## belongs to.
+  def get_component(component_locator, var_index) do
+    base1_index = var_index + 1
+
+    if :atomics.info(component_locator)[:size] < base1_index do
+      nil
+    else
+      case :atomics.get(component_locator, base1_index) do
+        0 ->
+          nil
+
+        next ->
+          get_component_impl(
+            component_locator,
+            base1_index,
+            next,
+            MapSet.new([var_index, next - 1])
+          )
+      end
+    end
+  end
+
+  defp get_component_impl(component_locator, first_index, current_index, acc) do
+    next_index = :atomics.get(component_locator, current_index)
+
+    (next_index == first_index && acc) ||
+      get_component_impl(
+        component_locator,
+        first_index,
+        next_index,
+        MapSet.put(acc, next_index - 1)
+      )
+  end
+
+
   defp fail() do
     throw(:fail)
   end
