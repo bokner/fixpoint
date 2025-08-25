@@ -50,4 +50,15 @@ defmodule CPSolverTest.Constraint.AllDifferent.Utils do
       assert Enum.all?(vars, fn var -> Variable.fixed?(var) end)
     end
   end
+
+  describe "Component locator" do
+    test "build and locate" do
+      vertices = MapSet.new(1..10)
+      components = Enum.map([[1, 3, 5, 7, 9], [2, 4, 6, 8]], fn c -> MapSet.new(c) end)
+      component_locator = AllDiffUtils.build_component_locator(vertices, components)
+      assert AllDiffUtils.get_component(component_locator, 1) == hd(components)
+      assert AllDiffUtils.get_component(component_locator, 4) == List.last(components)
+      refute AllDiffUtils.get_component(component_locator, 10)
+    end
+  end
 end
