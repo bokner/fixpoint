@@ -3,7 +3,7 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
   alias CPSolver.Variable.Interface
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.Propagator
-  alias BitGraph.Neighbor, as: N
+  import CPSolver.Utils
   import CPSolver.Utils
 
   ## Splits graph into SCCs,
@@ -72,7 +72,7 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
   end
 
   defp remove_cross_edges(graph, variable_vertex, neighbors, component, remove_edge_fun) do
-    N.iterate(neighbors, graph, fn neighbor, acc ->
+    iterate(neighbors, graph, fn neighbor, acc ->
       if neighbor in component do
         {:cont, acc}
       else
