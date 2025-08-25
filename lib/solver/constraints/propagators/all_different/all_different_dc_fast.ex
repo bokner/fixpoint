@@ -28,7 +28,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     else
      initial_state(vars)
     end
-    |> apply_changes(changes)
+    |> reduce_state(changes)
     |> finalize()
   end
 
@@ -122,10 +122,6 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     state
     |> Map.put(:value_graph, reduced_value_graph)
     |> Map.put(:components, components)
-  end
-
-  def apply_changes(state, changes) do
-      reduce_state(state, changes)
   end
 
   defp reset_value_graph(value_graph, vars) do
