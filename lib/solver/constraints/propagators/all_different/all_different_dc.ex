@@ -128,7 +128,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   end
 
   defp set_neighbor_finder(graph, neighbor_finder) do
-    BitGraph.update_opts(graph, neighbor_finder: neighbor_finder)
+    BitGraph.set_neighbor_finder(graph, neighbor_finder)
   end
 
   defp add_sink_node(graph, free_nodes) do

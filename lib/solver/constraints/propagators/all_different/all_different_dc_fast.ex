@@ -116,7 +116,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
     %{value_graph: reduced_value_graph, components: components} =
       value_graph
-      |> BitGraph.update_opts(neighbor_finder: ValueGraph.matching_neighbor_finder(value_graph, variables, matching, free_nodes))
+      |> BitGraph.set_neighbor_finder(ValueGraph.matching_neighbor_finder(value_graph, variables, matching, free_nodes))
       |> Zhang.reduce(free_nodes, matching, remove_edge_fun)
 
     state
@@ -125,8 +125,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   defp reset_value_graph(value_graph, vars) do
-        BitGraph.update_opts(value_graph,
-          neighbor_finder: ValueGraph.default_neighbor_finder(vars)
+        BitGraph.set_neighbor_finder(value_graph,
+          ValueGraph.default_neighbor_finder(vars)
         )
   end
 
