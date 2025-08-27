@@ -4,7 +4,7 @@ defmodule CPSolver.MixProject do
   def project do
     [
       app: :fixpoint,
-      version: "0.14.1",
+      version: "0.14.2",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -27,9 +27,7 @@ defmodule CPSolver.MixProject do
   defp deps do
     [
       {:libgraph, "~> 0.16.0"},
-      #{:bitgraph, "~> 0.2.5"},
-      {:bitgraph, git: "https://github.com/bokner/bitgraph.git"},
-      #{:bitgraph, path: Path.join([System.get_env("HOME"), "projects", "bitgraph"])},
+      {:bitgraph, "== 0.2.6"},
       {:iterex, "~> 0.1"},
       {:arrays, "~> 2.1"},
       {:arrays_aja, "~> 0.2.0"},
