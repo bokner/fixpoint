@@ -212,34 +212,60 @@ range = 1..5
   )
 
 step_fun = fn propagators ->
-  Enum.flat_map(propagators, fn p -> %{state: state, changes: changes} = Propagator.filter(p)
-    IO.inspect(changes, label: :changes)
-    if state, do: [Map.put(p, :state, state)], else: []
+  IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), label: :domains_before_step)
+  Enum.flat_map(propagators |> Enum.with_index(1), fn {p, p_idx} -> 
+    var_domains_before = Enum.map(p.args, fn var -> Utils.domain_values(var) end)
+    IO.inspect({"propagator #{p_idx}", p.state[:components], var_domains_before}, label: :domains_before_filtering)
+
+    %{state: state, changes: _changes} = Propagator.filter(p)
+    IO.inspect({"propagator #{p_idx}", state[:components],
+      Enum.map(p.args, fn var -> Utils.domain_values(var) end)}, 
+      label: :domains_after_filtering)
+    
+    
+    if state do
+      [Map.put(p, :state, state)]    
+    else
+      IO.inspect({"propagator #{p_idx}", p.state.components}, label: :entailment)
+      []
+    end
   end)
+  |> tap(fn _ -> IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), 
+    label: :domains_after_step)
+    end)
+
   end
 ## Step 1
-Interface.remove(x1, 1)
-propagators2=step_fun.(propagators1)
+IO.puts("\nSTEP 1 - remove 1 from x1\n")
+#Interface.remove(x1, 1)
+#propagators2=step_fun.(propagators1)
+propagators2 = propagators1
 
-IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), label: :after_step1)
 ## Step 2
+IO.puts("\nSTEP2 - fix x1 to 2\n")
 Interface.fix(x1, 2)
 propagators3 = step_fun.(propagators2)
-IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), label: :after_step2)
 
 ## Step 3
 Interface.fix(x2, 4)
-IO.inspect(:step3)
-propagators4 = step_fun.(propagators3)
-  IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), label: :after_step3)
 
-IO.inspect(length(propagators4))
+# IO.inspect(
+#   (
+#   p = Enum.at(propagators3, 1)
+#   {p.state.value_graph |> ValueGraph.show_graph(),
+#     p.state.components
+#   }
+#   ), 
+#   label: :propagator2)
+IO.puts("\nSTEP 3 - fix x2 to 4\n")
+propagators4 = step_fun.(propagators3)
+
+## IO.inspect(length(propagators4), label: :propagators_after_step3)
 ## Step 4
-# Interface.fix(x3, 1)
-# propagators5 = step_fun.(propagators4)  
-# IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), label: :after_step4_q)
-# IO.inspect(Enum.map(diagonal_down, fn var -> Utils.domain_values(var) end), label: :after_step4_down)
-# IO.inspect(Enum.map(diagonal_up, fn var -> Utils.domain_values(var) end), label: :after_step4_up)
+##
+## Pick up slack: run an extra filtering round on the same domain
+## IO.puts("\nSTEP 4 - EXTRA ROUND")
+## propagators5 = step_fun.(propagators4)  
 
 #IO.inspect(length(propagators5))
 ```
