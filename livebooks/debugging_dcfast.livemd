@@ -1,0 +1,1428 @@
+# Debugging DC.Fast
+
+```elixir
+Mix.install([
+  {:fixpoint, path: "/Users/bokner/projects/cpsolver"},
+  :replbug,
+  # :fixpoint,
+  :kino
+])
+
+Logger.configure(level: :notice)
+
+defmodule DCFast.Helper do
+  def visualize_value_graph(value_graph) do
+      {:ok, graph_content} = Graph.to_dot(value_graph)
+
+ #   route_graph_content =
+ #     Enum.reduce(0..(len - 1), route_graph_content, fn idx, acc ->
+ #       {x, y} = Enum.at(table_coordinates, idx)
+ #       replace_params = "[label=#{Enum.at(tables, idx)}; pos=\"#{x},#{y}!\"]"
+        # || "[label=#{Enum.at(tables,idx)}]"
+ #       String.replace(acc, "[label=#{idx}]", replace_params)
+ #     end)
+
+    dir = System.tmp_dir!()
+    dot_file = Path.join(dir, "value_graph.dot")
+    png_file = Path.join(dir, "value_graph.png")
+    File.write(dot_file, graph_content)
+
+    System.cmd("neato", [
+      "-Tpng:quartz",
+      dot_file,
+      "-o",
+      png_file,
+      "-Nfontsize=12",
+      #"-Nshape=square",
+      "-Nfontcolor=red",
+      "-scale=10",
+      "-Efontcolor=blue",
+      "-Efontsize=12"
+    ])
+
+    ## Render with Kino
+    content = File.read!(png_file)
+    Kino.Image.new(content, "image/png")
+end
+end
+```
+
+## Zhang algo
+
+```elixir
+alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Variable.Interface
+  # alias CPSolver.Propagator
+  alias CPSolver.Propagator.AllDifferent.DC.Fast
+  alias BitGraph.Algorithms.Matching.Kuhn
+  alias CPSolver.Utils
+  alias CPSolver.Propagator
+  
+  alias BitGraph.Dfs
+alias CPSolver.ValueGraph
+
+
+    alias CPSolver.Propagator.AllDifferent.Zhang
+
+    domains = [
+      1, 1..2, 1..4, [1, 2, 4, 5]
+      #2, [-1, 0, 2], [-2, -1, 1], [-3, -2, 0]
+      #10, [7, 9], [8, 10]
+    ]
+
+        vars =  
+          #[_x0, x1, x2, x3] =
+        Enum.map(Enum.with_index(domains, 0), fn {d, idx} ->
+          Variable.new(d, name: "x#{idx}")
+        end)
+
+
+      %{
+      value_graph: graph,
+      variable_vertices: variable_vertices,
+      fixed_matching: fixed_matching,
+      reduction_callback: remove_edge_fun,
+      propagator_variables: variables
+      } = initial_state = Fast.initial_state(vars) |> tap(fn res -> IO.inspect(Map.keys(res), label: :state_keys) end)
+
+# BitGraph.Algorithms.bipartite_matching(graph, variable_vertices)
+
+     %{free: free_nodes, matching: matching} = 
+       Fast.find_matching(graph, variable_vertices, fixed_matching)
+#
+       IO.inspect(Enum.map(vars, fn var -> {var.name, Utils.domain_values(var)} end), 
+         label: :before_reduction)
+
+
+%{value_graph: graph} = zhang_state = Zhang.remove_type1_edges(graph, free_nodes, matching, remove_edge_fun)
+  
+#IO.inspect(Enum.map(vars, fn var -> {var.name, Utils.domain_values(var)} end), 
+#       label: :after_step1)
+
+ graph_step2 = zhang_state[:value_graph]
+
+ Map.new(BitGraph.vertices(graph), 
+   fn v -> {v, 
+     %{
+       in: BitGraph.in_neighbors(graph_step2, v),
+       out: BitGraph.out_neighbors(graph_step2, v)
+     }
+    
+     } end)
+
+
+zhang_state = 
+  Map.put(zhang_state, :value_graph, 
+    BitGraph.update_opts(graph,
+    neighbor_finder: ValueGraph.matching_neighbor_finder(graph, vars, matching, free_nodes)
+    ))
+
+ Zhang.remove_type2_edges(zhang_state, remove_edge_fun)
+       #IO.inspect(BitGraph.edges(reduced_state.value_graph), label: :reduced_value_graph)
+       #IO.inspect(reduced_state.components, label: :components)
+
+       IO.inspect(Enum.map(vars, fn var -> {var.name, Utils.domain_values(var)} end), 
+        label: :after_step2)
+
+  #zhang_state[:value_graph]
+
+
+  
+```
+
+## Filtering
+
+```elixir
+  domains = [1, 1..2, 1..4, [1, 2, 4, 5]]
+
+      [_x0, x1, x2, x3] =
+        vars =
+        Enum.map(Enum.with_index(domains, 0), fn {d, idx} ->
+          Variable.new(d, name: "x#{idx}")
+        end)
+
+      dc_propagator = Propagator.new(Fast, vars)
+      %{active?: true, state: state1} =
+        Propagator.filter(dc_propagator)
+      ## Variable filtering
+
+     IO.inspect(Enum.map(vars, fn var -> {var.name, Utils.domain_values(var)} end), 
+       label: :after_step1)
+      ## More filtering
+      domain_change = Interface.fix(x2, 4)
+      IO.inspect(state1.components, label: :step1_components)
+
+ %{active?: false} = state2 = 
+   #Fast.apply_changes(state1, %{2 => domain_change}) 
+     Propagator.filter(Map.put(dc_propagator, :state, state1), 
+          changes: %{2 => domain_change})
+
+IO.inspect(Enum.map(vars, fn var -> {var.name, Utils.domain_values(var)} end), 
+       label: :after_step2)
+
+```
+
+## Disjoint domains
+
+```elixir
+alias CPSolver.Constraint.AllDifferent.DC.Fast, as: AllDifferent
+alias CPSolver.Constraint
+alias CPSolver.Model
+alias CPSolver.IntVariable, as: Variable
+
+    domains = 
+      [1..4, 5..8]
+      #List.duplicate(1..4, 4)
+    # [
+      #1, 1..2, 1..4, [1, 2, 4, 5], 6..8
+      #2, [-1, 0, 2], [-2, -1, 1], [-3, -2, 0]
+      #1..4, 1..4, 1..4, 1..4
+      
+    #]
+
+        vars =  
+          #[_x0, x1, x2, x3] =
+        Enum.map(Enum.with_index(domains, 0), fn {d, idx} ->
+          Variable.new(d, name: "x#{idx}")
+        end)
+#Interface.fix(Enum.random(vars), 1)
+
+model = Model.new(vars, [Constraint.new(AllDifferent, vars)])
+{:ok, result} = CPSolver.solve(model)
+
+result.statistics
+
+```
+
+## Propagators
+
+```elixir
+import CPSolver.Variable.View.Factory
+range = 1..5
+## Queen positions
+    [x1, x2, x3, x4, x5] = q = Enum.map(range, fn i -> Variable.new(range, name: "x#{i}") end)
+
+    indexed_q = Enum.with_index(q, 1)
+
+    diagonal_down = Enum.map(indexed_q, fn {var, idx} -> linear(var, 1, -idx) end)
+    diagonal_up = Enum.map(indexed_q, fn {var, idx} -> linear(var, 1, idx) end)
+
+  propagators1 = Enum.map([q, diagonal_down, diagonal_up], 
+    fn vars -> Propagator.new(Fast, vars) end
+  )
+
+step_fun = fn propagators ->
+  Enum.flat_map(propagators1, fn p -> %{state: state} = Propagator.filter(p)
+    if state, do: [Map.put(p, :state, state)], else: []
+  end)
+  end
+## Step 1
+Interface.remove(x1, 1)
+propagators2=step_fun.(propagators1)
+
+IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), label: :after_step1)
+## Step 2
+Interface.fix(x1, 2)
+propagators3 = step_fun.(propagators2)
+IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), label: :after_step2)
+
+## Step 3
+Interface.fix(x2, 4)
+propagators4 = step_fun.(propagators3)
+  IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), label: :after_step3)
+
+## Step 4
+Interface.fix(x4, 3)
+propagators5 = step_fun.(propagators4)  
+IO.inspect(Enum.map(q, fn var -> Utils.domain_values(var) end), label: :after_step4)
+
+
+```
+
+## Benchmarking
+
+```elixir
+Replbug.start("CPSolver.Space.propagate/_", 
+  time: :timer.minutes(5), msgs: 100_000, silent: true)
+```
+
+```elixir
+#Replbug.start("CPSolver.Propagator.AllDifferent.Zhang.reduce/_", 
+  #silent: true, time: :timer.minutes(2), msgs: 1_000_000)
+# :timer.sleep(50)
+
+import CPSolver.Variable.View.Factory
+
+solution_fun = fn(range, implementation) ->
+
+    ## Queen positions
+    q = Enum.map(range, fn i -> Variable.new(range, name: "x#{i}") end)
+
+    indexed_q = Enum.with_index(q, 1)
+
+    diagonal_down = Enum.map(indexed_q, fn {var, idx} -> linear(var, 1, -idx) end)
+    diagonal_up = Enum.map(indexed_q, fn {var, idx} -> linear(var, 1, idx) end)
+
+
+  # Enum.each(Enum.with_index([5, 2, 3, 4, 1, 6]), 
+  #   fn {val, idx} -> 
+  #     Interface.fix(Enum.at(q, idx), val)
+  #   end)  
+#Interface.fix(Enum.at(q, 0), 5)
+#Interface.fix(Enum.at(q, 1), 3)
+#Interface.fix(Enum.at(q, 2), 1)
+
+constraints =
+      #Enum.shuffle(
+      [
+        Constraint.new(implementation, q),
+        Constraint.new(implementation, diagonal_down),
+        Constraint.new(implementation, diagonal_up),
+      ]
+    #)
+
+model = Model.new(q, constraints)
+
+{:ok, res} = CPSolver.solve(model, space_threads: 1, search: {:first_fail, :indomain_min})
+
+res.status == :all_solutions && res[:statistics] || throw(res.status)
+end
+
+solution_fun.(1..5, CPSolver.Constraint.AllDifferent.DC.Fast)
+#Enum.map(res.solutions, fn s -> {CPSolver.Examples.Queens.check_solution(s), s} end)
+
+
+```
+
+```elixir
+calls = Replbug.stop() |> Replbug.calls()
+|> Map.get({CPSolver.Space, :propagate, 1})
+```
+
+```elixir
+Enum.map(calls, fn c -> c.args |> hd |> 
+  then(fn data ->
+    vars = Map.get(data, :variables)
+    refs_to_names = Map.new(vars, 
+      fn var -> {Interface.variable(var).id, Interface.variable(var).name} end)
+    output = Map.new(vars, 
+      fn var -> {Interface.variable(var).name, CPSolver.Utils.domain_values(var)} 
+        end)
+      %{output: output, input: Map.get(data, :debug), 
+        space_id: inspect(Map.get(data, :id)),
+        parent_id: inspect(Map.get(data, :parent_id)),
+        changes: 
+          Map.get(data, :changes)
+          |> Map.new(fn {ref, change} -> 
+            {Map.get(refs_to_names, ref), change}
+            end)
+      }
+  end)
+
+end)
+# Enum.filter(calls, fn c -> c.return == :fail end) 
+# #calls
+# |> Enum.map(fn c -> c.args |> hd |> Map.get(:args) 
+# |> Map.new(fn var -> {Interface.variable(var).name, 
+#   #%{view: 
+#   CPSolver.Utils.domain_values(var),
+#   #  variable: CPSolver.Utils.domain_values(var, :variable)
+#   #}
+#   } end) end) 
+#|> hd() |> Map.keys
+# Enum.map(calls, fn c -> c.args |> hd |> Map.get(:variables) 
+# |> Map.new(fn var -> {Interface.variable(var).name, Interface.domain(var) 
+#   |> CPSolver.DefaultDomain.to_list()} end)
+#   end)
+# # {_, paired_calls} = Enum.reduce(calls |> Enum.reverse(),
+# #  {nil, []}, fn el, {next, acc} -> el_type = el.args |> Enum.at(1); if next == el_type, do: 
+# #      {next, [{el_type, {:fail, el.call_timestamp}} | acc]}, else: {el_type, 
+# #        [{el_type, {Map.take(el, [:return, :caller_pid]), el.call_timestamp}} | acc]} end)
+```
+
+```elixir
+# Enum.chunk_every(paired_calls, 2) 
+# |> Enum.filter(fn [{el, _}] -> false; [el1, el2] -> el1 |> elem(1) |> elem(0) == :fail 
+#   || el2 |> elem(1) |> elem(0) == :fail end)
+```
+
+```elixir
+#solution_fun.(1..8, CPSolver.Constraint.AllDifferent.DC)[:elapsed_time]
+repeats = 100
+dc_benchmark = Enum.map(1..repeats, fn _ -> 
+  solution_fun.(1..8, CPSolver.Constraint.AllDifferent.DC.Fast)[:elapsed_time]
+  end)
+|> Enum.sum()
+|> Kernel.div(repeats)
+```
+
+```elixir
+dc_components = 
+[
+  %{
+    input: nil,
+    output: %{
+      "x1" => MapSet.new([1, 2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    changes: %{},
+    parent_id: nil,
+    space_id: "<0.4283693198.3677618178.21675"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1, 2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    changes: %{"x1" => :min_change},
+    parent_id: "<0.4283693198.3677618178.21675",
+    space_id: "<0.4283693198.3677618178.21711"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1, 2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([3, 4, 5]),
+      "x3" => MapSet.new([2, 4, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "<0.4283693198.3677618178.21675",
+    space_id: "<0.4283693198.3677618178.21710"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([4, 5]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([1, 3, 4, 5])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "<0.4283693198.3677618178.21711",
+    space_id: "<0.4283693198.3677618177.30948"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([3]),
+      "x3" => MapSet.new([5]),
+      "x4" => MapSet.new([2]),
+      "x5" => MapSet.new([4])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618178.21710",
+    space_id: "<0.4283693198.3677618184.17798"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([4, 5]),
+      "x3" => MapSet.new([2, 4, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    changes: %{"x2" => :min_change},
+    parent_id: "<0.4283693198.3677618178.21710",
+    space_id: "<0.4283693198.3677618184.17815"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([4]),
+      "x3" => MapSet.new([1, 5]),
+      "x4" => MapSet.new([1, 3]),
+      "x5" => MapSet.new([3, 5])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618177.30948",
+    space_id: "<0.4283693198.3677618178.21783"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([4, 5]),
+      "x3" => MapSet.new([2, 4, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([4]),
+      "x3" => MapSet.new([2]),
+      "x4" => MapSet.new([5]),
+      "x5" => MapSet.new([3])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618184.17815",
+    space_id: "<0.4283693198.3677618184.17844"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([4]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([1, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([4]),
+      "x3" => MapSet.new([1]),
+      "x4" => MapSet.new([3]),
+      "x5" => MapSet.new([5])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "<0.4283693198.3677618178.21783",
+    space_id: "<0.4283693198.3677618178.21828"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([4]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([1, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([4]),
+      "x3" => MapSet.new([5]),
+      "x4" => MapSet.new([1]),
+      "x5" => MapSet.new([3])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "<0.4283693198.3677618178.21783",
+    space_id: "<0.4283693198.3677618184.17891"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([4, 5]),
+      "x3" => MapSet.new([2, 4, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([2]),
+      "x4" => MapSet.new([2]),
+      "x5" => MapSet.new([3, 4])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618184.17815",
+    space_id: "<0.4283693198.3677618184.17905"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([1, 3]),
+      "x4" => MapSet.new([1, 4]),
+      "x5" => MapSet.new([1, 3, 4])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618177.30948",
+    space_id: "<0.4283693198.3677618184.17922"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([1, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([1]),
+      "x4" => MapSet.new([4]),
+      "x5" => MapSet.new([3])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "<0.4283693198.3677618184.17922",
+    space_id: "<0.4283693198.3677618184.17967"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    changes: %{"x1" => :min_change},
+    parent_id: "<0.4283693198.3677618178.21711",
+    space_id: "<0.4283693198.3677618184.17984"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([1, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([3]),
+      "x4" => MapSet.new([1]),
+      "x5" => MapSet.new([4])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "<0.4283693198.3677618184.17922",
+    space_id: "<0.4283693198.3677618178.21872"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([1, 5]),
+      "x3" => MapSet.new([2, 4]),
+      "x4" => MapSet.new([1, 2, 4, 5]),
+      "x5" => MapSet.new([1, 2, 4, 5])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "<0.4283693198.3677618184.17984",
+    space_id: "<0.4283693198.3677618184.18015"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([2]),
+      "x4" => MapSet.new([4]),
+      "x5" => MapSet.new([1])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618184.18015",
+    space_id: "<0.4283693198.3677618184.18071"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([4]),
+      "x4" => MapSet.new([2]),
+      "x5" => MapSet.new([5])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618184.18015",
+    space_id: "<0.4283693198.3677618184.18070"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    changes: %{"x1" => :min_change},
+    parent_id: "<0.4283693198.3677618184.17984",
+    space_id: "<0.4283693198.3677618178.22004"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1, 2]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([1, 2, 3, 5])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "<0.4283693198.3677618178.22004",
+    space_id: "<0.4283693198.3677618178.22034"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([3, 5]),
+      "x4" => MapSet.new([2, 5]),
+      "x5" => MapSet.new([2, 3, 5])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618178.22034",
+    space_id: "<0.4283693198.3677618178.22089"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([1, 2, 3, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([3]),
+      "x4" => MapSet.new([5]),
+      "x5" => MapSet.new([2])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "<0.4283693198.3677618178.22089",
+    space_id: "<0.4283693198.3677618178.22142"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([1, 2, 3, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([5]),
+      "x4" => MapSet.new([2]),
+      "x5" => MapSet.new([3])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "<0.4283693198.3677618178.22089",
+    space_id: "<0.4283693198.3677618178.22215"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([2]),
+      "x3" => MapSet.new([5]),
+      "x4" => MapSet.new([3]),
+      "x5" => MapSet.new([1])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618178.22034",
+    space_id: "<0.4283693198.3677618178.22232"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([1, 2, 3]),
+      "x3" => MapSet.new([1, 2, 4]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "<0.4283693198.3677618178.22004",
+    space_id: "<0.4283693198.3677618178.22324"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([4]),
+      "x4" => MapSet.new([4]),
+      "x5" => MapSet.new([2, 3])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618178.22324",
+    space_id: "<0.4283693198.3677618178.22380"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([2, 3]),
+      "x3" => MapSet.new([1, 2, 4]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    changes: %{"x2" => :min_change},
+    parent_id: "<0.4283693198.3677618178.22324",
+    space_id: "<0.4283693198.3677618184.18200"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([2, 3]),
+      "x3" => MapSet.new([1, 2, 4]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([2]),
+      "x3" => MapSet.new([4]),
+      "x4" => MapSet.new([1]),
+      "x5" => MapSet.new([3])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618184.18200",
+    space_id: "<0.4283693198.3677618178.22442"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([2, 3]),
+      "x3" => MapSet.new([1, 2, 4]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([3]),
+      "x3" => MapSet.new([1]),
+      "x4" => MapSet.new([4]),
+      "x5" => MapSet.new([2])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "<0.4283693198.3677618184.18200",
+    space_id: "<0.4283693198.3677618178.22534"
+  }
+]
+```
+
+```elixir
+main = [
+  %{
+    input: nil,
+    output: %{
+      "x1" => MapSet.new([1, 2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    changes: %{},
+    parent_id: nil,
+    space_id: "Reference<0.2011171765.459538437.58884"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1, 2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    changes: %{"x1" => :min_change},
+    parent_id: "Reference<0.2011171765.459538437.58884",
+    space_id: "Reference<0.2011171765.459538437.58920"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1, 2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([3, 4, 5]),
+      "x3" => MapSet.new([2, 4, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "Reference<0.2011171765.459538437.58884",
+    space_id: "Reference<0.2011171765.459538437.58919"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([4, 5]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([1, 3, 4, 5])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "Reference<0.2011171765.459538437.58920",
+    space_id: "Reference<0.2011171765.459538436.60827"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([3]),
+      "x3" => MapSet.new([5]),
+      "x4" => MapSet.new([2]),
+      "x5" => MapSet.new([4])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538437.58919",
+    space_id: "Reference<0.2011171765.459538435.60673"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([4]),
+      "x3" => MapSet.new([1]),
+      "x4" => MapSet.new([3]),
+      "x5" => MapSet.new([5])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538436.60827",
+    space_id: "Reference<0.2011171765.459538436.60882"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([4, 5]),
+      "x3" => MapSet.new([2, 4, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    changes: %{"x2" => :min_change},
+    parent_id: "Reference<0.2011171765.459538437.58919",
+    space_id: "Reference<0.2011171765.459538435.60756"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([1, 3]),
+      "x4" => MapSet.new([1, 4]),
+      "x5" => MapSet.new([1, 3, 4])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538436.60827",
+    space_id: "Reference<0.2011171765.459538436.60974"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([4, 5]),
+      "x3" => MapSet.new([2, 4, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([4]),
+      "x3" => MapSet.new([2]),
+      "x4" => MapSet.new([5]),
+      "x5" => MapSet.new([3])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.60756",
+    space_id: "Reference<0.2011171765.459538435.60800"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([1, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([1]),
+      "x4" => MapSet.new([4]),
+      "x5" => MapSet.new([3])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "Reference<0.2011171765.459538436.60974",
+    space_id: "Reference<0.2011171765.459538436.61029"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([4, 5]),
+      "x3" => MapSet.new([2, 4, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    output: %{
+      "x1" => MapSet.new([1]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([2]),
+      "x4" => MapSet.new([2]),
+      "x5" => MapSet.new([3, 4])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.60756",
+    space_id: "Reference<0.2011171765.459538435.60892"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([1, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([2]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([3]),
+      "x4" => MapSet.new([1]),
+      "x5" => MapSet.new([4])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "Reference<0.2011171765.459538436.60974",
+    space_id: "Reference<0.2011171765.459538435.60903"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([2, 3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    changes: %{"x1" => :min_change},
+    parent_id: "Reference<0.2011171765.459538437.58920",
+    space_id: "Reference<0.2011171765.459538435.60976"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([1, 5]),
+      "x3" => MapSet.new([2, 4]),
+      "x4" => MapSet.new([1, 2, 4, 5]),
+      "x5" => MapSet.new([1, 2, 4, 5])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.60976",
+    space_id: "Reference<0.2011171765.459538435.61007"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([4]),
+      "x4" => MapSet.new([2]),
+      "x5" => MapSet.new([5])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.61007",
+    space_id: "Reference<0.2011171765.459538435.61062"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([3]),
+      "x2" => MapSet.new([5]),
+      "x3" => MapSet.new([2]),
+      "x4" => MapSet.new([4]),
+      "x5" => MapSet.new([1])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.61007",
+    space_id: "Reference<0.2011171765.459538435.61068"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([3, 4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    changes: %{"x1" => :min_change},
+    parent_id: "Reference<0.2011171765.459538435.60976",
+    space_id: "Reference<0.2011171765.459538435.61074"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1, 2]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([1, 2, 3, 5])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.61074",
+    space_id: "Reference<0.2011171765.459538435.61104"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([3, 5]),
+      "x4" => MapSet.new([2, 5]),
+      "x5" => MapSet.new([2, 3, 5])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.61104",
+    space_id: "Reference<0.2011171765.459538435.61159"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([1, 2, 3, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([3]),
+      "x4" => MapSet.new([5]),
+      "x5" => MapSet.new([2])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.61159",
+    space_id: "Reference<0.2011171765.459538435.61212"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([1, 3, 5]),
+      "x4" => MapSet.new([2, 3, 5]),
+      "x5" => MapSet.new([1, 2, 3, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([5]),
+      "x4" => MapSet.new([2]),
+      "x5" => MapSet.new([3])
+    },
+    changes: %{"x3" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.61159",
+    space_id: "Reference<0.2011171765.459538435.61262"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([4]),
+      "x2" => MapSet.new([2]),
+      "x3" => MapSet.new([5]),
+      "x4" => MapSet.new([3]),
+      "x5" => MapSet.new([1])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.61104",
+    space_id: "Reference<0.2011171765.459538435.61279"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([4, 5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([1, 2, 3]),
+      "x3" => MapSet.new([1, 2, 4]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    changes: %{"x1" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.61074",
+    space_id: "Reference<0.2011171765.459538435.61365"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([1]),
+      "x3" => MapSet.new([4]),
+      "x4" => MapSet.new([4]),
+      "x5" => MapSet.new([2, 3])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538435.61365",
+    space_id: "Reference<0.2011171765.459538437.59272"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([1, 2, 3, 4, 5]),
+      "x3" => MapSet.new([1, 2, 3, 4, 5]),
+      "x4" => MapSet.new([1, 2, 3, 4, 5]),
+      "x5" => MapSet.new([1, 2, 3, 4, 5])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([2, 3]),
+      "x3" => MapSet.new([1, 2, 4]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    changes: %{"x2" => :min_change},
+    parent_id: "Reference<0.2011171765.459538435.61365",
+    space_id: "Reference<0.2011171765.459538437.59302"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([2, 3]),
+      "x3" => MapSet.new([1, 2, 4]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([2]),
+      "x3" => MapSet.new([4]),
+      "x4" => MapSet.new([1]),
+      "x5" => MapSet.new([3])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538437.59302",
+    space_id: "Reference<0.2011171765.459538437.59348"
+  },
+  %{
+    input: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([2, 3]),
+      "x3" => MapSet.new([1, 2, 4]),
+      "x4" => MapSet.new([1, 3, 4]),
+      "x5" => MapSet.new([2, 3, 4])
+    },
+    output: %{
+      "x1" => MapSet.new([5]),
+      "x2" => MapSet.new([3]),
+      "x3" => MapSet.new([1]),
+      "x4" => MapSet.new([4]),
+      "x5" => MapSet.new([2])
+    },
+    changes: %{"x2" => :fixed},
+    parent_id: "Reference<0.2011171765.459538437.59302",
+    space_id: "Reference<0.2011171765.459538437.59442"
+  }
+]
+  |> Enum.sort_by(fn rec -> rec.parent_id end)
+```
+
+```elixir
+zip = Enum.zip(main, Enum.take(dc_components, 27))
+Enum.filter(zip, fn {m, d} -> 
+  Map.take(m, [:input, :output]) != Map.take(d, [:input, :output])
+  end)
+```
