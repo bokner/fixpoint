@@ -335,6 +335,19 @@ defmodule CPSolver.Propagator do
        Arrays.map(args, mapper)
   end
 
+  def arg_size(args) when is_tuple(args) do
+    Tuple.to_list(args) |> length
+  end
+
+  def arg_size(args) when is_list(args) do
+    length(args)
+  end
+
+  def arg_size(args) do
+       Arrays.size(args)
+  end
+
+
   def args_to_list(args) when is_tuple(args) do
     Tuple.to_list(args)
   end

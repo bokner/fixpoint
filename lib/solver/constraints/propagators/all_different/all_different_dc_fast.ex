@@ -134,7 +134,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   def apply_changes(%{components: components} = state, _changes) do
-      Enum.reduce(components, state |> Map.put(:components, MapSet.new()), fn c, state_acc ->
+    forward_checking(state)
+    Enum.reduce(components, state |> Map.put(:components, MapSet.new()), fn c, state_acc ->
         reduce_state(state_acc, c
         #MapSet.intersection(c, state.unfixed_indices)
         )
@@ -148,6 +149,10 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         BitGraph.update_opts(value_graph,
           neighbor_finder: ValueGraph.default_neighbor_finder(vars)
         )
+  end
+
+  def forward_checking(state) do
+    Utils.forward_checking(state.propagator_variables)
   end
 
 

@@ -198,9 +198,10 @@ result.statistics
 
 ```elixir
 import CPSolver.Variable.View.Factory
+import CPSolver.Propagator.AllDifferent.Utils
 range = 1..5
 ## Queen positions
-    [x1, x2, x3, x4, x5] = q = Enum.map(range, fn i -> Variable.new(range, name: "x#{i}") end)
+    [x0, x1, x2, x3, x4] = q = Enum.map(range, fn i -> Variable.new(range, name: "x#{i}") end)
 
     indexed_q = Enum.with_index(q, 1)
 
@@ -236,18 +237,26 @@ step_fun = fn propagators ->
 
   end
 ## Step 1
-IO.puts("\nSTEP 1 - remove 1 from x1\n")
+IO.puts("\nSTEP 1 - remove 1 from x0 - skipped\n")
 #Interface.remove(x1, 1)
 #propagators2=step_fun.(propagators1)
 propagators2 = propagators1
 
 ## Step 2
-IO.puts("\nSTEP2 - fix x1 to 2\n")
-Interface.fix(x1, 2)
+IO.puts("\nSTEP2 - fix x0 to 2\n")
+Interface.fix(x0, 2)
 propagators3 = step_fun.(propagators2)
 
 ## Step 3
-Interface.fix(x2, 4)
+IO.inspect(forward_checking(diagonal_down), label: :fwc1)
+IO.inspect(Enum.map(diagonal_down, fn var -> Utils.domain_values(var) end))
+Interface.fix(x1, 4)
+IO.inspect(forward_checking(diagonal_down), label: :fwc2)
+IO.inspect(Enum.map(diagonal_down, fn var -> Utils.domain_values(var) end))
+
+p2 = Enum.at(propagators3, 1)
+#IO.inspect(p2.state.value_graph |> ValueGraph.show_graph())
+propagators4 = step_fun.(propagators3)
 
 # IO.inspect(
 #   (
@@ -257,15 +266,16 @@ Interface.fix(x2, 4)
 #   }
 #   ), 
 #   label: :propagator2)
-IO.puts("\nSTEP 3 - fix x2 to 4\n")
-propagators4 = step_fun.(propagators3)
+
+#IO.puts("\nSTEP 3 - fix x1 to 4\n")
+#propagators4 = step_fun.(propagators3)
 
 ## IO.inspect(length(propagators4), label: :propagators_after_step3)
 ## Step 4
 ##
 ## Pick up slack: run an extra filtering round on the same domain
 ## IO.puts("\nSTEP 4 - EXTRA ROUND")
-## propagators5 = step_fun.(propagators4)  
+propagators5 = step_fun.(propagators4)  
 
 #IO.inspect(length(propagators5))
 ```
@@ -273,8 +283,8 @@ propagators4 = step_fun.(propagators3)
 ## Benchmarking
 
 ```elixir
-Replbug.start("CPSolver.Space.propagate/_", 
-  time: :timer.minutes(5), msgs: 100_000, silent: true)
+# Replbug.start("CPSolver.Space.propagate/_", 
+#   time: :timer.minutes(5), msgs: 100_000, silent: true)
 ```
 
 ```elixir
@@ -314,61 +324,61 @@ constraints =
 
 model = Model.new(q, constraints)
 
-{:ok, res} = CPSolver.solve(model, space_threads: 1, search: {:first_fail, :indomain_min})
+{:ok, res} = CPSolver.solve(model, space_threads: 8, search: {:first_fail, :indomain_min})
 
 res.status == :all_solutions && res[:statistics] || throw(res.status)
 end
 
-solution_fun.(1..5, CPSolver.Constraint.AllDifferent.DC.Fast)
+solution_fun.(1..8, CPSolver.Constraint.AllDifferent.DC.Fast)
 #Enum.map(res.solutions, fn s -> {CPSolver.Examples.Queens.check_solution(s), s} end)
 
 
 ```
 
 ```elixir
-calls = Replbug.stop() |> Replbug.calls()
-|> Map.get({CPSolver.Space, :propagate, 1})
+#calls = Replbug.stop() |> Replbug.calls()
+# |> Map.get({CPSolver.Space, :propagate, 1})
 ```
 
 ```elixir
-Enum.map(calls, fn c -> c.args |> hd |> 
-  then(fn data ->
-    vars = Map.get(data, :variables)
-    refs_to_names = Map.new(vars, 
-      fn var -> {Interface.variable(var).id, Interface.variable(var).name} end)
-    output = Map.new(vars, 
-      fn var -> {Interface.variable(var).name, CPSolver.Utils.domain_values(var)} 
-        end)
-      %{output: output, input: Map.get(data, :debug), 
-        space_id: inspect(Map.get(data, :id)),
-        parent_id: inspect(Map.get(data, :parent_id)),
-        changes: 
-          Map.get(data, :changes)
-          |> Map.new(fn {ref, change} -> 
-            {Map.get(refs_to_names, ref), change}
-            end)
-      }
-  end)
-
-end)
-# Enum.filter(calls, fn c -> c.return == :fail end) 
-# #calls
-# |> Enum.map(fn c -> c.args |> hd |> Map.get(:args) 
-# |> Map.new(fn var -> {Interface.variable(var).name, 
-#   #%{view: 
-#   CPSolver.Utils.domain_values(var),
-#   #  variable: CPSolver.Utils.domain_values(var, :variable)
-#   #}
-#   } end) end) 
-#|> hd() |> Map.keys
-# Enum.map(calls, fn c -> c.args |> hd |> Map.get(:variables) 
-# |> Map.new(fn var -> {Interface.variable(var).name, Interface.domain(var) 
-#   |> CPSolver.DefaultDomain.to_list()} end)
+# Enum.map(calls, fn c -> c.args |> hd |> 
+#   then(fn data ->
+#     vars = Map.get(data, :variables)
+#     refs_to_names = Map.new(vars, 
+#       fn var -> {Interface.variable(var).id, Interface.variable(var).name} end)
+#     output = Map.new(vars, 
+#       fn var -> {Interface.variable(var).name, CPSolver.Utils.domain_values(var)} 
+#         end)
+#       %{output: output, input: Map.get(data, :debug), 
+#         space_id: inspect(Map.get(data, :id)),
+#         parent_id: inspect(Map.get(data, :parent_id)),
+#         changes: 
+#           Map.get(data, :changes)
+#           |> Map.new(fn {ref, change} -> 
+#             {Map.get(refs_to_names, ref), change}
+#             end)
+#       }
 #   end)
-# # {_, paired_calls} = Enum.reduce(calls |> Enum.reverse(),
-# #  {nil, []}, fn el, {next, acc} -> el_type = el.args |> Enum.at(1); if next == el_type, do: 
-# #      {next, [{el_type, {:fail, el.call_timestamp}} | acc]}, else: {el_type, 
-# #        [{el_type, {Map.take(el, [:return, :caller_pid]), el.call_timestamp}} | acc]} end)
+
+# end)
+# # Enum.filter(calls, fn c -> c.return == :fail end) 
+# # #calls
+# # |> Enum.map(fn c -> c.args |> hd |> Map.get(:args) 
+# # |> Map.new(fn var -> {Interface.variable(var).name, 
+# #   #%{view: 
+# #   CPSolver.Utils.domain_values(var),
+# #   #  variable: CPSolver.Utils.domain_values(var, :variable)
+# #   #}
+# #   } end) end) 
+# #|> hd() |> Map.keys
+# # Enum.map(calls, fn c -> c.args |> hd |> Map.get(:variables) 
+# # |> Map.new(fn var -> {Interface.variable(var).name, Interface.domain(var) 
+# #   |> CPSolver.DefaultDomain.to_list()} end)
+# #   end)
+# # # {_, paired_calls} = Enum.reduce(calls |> Enum.reverse(),
+# # #  {nil, []}, fn el, {next, acc} -> el_type = el.args |> Enum.at(1); if next == el_type, do: 
+# # #      {next, [{el_type, {:fail, el.call_timestamp}} | acc]}, else: {el_type, 
+# # #        [{el_type, {Map.take(el, [:return, :caller_pid]), el.call_timestamp}} | acc]} end)
 ```
 
 ```elixir
@@ -381,7 +391,7 @@ end)
 #solution_fun.(1..8, CPSolver.Constraint.AllDifferent.DC)[:elapsed_time]
 repeats = 100
 dc_benchmark = Enum.map(1..repeats, fn _ -> 
-  solution_fun.(1..8, CPSolver.Constraint.AllDifferent.DC.Fast)[:elapsed_time]
+  solution_fun.(1..8, CPSolver.Constraint.AllDifferent.DC)[:elapsed_time]
   end)
 |> Enum.sum()
 |> Kernel.div(repeats)

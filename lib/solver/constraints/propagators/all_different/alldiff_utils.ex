@@ -4,7 +4,6 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.Propagator
   import CPSolver.Utils
-  import CPSolver.Utils
 
   ## Splits graph into SCCs,
   ## and removes cross-edges.
@@ -97,7 +96,9 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
   ## `unfixed_indices` is the list of indexes for yet (known) unfixed variables.
   ## We will be checking if they are really unfixed anyway.
   def forward_checking(variables) do
-    forward_checking(variables, MapSet.new(0..(length(variables) - 1)), MapSet.new())
+    forward_checking(variables,
+      MapSet.new(0..(Propagator.arg_size(variables) - 1)),
+      MapSet.new())
   end
 
   def forward_checking(variables, unfixed_indices, fixed_values) do
