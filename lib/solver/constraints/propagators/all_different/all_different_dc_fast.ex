@@ -38,13 +38,17 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     |> Map.put(:reduction_callback, reduction_callback(vars))
   end
 
+  defp finalize(:all_fixed) do
+    :passive
+  end
+
   defp finalize(state) do
     (entailed?(state) && :passive) ||
       {:state, state}
   end
 
-  def entailed?(%{components: components} = _state) do
-    Enum.empty?(components)
+  def entailed?(%{components: components, unfixed_indices: unfixed_indices} = _state) do
+    Enum.empty?(components) || Enum.empty?(unfixed_indices)
   end
 
   def entailed?(_state) do
@@ -62,6 +66,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       left_partition: variable_vertices,
       fixed_matching: fixed_matching,
       unfixed_indices: unfixed_indices,
+      fixed_values: fixed_values,
       } = ValueGraph.build(variables, check_matching: true)
 
     %{
@@ -69,7 +74,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       variable_vertices: variable_vertices,
       fixed_matching: fixed_matching,
       unfixed_indices: unfixed_indices,
-      components: MapSet.new(variable_vertices) ## We start with a single component wrapped in a set
+      fixed_values: fixed_values,
+      components: MapSet.new(List.wrap(variable_vertices)) ## We start with a single component wrapped in a set
     }
     |> update_state(variables)
   end
@@ -103,31 +109,56 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           variable_vertices: variable_vertices,
           fixed_matching: fixed_matching,
           propagator_variables: variables,
-          reduction_callback: remove_edge_fun
-        } = state, _changes \\ Map.new()
-      ) do
-    %{free: free_nodes, matching: matching} =
-      value_graph
-      |> reset_value_graph(variables)
-      |> find_matching(
-        variable_vertices,
-        fixed_matching
-        )
+          reduction_callback: remove_edge_fun,
+          fixed_values: fixed_values,
+          unfixed_indices: unfixed_indices
+        } = state, changes \\ Map.new()) do
 
-    %{value_graph: reduced_value_graph, components: components} =
-      value_graph
-      |> BitGraph.set_neighbor_finder(ValueGraph.matching_neighbor_finder(value_graph, variables, matching, free_nodes))
-      |> Zhang.reduce(free_nodes, matching, remove_edge_fun)
+      {unfixed_indices, fixed_values, fixed_matching} = forward_checking(changes, unfixed_indices, fixed_values, fixed_matching, variables)
+      if Enum.empty?(unfixed_indices) do
+        :all_fixed
+      else
+      %{free: free_nodes, matching: matching} =
+        value_graph
+        |> reset_value_graph(variables)
+        |> find_matching(
+          variable_vertices,
+          fixed_matching
+          )
 
-    state
-    |> Map.put(:value_graph, reduced_value_graph)
-    |> Map.put(:components, components)
+      %{value_graph: reduced_value_graph, components: components} =
+        value_graph
+        |> BitGraph.set_neighbor_finder(ValueGraph.matching_neighbor_finder(value_graph, variables, matching, free_nodes))
+        |> Zhang.reduce(free_nodes, matching, remove_edge_fun)
+
+      state
+      |> Map.put(:value_graph, reduced_value_graph)
+      |> Map.put(:components, components)
+      |> Map.replace!(:unfixed_indices, unfixed_indices)
+      |> Map.replace!(:fixed_values, fixed_values)
+      |> Map.replace!(:fixed_matching, fixed_matching)
+    end
   end
 
   defp reset_value_graph(value_graph, vars) do
         BitGraph.set_neighbor_finder(value_graph,
           ValueGraph.default_neighbor_finder(vars)
         )
+  end
+
+  defp forward_checking(changes, unfixed_indices, fixed_values, fixed_matching, variables) do
+    {unfixed_indices, fixed_values, fixed_matching, _changed?} =
+    Enum.reduce(changes, {unfixed_indices, fixed_values, fixed_matching, false},
+    fn {var_idx, :fixed}, {unfixed_acc, values_acc, _}  ->
+        new_fixed_value = min(Propagator.arg_at(variables, var_idx))
+        {MapSet.delete(unfixed_acc, var_idx),
+        MapSet.put(values_acc, new_fixed_value),
+        Map.put(fixed_matching, var_idx, new_fixed_value),
+        true}
+      {_var_idx, _domain_change}, acc -> acc
+    end)
+    {unfixed_indices, fixed_values} = Utils.forward_checking(variables, unfixed_indices, fixed_values)
+    {unfixed_indices, fixed_values, fixed_matching}
   end
 
 end
