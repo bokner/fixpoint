@@ -292,26 +292,26 @@ defmodule CPSolver.ValueGraph do
     end)
   end
 
-  def delete_edge(
-        graph,
-        {:value, _value} = value_vertex,
-        {:variable, _var_index} = var_vertex,
-        variables
-      ) do
-    delete_edge(graph, var_vertex, value_vertex, variables)
-  end
-
-  def delete_edge(graph, {:variable, var_index}, {:value, value} = value_vertex, variables) do
+  def delete_edge(graph, var_index, value, variables) do
     propagator_variable = get_variable(variables, var_index)
 
     _change = PropagatorVariable.remove(propagator_variable, value)
-
+    ## Clear out stray value vertex
+    value_vertex = {:value, value}
     (BitGraph.isolated_vertex?(graph, value_vertex) &&
-       BitGraph.delete_vertex(graph, value_vertex)) || graph
+    BitGraph.delete_vertex(graph, value_vertex)) || graph
   end
 
   def get_variable(variables, var_index) do
     Propagator.arg_at(variables, var_index)
+  end
+
+  def get_value(graph, value_vertex) do
+    if vertex_type(graph, value_vertex) == :value do
+      BitGraph.V.get_vertex(graph, value_vertex) |> elem(1)
+    else
+      throw({:not_value_vertex, value_vertex})
+    end
   end
 
 end

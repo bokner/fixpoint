@@ -97,9 +97,9 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
          } = state
        ) do
     updated_graph =
-      Enum.reduce(scheduled, graph, fn {right_partition_vertex, left_neighbors}, acc ->
-        Enum.reduce(left_neighbors, acc, fn left_vertex, acc2 ->
-          process_redundant_fun.(acc2, left_vertex, right_partition_vertex)
+      Enum.reduce(scheduled, graph, fn {{:value, value} = _right_partition_vertex, left_neighbors}, acc ->
+        Enum.reduce(left_neighbors, acc, fn {:variable, left_vertex}, acc2 ->
+          process_redundant_fun.(acc2, left_vertex, value)
         end)
       end)
 
