@@ -35,7 +35,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   defp update_state(state, vars) do
     state
     |> Map.put(:propagator_variables, vars)
-    |> Map.put(:reduction_callback, reduction_callback(vars))
+    |> then(fn state -> Map.put(state, :reduction_callback, reduction_callback(state)) end)
   end
 
   defp finalize(:all_fixed) do
@@ -80,7 +80,9 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
     |> update_state(variables)
   end
 
-  defp reduction_callback(variables) do
+  defp reduction_callback(%{
+      propagator_variables: variables
+      } = _state) do
     Utils.default_remove_edge_fun(variables)
   end
 
@@ -147,18 +149,28 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
   end
 
   defp forward_checking(changes, unfixed_indices, fixed_values, fixed_matching, variables) do
-    {unfixed_indices, fixed_values, fixed_matching, _changed?} =
-    Enum.reduce(changes, {unfixed_indices, fixed_values, fixed_matching, false},
-    fn {var_idx, :fixed}, {unfixed_acc, values_acc, _}  ->
-        new_fixed_value = min(Propagator.arg_at(variables, var_idx))
-        {MapSet.delete(unfixed_acc, var_idx),
-        MapSet.put(values_acc, new_fixed_value),
-        Map.put(fixed_matching, var_idx, new_fixed_value),
-        true}
-      {_var_idx, _domain_change}, acc -> acc
+    #IO.inspect(fixed_matching, label: :fixed_matching)
+    ## 1. Pick first `fixed` change, if any
+    ## 2. Update unfixed indices and fixed values, then run FWC.
+    ## 3. Update fixed matching
+    changed? =
+    Enum.reduce_while(changes, {unfixed_indices, fixed_values, false},
+    fn {_var_idx, :fixed}, _acc  -> {:halt, true}
+      {_var_idx, _domain_change}, acc -> {:cont, acc}
     end)
-    {unfixed_indices, fixed_values} = Utils.forward_checking(variables, unfixed_indices, fixed_values)
-    {unfixed_indices, fixed_values, fixed_matching}
+
+    if changed? do
+      {updated_unfixed_indices, updated_fixed_values} = Utils.forward_checking(variables, unfixed_indices, fixed_values)
+      ## Update fixed matching
+      updated_fixed_matching =
+        MapSet.difference(unfixed_indices, updated_unfixed_indices)
+        |> Enum.reduce(fixed_matching, fn fixed_idx, acc ->
+          Map.put(acc, {:variable, fixed_idx}, {:value, min(Propagator.arg_at(variables, fixed_idx))})
+        end)
+      {updated_unfixed_indices, updated_fixed_values, updated_fixed_matching}
+    else
+      {unfixed_indices, fixed_values, fixed_matching}
+    end
   end
 
 end

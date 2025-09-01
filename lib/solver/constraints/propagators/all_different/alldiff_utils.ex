@@ -36,26 +36,22 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
         component,
         {MapSet.new(), graph_acc},
         fn vertex_index, {vertices_acc, g_acc} = acc ->
-          case BitGraph.V.get_vertex(graph_acc, vertex_index) do
+          case ValueGraph.vertex_type(g_acc, vertex_index) do
             ## We only need to remove out-edges from 'variable' vertices
             ## that cross to other SCCS
-            {:variable, variable_id} = variable_vertex ->
+            :variable ->
               cross_neighbors = BitGraph.V.out_neighbors(graph_acc, vertex_index)
-
+              variable_id = vertex_index - 1
               {
-                MapSet.put(vertices_acc, variable_id),
+                MapSet.put(vertices_acc, variable_id), ## variable indices are one-off
                 remove_cross_edges(
                   g_acc,
-                  variable_vertex,
+                  variable_id,
                   cross_neighbors,
                   component,
                   remove_edge_fun
                 )
               }
-
-            {:value, _} ->
-              acc
-
             _ ->
               acc
           end
@@ -70,24 +66,24 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
     {updated_components, updated_graph}
   end
 
-  defp remove_cross_edges(graph, variable_vertex, neighbors, component, remove_edge_fun) do
+  defp remove_cross_edges(graph, variable_index, neighbors, component, remove_edge_fun) do
     iterate(neighbors, graph, fn neighbor, acc ->
       if neighbor in component do
         {:cont, acc}
       else
-        {:cont, remove_edge_fun.(acc, variable_vertex, BitGraph.V.get_vertex(acc, neighbor))}
+        {:cont, remove_edge_fun.(acc, variable_index, BitGraph.V.get_vertex(acc, neighbor))}
       end
     end)
   end
 
   def default_remove_edge_fun(vars) do
-    fn graph, {:variable, var_index} = var_vertex, {:value, value} = value_vertex ->
+    fn graph, var_index, {:value, value} = value_vertex ->
       var = ValueGraph.get_variable(vars, var_index)
 
       if Interface.fixed?(var) do
         (Interface.min(var) == value && graph) || throw(:fail)
       else
-        ValueGraph.delete_edge(graph, var_vertex, value_vertex, vars)
+        ValueGraph.delete_edge(graph, {:variable, var_index}, value_vertex, vars)
       end
     end
   end

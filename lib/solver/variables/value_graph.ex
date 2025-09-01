@@ -100,6 +100,22 @@ defmodule CPSolver.ValueGraph do
     get_in(value_graph, [:opts, :variable_count])
   end
 
+  def get_value_count(value_graph) do
+    get_total_vertex_count(value_graph) - get_variable_count(value_graph)
+  end
+
+  def get_total_vertex_count(value_graph) do
+    get_in(value_graph, [:opts, :max_vertices])
+  end
+
+  def vertex_type(value_graph, vertex_index) when is_integer(vertex_index) do
+    cond do
+      vertex_index <= get_variable_count(value_graph) -> :variable
+      vertex_index <= get_total_vertex_count(value_graph) -> :value
+      true -> :sink
+    end
+  end
+
   def default_neighbor_finder(variables) do
     fn graph, vertex_index, direction ->
       vertex = BitGraph.V.get_vertex(graph, vertex_index)
