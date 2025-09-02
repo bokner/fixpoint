@@ -32,9 +32,7 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
 
   def scc_component_handler(component, remove_edge_fun, {component_acc, graph_acc} = _current_acc) do
     {variable_vertices, updated_graph} =
-      Enum.reduce(
-        component,
-        {MapSet.new(), graph_acc},
+      Enum.reduce(component, {MapSet.new(), graph_acc},
         fn vertex_index, {vertices_acc, g_acc} = acc ->
           cond do
             ValueGraph.vertex_type(g_acc, vertex_index) == :variable ->

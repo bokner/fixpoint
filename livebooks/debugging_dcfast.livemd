@@ -283,11 +283,6 @@ propagators5 = step_fun.(propagators4)
 ## Benchmarking
 
 ```elixir
-# Replbug.start("CPSolver.Space.propagate/_", 
-#   time: :timer.minutes(5), msgs: 100_000, silent: true)
-```
-
-```elixir
 #Replbug.start("CPSolver.Propagator.AllDifferent.Zhang.reduce/_", 
   #silent: true, time: :timer.minutes(2), msgs: 1_000_000)
 # :timer.sleep(50)

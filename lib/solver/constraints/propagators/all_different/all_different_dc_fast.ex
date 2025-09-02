@@ -148,29 +148,18 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         )
   end
 
-  defp forward_checking(changes, unfixed_indices, fixed_values, fixed_matching, variables) do
-    #IO.inspect(fixed_matching, label: :fixed_matching)
-    ## 1. Pick first `fixed` change, if any
-    ## 2. Update unfixed indices and fixed values, then run FWC.
-    ## 3. Update fixed matching
-    changed? =
-    Enum.reduce_while(changes, {unfixed_indices, fixed_values, false},
-    fn {_var_idx, :fixed}, _acc  -> {:halt, true}
-      {_var_idx, _domain_change}, acc -> {:cont, acc}
-    end)
-
-    if changed? do
+  defp forward_checking(_changes, unfixed_indices, fixed_values, fixed_matching, variables) do
       {updated_unfixed_indices, updated_fixed_values} = Utils.forward_checking(variables, unfixed_indices, fixed_values)
       ## Update fixed matching
       updated_fixed_matching =
-        MapSet.difference(unfixed_indices, updated_unfixed_indices)
-        |> Enum.reduce(fixed_matching, fn fixed_idx, acc ->
-          Map.put(acc, {:variable, fixed_idx}, {:value, min(Propagator.arg_at(variables, fixed_idx))})
+        updated_unfixed_indices
+        |> Enum.reduce(fixed_matching, fn unfixed_idx, acc ->
+          if unfixed_idx in unfixed_indices do
+            acc
+          else
+            Map.put(acc, {:variable, unfixed_idx}, {:value, min(Propagator.arg_at(variables, unfixed_idx))})
+          end
         end)
       {updated_unfixed_indices, updated_fixed_values, updated_fixed_matching}
-    else
-      {unfixed_indices, fixed_values, fixed_matching}
-    end
   end
-
 end
