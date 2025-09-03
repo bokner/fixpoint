@@ -81,7 +81,7 @@ defmodule CPSolver.ValueGraph do
           neighbor_finder: default_neighbor_finder(variables),
           variable_count: var_count
         )
-        |> BitGraph.add_vertices(left_partition)
+        |> BitGraph.add_vertices(Enum.sort(left_partition))
         |> BitGraph.add_vertices(value_vertices),
       left_partition: left_partition,
       fixed_matching: fixed,
@@ -118,7 +118,12 @@ defmodule CPSolver.ValueGraph do
 
   def default_neighbor_finder(variables) do
     fn graph, vertex_index, direction ->
-      vertex = BitGraph.V.get_vertex(graph, vertex_index)
+      vertex = case vertex_type(graph, vertex_index) do
+        nil -> nil
+        :variable -> {:variable, vertex_index - 1}
+        :value -> BitGraph.V.get_vertex(graph, vertex_index)
+        other -> {other, vertex_index}
+      end
       (vertex && get_neighbors(graph, vertex, variables, direction)) || Empty.new()
     end
   end
@@ -143,7 +148,7 @@ defmodule CPSolver.ValueGraph do
       FlatMapper.new(0..get_variable_count(graph) - 1,
           fn idx ->
             Interface.contains?(get_variable(variables, idx), value) &&
-            [BitGraph.V.get_vertex_index(graph, {:variable, idx})] || []
+            [idx + 1] || []
           end
         )
   end
@@ -162,7 +167,7 @@ defmodule CPSolver.ValueGraph do
                                                        {matching_acc, reverse_matching_acc} ->
         propagator_variable = get_variable(variables, var_index)
 
-        var_vertex_index = BitGraph.V.get_vertex_index(graph, var_vertex)
+        var_vertex_index = var_index + 1
         value_vertex_index = BitGraph.V.get_vertex_index(graph, value_vertex)
 
         {

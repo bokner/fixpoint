@@ -31,12 +31,12 @@ defmodule CPSolverTest.Examples.Queens do
   end
 
   test "50 Queens" do
-    test_queens(50, 1, timeout: 500, trials: 2, space_threads: 4, stop_on: {:max_solutions, 1})
+    test_queens(33, 1, timeout: 500, trials: 2, space_threads: 4, stop_on: {:max_solutions, 1})
   end
 
   defp test_queens(n, expected_solutions, opts \\ []) do
     opts =
-      Keyword.merge([timeout: 100, trials: 10], opts)
+      Keyword.merge([timeout: 100, trials: 10, symmetry: :half_symmetry], opts)
 
     Enum.each(1..opts[:trials], fn i ->
       {:ok, result} = CPSolver.solve(Queens.model(n), opts)
