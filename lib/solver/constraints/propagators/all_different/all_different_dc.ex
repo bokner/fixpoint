@@ -92,7 +92,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     try do
       BitGraph.Algorithms.bipartite_matching(
         value_graph,
-        variable_vertices,
+        left_partition: variable_vertices,
         fixed_matching: fixed_matching,
         required_size: MapSet.size(variable_vertices)
     )
