@@ -9,7 +9,7 @@ defmodule CPSolver.Examples.StableMarriage do
   alias CPSolver.Constraint
   alias CPSolver.Constraint.{ElementVar, Less}
   alias CPSolver.Constraint.Factory, as: ConstraintFactory
-  alias CPSolver.Constraint.AllDifferent.DC, as: AllDifferent
+  alias CPSolver.Constraint.AllDifferent.DC.Fast, as: AllDifferent
 
   def instances() do
     %{

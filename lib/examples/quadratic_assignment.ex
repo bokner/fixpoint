@@ -21,7 +21,7 @@ defmodule CPSolver.Examples.QAP do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Variable.Interface
   alias CPSolver.Model
-  alias CPSolver.Constraint.AllDifferent.DC, as: AllDifferent
+  alias CPSolver.Constraint.AllDifferent.DC.Fast, as: AllDifferent
   alias CPSolver.Objective
   alias CPSolver.Constraint
   import CPSolver.Constraint.Factory
