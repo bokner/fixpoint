@@ -75,7 +75,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       fixed_matching: fixed_matching,
       unfixed_indices: unfixed_indices,
       fixed_values: fixed_values,
-      components: MapSet.new(List.wrap(variable_vertices)) ## We start with a single component wrapped in a set
+      components: MapSet.new(List.wrap(to_component(variable_vertices))) ## We start with a single component wrapped in a set
     }
     |> update_state(variables)
   end
@@ -111,35 +111,54 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           variable_vertices: variable_vertices,
           fixed_matching: fixed_matching,
           propagator_variables: variables,
-          reduction_callback: remove_edge_fun,
           fixed_values: fixed_values,
-          unfixed_indices: unfixed_indices
+          unfixed_indices: unfixed_indices,
+          components: components
         } = state, changes \\ Map.new()) do
 
-      {unfixed_indices, fixed_values, fixed_matching} = forward_checking(changes, unfixed_indices, fixed_values, fixed_matching, variables)
+      {unfixed_indices, fixed_values, fixed_matching} =
+        forward_checking(changes, unfixed_indices, fixed_values, fixed_matching, variables)
       if Enum.empty?(unfixed_indices) do
         :all_fixed
       else
+        state
+        |> Map.replace!(:unfixed_indices, unfixed_indices)
+        |> Map.replace!(:fixed_values, fixed_values)
+        |> Map.replace!(:fixed_matching, fixed_matching)
+        |> then(fn state ->
+          Enum.reduce(components, state |> Map.put(:components, Map.new()),
+          fn c, acc ->
+            %{value_graph: reduced_value_graph, components: derived_components} =
+              reduce_component(acc, c)
+            acc
+            |> Map.put(:value_graph, reduced_value_graph)
+            |> Map.update!(:component, fn components_acc -> MapSet.union(components_acc, derived_components) end)
+          end)
+        end)
+    end
+  end
+
+  defp reduce_component(
+        %{
+          value_graph: value_graph,
+          fixed_matching: fixed_matching,
+          propagator_variables: variables,
+          reduction_callback: remove_edge_fun,
+          fixed_values: fixed_values,
+          unfixed_indices: unfixed_indices,
+        } = state, component) do
       %{free: free_nodes, matching: matching} =
         value_graph
         |> reset_value_graph(variables)
         |> find_matching(
-          variable_vertices,
+          to_vertices(component),
           fixed_matching
-          )
+        )
 
-      %{value_graph: reduced_value_graph, components: components} =
+      %{value_graph: _reduced_value_graph, components: _updated_components} =
         value_graph
         |> BitGraph.set_neighbor_finder(ValueGraph.matching_neighbor_finder(value_graph, variables, matching, free_nodes))
         |> Zhang.reduce(free_nodes, matching, remove_edge_fun)
-
-      state
-      |> Map.put(:value_graph, reduced_value_graph)
-      |> Map.put(:components, components)
-      |> Map.replace!(:unfixed_indices, unfixed_indices)
-      |> Map.replace!(:fixed_values, fixed_values)
-      |> Map.replace!(:fixed_matching, fixed_matching)
-    end
   end
 
   defp reset_value_graph(value_graph, vars) do
@@ -162,4 +181,18 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         end)
       {updated_unfixed_indices, updated_fixed_values, updated_fixed_matching}
   end
+
+  ## The below is due to mismatch between BitGraph API
+  ## and Zhang required shape for vertices.
+  ## TODO: consider fixing
+  defp to_component(variable_vertices) do
+    MapSet.new(
+        variable_vertices, fn {:variable, idx} -> idx end)
+  end
+
+  defp to_vertices(component) do
+    MapSet.new(
+      component, fn idx -> {:variable, idx} end)
+  end
+
 end
