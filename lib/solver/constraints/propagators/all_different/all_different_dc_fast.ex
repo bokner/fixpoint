@@ -126,13 +126,18 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
         |> Map.replace!(:fixed_values, fixed_values)
         |> Map.replace!(:fixed_matching, fixed_matching)
         |> then(fn state ->
-          Enum.reduce(components, state |> Map.put(:components, Map.new()),
+          Enum.reduce(components, state |> Map.put(:components, MapSet.new()),
           fn c, acc ->
+            c = MapSet.intersection(unfixed_indices, c)
+            if MapSet.size(c) > 1 do
             %{value_graph: reduced_value_graph, components: derived_components} =
               reduce_component(acc, c)
             acc
             |> Map.put(:value_graph, reduced_value_graph)
-            |> Map.update!(:component, fn components_acc -> MapSet.union(components_acc, derived_components) end)
+            |> Map.update!(:components, fn components_acc -> MapSet.union(components_acc, derived_components) end)
+            else
+              acc
+            end
           end)
         end)
     end
@@ -150,10 +155,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       %{free: free_nodes, matching: matching} =
         value_graph
         |> reset_value_graph(variables)
-        |> find_matching(
-          to_vertices(component),
-          fixed_matching
-        )
+        |> find_matching(to_vertices(component), %{})
 
       %{value_graph: _reduced_value_graph, components: _updated_components} =
         value_graph
