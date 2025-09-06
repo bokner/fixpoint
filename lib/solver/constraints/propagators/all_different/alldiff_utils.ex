@@ -21,7 +21,7 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
         vertices,
         remove_edge_fun \\ fn graph, from, to -> BitGraph.delete_edge(graph, from, to) end
       ) do
-    BitGraph.Algorithms.strong_components(graph,
+    BitGraph.Algorithm.strong_components(graph,
       vertices: vertices,
       component_handler:
         {fn component, acc -> scc_component_handler(component, remove_edge_fun, acc) end,

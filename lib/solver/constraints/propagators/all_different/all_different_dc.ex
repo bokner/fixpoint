@@ -90,7 +90,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
   def find_matching(value_graph, variable_vertices, fixed_matching) do
     try do
-      BitGraph.Algorithms.bipartite_matching(
+      BitGraph.bipartite_matching(
         value_graph,
         left_partition: variable_vertices,
         fixed_matching: fixed_matching,

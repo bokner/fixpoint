@@ -26,7 +26,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
 
       ## Reduced value graph consists of 3 components, as per paper
 
-      assert 3 == length(BitGraph.Algorithms.components(reduced_value_graph))
+      assert 3 == length(BitGraph.Algorithm.components(reduced_value_graph))
 
       ## the number of edges is 6 (Figure 2 of the paper)
       assert 6 ==
@@ -35,7 +35,7 @@ defmodule CPSolverTest.Propagator.AllDifferent.DC.Fast do
       assert 9 == MapSet.size(BitGraph.vertices(reduced_value_graph))
 
       # The value graph is split into 2 single-edge components and one component with Γ(A) + A vertices
-      assert Enum.map(BitGraph.Algorithms.components(reduced_value_graph), fn component -> MapSet.size(component) end) |> Enum.sort() == [2, 2, 5]
+      assert Enum.map(BitGraph.Algorithm.components(reduced_value_graph), fn component -> MapSet.size(component) end) |> Enum.sort() == [2, 2, 5]
       # Single-edge components are removed, one left is the one with reduced t1-type edges (variables x2 and x3)
       assert MapSet.size(state.components) == 1
       assert hd(MapSet.to_list(state.components)) == MapSet.new([2, 3])

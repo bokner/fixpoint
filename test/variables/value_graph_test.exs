@@ -101,10 +101,9 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
       variables = Enum.map(1..num_variables, fn idx -> Variable.new(domain, name: "x#{idx}") end)
       %{value_graph: graph, left_partition: left_partition} = ValueGraph.build(variables)
-      assert %{matching: %{}} = BitGraph.Algorithms.bipartite_matching(graph, left_partition: left_partition)
 
       matching =
-        BitGraph.Algorithms.bipartite_matching(graph, left_partition: left_partition)
+        BitGraph.bipartite_matching(graph, left_partition: left_partition)
 
       assert MapSet.size(matching.free) == 1
       ## Matching is valid
@@ -132,7 +131,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
 
       matching2 =
-        BitGraph.Algorithms.bipartite_matching(graph, left_partition: left_partition)
+        BitGraph.bipartite_matching(graph, left_partition: left_partition)
 
       ## No free nodes
       assert Enum.empty?(matching2.free)
@@ -181,7 +180,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       %{value_graph: value_graph, left_partition: variable_vertices} = ValueGraph.build(variables)
 
       %{matching: matching, free: free_nodes}
-        = BitGraph.Algorithms.bipartite_matching(value_graph, left_partition: variable_vertices)
+        = BitGraph.bipartite_matching(value_graph, left_partition: variable_vertices)
 
       var_index = 0
       ## Fix a variable...
