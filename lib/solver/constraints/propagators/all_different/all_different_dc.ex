@@ -61,8 +61,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: _fixed_matching} =
       ValueGraph.build(vars, check_matching: true)
 
-    reduce_component(MapSet.new(variable_vertices, fn {:variable, var_index} -> var_index end),
-      value_graph, vars)
+    reduce_component(variable_vertices, value_graph, vars)
     |> Map.put(:propagator_variables, vars)
   end
 
@@ -76,9 +75,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     end
 
   def reduce_component(component, value_graph, vars) do
-    reduction(vars, value_graph, MapSet.new(component,
-      fn component_index -> {:variable, component_index}
-    end), %{})
+    reduction(vars, value_graph, component, %{})
   end
 
   def reduction(vars, value_graph, variable_vertices, fixed_matching) do

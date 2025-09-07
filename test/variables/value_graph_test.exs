@@ -22,13 +22,13 @@ defmodule CPSolverTest.Utils.ValueGraph do
       %{value_graph: graph, left_partition: left_partition} = ValueGraph.build(variables,
       ignore_fixed_variables: true)
 
-      assert {:variable, 1} in left_partition
-      assert {:variable, 2} in left_partition
+      assert 1 in left_partition
+      assert 2 in left_partition
       # fixed variables are excluded
-      refute {:variable, 0} in left_partition
-      refute {:variable, 3} in left_partition
+      refute 0 in left_partition
+      refute 3 in left_partition
       # Value graph does not have fixed variables and fixed values not shared with other variables
-      refute Enum.any?([{:variable, 0}, {:variable, 3}, {:value, 1}, {:value, 6}],
+      refute Enum.any?([0, 3, {:value, 1}, {:value, 6}],
         fn vertex ->
           BitGraph.get_vertex(graph, vertex)
         end)
@@ -42,7 +42,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       ## For 'variable' vertices, all neighbors are 'out' vertices {:value, domain_value}.
       ## The domain of variable represented by 'variable' vertex is covered by it's neighbors.
       assert Enum.all?(0..(num_variables - 1), fn var_idx ->
-               variable_vertex = {:variable, var_idx}
+               variable_vertex = var_idx
                BitGraph.out_degree(graph, variable_vertex) == Range.size(domain) &&
                BitGraph.in_degree(graph, variable_vertex) == 0 &&
                BitGraph.out_neighbors(graph, variable_vertex) ==
@@ -52,7 +52,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
                  )
              end)
 
-      ## For 'value' vertices, all neighbors are 'in' vertices {:variable, variable_index}
+      ## For 'value' vertices, all neighbors are 'in' vertices `variable_index`
       ## The number of neighbors corresponds to the number of variables currently having the value
       ## in their domain
       assert Enum.all?(domain, fn value ->
@@ -61,7 +61,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
                BitGraph.out_degree(graph, value_vertex) == 0 &&
 
                BitGraph.in_neighbors(graph, value_vertex) ==
-                 MapSet.new(0..(num_variables - 1), fn var_index -> {:variable, var_index} end) &&
+                 MapSet.new(0..num_variables - 1) &&
                  Enum.empty?(
                    BitGraph.out_neighbors(graph, value_vertex)
                  )
@@ -73,7 +73,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       Interface.remove(Enum.at(variables, some_variable_index), some_value)
 
       ## The 'value' vertex is removed from neighbors of the 'variable' vertex
-      assert BitGraph.out_neighbors(graph, {:variable, some_variable_index}) ==
+      assert BitGraph.out_neighbors(graph, some_variable_index) ==
                MapSet.new(List.delete(Range.to_list(domain), some_value), fn val ->
                  {:value, val}
                end)
@@ -81,8 +81,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       # ... and vice versa
       assert BitGraph.in_neighbors(graph, {:value, some_value}) ==
                MapSet.new(
-                 List.delete(Range.to_list(0..(num_variables - 1)), some_variable_index),
-                 fn var -> {:variable, var} end
+                 List.delete(Range.to_list(0..(num_variables - 1)), some_variable_index)
                )
 
       ## ... nothing changes otherwise
@@ -91,7 +90,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
              )
 
       assert Enum.empty?(
-               BitGraph.in_neighbors(graph, {:variable, some_variable_index})
+               BitGraph.in_neighbors(graph, some_variable_index)
              )
     end
 
@@ -185,7 +184,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       var_index = 0
       ## Fix a variable...
       :fixed = Interface.fix(Enum.at(variables, var_index), 1)
-      fixed_variable_vertex = {:variable, 0}
+      fixed_variable_vertex = 0
       matched_value_vertex = Map.get(matching, fixed_variable_vertex)
       reduced_matching = Map.delete(matching, fixed_variable_vertex)
       ## Create a 'matching' graph with reduced matching

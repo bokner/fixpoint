@@ -56,7 +56,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       )
   end
 
-  def process_variable_partition_node(%{matching: matching} = state, {:variable, variable_id} = node) do
+  def process_variable_partition_node(%{matching: matching} = state, variable_id = node) when is_integer(variable_id) do
     (visited?(state, node) && state) ||
       state
       |> mark_visited(node)
@@ -98,7 +98,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
        ) do
     updated_graph =
       Enum.reduce(scheduled, graph, fn {{:value, value} = _right_partition_vertex, left_neighbors}, acc ->
-        Enum.reduce(left_neighbors, acc, fn {:variable, left_vertex}, acc2 ->
+        Enum.reduce(left_neighbors, acc, fn left_vertex, acc2 ->
           process_redundant_fun.(acc2, left_vertex, value)
         end)
       end)

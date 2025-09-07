@@ -9,11 +9,11 @@ defmodule CPSolver.ValueGraph do
     ## Builds value graph and supporting structures
     ## that may be used further (for instance, by Kuhn algorithm).
     ## Value graph is bipartite.
-    ## Value graph edges are {:variable, id} -> {:value, value}
-    ##
-    ## Fixed matching is a map {:variable, id} => {:value, value}
-    ## , where variable is fixed.
-    ## The set of {:variable, id} elements is a "variable" partition of value graph,
+    ## Value graph edges are id -> {:value, value}
+    ## , where `id` is the index of variable in the list of variables
+    ## Fixed matching is a map id => {:value, value}
+    ## , where variable with `id` index is fixed.
+    ## The set of `id` vertices is a "variable" partition of value graph,
     ## that is, vertices that represent variables.
     ## Optional:
     ## :check_matching (false by default) - fails if there is no perfect matching
@@ -49,7 +49,7 @@ defmodule CPSolver.ValueGraph do
               MapSet.member?(fixed_values_acc, fixed_value) && check_matching? && fail()
 
               {
-                Map.put(fixed_matching_acc, {:variable, var_count_acc}, {:value, fixed_value}),
+                Map.put(fixed_matching_acc, var_count_acc, {:value, fixed_value}),
                 MapSet.put(fixed_values_acc, fixed_value)
               }
             else
@@ -62,7 +62,7 @@ defmodule CPSolver.ValueGraph do
 
     left_partition =
       Enum.reduce(0..(var_count - 1), MapSet.new(), fn idx, acc ->
-        variable_vertex = {:variable, idx}
+        variable_vertex = idx
 
         (ignore_fixed_variables? && Map.has_key?(fixed, variable_vertex) && acc) ||
           MapSet.put(acc, variable_vertex)
@@ -87,8 +87,8 @@ defmodule CPSolver.ValueGraph do
       fixed_matching: fixed,
       fixed_values: fixed_values,
       unfixed_indices: Enum.reduce(left_partition,
-        MapSet.new(), fn {:variable, idx}, acc ->
-          Map.has_key?(fixed, {:variable, idx}) && acc || MapSet.put(acc, idx) end)
+        MapSet.new(), fn idx, acc ->
+          Map.has_key?(fixed, idx) && acc || MapSet.put(acc, idx) end)
     }
   end
 
@@ -119,7 +119,7 @@ defmodule CPSolver.ValueGraph do
   def default_neighbor_finder(variables) do
     fn graph, vertex_index, direction ->
       vertex = case vertex_type(graph, vertex_index) do
-        :variable -> {:variable, vertex_index - 1}
+        :variable -> vertex_index - 1
         :value -> BitGraph.V.get_vertex(graph, vertex_index)
         other -> {other, vertex_index}
       end
@@ -127,7 +127,7 @@ defmodule CPSolver.ValueGraph do
     end
   end
 
-  defp get_neighbors(_graph, {:variable, _var_index}, _variables, :in) do
+  defp get_neighbors(_graph, var_index, _variables, :in) when is_integer(var_index) do
     Empty.new()
   end
 
@@ -135,7 +135,7 @@ defmodule CPSolver.ValueGraph do
     Empty.new()
   end
 
-  defp get_neighbors(graph, {:variable, var_index}, variables, :out) do
+  defp get_neighbors(graph, var_index, variables, :out) when is_integer(var_index) do
     get_variable(variables, var_index)
     |> Interface.iterator()
     |> Mapper.new(fn value ->
@@ -161,7 +161,7 @@ defmodule CPSolver.ValueGraph do
     neighbor_finder = default_neighbor_finder(variables)
 
     {indexed_matching, reversed_indexed_matching} =
-      Enum.reduce(matching, {Map.new(), Map.new()}, fn {{:variable, var_index} = var_vertex,
+      Enum.reduce(matching, {Map.new(), Map.new()}, fn {var_index,
                                                         {:value, value} = value_vertex},
                                                        {matching_acc, reverse_matching_acc} ->
         propagator_variable = get_variable(variables, var_index)
@@ -173,12 +173,12 @@ defmodule CPSolver.ValueGraph do
           Map.put(
             matching_acc,
             var_vertex_index,
-            {value_vertex_index, propagator_variable, value, var_vertex}
+            {value_vertex_index, propagator_variable, value, var_index}
           ),
           Map.put(
             reverse_matching_acc,
             value_vertex_index,
-            {var_vertex_index, propagator_variable, value, var_vertex}
+            {var_vertex_index, propagator_variable, value, var_index}
           )
         }
       end)
