@@ -2,10 +2,10 @@ defmodule CPSolver.Utils.TupleArray do
   def new(values) when is_list(values) do
     Enum.reduce(values, {}, fn
       val, acc when is_list(val) ->
-        Tuple.append(acc, new(val))
+        Tuple.insert_at(acc, tuple_size(acc), new(val))
 
       val, acc ->
-        Tuple.append(acc, val)
+        Tuple.insert_at(acc, tuple_size(acc), val)
     end)
   end
 
@@ -26,7 +26,7 @@ defmodule CPSolver.Utils.TupleArray do
 
   def map(tuple_array, mapper) when is_function(mapper) do
     Enum.reduce(0..(tuple_size(tuple_array) - 1), {}, fn idx, acc ->
-      Tuple.append(acc, mapper.(elem(tuple_array, idx)))
+      Tuple.insert_at(acc, tuple_size(acc), mapper.(elem(tuple_array, idx)))
     end)
   end
 

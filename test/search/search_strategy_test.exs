@@ -68,12 +68,12 @@ defmodule CPSolverTest.Search.FirstFail do
              end)
 
       ## Left branch contains v2 variable fixed at 0
-      assert Enum.at(b_left |> elem(0), 2)
+      assert Arrays.get(b_left |> elem(0), 2)
              |> Map.get(:domain)
              |> then(fn domain -> Domain.size(domain) == 1 && Domain.min(domain) == 0 end)
 
       ## Right branch contains v2 variable with 0 removed
-      refute Enum.at(b_right |> elem(0), 2) |> Map.get(:domain) |> Domain.contains?(0)
+      refute Arrays.get(b_right |> elem(0), 2) |> Map.get(:domain) |> Domain.contains?(0)
     end
   end
 

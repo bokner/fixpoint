@@ -119,7 +119,6 @@ defmodule CPSolver.ValueGraph do
   def default_neighbor_finder(variables) do
     fn graph, vertex_index, direction ->
       vertex = case vertex_type(graph, vertex_index) do
-        nil -> nil
         :variable -> {:variable, vertex_index - 1}
         :value -> BitGraph.V.get_vertex(graph, vertex_index)
         other -> {other, vertex_index}

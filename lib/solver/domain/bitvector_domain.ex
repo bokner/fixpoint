@@ -454,7 +454,7 @@ defmodule CPSolver.BitVectorDomain do
 
     max_value =
       Enum.reduce_while(
-        leftmost_block_idx..current_min_block_idx,
+        leftmost_block_idx..current_min_block_idx//-1,
         false,
         fn idx, max_block_empty? ->
           case :atomics.get(atomics_ref, idx) do
