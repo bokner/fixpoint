@@ -88,11 +88,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def find_matching(value_graph, variable_vertices, fixed_matching \\ Map.new()) do
     try do
-    BitGraph.bipartite_matching(
+    BitGraph.Algorithm.bipartite_matching(
       value_graph,
       left_partition: variable_vertices,
       fixed_matching: fixed_matching,
-      required_size: MapSet.size(variable_vertices)
+      required_size: MapSet.size(variable_vertices),
+      api: true
     )
     |> tap(fn matching -> matching || fail() end)
     catch {:error, _} ->

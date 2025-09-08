@@ -118,41 +118,45 @@ defmodule CPSolver.ValueGraph do
 
   def default_neighbor_finder(variables) do
     fn graph, vertex_index, direction ->
-      vertex = case vertex_type(graph, vertex_index) do
-        :variable -> vertex_index - 1
-        :value -> BitGraph.V.get_vertex(graph, vertex_index)
-        other -> {other, vertex_index}
-      end
-      (vertex && get_neighbors(graph, vertex, variables, direction)) || Empty.new()
+      # vertex = case vertex_type(graph, vertex_index) do
+      #   :variable -> vertex_index - 1
+      #   :value -> BitGraph.V.get_vertex(graph, vertex_index)
+      # end
+      get_neighbors(graph, vertex_index, variables, direction) || Empty.new()
     end
   end
 
-  defp get_neighbors(_graph, var_index, _variables, :in) when is_integer(var_index) do
+  defp get_neighbors(graph, vertex_index, variables, direction) do
+    get_neighbors_impl(graph, vertex_index, vertex_type(graph, vertex_index), variables, direction)
+  end
+
+  defp get_neighbors_impl(_graph, _var_index, :variable, _variables, :in) do
     Empty.new()
   end
 
-  defp get_neighbors(_graph, {:value, _value}, _variables, :out) do
+  defp get_neighbors_impl(_graph, _value_index, :value, _variables, :out) do
     Empty.new()
   end
 
-  defp get_neighbors(graph, var_index, variables, :out) when is_integer(var_index) do
-    get_variable(variables, var_index)
+  defp get_neighbors_impl(graph, vertex_index, :variable, variables, :out) do
+    get_variable(variables, variable_index(vertex_index))
     |> Interface.iterator()
     |> Mapper.new(fn value ->
       BitGraph.V.get_vertex_index(graph, {:value, value})
     end)
   end
 
-  defp get_neighbors(graph, {:value, value}, variables, :in) do
+  defp get_neighbors_impl(graph, value_index, :value, variables, :in) do
+      value = get_value(graph, value_index)
       FlatMapper.new(0..get_variable_count(graph) - 1,
           fn idx ->
             Interface.contains?(get_variable(variables, idx), value) &&
-            [idx + 1] || []
+            [variable_vertex_index(idx)] || []
           end
         )
   end
 
-  defp get_neighbors(_graph, _additional_vertex, _variables, _direction) do
+  defp get_neighbors_impl(_graph, _additional_vertex, _type, _variables, _direction) do
     Empty.new()
   end
 
@@ -166,7 +170,7 @@ defmodule CPSolver.ValueGraph do
                                                        {matching_acc, reverse_matching_acc} ->
         propagator_variable = get_variable(variables, var_index)
 
-        var_vertex_index = var_index + 1
+        var_vertex_index = variable_vertex_index(var_index)
         value_vertex_index = BitGraph.V.get_vertex_index(graph, value_vertex)
 
         {
@@ -308,6 +312,15 @@ defmodule CPSolver.ValueGraph do
 
   def get_variable(variables, var_index) do
     Propagator.arg_at(variables, var_index)
+  end
+
+  def variable_index(vertex_index) do
+    ## Variable indices are 0-based, vertex indices are 1-based
+    vertex_index - 1
+  end
+
+  def variable_vertex_index(variable_index) do
+    variable_index + 1
   end
 
   def get_value(graph, value_vertex) do
