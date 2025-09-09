@@ -93,7 +93,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
       left_partition: variable_vertices,
       fixed_matching: fixed_matching,
       required_size: MapSet.size(variable_vertices),
-      api: true
+      process_mode: :preprocess
     )
     |> tap(fn matching -> matching || fail() end)
     catch {:error, _} ->

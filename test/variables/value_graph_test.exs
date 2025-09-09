@@ -5,6 +5,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
     alias CPSolver.ValueGraph
     alias CPSolver.IntVariable, as: Variable
     alias CPSolver.Variable.Interface
+    import CPSolver.Test.Helpers
 
     test "build" do
       num_variables = 4
@@ -130,8 +131,8 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
 
       matching2 =
-        BitGraph.bipartite_matching(graph, left_partition: left_partition)
-
+        BitGraph.Algorithm.bipartite_matching(graph, left_partition: left_partition,
+        process_mode: :preprocess)
       ## No free nodes
       assert Enum.empty?(matching2.free)
       ## Matching is valid
@@ -140,23 +141,16 @@ defmodule CPSolverTest.Utils.ValueGraph do
 
       matching_neighbor_finder =
         ValueGraph.matching_neighbor_finder(graph, variables, matching2.matching, matching2.free)
+      matching_graph = BitGraph.set_neighbor_finder(graph, matching_neighbor_finder)
 
       assert Enum.all?(matching2.matching, fn {var_vertex, value_vertex} ->
-               BitGraph.out_neighbors(graph, value_vertex,
-                 neighbor_finder: matching_neighbor_finder
-               ) == MapSet.new([var_vertex]) &&
-                 BitGraph.in_neighbors(graph, var_vertex,
-                   neighbor_finder: matching_neighbor_finder
-                 ) == MapSet.new([value_vertex]) &&
-                 BitGraph.out_neighbors(graph, var_vertex,
-                   neighbor_finder: matching_neighbor_finder
-                 ) ==
-                   Map.values(matching2.matching) |> MapSet.new() |> MapSet.delete(value_vertex) &&
-                 BitGraph.in_neighbors(graph, value_vertex,
-                   neighbor_finder: matching_neighbor_finder
-                 ) ==
-                   Map.keys(matching2.matching) |> MapSet.new() |> MapSet.delete(var_vertex)
-             end)
+        iterables_equal?(BitGraph.V.out_neighbors(matching_graph, value_vertex), [var_vertex])
+        && iterables_equal?(BitGraph.V.in_neighbors(matching_graph, var_vertex), [value_vertex])
+        && iterables_equal?(BitGraph.V.out_neighbors(matching_graph, var_vertex),
+            Map.values(matching2.matching) -- [value_vertex])
+        && iterables_equal?(BitGraph.V.in_neighbors(matching_graph, value_vertex),
+            Map.keys(matching2.matching) -- [var_vertex])
+      end)
 
       ## Original graph has edges from variables to values
       ## hence, not strongly connected
@@ -179,29 +173,29 @@ defmodule CPSolverTest.Utils.ValueGraph do
       %{value_graph: value_graph, left_partition: variable_vertices} = ValueGraph.build(variables)
 
       %{matching: matching, free: free_nodes}
-        = BitGraph.bipartite_matching(value_graph, left_partition: variable_vertices)
+        = BitGraph.Algorithm.bipartite_matching(value_graph, left_partition: variable_vertices,
+        process_mode: :preprocess)
 
       var_index = 0
       ## Fix a variable...
       :fixed = Interface.fix(Enum.at(variables, var_index), 1)
-      fixed_variable_vertex = 0
-      matched_value_vertex = Map.get(matching, fixed_variable_vertex)
-      reduced_matching = Map.delete(matching, fixed_variable_vertex)
+      fixed_variable_vertex_index = ValueGraph.variable_vertex_index(var_index)
+      matched_value_vertex_index = Map.get(matching, fixed_variable_vertex_index)
+      reduced_matching = Map.delete(matching, fixed_variable_vertex_index)
+
       ## Create a 'matching' graph with reduced matching
       neighbor_finder =  ValueGraph.matching_neighbor_finder(value_graph, variables, reduced_matching, free_nodes)
       matching_graph = BitGraph.update_opts(value_graph, neighbor_finder: neighbor_finder)
 
-      #IO.puts(ValueGraph.show_graph(value_graph, :value_grah))
-      #IO.puts(ValueGraph.show_graph(matching_graph, :matching_graph))
-
       ## 'Variable' vertices that are not part of (reduced) matching are isolated
-      assert BitGraph.degree(matching_graph, fixed_variable_vertex) == 0
+      assert BitGraph.degree(matching_graph, var_index) == 0
       ## The 'fixed value' vertex is still connected to 'non-fixed' variable vertices
-      assert BitGraph.in_degree(matching_graph, matched_value_vertex) == 2
+      assert BitGraph.V.in_degree(matching_graph, matched_value_vertex_index) == 2
       ## No out-neighbors for the 'fixed value' vertex.
-      assert BitGraph.out_degree(matching_graph, matched_value_vertex) == 0
+      assert BitGraph.out_degree(matching_graph, matched_value_vertex_index) == 0
 
-      refute fixed_variable_vertex in BitGraph.in_neighbors(matching_graph, matched_value_vertex)
+      refute fixed_variable_vertex_index in
+        (BitGraph.V.in_neighbors(matching_graph, matched_value_vertex_index) |> Iter.Iterable.to_list())
     end
   end
 end

@@ -161,28 +161,27 @@ defmodule CPSolver.ValueGraph do
   end
 
   ## Matching edges will be reversed
-  def matching_neighbor_finder(graph, variables, matching, _free_nodes) do
+  def matching_neighbor_finder(_graph, variables, matching, _free_nodes) do
     neighbor_finder = default_neighbor_finder(variables)
 
     {indexed_matching, reversed_indexed_matching} =
-      Enum.reduce(matching, {Map.new(), Map.new()}, fn {var_index,
-                                                        {:value, value} = value_vertex},
+      Enum.reduce(matching, {Map.new(), Map.new()}, fn {var_vertex_index,
+                                                        value_vertex_index},
                                                        {matching_acc, reverse_matching_acc} ->
-        propagator_variable = get_variable(variables, var_index)
 
-        var_vertex_index = variable_vertex_index(var_index)
-        value_vertex_index = BitGraph.V.get_vertex_index(graph, value_vertex)
+        var_index = variable_index(var_vertex_index)
+        propagator_variable = get_variable(variables, var_index)
 
         {
           Map.put(
             matching_acc,
             var_vertex_index,
-            {value_vertex_index, propagator_variable, value, var_index}
+            {value_vertex_index, propagator_variable, var_vertex_index}
           ),
           Map.put(
             reverse_matching_acc,
             value_vertex_index,
-            {var_vertex_index, propagator_variable, value, var_index}
+            {var_vertex_index, propagator_variable, var_vertex_index}
           )
         }
       end)
@@ -224,7 +223,7 @@ defmodule CPSolver.ValueGraph do
       nil ->
         Empty.new()
 
-      {value_match, _, _, _} ->
+      {value_match, _, _} ->
         ## Remove value from 'out' neighbors of variable vertex
         Filterer.new(neighbor_finder.(graph, vertex_index, :out), fn value -> value != value_match end)
     end
@@ -243,7 +242,7 @@ defmodule CPSolver.ValueGraph do
       nil ->
         Empty.new()
 
-      {variable_match, _variable, _matching_value, _variable_vertex} ->
+      {variable_match, _variable, _variable_vertex} ->
         [variable_match]
     end
   end
@@ -267,7 +266,7 @@ defmodule CPSolver.ValueGraph do
         ## Variable outside matching
         Empty.new()
 
-      {value_match, _variable, _matching_value, _variable_vertex} ->
+      {value_match, _variable, _variable_vertex} ->
         ## Matching value is the only in-neighbor
         [value_match]
     end
@@ -289,7 +288,7 @@ defmodule CPSolver.ValueGraph do
       ## (this would represent an 'out' edge from the value to variable, as opposed to 'in' edge)
       case Map.get(value_matching, vertex_index) do
         nil -> true
-        {variable_match, _, _, _} ->
+        {variable_match, _, _} ->
           variable_match != var_neighbor
       end
       ## All in-edges from variables have to be in matching.
