@@ -61,8 +61,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     %{value_graph: value_graph, left_partition: variable_vertices, fixed_matching: _fixed_matching} =
       ValueGraph.build(vars, check_matching: true)
 
-    reduce_component(MapSet.new(variable_vertices, fn {:variable, var_index} -> var_index end),
-      value_graph, vars)
+    reduce_component(variable_vertices, value_graph, vars)
     |> Map.put(:propagator_variables, vars)
   end
 
@@ -76,9 +75,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
     end
 
   def reduce_component(component, value_graph, vars) do
-    reduction(vars, value_graph, MapSet.new(component,
-      fn component_index -> {:variable, component_index}
-    end), %{})
+    reduction(vars, value_graph, component, %{})
   end
 
   def reduction(vars, value_graph, variable_vertices, fixed_matching) do
@@ -90,11 +87,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
 
   def find_matching(value_graph, variable_vertices, fixed_matching) do
     try do
-      BitGraph.bipartite_matching(
+      BitGraph.Algorithm.bipartite_matching(
         value_graph,
         left_partition: variable_vertices,
         fixed_matching: fixed_matching,
-        required_size: MapSet.size(variable_vertices)
+        required_size: MapSet.size(variable_vertices),
+        process_mode: :preprocess
     )
     |> tap(fn matching -> matching || fail() end)
     catch {:error, _} ->
@@ -146,8 +144,8 @@ defmodule CPSolver.Propagator.AllDifferent.DC do
   defp residual_graph_neighbor_finder(value_graph, variables, matching, free_nodes) do
     num_variables = ValueGraph.get_variable_count(value_graph)
     base_neighbor_finder = ValueGraph.matching_neighbor_finder(value_graph, variables, matching, free_nodes)
-    free_node_indices = MapSet.new(free_nodes, fn value_vertex -> BitGraph.V.get_vertex_index(value_graph, value_vertex) end)
-    matching_value_indices = MapSet.new(Map.values(matching), fn value_vertex -> BitGraph.V.get_vertex_index(value_graph, value_vertex) end)
+    free_node_indices = free_nodes
+    matching_value_indices = Map.values(matching)
     sink_node_index = BitGraph.V.get_vertex_index(value_graph, :sink)
 
     fn _graph, nil, _direction ->

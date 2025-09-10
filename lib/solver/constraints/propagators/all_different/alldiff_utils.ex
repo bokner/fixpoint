@@ -1,6 +1,5 @@
 defmodule CPSolver.Propagator.AllDifferent.Utils do
   alias CPSolver.ValueGraph
-  alias CPSolver.Variable.Interface
   alias CPSolver.Propagator.Variable, as: PropagatorVariable
   alias CPSolver.Propagator
   import CPSolver.Utils
@@ -26,7 +25,8 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
       component_handler:
         {fn component, acc -> scc_component_handler(component, remove_edge_fun, acc) end,
          {MapSet.new(), graph}},
-      algorithm: :tarjan
+      algorithm: :tarjan,
+      process_mode: :none
     )
   end
 
@@ -39,7 +39,7 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
             ## We only need to remove out-edges from 'variable' vertices
             ## that cross to other SCCS
               cross_neighbors = BitGraph.V.out_neighbors(graph_acc, vertex_index)
-              variable_id = vertex_index - 1
+              variable_id = ValueGraph.variable_index(vertex_index)
               {
                 MapSet.put(vertices_acc, variable_id),
                 remove_cross_edges(
@@ -71,21 +71,14 @@ defmodule CPSolver.Propagator.AllDifferent.Utils do
       if neighbor in component do
         {:cont, acc}
       else
-        {:cont, remove_edge_fun.(acc, variable_vertex_index, ValueGraph.get_value(graph, neighbor))}
+        {:cont, remove_edge_fun.(acc, variable_vertex_index, neighbor)}
       end
     end)
   end
 
   def default_remove_edge_fun(vars) do
-    fn graph, var_vertex_index, value ->
-      var_index = var_vertex_index - 1
-      var = ValueGraph.get_variable(vars, var_index)
-
-      if Interface.fixed?(var) do
-        (Interface.min(var) == value && graph) || throw(:fail)
-      else
-        ValueGraph.delete_edge(graph, var_index, value, vars)
-      end
+    fn graph, var_vertex_index, value_vertex_index ->
+      ValueGraph.delete_edge(graph, var_vertex_index, value_vertex_index, vars)
     end
   end
 

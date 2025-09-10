@@ -2,6 +2,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
   alias CPSolver.Propagator.AllDifferent.Utils, as: AllDiffUtils
 
   import CPSolver.Utils
+  alias CPSolver.ValueGraph
 
   def reduce(value_graph, free_nodes, matching, remove_edge_fun) do
     value_graph
@@ -46,7 +47,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
     visited?(state, node) && state ||
       (
         state = mark_visited(state, node) |> unschedule_removals(node)
-        neighbors = BitGraph.in_neighbors(graph, node, shape: :iterator)
+        neighbors = BitGraph.V.in_neighbors(graph, node)
         iterate(neighbors, state, fn left_partition_node, acc ->
           {:cont,
           (visited?(acc, left_partition_node) && acc) ||
@@ -56,12 +57,12 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       )
   end
 
-  def process_variable_partition_node(%{matching: matching} = state, {:variable, variable_id} = node) do
+  def process_variable_partition_node(%{matching: matching} = state, _variable_vertex = node) do
     (visited?(state, node) && state) ||
       state
       |> mark_visited(node)
       |> Map.update!(:GA_complement_matching, fn nodes -> Map.delete(nodes, node) end)
-      |> Map.update!(:GA, fn nodes -> MapSet.put(nodes, variable_id) end)
+      |> Map.update!(:GA, fn nodes -> MapSet.put(nodes, ValueGraph.variable_index(node)) end)
       |> process_value_partition_node(Map.get(matching, node))
       |> schedule_removals(node)
   end
@@ -70,7 +71,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
          %{free_nodes: free, value_graph: graph, scheduled_for_removal: scheduled} = state,
          node
        ) do
-    BitGraph.out_neighbors(graph, node, shape: :iterator)
+    BitGraph.V.out_neighbors(graph, node)
     |> iterate(scheduled, fn right_partition_node, unvisited_acc ->
       {:cont,
       ((visited?(state, right_partition_node) || MapSet.member?(free, right_partition_node)) &&
@@ -97,9 +98,9 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
          } = state
        ) do
     updated_graph =
-      Enum.reduce(scheduled, graph, fn {{:value, value} = _right_partition_vertex, left_neighbors}, acc ->
-        Enum.reduce(left_neighbors, acc, fn {:variable, left_vertex}, acc2 ->
-          process_redundant_fun.(acc2, left_vertex, value)
+      Enum.reduce(scheduled, graph, fn {right_partition_vertex_index, left_neighbors}, acc ->
+        Enum.reduce(left_neighbors, acc, fn left_vertex, acc2 ->
+          process_redundant_fun.(acc2, left_vertex, right_partition_vertex_index)
         end)
       end)
 

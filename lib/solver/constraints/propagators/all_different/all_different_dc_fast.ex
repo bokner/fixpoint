@@ -88,11 +88,12 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
 
   def find_matching(value_graph, variable_vertices, fixed_matching \\ Map.new()) do
     try do
-    BitGraph.bipartite_matching(
+    BitGraph.Algorithm.bipartite_matching(
       value_graph,
       left_partition: variable_vertices,
       fixed_matching: fixed_matching,
-      required_size: MapSet.size(variable_vertices)
+      required_size: MapSet.size(variable_vertices),
+      process_mode: :preprocess
     )
     |> tap(fn matching -> matching || fail() end)
     catch {:error, _} ->
@@ -157,7 +158,7 @@ defmodule CPSolver.Propagator.AllDifferent.DC.Fast do
           if unfixed_idx in unfixed_indices do
             acc
           else
-            Map.put(acc, {:variable, unfixed_idx}, {:value, min(Propagator.arg_at(variables, unfixed_idx))})
+            Map.put(acc, unfixed_idx, {:value, min(Propagator.arg_at(variables, unfixed_idx))})
           end
         end)
       {updated_unfixed_indices, updated_fixed_values, updated_fixed_matching}
