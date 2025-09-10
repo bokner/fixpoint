@@ -118,7 +118,7 @@ defmodule CPSolverTest.Utils.ValueGraph do
       assert BitGraph.get_vertex(graph, free_vertex)
 
       graph = Enum.reduce(0..num_variables-1, graph, fn var_idx, graph_acc ->
-        ValueGraph.delete_edge(graph_acc, var_idx, free_node_value, variables)
+        ValueGraph.delete_edge(graph_acc, var_idx, BitGraph.V.get_vertex_index(graph, free_vertex), variables)
       end)
 
       ## Free node is no longer in the graph
