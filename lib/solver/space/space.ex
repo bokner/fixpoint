@@ -227,18 +227,20 @@ defmodule CPSolver.Space do
   end
 
   defp handle_solved(data) do
-    case checkpoint(data.propagators, data.constraint_graph) do
+    case checkpoint(data) do
       {:fail, _propagator_id} = failure ->
         handle_failure(data, failure)
 
       :ok ->
-        maybe_tighten_objective_bound(data[:objective])
+        process_solutions(data)
+    end
+  end
 
+  defp process_solutions(data) do
+          maybe_tighten_objective_bound(data[:objective])
         ## Generate solutions and run them through solution handler.
         solutions(data)
-
         shutdown(data, :solved)
-    end
   end
 
   defp handle_error(exception, data) do
@@ -297,7 +299,7 @@ defmodule CPSolver.Space do
     Interface.update(variable, :domain, var_domain)
   end
 
-  def checkpoint(propagators, constraint_graph) do
+  def checkpoint(%{propagators: propagators, constraint_graph: constraint_graph}) do
     Enum.reduce_while(propagators, :ok, fn p, acc ->
         bound_p = Propagator.bind(p, constraint_graph, :domain)
 
@@ -339,7 +341,7 @@ defmodule CPSolver.Space do
       shutdown(data, :distribute)
     catch
       :all_vars_fixed ->
-        handle_solved(data)
+        process_solutions(data)
     end
   end
 
