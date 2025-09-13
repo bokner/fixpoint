@@ -12,15 +12,15 @@ Logger.configure(level: :notice)
 
 defmodule DCFast.Helper do
   def visualize_value_graph(value_graph) do
-      {:ok, graph_content} = Graph.to_dot(value_graph)
+    {:ok, graph_content} = Graph.to_dot(value_graph)
 
- #   route_graph_content =
- #     Enum.reduce(0..(len - 1), route_graph_content, fn idx, acc ->
- #       {x, y} = Enum.at(table_coordinates, idx)
- #       replace_params = "[label=#{Enum.at(tables, idx)}; pos=\"#{x},#{y}!\"]"
-        # || "[label=#{Enum.at(tables,idx)}]"
- #       String.replace(acc, "[label=#{idx}]", replace_params)
- #     end)
+   # route_graph_content =
+   #   Enum.reduce(0..(len - 1), route_graph_content, fn idx, acc ->
+   #     {x, y} = Enum.at(table_coordinates, idx)
+   #     replace_params = "[label=#{Enum.at(tables, idx)}; pos=\"#{x},#{y}!\"]"
+   #      || "[label=#{Enum.at(tables,idx)}]"
+   #     String.replace(acc, "[label=#{idx}]", replace_params)
+   #   end)
 
     dir = System.tmp_dir!()
     dot_file = Path.join(dir, "value_graph.dot")
@@ -65,9 +65,13 @@ alias CPSolver.ValueGraph
     alias CPSolver.Propagator.AllDifferent.Zhang
 
     domains = [
-      1, 1..2, 1..4, [1, 2, 4, 5]
+      # 1, 1..2, 1..4, [1, 2, 4, 5]
       #2, [-1, 0, 2], [-2, -1, 1], [-3, -2, 0]
       #10, [7, 9], [8, 10]
+      [0, 2], 
+      #[-3, -1], 
+      [-5, -4, 0], 
+      #[5, 6, 7]
     ]
 
         vars =  
@@ -87,44 +91,49 @@ alias CPSolver.ValueGraph
 
 # BitGraph.Algorithms.bipartite_matching(graph, variable_vertices)
 
-     %{free: free_nodes, matching: matching} = 
+     matching_rec = %{free: free_nodes, matching: matching} = 
        Fast.find_matching(graph, variable_vertices, fixed_matching)
 #
        IO.inspect(Enum.map(vars, fn var -> {var.name, Utils.domain_values(var)} end), 
          label: :before_reduction)
 
 
-%{value_graph: graph} = zhang_state = Zhang.remove_type1_edges(graph, free_nodes, matching, remove_edge_fun)
-  
+remove_type1_state = %{value_graph: graph} = zhang_state = Zhang.remove_type1_edges(graph, free_nodes, matching, remove_edge_fun)
+
+IO.inspect(matching_rec, label: :raw_matching)
+IO.inspect(BitGraph.Algorithm.Matching.Kuhn.postprocess(graph, matching_rec), label: :vertex_matching)
+IO.inspect(remove_type1_state.components, label: :type1)
+
+
 #IO.inspect(Enum.map(vars, fn var -> {var.name, Utils.domain_values(var)} end), 
 #       label: :after_step1)
 
- graph_step2 = zhang_state[:value_graph]
+#  graph_step2 = zhang_state[:value_graph]
 
- Map.new(BitGraph.vertices(graph), 
-   fn v -> {v, 
-     %{
-       in: BitGraph.in_neighbors(graph_step2, v),
-       out: BitGraph.out_neighbors(graph_step2, v)
-     }
+#  Map.new(BitGraph.vertices(graph), 
+#    fn v -> {v, 
+#      %{
+#        in: BitGraph.in_neighbors(graph_step2, v),
+#        out: BitGraph.out_neighbors(graph_step2, v)
+#      }
     
-     } end)
+#      } end)
 
 
-zhang_state = 
-  Map.put(zhang_state, :value_graph, 
-    BitGraph.update_opts(graph,
-    neighbor_finder: ValueGraph.matching_neighbor_finder(graph, vars, matching, free_nodes)
-    ))
+# zhang_state = 
+#   Map.put(zhang_state, :value_graph, 
+#     BitGraph.update_opts(graph,
+#     neighbor_finder: ValueGraph.matching_neighbor_finder(graph, vars, matching, free_nodes)
+#     ))
 
- Zhang.remove_type2_edges(zhang_state, remove_edge_fun)
-       #IO.inspect(BitGraph.edges(reduced_state.value_graph), label: :reduced_value_graph)
-       #IO.inspect(reduced_state.components, label: :components)
+#  Zhang.remove_type2_edges(zhang_state, remove_edge_fun)
+#        #IO.inspect(BitGraph.edges(reduced_state.value_graph), label: :reduced_value_graph)
+#        #IO.inspect(reduced_state.components, label: :components)
 
-       IO.inspect(Enum.map(vars, fn var -> {var.name, Utils.domain_values(var)} end), 
-        label: :after_step2)
+#        IO.inspect(Enum.map(vars, fn var -> {var.name, Utils.domain_values(var)} end), 
+#         label: :after_step2)
 
-  #zhang_state[:value_graph]
+#   #zhang_state[:value_graph]
 
 
   
@@ -287,6 +296,9 @@ propagators5 = step_fun.(propagators4)
   #silent: true, time: :timer.minutes(2), msgs: 1_000_000)
 # :timer.sleep(50)
 
+alias CPSolver.Model
+alias CPSolver.IntVariable, as: Variable
+alias CPSolver.Constraint
 import CPSolver.Variable.View.Factory
 
 solution_fun = fn(range, implementation) ->
@@ -309,10 +321,10 @@ solution_fun = fn(range, implementation) ->
 #Interface.fix(Enum.at(q, 2), 1)
 
 constraints =
-      #Enum.shuffle(
+      #Enum.reverse(
       [
-        Constraint.new(implementation, q),
         Constraint.new(implementation, diagonal_down),
+        Constraint.new(implementation, q),
         Constraint.new(implementation, diagonal_up),
       ]
     #)
