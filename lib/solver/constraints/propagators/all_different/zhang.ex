@@ -29,12 +29,15 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
           acc
         else
           acc
-          |> Map.put(:GA, MapSet.new())
+          #|> Map.put(:GA, MapSet.new())
           |> process_value_partition_node(free_node)
           |> then(fn %{GA: ga} = type1_state ->
+            #IO.inspect({ValueGraph.get_value(graph, free_node), ga}, label: :process_free_node)
+            #TODO: exclude only a single-element components with all out-neighbors having in-degree 1.
             Map.update!(type1_state, :components,
             fn components -> (MapSet.size(ga) > 1) &&
-              MapSet.put(components, ga) || components
+              MapSet.put(components, ga)
+              || components
             end)
           end)
         end

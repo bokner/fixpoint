@@ -10,7 +10,6 @@ defmodule CPSolver.Space do
   alias CPSolver.Search, as: Search
   alias CPSolver.Solution, as: Solution
   alias CPSolver.Propagator.ConstraintGraph
-  alias CPSolver.Propagator
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
 
@@ -227,13 +226,7 @@ defmodule CPSolver.Space do
   end
 
   defp handle_solved(data) do
-    case checkpoint(data) do
-      {:fail, _propagator_id} = failure ->
-        handle_failure(data, failure)
-
-      :ok ->
-        process_solutions(data)
-    end
+    process_solutions(data)
   end
 
   defp process_solutions(data) do
@@ -297,19 +290,6 @@ defmodule CPSolver.Space do
       |> Interface.domain()
 
     Interface.update(variable, :domain, var_domain)
-  end
-
-  def checkpoint(%{propagators: propagators, constraint_graph: constraint_graph}) do
-    Enum.reduce_while(propagators, :ok, fn p, acc ->
-        bound_p = Propagator.bind(p, constraint_graph, :domain)
-
-        case Propagator.filter(bound_p, reset: false, constraint_graph: constraint_graph) do
-          :fail -> {:halt, {:fail, p.id}}
-          _ -> {:cont, acc}
-        end
-    end)
-
-    # :ok
   end
 
   defp handle_stable(data) do
