@@ -81,7 +81,7 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         Iter.Iterable.all?(BitGraph.out_neighbors(graph, vertex),
         fn value_node ->
           !visited?(state, value_node) &&
-          BitGraph.degree(graph, value_node) == 1
+          BitGraph.leaf_vertex?(graph, value_node)
         end)
       true -> false
     end
