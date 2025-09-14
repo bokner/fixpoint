@@ -32,7 +32,8 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
           |> process_value_partition_node(free_node)
           |> then(fn %{path_GA: delta} = processed_state ->
             Map.update!(processed_state, :GA, fn ga ->
-              single_vertex_component?(processed_state, delta) && ga || MapSet.union(ga, delta) end)
+              single_vertex_component?(processed_state, delta) && ga ||
+              MapSet.union(ga, delta) end)
           end)
         end
       end

@@ -9,17 +9,6 @@ defmodule CPSolver.Propagator.Circuit do
   """
 
   @impl true
-  def reset(args, %{domain_graph: graph} = state) do
-    state
-    |> Map.put(:domain_graph, BitGraph.set_neighbor_finder(graph, neighbor_finder(args)))
-    |> Map.put(:propagator_variables, args)
-  end
-
-  def reset(_args, state) do
-    state
-  end
-
-  @impl true
   def variables(args) do
     Enum.map(args, fn x_el -> set_propagate_on(x_el, :domain_change) end)
   end
@@ -30,24 +19,28 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   @impl true
-  def filter(all_vars, nil, changes) do
-    filter(all_vars, initial_state(all_vars), changes)
+  def filter(vars, state, changes) do
+    if state do
+      update_state(state, vars)
+    else
+     initial_state(vars)
+    end
+    |> reduce_state(changes)
+    |> finalize()
   end
 
-  def filter(all_vars, state, changes) do
-    updated_state = apply_changes(all_vars, state, changes)
-    check_state(updated_state) &&
-      (completed?(updated_state) && :passive
-        ||
-        {:state, updated_state})
-        || fail()
+  def reduce_state(state, changes) do
+    %{domain_graph: graph} = updated_state = apply_changes(state, changes)
+    BitGraph.Algorithm.strongly_connected?(graph, algorithm: :tarjan) && updated_state
+    || fail()
+
   end
 
-  defp initial_state(args) do
-    l = Arrays.size(args)
+  defp initial_state(variables) do
+    l = Arrays.size(variables)
 
     domain_graph =
-      args
+      variables
       |> Enum.with_index()
       |> Enum.reduce(
         BitGraph.new(max_vertices: l, allocate_adjacency_table?: false),
@@ -56,13 +49,28 @@ defmodule CPSolver.Propagator.Circuit do
           BitGraph.add_vertex(graph_acc, idx)
         end
       )
-      |> BitGraph.set_neighbor_finder(neighbor_finder(args))
 
     %{
       domain_graph: domain_graph,
-      propagator_variables: args
     }
+    |> update_state(variables)
   end
+
+  defp update_state(state, variables) do
+    state
+    |> Map.update!(:domain_graph,
+      fn graph ->
+        BitGraph.set_neighbor_finder(graph, neighbor_finder(variables))
+      end)
+    |> Map.put(:propagator_variables, variables)
+  end
+
+  defp finalize(state) do
+      (completed?(state) && :passive
+        ||
+      {:state, state})
+  end
+
 
   defp initial_reduction(var, succ_value, circuit_length) do
     ## Cut the domain of variable to adhere to circuit definition.
@@ -75,8 +83,7 @@ defmodule CPSolver.Propagator.Circuit do
 
   ## 'vars' are successor variables in the circuit
   defp apply_changes(
-         vars,
-         %{domain_graph: graph} = state,
+         %{propagator_variables: vars, domain_graph: graph} = state,
          changes
        ) do
         ## Side effect - the domain graph doesn't need to be updated,
@@ -130,10 +137,6 @@ defmodule CPSolver.Propagator.Circuit do
         short_loop_check(vars, next_value, MapSet.put(fixed_chain, next_value))
       end
     end
-  end
-
-  defp check_state(%{domain_graph: graph} = _state) do
-    BitGraph.Algorithm.strongly_connected?(graph, algorithm: Enum.random([:tarjan, :kozaraju]))
   end
 
   defp completed?(%{propagator_variables: variables} = _state) do
