@@ -26,7 +26,6 @@ defmodule CPSolverTest.Propagator.AllDifferent.FWC do
       fwc_propagator = FWC.new(x_vars)
       filtering_results = Propagator.filter(fwc_propagator)
 
-      # IO.inspect(filtering_results)
       ## The values of fixed variables (namely, 4 and 5) have been removed from unfixed variables
       assert Enum.all?([x1_var, x2_var, x3_var], fn var -> Interface.max(var) == 3 end)
 

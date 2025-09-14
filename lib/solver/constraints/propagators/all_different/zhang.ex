@@ -21,26 +21,29 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
         visited: MapSet.new(),
         matching: matching,
         free_nodes: free_nodes,
-        scheduled_for_removal: Map.new(),
-        components: MapSet.new()
+        scheduled_for_removal: Map.new()
       },
       fn free_node, acc ->
         if visited?(acc, free_node) do
           acc
         else
           acc
-          |> Map.put(:GA, MapSet.new())
+          |> Map.put(:path_GA, MapSet.new())
           |> process_value_partition_node(free_node)
-          |> then(fn %{GA: ga} = type1_state ->
-            Map.update!(type1_state, :components,
-            fn components -> (MapSet.size(ga) > 1) &&
-              MapSet.put(components, ga) || components
-            end)
+          |> then(fn %{path_GA: delta} = processed_state ->
+            Map.update!(processed_state, :GA, fn ga ->
+              single_vertex_component?(processed_state, delta) && ga ||
+              MapSet.union(ga, delta) end)
           end)
         end
       end
     )
     |> remove_redundant_type1_edges()
+    |> then(fn %{GA: ga} = state ->
+
+      Map.put(state, :components,
+        Enum.empty?(ga) && MapSet.new() || MapSet.new([state[:GA]]))
+    end)
   end
 
   def process_value_partition_node(%{value_graph: graph} = state, node) do
@@ -62,9 +65,27 @@ defmodule CPSolver.Propagator.AllDifferent.Zhang do
       state
       |> mark_visited(node)
       |> Map.update!(:GA_complement_matching, fn nodes -> Map.delete(nodes, node) end)
-      |> Map.update!(:GA, fn nodes -> MapSet.put(nodes, ValueGraph.variable_index(node)) end)
+      |> Map.update!(:path_GA, fn nodes -> MapSet.put(nodes, ValueGraph.variable_index(node)) end)
       |> process_value_partition_node(Map.get(matching, node))
       |> schedule_removals(node)
+  end
+
+  ### NOTE: components are sets of variable indices
+  ### (not variable vertex indices!!!)
+  ### TODO: consider changing for less confusion
+  defp single_vertex_component?(%{value_graph: graph} = state, component) do
+    cond do
+      Enum.empty?(component) -> true
+      MapSet.size(component) == 1 ->
+        vertex = MapSet.to_list(component) |> hd
+        Iter.Iterable.all?(BitGraph.out_neighbors(graph, vertex),
+        fn value_node ->
+          !visited?(state, value_node) &&
+          BitGraph.degree(graph, value_node) == 1
+        end)
+      true -> false
+    end
+
   end
 
   defp schedule_removals(
