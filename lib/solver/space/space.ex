@@ -248,7 +248,9 @@ defmodule CPSolver.Space do
         Utils.domain_values(var)
       end)
       |> Utils.lazy_cartesian(fn values ->
-        Enum.reduce(values, {0, Map.new()}, fn val, {idx_acc, map_acc} ->
+        values
+        |> Enum.reverse()
+        |> Enum.reduce({0, Map.new()}, fn val, {idx_acc, map_acc} ->
           {idx_acc + 1, Map.put(map_acc, Arrays.get(variables, idx_acc).name, val)}
         end)
         |> elem(1)

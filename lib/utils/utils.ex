@@ -43,15 +43,13 @@ defmodule CPSolver.Utils do
     lazy_cartesian(lists, callback, [])
   end
 
-  def lazy_cartesian([head | rest] = _lists, callback, values) do
-    Enum.map(head, fn i ->
-      more_values = [i | values]
+  def lazy_cartesian([head], callback, acc) do
+    Enum.each(head, fn v -> callback.([v | acc]) end)
+  end
 
-      if !Enum.empty?(rest) do
-        lazy_cartesian(rest, callback, more_values)
-      else
-        callback && callback.(Enum.reverse(more_values))
-      end
+  def lazy_cartesian([head | rest] = _lists, callback, acc) do
+    Enum.each(head, fn i ->
+      lazy_cartesian(rest, callback, [i | acc])
     end)
   end
 
