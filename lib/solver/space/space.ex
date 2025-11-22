@@ -230,7 +230,7 @@ defmodule CPSolver.Space do
   end
 
   defp process_solutions(data) do
-          maybe_tighten_objective_bound(data[:objective])
+        maybe_tighten_objective_bound(data[:objective])
         ## Generate solutions and run them through solution handler.
         solutions(data)
         shutdown(data, :solved)
