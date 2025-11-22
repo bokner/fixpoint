@@ -43,14 +43,22 @@ defmodule CPSolver.Propagator.Maximum do
 
   defp finalize(state, vars) do
     max_var = vars[0]
-    if fixed?(max_var) && no_support?(max_var, state, vars) do
-        fail()
+    if fixed?(max_var) && exists_fixed_to_max(max_var, state, vars) do
+        :passive
     else
       {:state, state}
     end
   end
 
-  defp no_support?(_max_var, %{active_var_indices: active_var_indices} = _state, _vars) do
+  defp exists_fixed_to_max(max_var, %{active_var_indices: active_var_indices} = _state, vars) do
+    fixed_max = min(max_var)
+    Enum.any?(active_var_indices, fn idx ->
+      var = vars[idx]
+      fixed?(vars) && min(var) == fixed_max
+    end)
+  end
+
+  defp no_support?(_max_var, active_var_indices, _vars) do
     Enum.empty?(active_var_indices)
   end
 
@@ -92,7 +100,7 @@ defmodule CPSolver.Propagator.Maximum do
 
     ## If no "active" array variables (sucn that max(X) >= max(y)),
     ## then there is no support for y => failure
-    if Enum.empty?(active_var_indices) do
+    if no_support?(max_var, active_var_indices, vars) do
       fail()
     end
 
