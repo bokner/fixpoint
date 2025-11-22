@@ -46,15 +46,21 @@ defmodule CPSolverTest.Constraint.Minimum do
 
       {:ok, result} = CPSolver.solve(model)
 
-      assert_minimum(result.solutions, fn y -> -y end)
+      assert_maximum(result.solutions, fn y -> -y end)
       assert result.statistics.solution_count == 625
     end
 
     ## Constraint check: y = min(x_array)
     ##
-    defp assert_minimum(solutions, transform_fun \\ &Function.identity/1) do
+    defp assert_minimum(solutions) do
       assert Enum.all?(solutions, fn [y | xs] ->
-               y == Enum.map(xs, fn x -> transform_fun.(x) end) |> Enum.min()
+               y == Enum.min(xs)
+             end)
+    end
+
+    defp assert_maximum(solutions, transform_fun) do
+    assert Enum.all?(solutions, fn [y | xs] ->
+               transform_fun.(y) == Enum.max(xs)
              end)
     end
   end
