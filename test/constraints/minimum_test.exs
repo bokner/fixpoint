@@ -50,7 +50,7 @@ defmodule CPSolverTest.Constraint.Minimum do
       assert result.statistics.solution_count == 625
     end
 
-    ## Constraint check: y = max(x_array)
+    ## Constraint check: y = min(x_array)
     ##
     defp assert_minimum(solutions, transform_fun \\ &Function.identity/1) do
       assert Enum.all?(solutions, fn [y | xs] ->
