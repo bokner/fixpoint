@@ -4,6 +4,7 @@ defmodule CPSolver.Constraint.Factory do
     ElementVar,
     Element2D,
     Maximum,
+    Minimum,
     Modulo,
     Absolute,
     LessOrEqual,
@@ -86,6 +87,19 @@ defmodule CPSolver.Constraint.Factory do
 
     max_var = Variable.new(domain)
     result(max_var, Maximum.new(max_var, vars))
+  end
+
+  def minimum(vars, min_var) do
+    Minimum.new(min_var, vars)
+  end
+
+  def minimum(vars) do
+    domain = Enum.reduce(vars, MapSet.new(), fn var, acc ->
+      MapSet.union(acc, domain_values(var))
+    end)
+
+    min_var = Variable.new(domain)
+    result(min_var, Minimum.new(min_var, vars))
   end
 
 

@@ -1,13 +1,13 @@
-defmodule CPSolver.Propagator.Maximum do
+defmodule CPSolver.Propagator.Minimum do
   use CPSolver.Propagator
 
   @moduledoc """
-  The propagator for Maximum constraint.
-  maximum(y, x) constrains y to be a maximum of variables in the list x.
+  The propagator for Minimum constraint.
+  minimum(y, x) constrains y to be a minimum of variables in the list x.
   """
   @spec new(Common.variable_or_view(), [Common.variable_or_view()]) :: Propagator.t()
-  def new(max_var, vars) do
-    new([max_var | vars])
+  def new(min_var, vars) do
+    new([min_var | vars])
   end
 
   @impl true
@@ -35,30 +35,30 @@ defmodule CPSolver.Propagator.Maximum do
     %{
       active_var_indices: MapSet.new(1..array_length)
     }
-    ## Initialize reduction by the 'max' variable change
+    ## Initialize reduction by the 'min' variable change
     |> reduce_state(vars, %{0 => :bound_change})
   end
 
   defp finalize(state, vars) do
-    if exists_fixed_to_max(state, vars) do
+    if exists_fixed_to_min(state, vars) do
         :passive
     else
       {:state, state}
     end
   end
 
-  defp exists_fixed_to_max(%{active_var_indices: active_var_indices} = _state, vars) do
-    max_var = vars[0]
-    if fixed?(max_var) do
-      fixed_max = min(max_var)
+  defp exists_fixed_to_min(%{active_var_indices: active_var_indices} = _state, vars) do
+    min_var = vars[0]
+    if fixed?(min_var) do
+      fixed_min = min(min_var)
       Enum.any?(active_var_indices, fn idx ->
         var = vars[idx]
-        fixed?(var) && min(var) == fixed_max
+        fixed?(var) && min(var) == fixed_min
       end)
     end
   end
 
-  defp no_support?(_max_var, active_var_indices, _vars) do
+  defp no_support?(_min_var, active_var_indices, _vars) do
     Enum.empty?(active_var_indices)
   end
 
@@ -68,10 +68,10 @@ defmodule CPSolver.Propagator.Maximum do
       } = state, vars,
       _changes) do
 
-    max_var = vars[0]
+    min_var = vars[0]
 
-    min_max = min(max_var)
-    max_max = max(max_var)
+    min_max = min(min_var)
+    max_max = max(min_var)
 
     {lb, ub, active_var_indices} =
       ## Try to reduce "array" variables
@@ -79,8 +79,8 @@ defmodule CPSolver.Propagator.Maximum do
       Enum.reduce(active_var_indices, {nil, nil, active_var_indices}, fn idx, {min_acc, max_acc, active_acc} = _acc ->
         x_var = vars[idx]
 
-        removeAbove(x_var, max_max)
-        active_acc = if max(x_var) < min_max do
+        removeBelow(x_var, min_max)
+        active_acc = if min(x_var) > max_max do
           ## The domain of the element is disjoint with domain of "max" variable.
           ## Hence we will ignore them
           MapSet.delete(active_acc, idx)
@@ -92,40 +92,40 @@ defmodule CPSolver.Propagator.Maximum do
         x_max = max(x_var)
 
         {
-          Kernel.max(min_acc || x_min, x_min),
-          Kernel.max(max_acc || x_max, x_max),
+          Kernel.min(min_acc || x_min, x_min),
+          Kernel.min(max_acc || x_max, x_max),
           active_acc
         }
       end)
 
     ## If no "active" array variables (sucn that max(X) >= max(y)),
     ## then there is no support for y => failure
-    if no_support?(max_var, active_var_indices, vars) do
+    if no_support?(min_var, active_var_indices, vars) do
       fail()
     end
 
     ## Reduce 'max' var
-    removeAbove(max_var, ub)
-    removeBelow(max_var, lb)
+    removeAbove(min_var, ub)
+    removeBelow(min_var, lb)
 
     ## Special case: if there is a unique element X
     ## that:
-    ## a) has a support for min(max_var)
-    ## b) min(X) < min(max_var)
+    ## a) has a support for max(min_var)
+    ## b) max(X) > max(min_var)
     ##
-    ##, then we can reduce it below min(max_var)
+    ##, then we can reduce it above max(min_var)
     ##
-    try_reduce_x(max_var, vars, active_var_indices)
+    try_reduce_x(min_var, vars, active_var_indices)
 
     state
     |> Map.put(:active_var_indices, active_var_indices)
   end
 
-  defp try_reduce_x(max_var, vars, indices) do
-    min_max_value = min(max_var)
+  defp try_reduce_x(min_var, vars, indices) do
+    max_min_value = max(min_var)
 
     case Enum.reduce_while(indices, {false, nil}, fn idx, {found_support?, _supporting_idx} = acc ->
-      if contains?(vars[idx], min_max_value) do
+      if contains?(vars[idx], max_min_value) do
         if found_support? do
           ## More than one such element
           {:halt, {false, nil}}
@@ -139,7 +139,7 @@ defmodule CPSolver.Propagator.Maximum do
     end) do
       {false, nil} -> false
       {true, supporting_idx} ->
-        :no_change != removeBelow(vars[supporting_idx], min_max_value)
+        :no_change != removeAbove(vars[supporting_idx], max_min_value)
     end
 
   end

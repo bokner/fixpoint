@@ -39,7 +39,7 @@ defmodule CPSolverTest.Constraint.Maximum do
     defp assert_maximum(solutions) do
       assert Enum.all?(solutions, fn [y | xs] ->
                y == Enum.max(xs)
-      end)
+             end)
     end
   end
 end
