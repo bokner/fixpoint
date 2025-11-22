@@ -23,11 +23,11 @@ defmodule CPSolver.Propagator.Maximum do
   @impl true
   def filter(vars, state, changes) do
     if state do
-      reduce_state(state, changes)
+      reduce_state(state, vars, changes)
     else
       initial_state(vars)
     end
-    |> finalize()
+    |> finalize(vars)
   end
 
   defp initial_state(vars) do
@@ -35,28 +35,29 @@ defmodule CPSolver.Propagator.Maximum do
     %{
       x_min: nil,
       x_max: nil,
-      active_var_indices: MapSet.new(1..array_length),
-      variables: vars
+      active_var_indices: MapSet.new(1..array_length)
     }
     ## Initialize reduction by the 'max' variable change
-    |> reduce_state(%{0 => :bound_change})
+    |> reduce_state(vars, %{0 => :bound_change})
   end
 
-  defp finalize(%{variables: vars} = state) do
-    if fixed?(vars[0]) do
-      :passive
+  defp finalize(state, vars) do
+    max_var = vars[0]
+    if fixed?(max_var) && no_support?(max_var, state, vars) do
+        fail()
     else
       {:state, state}
     end
   end
 
+  defp no_support?(_max_var, %{active_var_indices: active_var_indices} = _state, _vars) do
+    Enum.empty?(active_var_indices)
+  end
+
   defp reduce_state(
     %{
-      x_min: x_min,
-      x_max: x_max,
       active_var_indices: active_var_indices,
-      variables: vars,
-      } = state,
+      } = state, vars,
       _changes) do
 
     max_var = vars[0]
@@ -67,13 +68,13 @@ defmodule CPSolver.Propagator.Maximum do
     {lb, ub, active_var_indices} =
       ## Try to reduce "array" variables
 
-      Enum.reduce(active_var_indices, {x_min, x_max, active_var_indices}, fn idx, {min_acc, max_acc, active_acc} = _acc ->
+      Enum.reduce(active_var_indices, {nil, nil, active_var_indices}, fn idx, {min_acc, max_acc, active_acc} = _acc ->
         x_var = vars[idx]
 
         removeAbove(x_var, max_max)
         active_acc = if max(x_var) < min_max do
           ## The domain of the element is disjoint with domain of "max" variable.
-          ## Hence we don't look at it anymore
+          ## Hence we will ignore them
           MapSet.delete(active_acc, idx)
         else
           active_acc
@@ -91,18 +92,13 @@ defmodule CPSolver.Propagator.Maximum do
 
     ## If no "active" array variables (sucn that max(X) >= max(y)),
     ## then there is no support for y => failure
-    if MapSet.size(active_var_indices) == 0 do
+    if Enum.empty?(active_var_indices) do
       fail()
     end
 
     ## Reduce 'max' var
-    if is_nil(x_max) || ub < x_max do
-      removeAbove(max_var, ub)
-    end
-
-    if is_nil(x_min) || lb > x_min do
-      removeBelow(max_var, lb)
-    end
+    removeAbove(max_var, ub)
+    removeBelow(max_var, lb)
 
     ## Special case: if there is a unique element X
     ## that:
@@ -114,8 +110,6 @@ defmodule CPSolver.Propagator.Maximum do
     try_reduce_x(max_var, vars, active_var_indices)
 
     state
-    |> Map.put(:x_max, ub)
-    |> Map.put(:x_min, lb)
     |> Map.put(:active_var_indices, active_var_indices)
   end
 
@@ -135,9 +129,9 @@ defmodule CPSolver.Propagator.Maximum do
         {:cont, acc}
       end
     end) do
-      {false, nil} -> :ok
+      {false, nil} -> false
       {true, supporting_idx} ->
-        removeBelow(vars[supporting_idx], min_max_var)
+        :no_change != removeBelow(vars[supporting_idx], min_max_var)
     end
 
   end

@@ -3,6 +3,7 @@ defmodule CPSolver.Constraint.Factory do
     Sum,
     ElementVar,
     Element2D,
+    Maximum,
     Modulo,
     Absolute,
     LessOrEqual,
@@ -73,6 +74,20 @@ defmodule CPSolver.Constraint.Factory do
   def equal(x, y) do
     Equal.new(x, y)
   end
+
+  def maximum(vars, max_var) do
+    Maximum.new(max_var, vars)
+  end
+
+  def maximum(vars) do
+    domain = Enum.reduce(vars, MapSet.new(), fn var, acc ->
+      MapSet.union(acc, domain_values(var))
+    end)
+
+    max_var = Variable.new(domain)
+    result(max_var, Maximum.new(max_var, vars))
+  end
+
 
   def sum(vars, sum_var) do
     Sum.new(sum_var, vars)
@@ -166,6 +181,7 @@ defmodule CPSolver.Constraint.Factory do
   def alldifferent(vars) do
     AllDifferent.new(vars)
   end
+
 
   defp compose(constraint1, constraint2, relation) do
     b1 = BooleanVariable.new()
