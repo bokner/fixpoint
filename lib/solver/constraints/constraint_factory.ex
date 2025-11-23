@@ -7,6 +7,7 @@ defmodule CPSolver.Constraint.Factory do
     Minimum,
     Modulo,
     Absolute,
+    Less,
     LessOrEqual,
     Equal,
     Reified,
@@ -74,6 +75,14 @@ defmodule CPSolver.Constraint.Factory do
 
   def equal(x, y) do
     Equal.new(x, y)
+  end
+
+  def less(x, y) do
+    Less.new(x, y)
+  end
+
+  def leq(x, y) do
+    LessOrEqual.new(x, y)
   end
 
   def maximum(vars, max_var) do
