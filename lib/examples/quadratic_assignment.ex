@@ -122,7 +122,7 @@ defmodule CPSolver.Examples.QAP do
         #:first_fail
         ]),
       # :dom_deg,
-      :indomain_max
+      :indomain_split
     }
   end
 
