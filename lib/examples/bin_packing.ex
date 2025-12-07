@@ -67,7 +67,7 @@ defmodule CPSolver.Examples.BinPacking do
       end)
 
     one = Variable.new(1..1, name: "one")
-    exactly_one = Enum.map(indicators, fn inds -> Sum.new(one, inds) end)
+    exactly_one_constraint = Enum.map(indicators, fn inds -> Sum.new(one, inds) end)
 
     bin_weight_constraints =
       Enum.with_index(total_weights, 0)
@@ -83,9 +83,14 @@ defmodule CPSolver.Examples.BinPacking do
       end)
 
     constraints =
-      link_item_constraints ++ exactly_one ++ bin_weight_constraints
+      link_item_constraints ++
+        exactly_one_constraint ++
+        bin_weight_constraints
 
-    vars = items ++ List.flatten(indicators) ++ total_weights
+    vars =
+      items ++
+        List.flatten(indicators) ++
+        total_weights
 
     Model.new(
       vars,
@@ -108,8 +113,8 @@ defmodule CPSolver.Examples.BinPacking do
         Sum.new(item_var, views)
       end)
 
-    one_var = Variable.new(1..1, name: "one")
-    exactly_one_constraints = Enum.map(indicators, fn inds -> Sum.new(one_var, inds) end)
+    one = Variable.new(1..1, name: "one")
+    exactly_one_constraint = Enum.map(indicators, fn inds -> Sum.new(one, inds) end)
 
     bin_weight_constraints =
       Enum.with_index(total_weights, 0)
@@ -136,39 +141,57 @@ defmodule CPSolver.Examples.BinPacking do
 
     constraints =
       link_item_constraints ++
-        exactly_one_constraints ++
+        exactly_one_constraint ++
         bin_weight_constraints ++
         link_used_constraints ++
         [Sum.new(total_bins_used, bin_used)]
 
-    vars = item_vars ++ List.flatten(indicators) ++ total_weights ++ bin_used ++ [total_bins_used]
+    vars =
+      bin_used ++
+        [total_bins_used] ++
+        List.flatten(indicators) ++
+        item_vars ++
+        total_weights
 
-    Model.new(vars, constraints, objective: Objective.minimize(total_bins_used))
+    Model.new(
+      vars,
+      constraints,
+      objective: Objective.minimize(total_bins_used)
+    )
   end
 
   def print_result(result) do
-    solution = List.first(CPSolver.solutions(result))
+    # Get the first solution
+    solution = List.first(result.solutions)
 
-    assignments =
-      Enum.zip(result.variable_names, solution)
-      |> Enum.filter(fn {name, value} ->
-        is_binary(name) and value == 1 and String.starts_with?(name, "item_")
+    if solution == nil do
+      IO.puts("No solution found.")
+    else
+      variable_names = result.variables
+
+      # Pair variable names with their assigned values
+      assignments =
+        Enum.zip(variable_names, solution)
+        |> Enum.filter(fn {name, value} ->
+          is_binary(name) and value == 1 and String.starts_with?(name, "item_")
+        end)
+
+      # Organize items per bin
+      items_by_bin =
+        Enum.reduce(assignments, %{}, fn {name, _value}, acc ->
+          case String.split(name, "_in_bin_") do
+            [item, bin] ->
+              Map.update(acc, bin, [item], fn items -> [item | items] end)
+
+            _ ->
+              acc
+          end
+        end)
+
+      Enum.each(items_by_bin, fn {bin, items} ->
+        IO.puts("Bin #{bin} contains: #{Enum.join(Enum.reverse(items), ", ")}")
       end)
-
-    items_by_bin =
-      Enum.reduce(assignments, %{}, fn {name, _value}, acc ->
-        case String.split(name, "_in_bin_") do
-          [item, bin] ->
-            Map.update(acc, bin, [item], fn items -> [item | items] end)
-
-          _ ->
-            acc
-        end
-      end)
-
-    Enum.each(items_by_bin, fn {bin, items} ->
-      IO.puts("Bin #{bin} contains: #{Enum.join(Enum.reverse(items), ", ")}")
-    end)
+    end
   end
 
   def model(item_weights, type \\ :feasibility)
