@@ -4,6 +4,7 @@ defmodule CPSolver.Examples.BinPacking do
 
   Given:
   - n items, each with weights w[i]
+  - b max. bin capacity 
 
   The goal is to assign each item to a bin such that:
   sum of item weights in each bin <= capacity.
@@ -21,18 +22,17 @@ defmodule CPSolver.Examples.BinPacking do
   def prebuild_model(weights) do
     item_weights = weights
     num_items = length(item_weights)
-    bin_capacity = Enum.max(item_weights)
 
     # worst case one item per bin
     num_bins = num_items
 
     items_vars =
-      Enum.map(1..num_items, fn i -> Variable.new(0..(num_items - 1), name: "x#{i}") end)
+      Enum.map(0..(num_items - 1), fn i -> Variable.new(0..(num_items - 1), name: "x#{i}") end)
 
     # indicators: 2D array [i][b] is 0 or 1 depending if item i is inside bin b
     indicators =
-      for i <- 1..num_items do
-        for b <- 1..num_bins do
+      for i <- 0..(num_items - 1) do
+        for b <- 0..(num_bins - 1) do
           Variable.new(0..1, name: "item_#{i}_in_bin_#{b}")
         end
       end
@@ -46,17 +46,15 @@ defmodule CPSolver.Examples.BinPacking do
     %{
       items: items_vars,
       indicators: indicators,
-      total_weights: total_weights,
-      bin_capacity: bin_capacity
+      total_weights: total_weights
     }
   end
 
-  def feasibility_model(item_weights) do
+  def feasibility_model(item_weights, max_bin_capacity) do
     %{
       items: items,
       indicators: indicators,
-      total_weights: total_weights,
-      bin_capacity: bin_capacity
+      total_weights: total_weights
     } = prebuild_model(item_weights)
 
     link_item_constraints =
@@ -79,7 +77,7 @@ defmodule CPSolver.Examples.BinPacking do
             mul(ind, Enum.at(item_weights, i - 1))
           end)
 
-        [Sum.new(tw, views), LessOrEqual.new(tw, bin_capacity)]
+        [Sum.new(tw, views), LessOrEqual.new(tw, max_bin_capacity)]
       end)
 
     constraints =
@@ -98,12 +96,11 @@ defmodule CPSolver.Examples.BinPacking do
     )
   end
 
-  def minimization_model(item_weights) do
+  def minimization_model(item_weights, max_bin_capacity) do
     %{
       items: item_vars,
       indicators: indicators,
-      total_weights: total_weights,
-      bin_capacity: bin_capacity
+      total_weights: total_weights
     } = prebuild_model(item_weights)
 
     link_item_constraints =
@@ -126,7 +123,7 @@ defmodule CPSolver.Examples.BinPacking do
             mul(ind, Enum.at(item_weights, i - 1))
           end)
 
-        [Sum.new(tw, views), LessOrEqual.new(tw, bin_capacity)]
+        [Sum.new(tw, views), LessOrEqual.new(tw, max_bin_capacity)]
       end)
 
     bin_used = Enum.map(total_weights, fn tw -> Variable.new(0..1, name: "#{tw.name}_used") end)
@@ -134,7 +131,7 @@ defmodule CPSolver.Examples.BinPacking do
     # link: total_weight <= bin_capacity * bin_used
     link_used_constraints =
       Enum.zip(total_weights, bin_used)
-      |> Enum.map(fn {tw, used} -> LessOrEqual.new(tw, mul(used, bin_capacity)) end)
+      |> Enum.map(fn {tw, used} -> LessOrEqual.new(tw, mul(used, max_bin_capacity)) end)
 
     total_bins_used = Variable.new(0..length(item_weights), name: "total_bins_used")
     Sum.new(total_bins_used, bin_used)
@@ -167,35 +164,68 @@ defmodule CPSolver.Examples.BinPacking do
     if solution == nil do
       IO.puts("No solution found.")
     else
-      variable_names = result.variables
-
-      # Pair variable names with their assigned values
-      assignments =
-        Enum.zip(variable_names, solution)
-        |> Enum.filter(fn {name, value} ->
-          is_binary(name) and value == 1 and String.starts_with?(name, "item_")
-        end)
-
-      # Organize items per bin
-      items_by_bin =
-        Enum.reduce(assignments, %{}, fn {name, _value}, acc ->
-          case String.split(name, "_in_bin_") do
-            [item, bin] ->
-              Map.update(acc, bin, [item], fn items -> [item | items] end)
-
-            _ ->
-              acc
-          end
-        end)
-
-      Enum.each(items_by_bin, fn {bin, items} ->
-        IO.puts("Bin #{bin} contains: #{Enum.join(Enum.reverse(items), ", ")}")
+      Enum.each(items_by_bin(result), fn {bin, items} ->
+        IO.puts("Bin #{bin} contains: #{Enum.join(items, ", ")}")
       end)
     end
   end
 
-  def model(item_weights, type \\ :feasibility)
+  defp items_by_bin(result) do
+    solution = List.first(result.solutions)
+    variable_names = result.variables
 
-  def model(item_weights, :feasibility), do: feasibility_model(item_weights)
-  def model(item_weights, :minimize), do: minimization_model(item_weights)
+    # Pair variable names with their assigned values
+    assignments =
+      Enum.zip(variable_names, solution)
+      |> Enum.filter(fn {name, value} ->
+        is_binary(name) and value == 1 and String.starts_with?(name, "item_")
+      end)
+
+    # Organize items per bin
+    Enum.reduce(assignments, %{}, fn {name, _value}, acc ->
+      case String.split(name, "_in_bin_") do
+        [item, bin] ->
+          Map.update(acc, bin, [item], fn items -> [item | items] end)
+
+        _ ->
+          acc
+      end
+    end)
+    |> Enum.map(fn {bin_str, items} ->
+      bin = String.to_integer(bin_str)
+
+      item_ids =
+        items
+        |> Enum.map(fn item ->
+          item
+          |> String.replace_prefix("item_", "")
+          |> String.to_integer()
+        end)
+
+      {bin, item_ids}
+    end)
+    |> Map.new()
+  end
+
+  defp canonical_bins(solution) do
+    solution
+    |> Map.values()
+    |> Enum.map(&Enum.sort/1)
+    |> Enum.sort()
+  end
+
+  def check_solution(expected, solution) do
+    expected |> canonical_bins() |> IO.inspect()
+    solution |> items_by_bin() |> canonical_bins() |> IO.inspect()
+
+    expected |> canonical_bins() == solution |> items_by_bin() |> canonical_bins()
+  end
+
+  def model(item_weights, max_bin_capacity, type \\ :feasibility)
+
+  def model(item_weights, max_bin_capacity, :feasibility),
+    do: feasibility_model(item_weights, max_bin_capacity)
+
+  def model(item_weights, max_bin_capacity, :minimize),
+    do: minimization_model(item_weights, max_bin_capacity)
 end

@@ -5,21 +5,46 @@ defmodule CPSolverTest.Examples.BinPacking do
   alias CPSolver.Examples.BinPacking
 
   test "small binpacking" do
-    item_weights = [4, 7, 2, 6, 3]
+    test_bin_packing("p01")
+  end
 
-    model = BinPacking.model(item_weights)
+  test "medium binpacking" do
+    test_bin_packing("p02")
+  end
 
-    {:ok, results} = CPSolver.solve(model)
+  defp test_bin_packing(dataset) do
+    weights =
+      File.read!("data/bin_packing/#{dataset}/#{dataset}_w.txt")
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn line ->
+        line
+        |> String.trim()
+        |> String.to_integer()
+      end)
 
-    BinPacking.print_result(results)
+    max_capacity =
+      File.read!("data/bin_packing/#{dataset}/#{dataset}_c.txt")
+      |> String.trim()
+      |> String.to_integer()
 
-    assignments =
-      results.variables
-      |> Enum.filter(&is_integer(&1))
+    expected_solution =
+      File.read!("data/bin_packing/#{dataset}/#{dataset}_s.txt")
+      |> String.split("\n", trim: true)
+      |> Enum.map(&String.to_integer/1)
       |> Enum.with_index()
-      |> Enum.map(fn {value, idx} -> {"item_#{idx + 1}", value} end)
+      |> Enum.reduce(%{}, fn {bin_1_based, item_0_based}, acc ->
+        bin_0_based = bin_1_based - 1
+        Map.update(acc, bin_0_based, [item_0_based], fn items -> [item_0_based | items] end)
+      end)
 
-    IO.puts("Item - Bin assigments:")
-    Enum.each(assignments, fn {item, bin} -> IO.puts("#{item} in bin #{bin}") end)
+    model = BinPacking.model(weights, max_capacity, :minimize)
+    {:ok, result} = CPSolver.solve(model)
+    assert result.statistics.solution_count == 1
+
+    assert_solutions(expected_solution, result)
+  end
+
+  defp assert_solutions(expected, solution) do
+    assert BinPacking.check_solution(expected, solution)
   end
 end
