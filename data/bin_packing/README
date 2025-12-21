@@ -1,0 +1,33 @@
+# BIN_PACKING Dataset
+
+## Overview
+
+This directory contains Data for the Bin Packing Problem, a dataset provided for research and development purposes.
+
+The dataset is included in this repository for convenience, but it is not covered by the repository’s license.
+
+---
+
+## License
+
+BIN_PACKING is licensed under the  
+**GNU Lesser General Public License v3.0 (LGPL-3.0)**.
+
+- The full license text is provided in the `LICENSE` file in this directory.
+- This license applies only to the dataset contents in this folder.
+- All other code in the repository remains under the original license.
+
+---
+
+## Attribution
+
+If you use this dataset in academic work or publications, please provide appropriate attribution to the original authors.
+
+John Burkardt; Florida State University at https://people.sc.fsu.edu/~jburkardt/datasets/bin_packing/bin_packing.html
+
+## Disclaimer
+
+This dataset is provided **“as is”**, without warranty of any kind, express or implied.  
+The authors assume no responsibility for errors or omissions in the data.
+
+---
