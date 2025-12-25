@@ -19,73 +19,73 @@ defmodule CPSolver.Examples.BinPacking do
   import CPSolver.Variable.View.Factory
   alias CPSolver.Objective
 
-def minimization_model(item_weights, max_bin_capacity) do
-  num_items = length(item_weights)
-  num_bins = num_items
+  def minimization_model(item_weights, max_bin_capacity) do
+    num_items = length(item_weights)
+    num_bins = num_items
 
-  # x[i][j] ∈ {0,1} — item i assigned to bin j
-  indicators =
-    for i <- 0..(num_items - 1) do
-      for j <- 0..(num_bins - 1) do
-        Variable.new(0..1, name: "item_#{i}_in_bin_#{j}")
+    # x[i][j] ∈ {0,1}, item i assigned to bin j
+    indicators =
+      for i <- 0..(num_items - 1) do
+        for j <- 0..(num_bins - 1) do
+          Variable.new(0..1, name: "item_#{i}_in_bin_#{j}")
+        end
       end
-    end
 
-  # y[j] ∈ {0,1} — bin j is used
-  bin_used =
-    for j <- 0..(num_bins - 1) do
-      Variable.new(0..1, name: "bin_#{j}_used")
-    end
+    # y[j] ∈ {0,1}, bin j is used
+    bin_used =
+      for j <- 0..(num_bins - 1) do
+        Variable.new(0..1, name: "bin_#{j}_used")
+      end
 
-  # load[j] = total weight in bin j
-  bin_load =
-    for j <- 0..(num_bins - 1) do
-      Variable.new(0..max_bin_capacity, name: "bin_load_#{j}")
-    end
+    # load[j] = total weight in bin j
+    bin_load =
+      for j <- 0..(num_bins - 1) do
+        Variable.new(0..max_bin_capacity, name: "bin_load_#{j}")
+      end
 
-  one = Variable.new(1..1, name: "one")
+    one = Variable.new(1..1, name: "one")
 
-  item_assignment_constraints =
-    Enum.map(indicators, fn inds ->
-      Sum.new(one, inds)
-    end)
+    item_assignment_constraints =
+      Enum.map(indicators, fn inds ->
+        Sum.new(one, inds)
+      end)
 
-  bin_load_constraints =
-    Enum.with_index(bin_load)
-    |> Enum.map(fn {load_var, j} ->
-      views =
-        Enum.with_index(indicators)
-        |> Enum.map(fn {inds_for_item, i} ->
-          mul(Enum.at(inds_for_item, j), Enum.at(item_weights, i))
-        end)
+    bin_load_constraints =
+      Enum.with_index(bin_load)
+      |> Enum.map(fn {load_var, j} ->
+        views =
+          Enum.with_index(indicators)
+          |> Enum.map(fn {inds_for_item, i} ->
+            mul(Enum.at(inds_for_item, j), Enum.at(item_weights, i))
+          end)
 
-      Sum.new(load_var, views)
-    end)
+        Sum.new(load_var, views)
+      end)
 
-  capacity_constraints =
-    Enum.zip(bin_load, bin_used)
-    |> Enum.map(fn {load, used} ->
-      LessOrEqual.new(load, mul(used, max_bin_capacity))
-    end)
+    capacity_constraints =
+      Enum.zip(bin_load, bin_used)
+      |> Enum.map(fn {load, used} ->
+        LessOrEqual.new(load, mul(used, max_bin_capacity))
+      end)
 
-  total_bins_used =
-    Variable.new(0..num_bins, name: "total_bins_used")
+    total_bins_used =
+      Variable.new(0..num_bins, name: "total_bins_used")
 
-  total_bins_constraint =
-    Sum.new(total_bins_used, bin_used)
+    total_bins_constraint =
+      Sum.new(total_bins_used, bin_used)
 
-  symmetry_breaking =
-    Enum.zip(bin_used, tl(bin_used))
-    |> Enum.map(fn {a, b} ->
-      LessOrEqual.new(b, a)
-    end)
+    symmetry_breaking =
+      Enum.zip(bin_used, tl(bin_used))
+      |> Enum.map(fn {a, b} ->
+        LessOrEqual.new(b, a)
+      end)
 
-  constraints =
-    item_assignment_constraints ++
-      bin_load_constraints ++
-      capacity_constraints ++
-      symmetry_breaking ++
-      [total_bins_constraint]
+    constraints =
+      item_assignment_constraints ++
+        bin_load_constraints ++
+        capacity_constraints ++
+        symmetry_breaking ++
+        [total_bins_constraint]
 
     vars =
       bin_used ++
@@ -93,12 +93,12 @@ def minimization_model(item_weights, max_bin_capacity) do
         bin_load ++
         List.flatten(indicators)
 
-  Model.new(
-    vars,
-    constraints,
-    objective: Objective.minimize(total_bins_used)
-  )
-end
+    Model.new(
+      vars,
+      constraints,
+      objective: Objective.minimize(total_bins_used)
+    )
+  end
 
   def print_result(result) do
     # Get the first solution
@@ -158,7 +158,8 @@ end
   end
 
   def check_solution(expected, solution) do
-    expected |> canonical_bins() |> length() == solution |> items_by_bin() |> canonical_bins() |> length()
+    expected |> canonical_bins() |> length() ==
+      solution |> items_by_bin() |> canonical_bins() |> length()
   end
 
   def model(item_weights, max_bin_capacity, type \\ :minimize)

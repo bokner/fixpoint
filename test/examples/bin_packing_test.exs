@@ -47,8 +47,6 @@ defmodule CPSolverTest.Examples.BinPacking do
 
     model = BinPacking.model(weights, max_capacity, :minimize)
     {:ok, result} = CPSolver.solve(model)
-    # assert result.statistics.solution_count == 1
-
     assert_solutions(expected_solution, result)
   end
 
