@@ -7,9 +7,8 @@ defmodule CPSolver.Examples.BinPacking do
   - b max. bin capacity 
 
   The goal is to assign each item to a bin such that:
-  sum of item weights in each bin <= capacity.
-
-  Optionally: minimize the number of bins used.
+  sum of item weights in each bin <= capacity and the
+  number of bins used is minimized.
   """
 
   alias CPSolver.IntVariable, as: Variable
