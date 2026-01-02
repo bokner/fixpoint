@@ -21,7 +21,7 @@ defmodule CPSolver.Examples.BinPacking do
   def minimization_model(item_weights, max_bin_capacity) do
     num_items = length(item_weights)
     num_bins = num_items
- 
+
     # x[i][j] item i assigned to bin j
     indicators =
       for i <- 0..(num_items - 1) do
@@ -68,11 +68,15 @@ defmodule CPSolver.Examples.BinPacking do
       end)
 
     total_bins_used =
-      Variable.new(0..num_bins, name: "total_bins_used")
+      Variable.new(ceil(Enum.sum(item_weights) / max_bin_capacity)..num_bins,
+        name: "total_bins_used"
+      )
 
     total_bins_constraint =
       Sum.new(total_bins_used, bin_used)
 
+    # Only allow bin j to be used if all bins < j are used.
+    # This prevents the solver from seeing equivalent packings as different solutions.
     symmetry_breaking =
       Enum.zip(bin_used, tl(bin_used))
       |> Enum.map(fn {a, b} ->
