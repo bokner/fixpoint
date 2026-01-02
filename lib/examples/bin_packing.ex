@@ -3,8 +3,8 @@ defmodule CPSolver.Examples.BinPacking do
   Bin Packing Problem Example
 
   Given:
-  - n items, each with weights w[i]
-  - b max. bin capacity 
+  - n: items, each with weights w[i]
+  - b: max. bin capacity 
 
   The goal is to assign each item to a bin such that:
   sum of item weights in each bin <= capacity and the
@@ -21,8 +21,8 @@ defmodule CPSolver.Examples.BinPacking do
   def minimization_model(item_weights, max_bin_capacity) do
     num_items = length(item_weights)
     num_bins = num_items
-
-    # x[i][j] ∈ {0,1}, item i assigned to bin j
+ 
+    # x[i][j] item i assigned to bin j
     indicators =
       for i <- 0..(num_items - 1) do
         for j <- 0..(num_bins - 1) do
@@ -30,13 +30,13 @@ defmodule CPSolver.Examples.BinPacking do
         end
       end
 
-    # y[j] ∈ {0,1}, bin j is used
+    # bin j is used
     bin_used =
       for j <- 0..(num_bins - 1) do
         Variable.new(0..1, name: "bin_#{j}_used")
       end
 
-    # load[j] = total weight in bin j
+    # total weight in bin j
     bin_load =
       for j <- 0..(num_bins - 1) do
         Variable.new(0..max_bin_capacity, name: "bin_load_#{j}")
@@ -100,7 +100,6 @@ defmodule CPSolver.Examples.BinPacking do
   end
 
   def print_result(result) do
-    # Get the first solution
     solution = List.first(result.solutions)
 
     if solution == nil do
@@ -116,15 +115,13 @@ defmodule CPSolver.Examples.BinPacking do
     solution = List.first(result.solutions)
     variable_names = result.variables
 
-    # Pair variable names with their assigned values
     assignments =
       Enum.zip(variable_names, solution)
       |> Enum.filter(fn {name, value} ->
         is_binary(name) and value == 1 and String.starts_with?(name, "item_")
       end)
 
-    # Organize items per bin
-    Enum.reduce(assignments, %{}, fn {name, _value}, acc ->
+    Enum.reduce(assignments, %{}, fn {name, _}, acc ->
       case String.split(name, "_in_bin_") do
         [item, bin] ->
           Map.update(acc, bin, [item], fn items -> [item | items] end)
