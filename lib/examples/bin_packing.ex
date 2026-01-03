@@ -22,6 +22,8 @@ defmodule CPSolver.Examples.BinPacking do
     num_items = length(item_weights)
     num_bins = num_items
 
+    item_weights = Enum.sort(item_weights) |> Enum.reverse()
+
     # x[i][j] item i assigned to bin j
     indicators =
       for i <- 0..(num_items - 1) do
