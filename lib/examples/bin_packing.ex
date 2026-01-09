@@ -22,7 +22,7 @@ defmodule CPSolver.Examples.BinPacking do
     num_items = length(item_weights)
     num_bins = num_items
 
-    item_weights = Enum.sort(item_weights) |> Enum.reverse()
+    item_weights = Enum.sort(item_weights, :desc)
 
     # x[i][j] item i assigned to bin j
     indicators =
@@ -44,11 +44,9 @@ defmodule CPSolver.Examples.BinPacking do
         Variable.new(0..max_bin_capacity, name: "bin_load_#{j}")
       end
 
-    one = Variable.new(1..1, name: "one")
-
     item_assignment_constraints =
       Enum.map(indicators, fn inds ->
-        Sum.new(one, inds)
+        Sum.new(1, inds)
       end)
 
     bin_load_constraints =
@@ -86,17 +84,16 @@ defmodule CPSolver.Examples.BinPacking do
       end)
 
     constraints =
-      item_assignment_constraints ++
-        bin_load_constraints ++
-        capacity_constraints ++
-        symmetry_breaking ++
-        [total_bins_constraint]
+      [
+        item_assignment_constraints,
+        bin_load_constraints,
+        capacity_constraints,
+        symmetry_breaking,
+        total_bins_constraint
+      ]
 
     vars =
-      bin_used ++
-        [total_bins_used] ++
-        bin_load ++
-        List.flatten(indicators)
+      [bin_used, total_bins_used, bin_load, indicators] |> List.flatten()
 
     Model.new(
       vars,
@@ -105,16 +102,22 @@ defmodule CPSolver.Examples.BinPacking do
     )
   end
 
-  def print_result(result) do
-    solution = List.first(result.solutions)
+  def print_result(%{status: status} = result) do
+    result =
+      cond do
+        status == :unsatisfiable ->
+          "Solution does not exist"
 
-    if solution == nil do
-      IO.puts("No solution found.")
-    else
-      Enum.each(items_by_bin(result), fn {bin, items} ->
-        IO.puts("Bin #{bin} contains: #{Enum.join(items, ", ")}")
-      end)
-    end
+        status == :unknown ->
+          "No solution found  within allotted time"
+
+        true ->
+          Enum.map_join(items_by_bin(result), "\n", fn {bin, items} ->
+            "Bin #{bin} contains: #{Enum.join(items, ", ")}"
+          end)
+      end
+
+    IO.puts(result)
   end
 
   defp items_by_bin(result) do
