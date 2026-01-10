@@ -81,10 +81,10 @@ defmodule CPSolver.Examples.BinPacking do
       Enum.map(0..(num_bins - 2), fn bin_idx ->
         bin = Enum.at(bin_used, bin_idx)
         next_bin = Enum.at(bin_used, bin_idx + 1)
-        LessOrEqual.new(bin, next_bin)
+        LessOrEqual.new(next_bin, bin)
       end)
 
-    # bin_load_sum_constraint = Sum.new(Enum.sum(item_weights), bin_load)
+    bin_load_sum_constraint = Sum.new(Enum.sum(item_weights), bin_load)
 
     constraints =
       [
@@ -92,8 +92,8 @@ defmodule CPSolver.Examples.BinPacking do
         bin_load_constraints,
         capacity_constraints,
         symmetry_breaking,
-        total_bins_constraint
-        # bin_load_sum_constraint
+        total_bins_constraint,
+        bin_load_sum_constraint
       ]
 
     vars =
@@ -122,6 +122,7 @@ defmodule CPSolver.Examples.BinPacking do
       end
 
     IO.puts(result)
+    IO.puts("")
   end
 
   defp items_by_bin(result) do
@@ -159,6 +160,59 @@ defmodule CPSolver.Examples.BinPacking do
     |> Map.new()
   end
 
+  def check_solution(result, item_weights, max_capacity) do
+    print_result(result)
+    best_solution = result.solutions |> List.last()
+
+    %{loads: bin_loads, bin_contents: bin_contents} =
+      solution_to_bin_content(best_solution, item_weights, max_capacity)
+
+    ## Loads do no exceed max capacity
+    true = Enum.all?(bin_loads, fn l -> l <= max_capacity end)
+    ## All items are placed into bins
+    all_item_indices =
+      Enum.reduce(tl(bin_contents), hd(bin_contents), fn bin_items, acc ->
+        MapSet.union(acc, bin_items)
+      end)
+
+    true = all_item_indices == MapSet.new(0..(length(item_weights) - 1))
+    ## For each bin, the load is the sum of weights of items placed to bin
+    true =
+      Enum.all?(Enum.zip(bin_loads, bin_contents), fn {_load, items} ->
+        Enum.sum_by(items, fn item_idx -> Enum.at(item_weights, item_idx) end)
+      end)
+
+    ## The total sum of bin weights equals the total sum of item weights
+    true = Enum.sum(item_weights) == Enum.sum(bin_loads)
+  end
+
+  def solution_to_bin_content(solution, item_weights, _max_capacity) do
+    num_items = length(item_weights)
+    {_bins, rest} = Enum.split(solution, num_items)
+    total_bins = hd(rest)
+    {bin_loads, rest} = Enum.split(tl(rest), total_bins)
+    {assignments, _rest} = Enum.split(rest, num_items * num_items)
+
+    ## placements[i] row corresponds to the placement of the item
+    ## (position of 1 signifies the bin the item was assigned to)
+
+    placements = Enum.chunk_every(assignments, num_items)
+
+    ### Transpose placements to get bins as rows
+    bin_contents =
+      Enum.zip_with(placements, &Function.identity/1)
+      |> Enum.flat_map(fn bin ->
+        bin_content =
+          Enum.reduce(Enum.with_index(bin, 0), MapSet.new(), fn {i, pos}, acc ->
+            (i == 0 && acc) || MapSet.put(acc, pos)
+          end)
+
+        (MapSet.size(bin_content) == 0 && []) || [bin_content]
+      end)
+
+    %{loads: bin_loads, bin_contents: bin_contents}
+  end
+
   defp canonical_bins(solution) do
     solution
     |> Map.values()
@@ -167,12 +221,6 @@ defmodule CPSolver.Examples.BinPacking do
   end
 
   def check_solution(expected, solution) do
-    IO.puts("-----------------")
-    expected |> canonical_bins() |> IO.inspect(charlists: :as_lists)
-    solution |> items_by_bin() |> canonical_bins() |> IO.inspect(charlists: :as_lists)
-
-    print_result(solution)
-
     expected |> canonical_bins() |> length() ==
       solution |> items_by_bin() |> canonical_bins() |> length()
   end

@@ -25,6 +25,8 @@ defmodule CPSolverTest.Examples.BinPacking do
   end
 
   defp test_bin_packing(dataset) do
+    IO.puts("Testing #{dataset}")
+
     weights =
       File.read!("data/bin_packing/#{dataset}/#{dataset}_w.txt")
       |> String.split("\n", trim: true)
@@ -50,8 +52,8 @@ defmodule CPSolverTest.Examples.BinPacking do
       end)
 
     model = BinPacking.model(weights, max_capacity, :minimize)
-    # {:ok, result} = CPSolver.solve(model)
     {:ok, result} = CPSolver.solve(model, search: {:first_fail, :indomain_max})
+    assert BinPacking.check_solution(result, weights, max_capacity)
     assert_solutions(expected_solution, result)
   end
 
