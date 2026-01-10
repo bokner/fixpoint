@@ -78,10 +78,13 @@ defmodule CPSolver.Examples.BinPacking do
     # Only allow bin j to be used if all bins < j are used.
     # This prevents the solver from seeing equivalent packings as different solutions.
     symmetry_breaking =
-      Enum.zip(bin_used, tl(bin_used))
-      |> Enum.map(fn {a, b} ->
-        LessOrEqual.new(b, a)
+      Enum.map(0..(num_bins - 2), fn bin_idx ->
+        bin = Enum.at(bin_used, bin_idx)
+        next_bin = Enum.at(bin_used, bin_idx + 1)
+        LessOrEqual.new(bin, next_bin)
       end)
+
+    # bin_load_sum_constraint = Sum.new(Enum.sum(item_weights), bin_load)
 
     constraints =
       [
@@ -90,6 +93,7 @@ defmodule CPSolver.Examples.BinPacking do
         capacity_constraints,
         symmetry_breaking,
         total_bins_constraint
+        # bin_load_sum_constraint
       ]
 
     vars =
@@ -121,7 +125,7 @@ defmodule CPSolver.Examples.BinPacking do
   end
 
   defp items_by_bin(result) do
-    solution = List.first(result.solutions)
+    solution = List.last(result.solutions)
     variable_names = result.variables
 
     assignments =
@@ -163,6 +167,12 @@ defmodule CPSolver.Examples.BinPacking do
   end
 
   def check_solution(expected, solution) do
+    IO.puts("-----------------")
+    expected |> canonical_bins() |> IO.inspect(charlists: :as_lists)
+    solution |> items_by_bin() |> canonical_bins() |> IO.inspect(charlists: :as_lists)
+
+    print_result(solution)
+
     expected |> canonical_bins() |> length() ==
       solution |> items_by_bin() |> canonical_bins() |> length()
   end

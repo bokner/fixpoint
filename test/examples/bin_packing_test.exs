@@ -4,19 +4,23 @@ defmodule CPSolverTest.Examples.BinPacking do
   alias CPSolverTest.Examples.BinPacking
   alias CPSolver.Examples.BinPacking
 
-  test "small binpacking" do
+  test "binpacking p01" do
     test_bin_packing("p01")
   end
 
-  test "med binpacking" do
+  test "binpacking p02" do
     test_bin_packing("p02")
   end
 
-  test "big binpacking" do
-    test_bin_packing("p03")
+  # test "binpacking p03" do
+  #   test_bin_packing("p03")
+  # end
+
+  test "binpacking p03_1" do
+    test_bin_packing("p03_1")
   end
 
-  test "big binpacking 2" do
+  test "binpacking p04" do
     test_bin_packing("p04")
   end
 
@@ -46,7 +50,8 @@ defmodule CPSolverTest.Examples.BinPacking do
       end)
 
     model = BinPacking.model(weights, max_capacity, :minimize)
-    {:ok, result} = CPSolver.solve(model)
+    # {:ok, result} = CPSolver.solve(model)
+    {:ok, result} = CPSolver.solve(model, search: {:first_fail, :indomain_max})
     assert_solutions(expected_solution, result)
   end
 
