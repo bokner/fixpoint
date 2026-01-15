@@ -7,7 +7,7 @@ defmodule CPSolver.Examples.BinPacking do
   - b: max. bin capacity 
 
   The goal is to assign each item to a bin such that:
-  sum of item weights in each bin <= capacity and the
+  Sum of item weights in each bin <= capacity and the
   number of bins used is minimized.
   """
 
@@ -122,7 +122,6 @@ defmodule CPSolver.Examples.BinPacking do
       end
 
     IO.puts(result)
-    IO.puts("")
   end
 
   defp items_by_bin(result) do
@@ -161,7 +160,6 @@ defmodule CPSolver.Examples.BinPacking do
   end
 
   def check_solution(result, item_weights, max_capacity) do
-    print_result(result)
     best_solution = result.solutions |> List.last()
 
     %{loads: bin_loads, bin_contents: bin_contents} =
@@ -178,8 +176,8 @@ defmodule CPSolver.Examples.BinPacking do
     true = all_item_indices == MapSet.new(0..(length(item_weights) - 1))
     ## For each bin, the load is the sum of weights of items placed to bin
     true =
-      Enum.all?(Enum.zip(bin_loads, bin_contents), fn {_load, items} ->
-        Enum.sum_by(items, fn item_idx -> Enum.at(item_weights, item_idx) end)
+      Enum.all?(Enum.zip(bin_loads, bin_contents), fn {load, items} ->
+        load == Enum.sum_by(items, fn item_idx -> Enum.at(item_weights, item_idx) end)
       end)
 
     ## The total sum of bin weights equals the total sum of item weights
@@ -211,18 +209,6 @@ defmodule CPSolver.Examples.BinPacking do
       end)
 
     %{loads: bin_loads, bin_contents: bin_contents}
-  end
-
-  defp canonical_bins(solution) do
-    solution
-    |> Map.values()
-    |> Enum.map(&Enum.sort/1)
-    |> Enum.sort()
-  end
-
-  def check_solution(expected, solution) do
-    expected |> canonical_bins() |> length() ==
-      solution |> items_by_bin() |> canonical_bins() |> length()
   end
 
   def model(item_weights, max_bin_capacity, type \\ :minimize)
