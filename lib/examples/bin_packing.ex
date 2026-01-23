@@ -4,7 +4,7 @@ defmodule CPSolver.Examples.BinPacking do
 
   Given:
   - n: items, each with weights w[i]
-  - b: max. bin capacity 
+  - b: max. bin capacity
 
   The goal is to assign each item to a bin such that:
   Sum of item weights in each bin <= capacity and the
@@ -22,8 +22,6 @@ defmodule CPSolver.Examples.BinPacking do
     num_items = length(item_weights)
     num_bins = num_items
 
-    item_weights = Enum.sort(item_weights, :desc)
-
     # x[i][j] item i assigned to bin j
     indicators =
       for i <- 0..(num_items - 1) do
@@ -34,9 +32,11 @@ defmodule CPSolver.Examples.BinPacking do
 
     # bin j is used
     bin_used =
-      for j <- 0..(num_bins - 1) do
+      [ Variable.new(1, name: "bin_0_used") |
+      for j <- 1..(num_bins - 1) do
         Variable.new(0..1, name: "bin_#{j}_used")
       end
+    ]
 
     # total weight in bin j
     bin_load =
@@ -78,11 +78,12 @@ defmodule CPSolver.Examples.BinPacking do
     # Only allow bin j to be used if all bins < j are used.
     # This prevents the solver from seeing equivalent packings as different solutions.
     symmetry_breaking =
-      Enum.map(0..(num_bins - 2), fn bin_idx ->
+      Enum.map(1..(num_bins - 2), fn bin_idx ->
         bin = Enum.at(bin_used, bin_idx)
         next_bin = Enum.at(bin_used, bin_idx + 1)
         LessOrEqual.new(next_bin, bin)
       end)
+
 
     bin_load_sum_constraint = Sum.new(Enum.sum(item_weights), bin_load)
 
