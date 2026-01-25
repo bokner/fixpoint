@@ -9,7 +9,8 @@ defmodule CPSolverTest.Examples.BinPacking do
   end
 
   test "binpacking p02" do
-    test_bin_packing("p02")
+    ## pass 2xOPT as upper bound
+    test_bin_packing("p02", 12)
   end
 
   test "binpacking p03" do
@@ -17,10 +18,11 @@ defmodule CPSolverTest.Examples.BinPacking do
   end
 
   test "binpacking p04" do
-    test_bin_packing("p04")
+    ## pass 2xOPT as upper bound
+    test_bin_packing("p04", 14)
   end
 
-  defp test_bin_packing(dataset) do
+  defp test_bin_packing(dataset, upper_bound \\ nil) do
     weights =
       File.read!("data/bin_packing/#{dataset}/#{dataset}_w.txt")
       |> String.split("\n", trim: true)
@@ -35,9 +37,9 @@ defmodule CPSolverTest.Examples.BinPacking do
       |> String.trim()
       |> String.to_integer()
 
-    model = BinPacking.model(weights, max_capacity, :minimize)
+    model = BinPacking.model(weights, max_capacity, upper_bound, :minimize)
     {:ok, result} = CPSolver.solve(model, search: {:first_fail, :indomain_max})
 
-    assert BinPacking.check_solution(result, weights, max_capacity)
+    assert BinPacking.check_solution(result, weights, max_capacity, upper_bound)
   end
 end

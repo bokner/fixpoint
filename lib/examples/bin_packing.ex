@@ -182,11 +182,10 @@ defmodule CPSolver.Examples.BinPacking do
     |> Map.new()
   end
 
-  def check_solution(result, item_weights, max_capacity) do
+  def check_solution(result, item_weights, max_capacity, bins_upper_bound \\ nil) do
     best_solution = result.solutions |> List.last()
-
     %{loads: bin_loads, bin_contents: bin_contents} =
-      solution_to_bin_content(best_solution, item_weights, max_capacity)
+      solution_to_bin_content(best_solution, item_weights, max_capacity, bins_upper_bound)
 
     ## Loads do no exceed max capacity
     true = Enum.all?(bin_loads, fn l -> l <= max_capacity end)
@@ -207,17 +206,19 @@ defmodule CPSolver.Examples.BinPacking do
     true = Enum.sum(item_weights) == Enum.sum(bin_loads)
   end
 
-  def solution_to_bin_content(solution, item_weights, _max_capacity) do
+  def solution_to_bin_content(solution, item_weights, _max_capacity, total_bins \\ nil) do
     num_items = length(item_weights)
-    {_bins, rest} = Enum.split(solution, num_items)
-    total_bins = hd(rest)
-    {bin_loads, rest} = Enum.split(tl(rest), total_bins)
-    {assignments, _rest} = Enum.split(rest, num_items * num_items)
+    total_bins = total_bins || num_items
+
+    {_bins, rest} = Enum.split(solution, total_bins)
+    objective = hd(rest)
+    {all_bin_loads, rest} = Enum.split(tl(rest), total_bins)
+    {assignments, _rest} = Enum.split(rest, num_items * total_bins)
 
     ## placements[i] row corresponds to the placement of the item
     ## (position of 1 signifies the bin the item was assigned to)
 
-    placements = Enum.chunk_every(assignments, num_items)
+    placements = Enum.chunk_every(assignments, total_bins)
 
     ### Transpose placements to get bins as rows
     bin_contents =
@@ -231,11 +232,11 @@ defmodule CPSolver.Examples.BinPacking do
         (MapSet.size(bin_content) == 0 && []) || [bin_content]
       end)
 
-    %{loads: bin_loads, bin_contents: bin_contents}
+    %{loads: Enum.take(all_bin_loads, objective), bin_contents: bin_contents}
   end
 
-  def model(item_weights, max_bin_capacity, type \\ :minimize)
+  def model(item_weights, max_bin_capacity, upper_bound, type \\ :minimize)
 
-  def model(item_weights, max_bin_capacity, :minimize),
-    do: minimization_model(item_weights, max_bin_capacity)
+  def model(item_weights, max_bin_capacity, upper_bound, :minimize),
+    do: minimization_model(item_weights, max_bin_capacity, upper_bound)
 end
