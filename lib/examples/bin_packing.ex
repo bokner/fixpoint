@@ -75,16 +75,6 @@ defmodule CPSolver.Examples.BinPacking do
     total_bins_constraint =
       Sum.new(total_bins_used, bin_used)
 
-    # Only allow bin j to be used if all bins < j are used.
-    # This prevents the solver from seeing equivalent packings as different solutions.
-    symmetry_breaking =
-      Enum.map(1..(num_bins - 2), fn bin_idx ->
-        bin = Enum.at(bin_used, bin_idx)
-        next_bin = Enum.at(bin_used, bin_idx + 1)
-        LessOrEqual.new(next_bin, bin)
-      end)
-
-
     bin_load_sum_constraint = Sum.new(Enum.sum(item_weights), bin_load)
 
     constraints =
@@ -92,7 +82,7 @@ defmodule CPSolver.Examples.BinPacking do
         item_assignment_constraints,
         bin_load_constraints,
         capacity_constraints,
-        symmetry_breaking,
+        symmetry_breaking_constraints(bin_used, bin_load, num_bins),
         total_bins_constraint,
         bin_load_sum_constraint
       ]
@@ -105,6 +95,28 @@ defmodule CPSolver.Examples.BinPacking do
       constraints,
       objective: Objective.minimize(total_bins_used)
     )
+  end
+
+  defp symmetry_breaking_constraints(bin_used, bin_load, num_bins) do
+    # Symmetry breaking
+    # 1. Only allow bin j to be used if all bins < j are used.
+    # This prevents the solver from seeing equivalent packings as different solutions.
+    used_bins_first =
+      Enum.map(1..(num_bins - 2), fn bin_idx ->
+        bin = Enum.at(bin_used, bin_idx)
+        next_bin = Enum.at(bin_used, bin_idx + 1)
+        LessOrEqual.new(next_bin, bin)
+      end)
+    # 2. Arrange bin loads in decreasing order
+    decreasing_loads =
+      for i <- 0..num_bins - 2 do
+        LessOrEqual.new(Enum.at(bin_load, i + 1), Enum.at(bin_load, i))
+      end
+
+    [
+      used_bins_first,
+      decreasing_loads
+    ]
   end
 
   def print_result(%{status: status} = result) do
