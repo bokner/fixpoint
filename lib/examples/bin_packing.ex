@@ -18,9 +18,10 @@ defmodule CPSolver.Examples.BinPacking do
   import CPSolver.Variable.View.Factory
   alias CPSolver.Objective
 
-  def minimization_model(item_weights, max_bin_capacity) do
+  def minimization_model(item_weights, max_bin_capacity, upper_bound \\ nil) do
     num_items = length(item_weights)
-    num_bins = num_items
+    num_bins = upper_bound || num_items
+    lower_bound = ceil(Enum.sum(item_weights) / max_bin_capacity)
 
     # x[i][j] item i assigned to bin j
     indicators =
@@ -29,6 +30,11 @@ defmodule CPSolver.Examples.BinPacking do
           Variable.new(0..1, name: "item_#{i}_in_bin_#{j}")
         end
       end
+
+    total_bins_used =
+      Variable.new(lower_bound..num_bins,
+        name: "total_bins_used"
+      )
 
     # bin j is used
     bin_used =
@@ -43,6 +49,11 @@ defmodule CPSolver.Examples.BinPacking do
       for j <- 0..(num_bins - 1) do
         Variable.new(0..max_bin_capacity, name: "bin_load_#{j}")
       end
+
+    ###################
+    ### Constraints ###
+    ###################
+    upper_bound_constraint = LessOrEqual.new(total_bins_used, num_bins)
 
     item_assignment_constraints =
       Enum.map(indicators, fn inds ->
@@ -67,18 +78,17 @@ defmodule CPSolver.Examples.BinPacking do
         LessOrEqual.new(load, mul(used, max_bin_capacity))
       end)
 
-    total_bins_used =
-      Variable.new(ceil(Enum.sum(item_weights) / max_bin_capacity)..num_bins,
-        name: "total_bins_used"
-      )
-
     total_bins_constraint =
       Sum.new(total_bins_used, bin_used)
 
     bin_load_sum_constraint = Sum.new(Enum.sum(item_weights), bin_load)
+    #####################################
+    ### end of constraint definitions ###
+    #####################################
 
     constraints =
       [
+        upper_bound_constraint,
         item_assignment_constraints,
         bin_load_constraints,
         capacity_constraints,
