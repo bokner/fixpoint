@@ -182,10 +182,10 @@ defmodule CPSolver.Examples.BinPacking do
     |> Map.new()
   end
 
-  def check_solution(result, item_weights, max_capacity, bins_upper_bound \\ nil) do
+  def check_solution(result, item_weights, max_capacity) do
     best_solution = result.solutions |> List.last()
     %{loads: bin_loads, bin_contents: bin_contents} =
-      solution_to_bin_content(best_solution, item_weights, max_capacity, bins_upper_bound)
+      solution_to_bin_content(best_solution, item_weights, max_capacity, result.objective)
 
     ## Loads do no exceed max capacity
     true = Enum.all?(bin_loads, fn l -> l <= max_capacity end)
@@ -206,12 +206,14 @@ defmodule CPSolver.Examples.BinPacking do
     true = Enum.sum(item_weights) == Enum.sum(bin_loads)
   end
 
-  def solution_to_bin_content(solution, item_weights, _max_capacity, total_bins \\ nil) do
+  def solution_to_bin_content(solution, item_weights, _max_capacity, objective) do
     num_items = length(item_weights)
-    total_bins = total_bins || num_items
-
-    {_bins, rest} = Enum.split(solution, total_bins)
-    objective = hd(rest)
+    ## First block in the solution is 'bin indicators',
+    ## followed by the objective value
+    ## The number of indicators is given to the solver as 'upper bound',
+    ## and is used in the model as initial number of bins.
+    {bin_indicators, rest} = Enum.split_while(solution, fn el -> el != objective end)
+    total_bins = length(bin_indicators)
     {all_bin_loads, rest} = Enum.split(tl(rest), total_bins)
     {assignments, _rest} = Enum.split(rest, num_items * total_bins)
 

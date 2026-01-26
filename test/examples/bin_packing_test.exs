@@ -40,6 +40,6 @@ defmodule CPSolverTest.Examples.BinPacking do
     model = BinPacking.model(weights, max_capacity, upper_bound, :minimize)
     {:ok, result} = CPSolver.solve(model, search: {:first_fail, :indomain_max})
 
-    assert BinPacking.check_solution(result, weights, max_capacity, upper_bound)
+    assert BinPacking.check_solution(result, weights, max_capacity)
   end
 end
