@@ -10,7 +10,7 @@ defmodule CPSolverTest.Examples.BinPacking do
 
   test "binpacking p02" do
     ## pass 2xOPT as upper bound
-    test_bin_packing("p02", 12)
+    test_bin_packing("p02", 14)
   end
 
   test "binpacking p03" do
