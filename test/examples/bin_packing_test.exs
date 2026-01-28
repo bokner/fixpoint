@@ -1,7 +1,6 @@
 defmodule CPSolverTest.Examples.BinPacking do
   use ExUnit.Case
 
-  alias CPSolverTest.Examples.BinPacking
   alias CPSolver.Examples.BinPacking
   alias CPSolver.Examples.BinPacking.UpperBound
 
@@ -43,7 +42,7 @@ defmodule CPSolverTest.Examples.BinPacking do
         upper_bound
       end
 
-    model = BinPacking.model(weights, max_capacity, upper_bound, :minimize)
+    model = BinPacking.model(weights, max_capacity, upper_bound)
     {:ok, result} = CPSolver.solve(model, search: {:first_fail, :indomain_max})
 
     assert BinPacking.check_solution(result, weights, max_capacity)
