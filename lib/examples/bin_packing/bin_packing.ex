@@ -36,13 +36,13 @@ defmodule CPSolver.Examples.BinPacking do
         name: "total_bins_used"
       )
 
-    # bin j is used
+    # indicators for bin: bin[j] is used iff bin_used[j] = 1
     bin_used =
-      [ Variable.new(1, name: "bin_0_used") |
-      for j <- 1..(num_bins - 1) do
-        Variable.new(0..1, name: "bin_#{j}_used")
+      for j <- 1..(num_bins) do
+        ## First `lower_bound` bins are to be used
+        d = (j <= lower_bound) && 1 || 0..1
+        Variable.new(d, name: "bin_#{j}_used")
       end
-    ]
 
     # total weight in bin j
     bin_load =
