@@ -14,7 +14,7 @@ defmodule CPSolver.Examples.BinPacking3 do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.Sum
-  alias CPSolver.Constraint.{Equal, Less, LessOrEqual, Reified, HalfReified}
+  alias CPSolver.Constraint.{Equal, Less, LessOrEqual, Reified, HalfReified, Maximum}
   import CPSolver.Variable.View.Factory
   alias CPSolver.Objective
 
@@ -101,6 +101,8 @@ defmodule CPSolver.Examples.BinPacking3 do
     total_bins_constraint =
       Sum.new(total_bins_used, bin_used)
 
+    max_bin_constraint = Maximum.new(total_bins_used, x)
+
     bin_load_sum_constraint = Sum.new(Enum.sum(item_weights), bin_load)
     #####################################
     ### end of constraint definitions ###
@@ -113,12 +115,13 @@ defmodule CPSolver.Examples.BinPacking3 do
         bin_load_constraints,
         capacity_constraints,
         symmetry_breaking_constraints(bin_used, bin_load, num_bins),
-        total_bins_constraint,
+        #total_bins_constraint,
+        max_bin_constraint,
         bin_load_sum_constraint
       ]
 
     vars =
-      [bin_load, bin_used, indicators] |> List.flatten()
+      [bin_load, bin_used] |> List.flatten()
 
     Model.new(
       vars,
