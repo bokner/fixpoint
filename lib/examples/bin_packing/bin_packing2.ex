@@ -19,7 +19,7 @@
 
     total_bins_used =
       Variable.new(
-      lb..num_items,
+      lb..num_bins,
         name: "total_bins_used"
       )
 
