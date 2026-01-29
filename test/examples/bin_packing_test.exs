@@ -30,21 +30,21 @@ defmodule CPSolverTest.Examples.BinPacking do
         |> String.to_integer()
       end)
 
-    max_capacity =
+    capacity =
       File.read!("data/bin_packing/#{dataset}/#{dataset}_c.txt")
       |> String.trim()
       |> String.to_integer()
 
     upper_bound =
       if upper_bound == :find_upper_bound do
-        UpperBound.first_fit_decreasing(weights, max_capacity)
+        UpperBound.first_fit_decreasing(weights, capacity)
       else
         upper_bound
       end
 
-    model = BinPacking.model(weights, max_capacity, upper_bound)
+    model = BinPacking.model(weights, capacity, upper_bound)
     {:ok, result} = CPSolver.solve(model, search: {:first_fail, :indomain_max}, timeout: :timer.seconds(5))
 
-    assert BinPacking.check_solution(result, weights, max_capacity)
+    assert BinPacking.check_solution(result, weights, capacity)
   end
 end

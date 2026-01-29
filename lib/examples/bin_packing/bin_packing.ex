@@ -182,13 +182,13 @@ defmodule CPSolver.Examples.BinPacking do
     |> Map.new()
   end
 
-  def check_solution(result, item_weights, max_capacity) do
+  def check_solution(result, item_weights, capacity) do
     best_solution = result.solutions |> List.last()
     %{loads: bin_loads, bin_contents: bin_contents} =
-      solution_to_bin_content(best_solution, item_weights, max_capacity, result.objective)
+      solution_to_bin_content(best_solution, item_weights, capacity, result.objective)
 
     ## Loads do no exceed max capacity
-    true = Enum.all?(bin_loads, fn l -> l <= max_capacity end)
+    true = Enum.all?(bin_loads, fn l -> l <= capacity end)
     ## All items are placed into bins
     all_item_indices =
       Enum.reduce(tl(bin_contents), hd(bin_contents), fn bin_items, acc ->
@@ -206,7 +206,7 @@ defmodule CPSolver.Examples.BinPacking do
     true = Enum.sum(item_weights) == Enum.sum(bin_loads)
   end
 
-  def solution_to_bin_content(solution, item_weights, _max_capacity, objective) do
+  def solution_to_bin_content(solution, item_weights, _capacity, objective) do
     num_items = length(item_weights)
     ## First block in the solution is 'bin indicators',
     ## followed by the objective value
