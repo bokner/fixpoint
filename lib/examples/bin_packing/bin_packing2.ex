@@ -29,7 +29,7 @@
     l = Enum.map(1..num_bins, fn idx -> Variable.new(0..capacity, name: "bin_#{idx}_load") end)
     bin_used = List.duplicate(Variable.new(1), lb) ++
       Enum.map(lb+1..num_bins, fn idx -> Variable.new(0..1, name: "bin_#{idx}_used") end)
-    
+
 
     ## placement indicators
     ## inBin[j][i] = 1 if item i is placed in bin j
@@ -53,21 +53,20 @@
     end
 
     # load constraints
-    {bin_content_constraints, bin_used_constraints}
-     = _load_constraints = for i <- 1..num_bins do
+    bin_content_constraints =
+    for i <- 1..num_bins do
       bin_load = Enum.at(l, i - 1)
       bin_item_indicators = Enum.at(indicators, i - 1)
       bin_item_weights = for j <- 1..num_items do
         mul(Enum.at(bin_item_indicators, j - 1), Enum.at(weights, j - 1))
       end
-      {
+      [
         ## Load is a sum of item weights
         Sum.new(bin_load, bin_item_weights),
         ## The bin is used if there is a load in there
-        Reified.new(Less.new(1, bin_load), Enum.at(bin_used, i - 1))
-      }
+        Reified.new(Less.new(0, bin_load), Enum.at(bin_used, i - 1))
+      ]
     end
-    |> Enum.unzip()
 
     ## Total bins used
     total_bins_constraint = Sum.new(total_bins_used, bin_used)
@@ -82,7 +81,6 @@
         total_bins_constraint,
         assignment_constraints,
         bin_content_constraints,
-        bin_used_constraints,
         symmetry_breaking_constraints(bin_used, l, num_bins),
         bin_load_sum_constraint
       ]
@@ -146,11 +144,11 @@
     true = Enum.sum(item_weights) == Enum.sum(bin_loads)
   end
 
-  def solution_to_bin_content(solution, weights, _capacity, _objective) do
+  def solution_to_bin_content(solution, weights, _capacity, objective) do
     solution
     ## Skip bin indicators
     |> Enum.drop_while(fn v -> v in [0, 1] end)
-    |> Enum.split_while(fn load -> load != 0 end)
+    |> Enum.split(objective)
     |> then(fn {loads, rest} ->
       bin_contents =
       ## Take item assignments
