@@ -3,7 +3,7 @@
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.Sum
-  alias CPSolver.Constraint.{Equal, LessOrEqual, Less, Reified}
+  alias CPSolver.Constraint.{Equal, LessOrEqual, Less, Reified, Maximum}
   import CPSolver.Variable.View.Factory
   alias CPSolver.Objective
 
@@ -63,13 +63,16 @@
       [
         ## Load is a sum of item weights
         Sum.new(bin_load, bin_item_weights),
-        ## The bin is used if there is a load in there
+        ## The bin is used iff it's loaded
         Reified.new(Less.new(0, bin_load), Enum.at(bin_used, i - 1))
       ]
     end
 
+
     ## Total bins used
     total_bins_constraint = Sum.new(total_bins_used, bin_used)
+
+    max_bin_constraint = Maximum.new(total_bins_used, x)
 
     # redundant constraint : sum of bin load = sum of item weights
 
@@ -79,14 +82,15 @@
       [
         ub_constraint,
         total_bins_constraint,
+        max_bin_constraint,
         assignment_constraints,
         bin_content_constraints,
-        symmetry_breaking_constraints(bin_used, l, num_bins),
-        bin_load_sum_constraint
+        bin_load_sum_constraint,
+        symmetry_breaking_constraints(bin_used, l, num_bins)
       ]
 
     vars =
-      [bin_used, l, x] |> List.flatten()
+      [bin_used, total_bins_used, l, x, indicators] |> List.flatten()
 
     Model.new(
       vars,
@@ -148,6 +152,7 @@
     solution
     ## Skip bin indicators
     |> Enum.drop_while(fn v -> v in [0, 1] end)
+    |> tl()
     |> Enum.split(objective)
     |> then(fn {loads, rest} ->
       bin_contents =

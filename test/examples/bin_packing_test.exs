@@ -1,7 +1,7 @@
 defmodule CPSolverTest.Examples.BinPacking do
   use ExUnit.Case
 
-  alias CPSolver.Examples.BinPacking
+  alias CPSolver.Examples.BinPacking2, as: BinPacking
   alias CPSolver.Examples.BinPacking.UpperBound
 
   test "binpacking p01" do
