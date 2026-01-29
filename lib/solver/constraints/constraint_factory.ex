@@ -134,7 +134,7 @@ defmodule CPSolver.Constraint.Factory do
       for a <- array, reduce: {[], []} do
         {vars_acc, constraints_acc} ->
           b = BooleanVariable.new()
-          equal_p = Reified.new([Equal.new(a, y), b])
+          equal_p = Reified.new(Equal.new(a, y), b)
           {[b | vars_acc], [equal_p | constraints_acc]}
       end
 
