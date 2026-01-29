@@ -30,7 +30,7 @@ defmodule CPSolver.Examples.BinPacking.UpperBound do
 
   defp place_item(bin_space, weight, bin_count) do
     Enum.reduce_while(1..bin_count, false, fn bin_idx, _acc ->
-      if Array.get(bin_space, bin_idx) > weight do
+      if Array.get(bin_space, bin_idx) >= weight do
         ## Can place item to this bin
         Array.update(bin_space, bin_idx, fn val -> val - weight end)
         {:halt, true}

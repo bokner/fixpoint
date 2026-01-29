@@ -20,6 +20,12 @@ defmodule CPSolverTest.Examples.BinPacking do
     test_bin_packing("p04", :find_upper_bound)
   end
 
+  test "first_fit_decreasing" do
+    weights = [2, 5, 4, 7, 1, 3, 8]
+    capacity = 10
+    assert 3 = UpperBound.first_fit_decreasing(weights, capacity)
+  end
+
   defp test_bin_packing(dataset, upper_bound \\ nil) do
     weights =
       File.read!("data/bin_packing/#{dataset}/#{dataset}_w.txt")
