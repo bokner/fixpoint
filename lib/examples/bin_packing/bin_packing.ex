@@ -4,7 +4,7 @@ defmodule CPSolver.Examples.BinPacking do
 
   Given:
   - n: items, each with weights w[i]
-  - b: max. bin capacity 
+  - b: max. bin capacity
 
   The goal is to assign each item to a bin such that:
   Sum of item weights in each bin <= capacity and the
@@ -18,11 +18,10 @@ defmodule CPSolver.Examples.BinPacking do
   import CPSolver.Variable.View.Factory
   alias CPSolver.Objective
 
-  def minimization_model(item_weights, max_bin_capacity) do
+  def minimization_model(item_weights, max_bin_capacity, upper_bound \\ nil) do
     num_items = length(item_weights)
-    num_bins = num_items
-
-    item_weights = Enum.sort(item_weights, :desc)
+    num_bins = upper_bound || num_items
+    lower_bound = ceil(Enum.sum(item_weights) / max_bin_capacity)
 
     # x[i][j] item i assigned to bin j
     indicators =
@@ -32,10 +31,17 @@ defmodule CPSolver.Examples.BinPacking do
         end
       end
 
-    # bin j is used
+    total_bins_used =
+      Variable.new(lower_bound..num_bins,
+        name: "total_bins_used"
+      )
+
+    # indicators for bin: bin[j] is used iff bin_used[j] = 1
     bin_used =
-      for j <- 0..(num_bins - 1) do
-        Variable.new(0..1, name: "bin_#{j}_used")
+      for j <- 1..(num_bins) do
+        ## First `lower_bound` bins are to be used
+        d = (j <= lower_bound) && 1 || 0..1
+        Variable.new(d, name: "bin_#{j}_used")
       end
 
     # total weight in bin j
@@ -43,6 +49,11 @@ defmodule CPSolver.Examples.BinPacking do
       for j <- 0..(num_bins - 1) do
         Variable.new(0..max_bin_capacity, name: "bin_load_#{j}")
       end
+
+    ###################
+    ### Constraints ###
+    ###################
+    upper_bound_constraint = LessOrEqual.new(total_bins_used, num_bins)
 
     item_assignment_constraints =
       Enum.map(indicators, fn inds ->
@@ -67,31 +78,21 @@ defmodule CPSolver.Examples.BinPacking do
         LessOrEqual.new(load, mul(used, max_bin_capacity))
       end)
 
-    total_bins_used =
-      Variable.new(ceil(Enum.sum(item_weights) / max_bin_capacity)..num_bins,
-        name: "total_bins_used"
-      )
-
     total_bins_constraint =
       Sum.new(total_bins_used, bin_used)
 
-    # Only allow bin j to be used if all bins < j are used.
-    # This prevents the solver from seeing equivalent packings as different solutions.
-    symmetry_breaking =
-      Enum.map(0..(num_bins - 2), fn bin_idx ->
-        bin = Enum.at(bin_used, bin_idx)
-        next_bin = Enum.at(bin_used, bin_idx + 1)
-        LessOrEqual.new(next_bin, bin)
-      end)
-
     bin_load_sum_constraint = Sum.new(Enum.sum(item_weights), bin_load)
+    #####################################
+    ### end of constraint definitions ###
+    #####################################
 
     constraints =
       [
+        upper_bound_constraint,
         item_assignment_constraints,
         bin_load_constraints,
         capacity_constraints,
-        symmetry_breaking,
+        symmetry_breaking_constraints(bin_used, bin_load, num_bins),
         total_bins_constraint,
         bin_load_sum_constraint
       ]
@@ -104,6 +105,28 @@ defmodule CPSolver.Examples.BinPacking do
       constraints,
       objective: Objective.minimize(total_bins_used)
     )
+  end
+
+  defp symmetry_breaking_constraints(bin_used, bin_load, num_bins) do
+    # Symmetry breaking
+    # 1. Only allow bin j to be used if all bins < j are used.
+    # This prevents the solver from seeing equivalent packings as different solutions.
+    used_bins_first =
+      Enum.map(1..(num_bins - 2), fn bin_idx ->
+        bin = Enum.at(bin_used, bin_idx)
+        next_bin = Enum.at(bin_used, bin_idx + 1)
+        LessOrEqual.new(next_bin, bin)
+      end)
+    # 2. Arrange bin loads in decreasing order
+    decreasing_loads =
+      for i <- 0..num_bins - 2 do
+        LessOrEqual.new(Enum.at(bin_load, i + 1), Enum.at(bin_load, i))
+      end
+
+    [
+      used_bins_first,
+      decreasing_loads
+    ]
   end
 
   def print_result(%{status: status} = result) do
@@ -159,14 +182,13 @@ defmodule CPSolver.Examples.BinPacking do
     |> Map.new()
   end
 
-  def check_solution(result, item_weights, max_capacity) do
+  def check_solution(result, item_weights, capacity) do
     best_solution = result.solutions |> List.last()
-
     %{loads: bin_loads, bin_contents: bin_contents} =
-      solution_to_bin_content(best_solution, item_weights, max_capacity)
+      solution_to_bin_content(best_solution, item_weights, capacity, result.objective)
 
     ## Loads do no exceed max capacity
-    true = Enum.all?(bin_loads, fn l -> l <= max_capacity end)
+    true = Enum.all?(bin_loads, fn l -> l <= capacity end)
     ## All items are placed into bins
     all_item_indices =
       Enum.reduce(tl(bin_contents), hd(bin_contents), fn bin_items, acc ->
@@ -184,17 +206,21 @@ defmodule CPSolver.Examples.BinPacking do
     true = Enum.sum(item_weights) == Enum.sum(bin_loads)
   end
 
-  def solution_to_bin_content(solution, item_weights, _max_capacity) do
+  def solution_to_bin_content(solution, item_weights, _capacity, objective) do
     num_items = length(item_weights)
-    {_bins, rest} = Enum.split(solution, num_items)
-    total_bins = hd(rest)
-    {bin_loads, rest} = Enum.split(tl(rest), total_bins)
-    {assignments, _rest} = Enum.split(rest, num_items * num_items)
+    ## First block in the solution is 'bin indicators',
+    ## followed by the objective value
+    ## The number of indicators is given to the solver as 'upper bound',
+    ## and is used in the model as initial number of bins.
+    {bin_indicators, rest} = Enum.split_while(solution, fn el -> el != objective end)
+    total_bins = length(bin_indicators)
+    {all_bin_loads, rest} = Enum.split(tl(rest), total_bins)
+    {assignments, _rest} = Enum.split(rest, num_items * total_bins)
 
     ## placements[i] row corresponds to the placement of the item
     ## (position of 1 signifies the bin the item was assigned to)
 
-    placements = Enum.chunk_every(assignments, num_items)
+    placements = Enum.chunk_every(assignments, total_bins)
 
     ### Transpose placements to get bins as rows
     bin_contents =
@@ -208,11 +234,11 @@ defmodule CPSolver.Examples.BinPacking do
         (MapSet.size(bin_content) == 0 && []) || [bin_content]
       end)
 
-    %{loads: bin_loads, bin_contents: bin_contents}
+    %{loads: Enum.take(all_bin_loads, objective), bin_contents: bin_contents}
   end
 
-  def model(item_weights, max_bin_capacity, type \\ :minimize)
+  def model(item_weights, max_bin_capacity, upper_bound, type \\ :minimize)
 
-  def model(item_weights, max_bin_capacity, :minimize),
-    do: minimization_model(item_weights, max_bin_capacity)
+  def model(item_weights, max_bin_capacity, upper_bound, :minimize),
+    do: minimization_model(item_weights, max_bin_capacity, upper_bound)
 end
