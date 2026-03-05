@@ -1,4 +1,15 @@
 defmodule CPSolver.Examples.BinPacking do
+  @moduledoc """
+  Bin Packing Problem Example
+
+  Given:
+  - n: items, each with weights w[i]
+  - b: max. bin capacity
+
+  The goal is to assign each item to a bin such that:
+  Sum of item weights in each bin <= capacity and the
+  number of bins used is minimized.
+  """
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.Sum
