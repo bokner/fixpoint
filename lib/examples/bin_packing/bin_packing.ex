@@ -26,8 +26,15 @@ defmodule CPSolver.Examples.BinPacking do
     # x[i][j] item i assigned to bin j
     indicators =
       for i <- 0..(num_items - 1) do
+        item_over_half_capacity? = (Enum.at(item_weights, i) * 2 > max_bin_capacity)
+
         for j <- 0..(num_bins - 1) do
-          Variable.new(0..1, name: "item_#{i}_in_bin_#{j}")
+          domain = if item_over_half_capacity? do
+            (i == j && 1 || 0)
+          else
+            0..1
+          end
+          Variable.new(domain, name: "item_#{i}_in_bin_#{j}")
         end
       end
 
