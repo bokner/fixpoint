@@ -18,17 +18,21 @@ defmodule CPSolver.Examples.BinPacking do
   import CPSolver.Variable.View.Factory
   alias CPSolver.Objective
 
-  def minimization_model(item_weights, max_bin_capacity, upper_bound \\ nil) do
+  require Logger
+
+  def minimization_model(item_weights, capacity, upper_bound \\ nil) do
+    item_weights = Enum.sort(item_weights, :desc)
     num_items = length(item_weights)
+    num_items_over_half_capacity = Enum.count(item_weights, fn w -> 2*w > capacity end)
     num_bins = upper_bound || num_items
-    lower_bound = ceil(Enum.sum(item_weights) / max_bin_capacity)
+    lower_bound = max(num_items_over_half_capacity, ceil(Enum.sum(item_weights) / capacity))
 
     # x[i][j] item i assigned to bin j
     indicators =
-      for i <- 0..(num_items - 1) do
-        item_over_half_capacity? = (Enum.at(item_weights, i) * 2 > max_bin_capacity)
+      for i <- 1..num_items do
+        item_over_half_capacity? = (i <= num_items_over_half_capacity)
 
-        for j <- 0..(num_bins - 1) do
+        for j <- 1..num_bins do
           domain = if item_over_half_capacity? do
             (i == j && 1 || 0)
           else
@@ -43,18 +47,19 @@ defmodule CPSolver.Examples.BinPacking do
         name: "total_bins_used"
       )
 
-    # indicators for bin: bin[j] is used iff bin_used[j] = 1
+    # indicators for bin: bin[i] is used iff bin_used[i] = 1
     bin_used =
-      for j <- 1..(num_bins) do
+      for i <- 1..num_bins do
         ## First `lower_bound` bins are to be used
-        d = (j <= lower_bound) && 1 || 0..1
-        Variable.new(d, name: "bin_#{j}_used")
+        ##
+        d = (i <= lower_bound) && 1 || 0..1
+        Variable.new(d, name: "bin_#{i}_used")
       end
 
-    # total weight in bin j
+    # total weight in bin i
     bin_load =
-      for j <- 0..(num_bins - 1) do
-        Variable.new(0..max_bin_capacity, name: "bin_load_#{j}")
+      for i <- 1..num_bins do
+        Variable.new(0..capacity, name: "bin_load_#{i}")
       end
 
     ###################
@@ -82,7 +87,7 @@ defmodule CPSolver.Examples.BinPacking do
     capacity_constraints =
       Enum.zip(bin_load, bin_used)
       |> Enum.map(fn {load, used} ->
-        LessOrEqual.new(load, mul(used, max_bin_capacity))
+        LessOrEqual.new(load, mul(used, capacity))
       end)
 
     total_bins_constraint =
@@ -238,8 +243,20 @@ defmodule CPSolver.Examples.BinPacking do
     %{loads: Enum.take(all_bin_loads, objective), bin_contents: bin_contents}
   end
 
-  def model(item_weights, max_bin_capacity, upper_bound, type \\ :minimize)
+  def model(item_weights, capacity, upper_bound, type \\ :minimize)
 
-  def model(item_weights, max_bin_capacity, upper_bound, :minimize),
-    do: minimization_model(item_weights, max_bin_capacity, upper_bound)
+  def model(item_weights, capacity, upper_bound, :minimize),
+    do: minimization_model(item_weights, capacity, upper_bound)
+
+  def solution_handler() do
+    fn solution ->
+      objective =
+        solution
+        |> Enum.find(fn {var_name, _value} ->
+          var_name == "total_bins_used"
+        end)
+        |> elem(1)
+      Logger.warning("total bins: #{objective}")
+    end
+  end
 end
