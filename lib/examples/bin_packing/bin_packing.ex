@@ -114,7 +114,7 @@ defmodule CPSolver.Examples.BinPacking do
     )
   end
 
-  defp symmetry_breaking_constraints(bin_used, bin_load, num_bins) do
+  defp symmetry_breaking_constraints(bin_used, _bin_load, num_bins) do
     # Symmetry breaking
     # 1. Only allow bin j to be used if all bins < j are used.
     # This prevents the solver from seeing equivalent packings as different solutions.
@@ -124,15 +124,9 @@ defmodule CPSolver.Examples.BinPacking do
         next_bin = Enum.at(bin_used, bin_idx + 1)
         LessOrEqual.new(next_bin, bin)
       end)
-    # 2. Arrange bin loads in decreasing order
-    decreasing_loads =
-      for i <- 0..num_bins - 2 do
-        LessOrEqual.new(Enum.at(bin_load, i + 1), Enum.at(bin_load, i))
-      end
 
     [
-      used_bins_first,
-      decreasing_loads
+      used_bins_first
     ]
   end
 
