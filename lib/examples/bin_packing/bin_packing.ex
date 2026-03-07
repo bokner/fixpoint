@@ -13,6 +13,8 @@ defmodule CPSolver.Examples.BinPacking do
 
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
+  alias CPSolver.Search.VariableSelector, as: SearchStrategy
+  alias CPSolver.Variable.Interface
   alias CPSolver.Constraint.Sum
   alias CPSolver.Constraint.LessOrEqual
   import CPSolver.Variable.View.Factory
@@ -45,9 +47,9 @@ defmodule CPSolver.Examples.BinPacking do
 
     # indicators for bin: bin[j] is used iff bin_used[j] = 1
     bin_used =
-      for j <- 1..(num_bins) do
+      for j <- 1..num_bins do
         ## First `lower_bound` bins are to be used
-        d = (j <= lower_bound) && 1 || 0..1
+        d = (j <= lower_bound && 1) || 0..1
         Variable.new(d, name: "bin_#{j}_used")
       end
 
@@ -110,7 +112,13 @@ defmodule CPSolver.Examples.BinPacking do
     Model.new(
       vars,
       constraints,
-      objective: Objective.minimize(total_bins_used)
+      objective: Objective.minimize(total_bins_used),
+      extra: %{
+        weights: item_weights,
+        capacity: max_bin_capacity,
+        assignment_vars: indicators,
+        load_vars: bin_load
+      }
     )
   end
 
@@ -124,9 +132,10 @@ defmodule CPSolver.Examples.BinPacking do
         next_bin = Enum.at(bin_used, bin_idx + 1)
         LessOrEqual.new(next_bin, bin)
       end)
+
     # 2. Arrange bin loads in decreasing order
     decreasing_loads =
-      for i <- 0..num_bins - 2 do
+      for i <- 0..(num_bins - 2) do
         LessOrEqual.new(Enum.at(bin_load, i + 1), Enum.at(bin_load, i))
       end
 
@@ -134,6 +143,63 @@ defmodule CPSolver.Examples.BinPacking do
       used_bins_first,
       decreasing_loads
     ]
+  end
+
+  def search(
+        %{
+          extra: %{
+            weights: weights,
+            capacity: capacity,
+            assignment_vars: assignment_vars,
+            load_vars: load_vars
+          }
+        } = _model
+      ) do
+    # select largest unassigned item
+    choose_variable_fun = fn vars ->
+      live = MapSet.new(vars, & &1.name)
+
+      unassigned =
+        assignment_vars
+        |> Enum.with_index()
+        |> Enum.filter(fn {item_indicators, _i} ->
+          Enum.any?(item_indicators, fn v -> MapSet.member?(live, v.name) end)
+        end)
+
+      case unassigned do
+        [] ->
+          assignment_vars
+          |> List.flatten()
+          |> then(&SearchStrategy.select_variable(&1, nil, :first_fail))
+
+        candidates ->
+          {item_indicators, item_idx} =
+            Enum.max_by(candidates, fn {_, i} -> Enum.at(weights, i) end)
+
+          item_weight = Enum.at(weights, item_idx)
+
+          item_indicators
+          |> Enum.with_index()
+          |> Enum.reject(fn {v, _j} -> Interface.fixed?(v) end)
+          |> Enum.map(fn {v, j} ->
+            slack = capacity - Interface.min(Enum.at(load_vars, j)) - item_weight
+            {v, slack}
+          end)
+          |> Enum.filter(fn {_v, slack} -> slack >= 0 end)
+          |> case do
+            [] ->
+              SearchStrategy.select_variable(vars, nil, :first_fail)
+
+            feasible ->
+              feasible
+              |> Enum.min_by(fn {_v, slack} -> slack end)
+              |> elem(0)
+          end
+      end
+    end
+
+    choose_value_fun = fn _v -> 1 end
+    {choose_variable_fun, choose_value_fun}
   end
 
   def print_result(%{status: status} = result) do
@@ -191,6 +257,7 @@ defmodule CPSolver.Examples.BinPacking do
 
   def check_solution(result, item_weights, capacity) do
     best_solution = result.solutions |> List.last()
+
     %{loads: bin_loads, bin_contents: bin_contents} =
       solution_to_bin_content(best_solution, item_weights, capacity, result.objective)
 

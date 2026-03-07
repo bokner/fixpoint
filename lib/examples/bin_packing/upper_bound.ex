@@ -16,6 +16,7 @@ defmodule CPSolver.Examples.BinPacking.UpperBound do
     end
 
     remaining_bin_space = Array.new(length(weights), capacity)
+
     Enum.reduce(weights, 1, fn w, count_acc ->
       if place_item(remaining_bin_space, w, count_acc) do
         count_acc
@@ -39,24 +40,23 @@ defmodule CPSolver.Examples.BinPacking.UpperBound do
       end
     end)
   end
-    #     j = 0
-    #     while( j < res):
-    #         if (bin_rem[j] >= weight[i]):
-    #             bin_rem[j] = bin_rem[j] - weight[i]
-    #             break
-    #         j+=1
 
-    #     # If no bin could accommodate weight[i]
-    #     if (j == res):
-    #         bin_rem[res] = c - weight[i]
-    #         res= res+1
-    # return res
+  #     j = 0
+  #     while( j < res):
+  #         if (bin_rem[j] >= weight[i]):
+  #             bin_rem[j] = bin_rem[j] - weight[i]
+  #             break
+  #         j+=1
 
+  #     # If no bin could accommodate weight[i]
+  #     if (j == res):
+  #         bin_rem[res] = c - weight[i]
+  #         res= res+1
+  # return res
 
   def test() do
-    weights = [ 2, 5, 4, 7, 1, 3, 8 ]
+    weights = [2, 5, 4, 7, 1, 3, 8]
     capacity = 10
     first_fit_decreasing(weights, capacity)
   end
-
 end
