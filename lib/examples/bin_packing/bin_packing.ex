@@ -20,6 +20,23 @@ defmodule CPSolver.Examples.BinPacking do
 
   require Logger
 
+  def run(weights, capacity, upper_bound, opts \\ []) do
+    model = model(weights, capacity, upper_bound)
+
+    opts =
+      Keyword.merge(
+        [
+          search: {:first_fail, :indomain_max},
+          solution_handler: solution_handler(),
+          timeout: :timer.seconds(30),
+        ],
+        opts
+      )
+
+    {:ok, _res} = CPSolver.solve(model, opts)
+  end
+
+
   def minimization_model(item_weights, capacity, upper_bound \\ nil) do
     item_weights = Enum.sort(item_weights, :desc)
     num_items = length(item_weights)
