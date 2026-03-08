@@ -25,7 +25,7 @@ defmodule CPSolver.Space do
     [
       solution_handler: Solution.default_handler(),
       search: Search.default_strategy(),
-      space_threads: :erlang.system_info(:logical_processors),
+      space_threads: div(:erlang.system_info(:logical_processors), 2),
       postpone: false,
       distributed: false
     ]
