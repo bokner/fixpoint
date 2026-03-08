@@ -18,20 +18,29 @@ defmodule CPSolver.Examples.BinPacking do
   import CPSolver.Variable.View.Factory
   alias CPSolver.Objective
 
+  alias CPSolver.Examples.BinPacking.UpperBound
+
   require Logger
 
-  def run(weights, capacity, upper_bound, opts \\ []) do
-    model = model(weights, capacity, upper_bound)
-
+  def run(weights, capacity, opts \\ []) do
     opts =
       Keyword.merge(
         [
           search: {:first_fail, :indomain_max},
           solution_handler: solution_handler(),
           timeout: :timer.seconds(30),
+          upper_bound: fn weights, capacity -> UpperBound.first_fit_decreasing(weights, capacity) end
         ],
         opts
       )
+
+    upper_bound =
+    case Keyword.get(opts, :upper_bound) do
+      ub_fun when is_function(ub_fun) -> ub_fun.(weights, capacity)
+      val -> val
+    end
+
+    model = model(weights, capacity, upper_bound)
 
     {:ok, _res} = CPSolver.solve(model, opts)
   end
