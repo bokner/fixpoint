@@ -145,30 +145,32 @@ defmodule CPSolver.Examples.BinPacking do
     )
   end
 
-  defp symmetry_breaking_constraints(bin_used, bin_load, num_bins, num_over_half_capacity) do
+  defp symmetry_breaking_constraints(bin_used, _bin_load, num_bins, _num_over_half_capacity) do
     # Symmetry breaking
     # 1. Only allow bin j to be used if all bins < j are used.
     # This prevents the solver from seeing equivalent packings as different solutions.
     used_bins_first =
-      Enum.map(1..(num_bins - 2), fn bin_idx ->
+      Enum.map(0..num_bins - 2, fn bin_idx ->
         bin = Enum.at(bin_used, bin_idx)
         next_bin = Enum.at(bin_used, bin_idx + 1)
         LessOrEqual.new(next_bin, bin)
       end)
+
+    ## TODO: not being used, as it has varying performance effect across instances
     # 2. Arrange bin loads in decreasing order
     ## (only for bins that do not have "over half capacity" items)
-    decreasing_loads =
-      if num_over_half_capacity + 1 >= num_bins - 1 do
-        []
-      else
-        for i <- (num_over_half_capacity + 1)..num_bins - 1 do
-          LessOrEqual.new(Enum.at(bin_load, i), Enum.at(bin_load, i - 1))
-        end
-      end
+
+    # decreasing_loads =
+    #   if num_over_half_capacity + 1 >= num_bins - 1 do
+    #     []
+    #   else
+    #     for i <- (num_over_half_capacity + 1)..num_bins - 1 do
+    #       LessOrEqual.new(Enum.at(bin_load, i), Enum.at(bin_load, i - 1))
+    #     end
+    #   end
 
     [
-      used_bins_first,
-      decreasing_loads
+      used_bins_first
     ]
   end
 
