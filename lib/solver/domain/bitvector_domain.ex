@@ -15,8 +15,8 @@ defmodule CPSolver.BitVectorDomain do
   def new(domain) when is_list(domain) or is_struct(domain, Range) or is_struct(domain, MapSet) do
     offset = -Enum.min(domain)
     domain_size = Enum.max(domain) + offset + 1
-    bv = :bit_vector.new(domain_size)
-    Enum.each(domain, fn idx -> :bit_vector.set(bv, idx + offset) end)
+    bv = :domain_bit_vector.new(domain_size)
+    Enum.each(domain, fn idx -> :domain_bit_vector.set(bv, idx + offset) end)
 
     PackedMinMax.set_min(0, 0)
     |> PackedMinMax.set_max(Enum.max(domain) + offset)
@@ -25,7 +25,7 @@ defmodule CPSolver.BitVectorDomain do
     {bv, offset}
   end
 
-  def copy({{:bit_vector, ref} = bit_vector, offset} = _domain) do
+  def copy({{:domain_bit_vector, ref} = bit_vector, offset} = _domain) do
     %{
       min_addr: %{block: current_min_block},
       max_addr: %{block: current_max_block}
@@ -42,13 +42,13 @@ defmodule CPSolver.BitVectorDomain do
       end
     )
 
-    new_bit_vector = {:bit_vector, new_atomics_ref}
+    new_bit_vector = {:domain_bit_vector, new_atomics_ref}
     set_min_max(new_bit_vector, get_min_max_impl(bit_vector) |> elem(1))
     {new_bit_vector, offset}
   end
 
   ## 'next' value in the domain
-  def next({{:bit_vector, ref} = bit_vector, offset} = _domain, value) do
+  def next({{:domain_bit_vector, ref} = bit_vector, offset} = _domain, value) do
     {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
 
     cond do
@@ -86,7 +86,7 @@ defmodule CPSolver.BitVectorDomain do
 
   ## Reduce over domain values
   def reduce(
-        {{:bit_vector, ref} = bit_vector, offset} = domain,
+        {{:domain_bit_vector, ref} = bit_vector, offset} = domain,
         value_mapper_fun,
         acc_init \\ MapSet.new(),
         reduce_fun \\ &MapSet.union/2
@@ -134,7 +134,7 @@ defmodule CPSolver.BitVectorDomain do
     current_max == current_min && current_min_max != @failure_value
   end
 
-  def failed?({:bit_vector, _ref} = bit_vector) do
+  def failed?({:domain_bit_vector, _ref} = bit_vector) do
     failed?(elem(get_min_max_impl(bit_vector), 1))
   end
 
@@ -154,7 +154,7 @@ defmodule CPSolver.BitVectorDomain do
     get_max(bit_vector) - offset
   end
 
-  def size({{:bit_vector, ref} = bit_vector, _offset}) do
+  def size({{:domain_bit_vector, ref} = bit_vector, _offset}) do
     %{
       min_addr: %{block: current_min_block, offset: min_offset},
       max_addr: %{block: current_max_block, offset: max_offset}
@@ -173,7 +173,7 @@ defmodule CPSolver.BitVectorDomain do
     end)
   end
 
-  def contains?({{:bit_vector, _ref} = bit_vector, offset}, value) do
+  def contains?({{:domain_bit_vector, _ref} = bit_vector, offset}, value) do
     {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
     vector_value = value + offset
     contains?(bit_vector, vector_value, min_value, max_value)
@@ -181,7 +181,7 @@ defmodule CPSolver.BitVectorDomain do
 
   def contains?(bit_vector, vector_value, min_value, max_value) do
     vector_value >= min_value && vector_value <= max_value &&
-      :bit_vector.get(bit_vector, vector_value) == 1
+      :domain_bit_vector.get(bit_vector, vector_value) == 1
   end
 
   def fix({bit_vector, offset} = _domain, value) do
@@ -221,7 +221,7 @@ defmodule CPSolver.BitVectorDomain do
           end
 
         {domain_change, domain}
-        |> tap(fn _ -> :bit_vector.clear(bit_vector, vector_value) end)
+        |> tap(fn _ -> :domain_bit_vector.clear(bit_vector, vector_value) end)
 
       true ->
         :no_change
@@ -266,23 +266,23 @@ defmodule CPSolver.BitVectorDomain do
     end
   end
 
-  def raw({{:bit_vector, ref} = _bit_vector, offset} = _domain) do
+  def raw({{:domain_bit_vector, ref} = _bit_vector, offset} = _domain) do
     %{
       offset: offset,
       content: Enum.map(1..:atomics.info(ref).size, fn i -> :atomics.get(ref, i) end)
     }
   end
 
-  def bits({{:bit_vector, ref} = _bit_vector, _offset} = _domain) do
+  def bits({{:domain_bit_vector, ref} = _bit_vector, _offset} = _domain) do
     Enum.map(1..:atomics.info(ref)[:size] - 1, fn idx -> :atomics.get(ref, idx) |> Integer.to_string(2) |> String.reverse() end)
   end
 
   ## Last byte of bit_vector contains (packed) min and max
-  def last_index({:bit_vector, ref} = _bit_vector) do
+  def last_index({:domain_bit_vector, ref} = _bit_vector) do
     :atomics.info(ref).size - 1
   end
 
-  defp set_min_max({:bit_vector, ref} = bit_vector, min_max) do
+  defp set_min_max({:domain_bit_vector, ref} = bit_vector, min_max) do
     bit_vector
     |> min_max_index()
     |> tap(fn idx ->
@@ -310,7 +310,7 @@ defmodule CPSolver.BitVectorDomain do
     end)
   end
 
-  defp get_min_max_impl({:bit_vector, ref} = bit_vector) do
+  defp get_min_max_impl({:domain_bit_vector, ref} = bit_vector) do
     min_max_index = min_max_index(bit_vector)
     {min_max_index, :atomics.get(ref, min_max_index)}
   end
@@ -319,7 +319,7 @@ defmodule CPSolver.BitVectorDomain do
     set_min(bit_vector, new_min, get_min_max(bit_vector))
   end
 
-  def set_min({:bit_vector, ref} = bit_vector, new_min, min_max_info) do
+  def set_min({:domain_bit_vector, ref} = bit_vector, new_min, min_max_info) do
     {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     cond do
@@ -355,7 +355,7 @@ defmodule CPSolver.BitVectorDomain do
     set_max(bit_vector, new_max, get_min_max(bit_vector))
   end
 
-  def set_max({:bit_vector, ref} = bit_vector, new_max, min_max_info) do
+  def set_max({:domain_bit_vector, ref} = bit_vector, new_max, min_max_info) do
     {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     cond do
@@ -387,7 +387,7 @@ defmodule CPSolver.BitVectorDomain do
     end
   end
 
-  def set_fixed({:bit_vector, ref} = bit_vector, fixed_value, min_max_info) do
+  def set_fixed({:domain_bit_vector, ref} = bit_vector, fixed_value, min_max_info) do
     {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     if fixed_value != current_max && current_min == current_max do
@@ -410,7 +410,7 @@ defmodule CPSolver.BitVectorDomain do
 
   ## Update (cached) min, if necessary
   defp tighten_min(
-         {:bit_vector, atomics_ref} = bit_vector,
+         {:domain_bit_vector, atomics_ref} = bit_vector,
          starting_at,
          max_value
        ) do
@@ -443,7 +443,7 @@ defmodule CPSolver.BitVectorDomain do
 
   ## Update (cached) max
   defp tighten_max(
-         {:bit_vector, atomics_ref} = bit_vector,
+         {:domain_bit_vector, atomics_ref} = bit_vector,
          starting_at,
          min_value
        ) do
