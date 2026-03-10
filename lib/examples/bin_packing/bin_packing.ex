@@ -14,8 +14,11 @@ defmodule CPSolver.Examples.BinPacking do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.Sum
-  alias CPSolver.Constraint.LessOrEqual
+  alias CPSolver.Constraint.{LessOrEqual, Equal, Reified}
+  alias CPSolver.Search.VariableSelector, as: Strategy
   import CPSolver.Variable.View.Factory
+  import CPSolver.Utils
+
   alias CPSolver.Objective
 
   alias CPSolver.Examples.BinPacking.UpperBound
@@ -23,24 +26,20 @@ defmodule CPSolver.Examples.BinPacking do
   require Logger
 
   def run(weights, capacity, opts \\ []) do
+    upper_bound = Keyword.get(opts, :upper_bound, UpperBound.first_fit_decreasing(weights, capacity))
+    model = model(weights, capacity, upper_bound)
+
     opts =
       Keyword.merge(
         [
-          search: {:first_fail, :indomain_max},
+          search: model.search,
           solution_handler: solution_handler(),
-          timeout: :timer.seconds(30),
-          upper_bound: fn weights, capacity -> UpperBound.first_fit_decreasing(weights, capacity) end
+          timeout: :timer.seconds(30)
         ],
         opts
       )
 
-    upper_bound =
-    case Keyword.get(opts, :upper_bound) do
-      ub_fun when is_function(ub_fun) -> ub_fun.(weights, capacity)
-      val -> val
-    end
-
-    model = model(weights, capacity, upper_bound)
+    Logger.warning("Started")
 
     {:ok, _res} = CPSolver.solve(model, opts)
   end
@@ -93,10 +92,20 @@ defmodule CPSolver.Examples.BinPacking do
     ###################
     upper_bound_constraint = LessOrEqual.new(total_bins_used, num_bins)
 
+    # item_assignment_constraints =
+    #   Enum.map(indicators, fn inds ->
+    #     Sum.new(1, inds)
+    #   end)
+
+    x = Enum.map(1..num_items, fn idx -> Variable.new(1..num_bins, name: "x_#{idx}") end)
     item_assignment_constraints =
-      Enum.map(indicators, fn inds ->
-        Sum.new(1, inds)
-      end)
+      for i <- 0..num_items-1 do
+        x_i = Enum.at(x, i)
+        bin_indicators = Enum.at(indicators, i)
+        for j <- 1..num_bins do
+          Reified.new(Equal.new(x_i, j), Enum.at(bin_indicators, j - 1))
+        end
+      end
 
     bin_load_constraints =
       Enum.with_index(bin_load)
@@ -138,11 +147,12 @@ defmodule CPSolver.Examples.BinPacking do
     vars =
       [bin_used, total_bins_used, bin_load, indicators] |> List.flatten()
 
-    Model.new(
-      vars,
-      constraints,
-      objective: Objective.minimize(total_bins_used)
-    )
+      Model.new(
+        vars,
+        constraints,
+        objective: Objective.minimize(total_bins_used)
+      )
+      |> Map.put(:search, search_cdbf(item_weights, x, bin_load))
   end
 
   defp symmetry_breaking_constraints(bin_used, _bin_load, num_bins, _num_over_half_capacity) do
@@ -286,6 +296,62 @@ defmodule CPSolver.Examples.BinPacking do
 
   def model(item_weights, capacity, upper_bound, :minimize),
     do: minimization_model(item_weights, capacity, upper_bound)
+
+  ## Complete decreasing best fit branching
+  ## roughly as per
+  ## https://www.gecode.dev/doc-latest/MPG.pdf, chapter 20
+  ##
+  def search_cdbf(item_weights, item_assignment_vars, bin_load_vars) do
+    ## Create a list [{item_assignment_index,  item_weight}]
+    ## (will be used for matching the item assignment variables with items' weights)
+    ##
+    ## Note: item weights are sorted in decreasing order
+    item_assignment_ids = MapSet.new(item_assignment_vars, fn v -> v.index end)
+    item_assignment_list =
+      Enum.zip(item_weights, item_assignment_vars)
+
+
+    choose_variable_fun = fn variables ->
+      ## get all (unfixed) item assignment vars
+      {item_vars, rest_vars} = Enum.split_with(variables, fn v -> v.index in item_assignment_ids end)
+
+      if Enum.empty?(item_vars) do
+        ## All item assignments were made - we're done
+        #nil
+        Strategy.select_variable(rest_vars, nil, :first_fail)
+      else
+        ## keep the entries in item assignment list that correspond to unfixed variables.
+        hd(item_vars)
+      end
+    end
+
+    choose_value_fun = fn var ->
+      d_values = domain_values(var)
+      ## TODO: choose based on variable kind (Enum.max/1 may be better for loads etc...)
+      Enum.max(d_values)
+    end
+
+    {choose_variable_fun, choose_value_fun}
+  end
+
+  # defp cdbf_branching(item_var_choices, bin_load_vars) do
+  #   item_var_ids = MapSet.new(item_vars, fn v -> v.id end)
+
+  #   item_choices = Enum.filter(item_assignment_list, fn {weight, item_var} -> item_var.index in item_var_ids end)
+  #   Enum.reduce_while(bin_load_vars, {1, []}, fn load_var, {load_idx, choices_acc} ->
+  #     {load_idx + 1,
+  #      if Variable.fixed?(load_var) do
+  #       choices_acc
+  #      else
+  #       case slack(load_var) do
+  #         s when s == item_weight ->
+  #           ## Perfect load (the bin will be fully loaded) ->
+  #           {:halt, {:single_branch, load_idx}}
+  #           end
+  #         end
+  #     }
+  #   end)
+  # end
 
   def solution_handler() do
     fn solution ->
