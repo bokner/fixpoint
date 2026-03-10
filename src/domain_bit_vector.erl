@@ -1,4 +1,4 @@
--module(bit_vector).
+-module(domain_bit_vector).
 
 -export([new/1, get/2, set/2, clear/2, flip/2, print/1]).
 
