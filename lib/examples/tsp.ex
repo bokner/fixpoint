@@ -14,7 +14,6 @@ defmodule CPSolver.Examples.TSP do
   alias CPSolver.Model
   alias CPSolver.Constraint.Circuit
   alias CPSolver.Objective
-  alias CPSolver.Search.VariableSelector, as: SearchStrategy
   import CPSolver.Constraint.Factory
   import CPSolver.Utils
   alias CPSolver.Utils.TupleArray
@@ -108,14 +107,14 @@ defmodule CPSolver.Examples.TSP do
     end
 
     choose_variable_fun = fn variables ->
-      {circuit_vars, rest_vars} = Enum.split_with(variables, fn v -> v.index <= n end)
+      circuit_vars = Enum.filter(variables, fn v -> v.index <= n end)
 
-      (circuit_vars == [] && SearchStrategy.select_variable(rest_vars, nil, :first_fail)) ||
+      if !Enum.empty?(circuit_vars) do
         difference_between_closest_distances(circuit_vars, tuple_matrix)
+      end
     end
 
     {choose_variable_fun, choose_value_fun}
-    # {:input_order, choose_value_fun}
   end
 
   def solution_handler(model) do
