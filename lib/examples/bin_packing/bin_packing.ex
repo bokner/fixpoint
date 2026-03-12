@@ -15,13 +15,11 @@ defmodule CPSolver.Examples.BinPacking do
   alias CPSolver.Model
   alias CPSolver.Constraint.Sum
   alias CPSolver.Constraint.{LessOrEqual, Equal, Reified}
-  alias CPSolver.Search.VariableSelector, as: Strategy
   import CPSolver.Variable.View.Factory
-  import CPSolver.Utils
 
   alias CPSolver.Objective
 
-  alias CPSolver.Examples.BinPacking.UpperBound
+  alias CPSolver.Examples.BinPacking.{Search, UpperBound}
 
   require Logger
 
@@ -152,7 +150,7 @@ defmodule CPSolver.Examples.BinPacking do
         constraints,
         objective: Objective.minimize(total_bins_used)
       )
-      |> Map.put(:search, search_cdbf(item_weights, x, bin_load))
+      |> Map.put(:search, Search.cdbf(item_weights, x, bin_load))
   end
 
   defp symmetry_breaking_constraints(bin_used, _bin_load, num_bins, _num_over_half_capacity) do
@@ -297,42 +295,6 @@ defmodule CPSolver.Examples.BinPacking do
   def model(item_weights, capacity, upper_bound, :minimize),
     do: minimization_model(item_weights, capacity, upper_bound)
 
-  ## Complete decreasing best fit branching
-  ## roughly as per
-  ## https://www.gecode.dev/doc-latest/MPG.pdf, chapter 20
-  ##
-  def search_cdbf(item_weights, item_assignment_vars, bin_load_vars) do
-    ## Create a list [{item_assignment_index,  item_weight}]
-    ## (will be used for matching the item assignment variables with items' weights)
-    ##
-    ## Note: item weights are sorted in decreasing order
-    item_assignment_ids = MapSet.new(item_assignment_vars, fn v -> v.index end)
-    item_assignment_list =
-      Enum.zip(item_weights, item_assignment_vars)
-
-
-    choose_variable_fun = fn variables ->
-      ## get all (unfixed) item assignment vars
-      {item_vars, rest_vars} = Enum.split_with(variables, fn v -> v.index in item_assignment_ids end)
-
-      if Enum.empty?(item_vars) do
-        ## All item assignments were made - we're done
-        #nil
-        Strategy.select_variable(rest_vars, nil, :first_fail)
-      else
-        ## keep the entries in item assignment list that correspond to unfixed variables.
-        hd(item_vars)
-      end
-    end
-
-    choose_value_fun = fn var ->
-      d_values = domain_values(var)
-      ## TODO: choose based on variable kind (Enum.max/1 may be better for loads etc...)
-      Enum.max(d_values)
-    end
-
-    {choose_variable_fun, choose_value_fun}
-  end
 
   # defp cdbf_branching(item_var_choices, bin_load_vars) do
   #   item_var_ids = MapSet.new(item_vars, fn v -> v.id end)
