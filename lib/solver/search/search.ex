@@ -43,6 +43,10 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, domain)
   end
 
+  defp partitions(%{variable: selected_variable} = _variable_record, domain_partitions, variables, data) do
+    partitions(selected_variable, domain_partitions, variables, data)
+  end
+
   defp partitions(selected_variable, domain_partitions, variables, data) when is_list(variables) do
     partitions(selected_variable, domain_partitions, Arrays.new(variables, implementation: Aja.Vector), data)
   end

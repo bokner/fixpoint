@@ -5,37 +5,79 @@ defmodule CPSolver.Examples.BinPacking.Search do
   Complete decreasing best fit branching,
   roughly as per https://www.gecode.dev/doc-latest/MPG.pdf, chapter 20
   """
-  def cdbf(item_weights, item_assignment_vars, bin_load_vars) do
+  def cdbf(item_weights, item_assignment_vars, bin_load_vars, capacity) do
     ## Create a list [{item_assignment_index,  item_weight}]
     ## (will be used for matching the item assignment variables with items' weights)
     ##
     ## Note: item weights are sorted in decreasing order
-    item_assignment_ids = MapSet.new(item_assignment_vars, fn v -> v.name end)
-    item_assignment_list =
-      Enum.zip(item_weights, item_assignment_vars)
+    item_assignment_map =
+      Enum.zip(item_assignment_vars, item_weights)
+      |> Map.new(fn {var, weight} -> {var.name, weight} end)
+
+    item_assignment_ids = MapSet.new(Map.keys(item_assignment_map))
 
     choose_variable_fun = fn variables ->
       ## get all (unfixed) item assignment vars
-      {item_vars, _rest_vars} = Enum.split_with(variables, fn v -> v.name in item_assignment_ids end)
+      {item_vars, rest_vars} =
+        Enum.split_with(variables, fn v -> v.name in item_assignment_ids end)
 
       if Enum.empty?(item_vars) do
         ## All item assignments were made - we're done
         nil
       else
-        ## keep the entries in item assignment list that correspond to unfixed variables.
-        hd(item_vars)
+        %{
+          variable: hd(item_vars)
+        }
       end
     end
 
-    choose_value_fun = fn var ->
-      ## TODO: choose based on variable kind (Enum.max/1 may be better for loads etc...)
-      # interval_start = Interface.min(var)
-      # interval_end = Interface.max(var)
-      # median = div(interval_end - interval_start, 2)
-      # Enum.find(median..interval_end - 1,
-      #   Enum.random([interval_start, interval_end]),
-      #     fn x -> Interface.contains?(var, x)
-      #   end)
+    choose_value_fun = fn %{variable: var} ->
+      ## The variable is quaranteed to be unfixed `item assignment`,
+      ## (see `choose_variable_fun`)
+
+      item_weight = Map.get(item_assignment_map, var.name)
+      ## Compute bin slacks (free space in bins after the item is placed)
+      {_, initial_slacks} = Enum.reduce(bin_load_vars, {1, Map.new()},
+        fn load_var, {load_idx, slack_acc} ->
+          {
+            load_idx + 1,
+
+              ## Gecode uses load_var.max() instead of `capacity`
+              ## Not sure why, because the load never exceeds capacity,
+              ## hence `capacity` and `load.max` should be equivalent
+              Map.put(slack_acc, load_idx, capacity - item_weight)
+          }
+        end)
+
+      ## Build final map of slacks.
+      ## Iterate fixed item assignments.
+      ## By construction, they are in the beginning of the list
+      slack_by_bin =
+      item_assignment_vars
+      |> Enum.reduce_while(initial_slacks,
+        fn assignment_var, slack_acc ->
+          if assignment_var.name == var.name do
+            {:halt, slack_acc} ## end of fixed item assignments
+          else
+            bin_assignment = Interface.min(assignment_var)
+            ## Reduce free space for the bin
+            weight = Map.get(item_assignment_map, assignment_var.name)
+            {:cont, case Map.get(slack_acc, bin_assignment) do
+              slack when slack < weight ->
+                slack_acc
+              slack -> Map.put(slack_acc, bin_assignment, slack - weight)
+            end
+            }
+          end
+        end)
+
+      ## Assertions
+      ## Enum.empty?(slack_by_bin) && throw(:no_available_bins)
+      ## Enum.any?(Map.values(slack_by_bin), fn v -> v < 0 end) && throw(:negative_slack)
+
+      ## TODO: Find a best-fit bin for the item
+      #
+
       Interface.max(var)
     end
 

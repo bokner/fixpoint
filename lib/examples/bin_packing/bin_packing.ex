@@ -45,6 +45,7 @@ defmodule CPSolver.Examples.BinPacking do
 
   def minimization_model(item_weights, capacity, upper_bound \\ nil) do
     item_weights = Enum.sort(item_weights, :desc)
+    min_weight = List.last(item_weights)
     num_items = length(item_weights)
     num_items_over_half_capacity = Enum.count(item_weights, fn w -> 2*w > capacity end)
     num_bins = upper_bound || num_items
@@ -82,7 +83,8 @@ defmodule CPSolver.Examples.BinPacking do
     # total weight in bin i
     bin_load =
       for i <- 1..num_bins do
-        Variable.new(0..capacity, name: "bin_load_#{i}")
+        lb_cap  = (i <= lower_bound) && min_weight || 0
+        Variable.new(lb_cap..capacity, name: "bin_load_#{i}")
       end
 
     ###################
@@ -90,7 +92,7 @@ defmodule CPSolver.Examples.BinPacking do
     ###################
     upper_bound_constraint = LessOrEqual.new(total_bins_used, num_bins)
 
-    # item_assignment_constraints =
+    # item_indicator_constraints =
     #   Enum.map(indicators, fn inds ->
     #     Sum.new(1, inds)
     #   end)
@@ -135,6 +137,7 @@ defmodule CPSolver.Examples.BinPacking do
       [
         upper_bound_constraint,
         item_assignment_constraints,
+        #item_indicator_constraints,
         bin_load_constraints,
         capacity_constraints,
         symmetry_breaking_constraints(bin_used, bin_load, num_bins, num_items_over_half_capacity),
@@ -150,7 +153,7 @@ defmodule CPSolver.Examples.BinPacking do
         constraints,
         objective: Objective.minimize(total_bins_used)
       )
-      |> Map.put(:search, Search.cdbf(item_weights, x, bin_load))
+      |> Map.put(:search, Search.cdbf(item_weights, x, bin_load, capacity))
   end
 
   defp symmetry_breaking_constraints(bin_used, _bin_load, num_bins, _num_over_half_capacity) do
