@@ -39,7 +39,10 @@ defmodule CPSolver.Examples.BinPacking do
 
     Logger.warning("Started")
 
-    {:ok, _res} = CPSolver.solve(model, opts)
+    CPSolver.solve(model, opts)
+    |> tap(fn {:ok, res} ->
+      check_solution(res, weights, capacity) || IO.inspect("Invalid solution!")
+    end)
   end
 
 
