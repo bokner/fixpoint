@@ -39,31 +39,31 @@ defmodule CPSolver.Examples.BinPacking.Search do
       item_weight = Map.get(item_assignment_map, var.name)
       ## Find bin with minimal slack
       ## TODO: advanced branching, as described by Gecode docs ("two alternatives" case)
-      domain = domain_values(var)
+      #domain = domain_values(var)
 
       {bin, _bin_slack} =
-        Enum.reduce_while(domain, {nil, nil}, fn bin, {_min_bin, min_slack} = slack_acc ->
-          load_var = Enum.at(bin_load_vars, bin - 1)
+        Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {nil, nil}, fn {load_var, bin_idx}, {_min_bin, min_slack} = slack_acc ->
+          cond do
+            Interface.fixed?(load_var) ->
+             {:cont, slack_acc}
+            Interface.contains?(var, bin_idx) ->
+              slack = capacity - Interface.min(load_var) - item_weight
 
-          if Interface.fixed?(load_var) do
-            {:cont, slack_acc}
-          else
-            slack = capacity - Interface.min(load_var) - item_weight
+              cond do
+                slack == 0 ->
+                  {:halt, {bin_idx, 0}}
 
-            cond do
-              slack == 0 ->
-                {:halt, {bin, 0}}
+                slack < 0 ->
+                  {:cont, slack_acc}
 
-              slack < 0 ->
-                {:cont, slack_acc}
+                slack < min_slack ->
+                  {:cont, {bin_idx, slack}}
 
-              slack < min_slack ->
-                {:cont, {bin, slack}}
-
-              true ->
-                ## Keep current min
-                {:cont, slack_acc}
-            end
+                true ->
+                  ## Keep current min
+                  {:cont, slack_acc}
+              end
+              true -> {:cont, slack_acc}
           end
         end)
 
