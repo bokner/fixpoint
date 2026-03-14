@@ -37,15 +37,16 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
       item_weight = Map.get(item_assignment_map, var.name)
       ## Compute bin slacks (free space in bins after the item is placed)
-      {_, initial_slacks} = Enum.reduce(bin_load_vars, {1, Map.new()},
-        fn load_var, {load_idx, slack_acc} ->
+      {_, initial_slacks} =
+        Enum.reduce(bin_load_vars, {1, Map.new()}, fn load_var, {load_idx, slack_acc} ->
           {
             load_idx + 1,
 
-              ## Gecode uses load_var.max() instead of `capacity`
-              ## Not sure why, because the load never exceeds capacity,
-              ## hence `capacity` and `load.max` should be equivalent
-              Map.put(slack_acc, load_idx, capacity - item_weight)
+            ## Gecode uses load_var.max() instead of `capacity`
+            ## Not sure why, because the load never exceeds capacity,
+            ## hence `capacity` and `load.max` should be equivalent
+            # Interface.fixed?(load_var) && slack_acc ||
+            Map.put(slack_acc, load_idx, capacity - item_weight)
           }
         end)
 
@@ -53,32 +54,49 @@ defmodule CPSolver.Examples.BinPacking.Search do
       ## Iterate fixed item assignments.
       ## By construction, they are in the beginning of the list
       slack_by_bin =
-      item_assignment_vars
-      |> Enum.reduce_while(initial_slacks,
-        fn assignment_var, slack_acc ->
-          if assignment_var.name == var.name do
-            {:halt, slack_acc} ## end of fixed item assignments
-          else
-            bin_assignment = Interface.min(assignment_var)
-            ## Reduce free space for the bin
-            weight = Map.get(item_assignment_map, assignment_var.name)
-            {:cont, case Map.get(slack_acc, bin_assignment) do
-              slack when slack < weight ->
-                slack_acc
-              slack -> Map.put(slack_acc, bin_assignment, slack - weight)
+        item_assignment_vars
+        |> Enum.reduce_while(
+          initial_slacks,
+          fn assignment_var, slack_acc ->
+            if assignment_var.name == var.name do
+              ## end of fixed item assignments
+              {:halt, slack_acc}
+            else
+              bin_assignment = Interface.min(assignment_var)
+              ## Reduce free space for the bin
+              weight = Map.get(item_assignment_map, assignment_var.name)
+
+              {:cont,
+               case Map.get(slack_acc, bin_assignment) do
+                 slack when slack < weight ->
+                   slack_acc
+
+                 slack ->
+                   Map.put(slack_acc, bin_assignment, slack - weight)
+               end}
             end
-            }
           end
-        end)
+        )
 
-      ## Assertions
-      ## Enum.empty?(slack_by_bin) && throw(:no_available_bins)
-      ## Enum.any?(Map.values(slack_by_bin), fn v -> v < 0 end) && throw(:negative_slack)
+      ## Find bin with minimal slack
+      ## TODO: advanced branching, as described by Gecode docs ("two alternatives" case)
+      ##
+      Enum.reduce_while(slack_by_bin, {nil, nil}, fn {bin, slack} = el,
+                                                     {_min_bin, min_slack} = acc ->
+        (Interface.contains?(var, bin) &&
+           cond do
+             slack == 0 ->
+               {:halt, el}
 
-      ## TODO: Find a best-fit bin for the item
-      #
+             slack < min_slack ->
+               {:cont, el}
 
-      Interface.max(var)
+             true ->
+               {:cont, acc}
+           end) ||
+          {:cont, acc}
+      end)
+      |> elem(0)
     end
 
     {choose_variable_fun, choose_value_fun}

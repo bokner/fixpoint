@@ -298,26 +298,6 @@ defmodule CPSolver.Examples.BinPacking do
   def model(item_weights, capacity, upper_bound, :minimize),
     do: minimization_model(item_weights, capacity, upper_bound)
 
-
-  # defp cdbf_branching(item_var_choices, bin_load_vars) do
-  #   item_var_ids = MapSet.new(item_vars, fn v -> v.id end)
-
-  #   item_choices = Enum.filter(item_assignment_list, fn {weight, item_var} -> item_var.index in item_var_ids end)
-  #   Enum.reduce_while(bin_load_vars, {1, []}, fn load_var, {load_idx, choices_acc} ->
-  #     {load_idx + 1,
-  #      if Variable.fixed?(load_var) do
-  #       choices_acc
-  #      else
-  #       case slack(load_var) do
-  #         s when s == item_weight ->
-  #           ## Perfect load (the bin will be fully loaded) ->
-  #           {:halt, {:single_branch, load_idx}}
-  #           end
-  #         end
-  #     }
-  #   end)
-  # end
-
   def solution_handler() do
     fn solution ->
       objective =
