@@ -34,14 +34,9 @@ defmodule CPSolver.Examples.BinPacking.Search do
       end
     end
 
-    choose_value_fun = fn %{variable: var, value: value} ->
+    choose_value_fun = fn %{variable: _var, value: value} ->
       ## the value was computed by choose_variable_fun
-      ## Fallback to min value, if bin is not found
-      ## (can happen if there is no load vars with appopriate slack)
-      ## Generally, it doesn't make sense to create a branch with variable
-      ## fixed to any value, because it will certainly fail to propagate.
-      ## TODO: https://github.com/bokner/fixpoint/issues/96
-      value || Interface.min(var)
+      value
     end
 
     {choose_variable_fun, choose_value_fun}
@@ -61,20 +56,27 @@ defmodule CPSolver.Examples.BinPacking.Search do
                                                                           {_min_bin, min_slack} =
                                                                             slack_acc ->
         cond do
-          Interface.fixed?(load_var) ->
-            {:cont, slack_acc}
-
           Interface.contains?(var, bin_idx) ->
             slack = capacity - Interface.min(load_var) - item_weight
 
             cond do
+              Interface.fixed?(load_var) ->
+                ## The bin load has already been fixed,
+                ## so the item has to be there (no choice)
+                ## TODO: this is the case where further branching doesn't make sense.
+                ## The related issue: https://github.com/bokner/fixpoint/issues/96
+                {:halt, {bin_idx, nil}}
+
               slack == 0 ->
+                ## Perfect fit
                 {:halt, {bin_idx, 0}}
 
               slack < 0 ->
+                ## No fit
                 {:cont, slack_acc}
 
               slack < min_slack ->
+                ## Better fit
                 {:cont, {bin_idx, slack}}
 
               true ->

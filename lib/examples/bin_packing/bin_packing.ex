@@ -41,7 +41,7 @@ defmodule CPSolver.Examples.BinPacking do
 
     CPSolver.solve(model, opts)
     |> tap(fn {:ok, res} ->
-      check_solution(res, weights, capacity) || IO.inspect("Invalid solution!")
+      check_solution(res, weights, capacity) || throw({:error, "Invalid solution!"})
     end)
   end
 
