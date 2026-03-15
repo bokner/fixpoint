@@ -48,8 +48,7 @@ defmodule CPSolverTest.Examples.BinPacking do
         upper_bound
       end
 
-    #model = BinPacking.model(weights, capacity, upper_bound)
-    {:ok, result} = BinPacking.run(weights, capacity,
+    {:ok, result} = BinPacking.solve(weights, capacity,
       upper_bound: upper_bound,
       timeout: :timer.seconds(5))
 

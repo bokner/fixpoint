@@ -23,8 +23,10 @@ defmodule CPSolver.Examples.BinPacking do
 
   require Logger
 
-  def run(weights, capacity, opts \\ []) do
-    upper_bound = Keyword.get(opts, :upper_bound, UpperBound.first_fit_decreasing(weights, capacity))
+  def solve(weights, capacity, opts \\ []) do
+    upper_bound =
+      Keyword.get(opts, :upper_bound, UpperBound.first_fit_decreasing(weights, capacity))
+
     model = model(weights, capacity, upper_bound)
 
     opts =
@@ -41,30 +43,33 @@ defmodule CPSolver.Examples.BinPacking do
 
     CPSolver.solve(model, opts)
     |> tap(fn {:ok, res} ->
-      check_solution(res, weights, capacity) || throw({:error, "Invalid solution!"})
+      if res.status in [:optimal, :satisfied] do
+        check_solution(res, weights, capacity) || throw({:error, :invalid_solution})
+      end
     end)
   end
-
 
   def minimization_model(item_weights, capacity, upper_bound \\ nil) do
     item_weights = Enum.sort(item_weights, :desc)
     min_weight = List.last(item_weights)
     num_items = length(item_weights)
-    num_items_over_half_capacity = Enum.count(item_weights, fn w -> 2*w > capacity end)
+    num_items_over_half_capacity = Enum.count(item_weights, fn w -> 2 * w > capacity end)
     num_bins = upper_bound || num_items
     lower_bound = max(num_items_over_half_capacity, ceil(Enum.sum(item_weights) / capacity))
 
     # x[i][j] item i assigned to bin j
     indicators =
       for i <- 1..num_items do
-        item_over_half_capacity? = (i <= num_items_over_half_capacity)
+        item_over_half_capacity? = i <= num_items_over_half_capacity
 
         for j <- 1..num_bins do
-          domain = if item_over_half_capacity? do
-            (i == j && 1 || 0)
-          else
-            0..1
-          end
+          domain =
+            if item_over_half_capacity? do
+              (i == j && 1) || 0
+            else
+              0..1
+            end
+
           Variable.new(domain, name: "item_#{i}_in_bin_#{j}")
         end
       end
@@ -79,14 +84,14 @@ defmodule CPSolver.Examples.BinPacking do
       for i <- 1..num_bins do
         ## First `lower_bound` bins are to be used
         ##
-        d = (i <= lower_bound) && 1 || 0..1
+        d = (i <= lower_bound && 1) || 0..1
         Variable.new(d, name: "bin_#{i}_used")
       end
 
     # total weight in bin i
     bin_load =
       for i <- 1..num_bins do
-        lb_cap  = (i <= lower_bound) && min_weight || 0
+        lb_cap = (i <= lower_bound && min_weight) || 0
         Variable.new(lb_cap..capacity, name: "bin_load_#{i}")
       end
 
@@ -101,10 +106,12 @@ defmodule CPSolver.Examples.BinPacking do
     #   end)
 
     x = Enum.map(1..num_items, fn idx -> Variable.new(1..num_bins, name: "x_#{idx}") end)
+
     item_assignment_constraints =
-      for i <- 0..num_items-1 do
+      for i <- 0..(num_items - 1) do
         x_i = Enum.at(x, i)
         bin_indicators = Enum.at(indicators, i)
+
         for j <- 1..num_bins do
           Reified.new(Equal.new(x_i, j), Enum.at(bin_indicators, j - 1))
         end
@@ -140,7 +147,7 @@ defmodule CPSolver.Examples.BinPacking do
       [
         upper_bound_constraint,
         item_assignment_constraints,
-        #item_indicator_constraints,
+        # item_indicator_constraints,
         bin_load_constraints,
         capacity_constraints,
         symmetry_breaking_constraints(bin_used, bin_load, num_bins, num_items_over_half_capacity),
@@ -151,12 +158,12 @@ defmodule CPSolver.Examples.BinPacking do
     vars =
       [bin_used, total_bins_used, bin_load, indicators] |> List.flatten()
 
-      Model.new(
-        vars,
-        constraints,
-        objective: Objective.minimize(total_bins_used)
-      )
-      |> Map.put(:search, Search.cdbf(item_weights, x, bin_load, capacity))
+    Model.new(
+      vars,
+      constraints,
+      objective: Objective.minimize(total_bins_used)
+    )
+    |> Map.put(:search, Search.cdbf(item_weights, x, bin_load, capacity))
   end
 
   defp symmetry_breaking_constraints(bin_used, _bin_load, num_bins, _num_over_half_capacity) do
@@ -164,7 +171,7 @@ defmodule CPSolver.Examples.BinPacking do
     # 1. Only allow bin j to be used if all bins < j are used.
     # This prevents the solver from seeing equivalent packings as different solutions.
     used_bins_first =
-      Enum.map(0..num_bins - 2, fn bin_idx ->
+      Enum.map(0..(num_bins - 2), fn bin_idx ->
         bin = Enum.at(bin_used, bin_idx)
         next_bin = Enum.at(bin_used, bin_idx + 1)
         LessOrEqual.new(next_bin, bin)
@@ -243,6 +250,7 @@ defmodule CPSolver.Examples.BinPacking do
 
   def check_solution(result, item_weights, capacity) do
     best_solution = result.solutions |> List.last()
+
     %{loads: bin_loads, bin_contents: bin_contents} =
       solution_to_bin_content(best_solution, item_weights, capacity, result.objective)
 
@@ -309,6 +317,7 @@ defmodule CPSolver.Examples.BinPacking do
           var_name == "total_bins_used"
         end)
         |> elem(1)
+
       Logger.warning("total bins: #{objective}")
     end
   end
