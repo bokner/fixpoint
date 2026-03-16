@@ -49,11 +49,11 @@ defmodule CPSolver.Examples.BinPacking.Search do
     item_weight = Map.get(item_assignment_map, var.name)
     ## Find bin with minimal slack
     ## TODO: advanced branching, as described by Gecode docs ("two alternatives" case)
-    # domain = domain_values(var)
+    ##
 
-    {bin, _bin_slack} =
-      Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {nil, nil}, fn {load_var, bin_idx},
-                                                                          {_min_bin, min_slack} =
+    {bins, bin_slack} =
+      Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil}, fn {load_var, bin_idx},
+                                                                          {min_bins, min_slack} =
                                                                             slack_acc ->
         cond do
           Interface.contains?(var, bin_idx) ->
@@ -62,14 +62,14 @@ defmodule CPSolver.Examples.BinPacking.Search do
             cond do
               Interface.fixed?(load_var) ->
                 ## The bin load has already been fixed,
-                ## so the item has to be there (no choice)
+                ## so the item has to be there (no choice).
                 ## TODO: this is the case where further branching doesn't make sense.
                 ## The related issue: https://github.com/bokner/fixpoint/issues/96
-                {:halt, {bin_idx, nil}}
+                {:halt, {[bin_idx], 0}}
 
               slack == 0 ->
                 ## Perfect fit
-                {:halt, {bin_idx, 0}}
+                {:halt, {[bin_idx], 0}}
 
               slack < 0 ->
                 ## No fit
@@ -77,11 +77,11 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
               slack < min_slack ->
                 ## Better fit
-                {:cont, {bin_idx, slack}}
+                {:cont, {[bin_idx], slack}}
 
               true ->
-                ## Keep current min
-                {:cont, slack_acc}
+                ## Keep current min, add bin to the list of current min bins
+                {:cont, {[bin_idx | min_bins], min_slack}}
             end
 
           true ->
@@ -89,6 +89,29 @@ defmodule CPSolver.Examples.BinPacking.Search do
         end
       end)
 
-    bin
+    ## TODO:
+    ## We have not implemented the branching
+    ## as suggested by Gecode docs for 2-alternative branching:
+    ###
+    ### – Not only prune bin b from the potential bins for item i but also prune all bins with
+    ##  - the same slack as b from the potential bins for all items with the same size as i
+    ###
+    ##  What we currently do for branching (see CPSolver.Search):
+    ## - For the first branch we fix the variable with the chosen value;
+    ## - For the second branch, we remove the value from the variable.
+    ##
+    ## - To match Gecode, we will have to remove values for several variables (the ones with the same slack)
+    ##
+    ## May be possible by implementing custom value selector:
+    ## (see CPSolver.Search.ValueSelector.Split for an example).
+    ##
+    ##
+
+    if bin_slack == 0 || length(bins) == length(bin_load_vars) do
+      List.first(bins)
+    else
+      ## TODO: to replace with second alternative implementation
+      List.first(bins)
+    end
   end
 end
