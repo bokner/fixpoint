@@ -26,7 +26,6 @@ defmodule CPSolver.Space do
       solution_handler: Solution.default_handler(),
       search: Search.default_strategy(),
       space_threads: div(:erlang.system_info(:logical_processors), 2),
-      postpone: false,
       distributed: false
     ]
   end
@@ -87,43 +86,45 @@ defmodule CPSolver.Space do
 
   def start_propagation(space_pid) when is_pid(space_pid) do
     try do
-      :done = GenServer.call(space_pid, :propagate, :infinity)
+      #propagate()
+      #:done =
+        GenServer.call(space_pid, :propagate, :infinity)
     catch
       :exit, {:normal, {GenServer, :call, _}} = _reason ->
         :ignore
     end
   end
 
-  defp spawn_space(data) do
+  defp run_branch(data) do
     solver = get_shared(data)
     worker_node = Distributed.choose_worker_node(solver.distributed)
-    checked_out? = Shared.checkout_space_thread(solver, worker_node)
-    run_space(worker_node, solver, data, checked_out?)
+    run_space(worker_node, solver, data)
   end
 
-  def run_space(worker_node, solver, data, checked_out?) do
+  defp run_space(worker_node, solver, data) do
     Shared.increment_node_counts(solver)
-
     (worker_node == Node.self() &&
-       run_space(data, checked_out?)) ||
-      :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data), checked_out?])
-  end
-
-  def run_space(data, checked_out?) do
-    (checked_out? &&
-       spawn(fn ->
-         run_space(data)
-         Shared.checkin_space_thread(get_shared(data))
-       end)) ||
-      run_space(data)
+       run_space(data)) ||
+      :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data)])
   end
 
   def run_space(data) do
     solver = get_shared(data)
+    if Shared.checkout_space_thread(solver, Node.self()) do
+       spawn(fn ->
+         run_space_impl(data)
+         Shared.checkin_space_thread(solver)
+       end)
+    else
+      run_space_impl(data)
+    end
+  end
+
+  defp run_space_impl(data) do
+    solver = get_shared(data)
 
     case create(
            data
-           |> Map.put(:opts, Keyword.put(data.opts, :postpone, true))
          ) do
       {:ok, space_pid} ->
         Shared.add_active_spaces(solver, [space_pid])
@@ -171,24 +172,19 @@ defmodule CPSolver.Space do
       |> Map.put(:objective, update_objective(space_opts[:objective], variables))
       |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
 
-    space_opts[:postpone] && {:ok, space_data}
-       || {:ok, space_data, {:continue, :propagate}}
+    {:ok, space_data, {:continue, :propagate}}
   end
 
   @impl true
   def handle_continue(:propagate, data) do
-    (data.opts[:postpone] && {:noreply, data}) ||
-      data
-      |> propagate()
-      |> tap(fn _ ->
-        caller = Map.get(data, :caller)
-        caller && GenServer.reply(caller, :done)
-      end)
+    data[:parent_id] && {:noreply, data}
+    ||
+    propagate(data)
   end
 
   @impl true
-  def handle_call(:propagate, caller, data) do
-    propagate(Map.put(data, :caller, caller))
+  def handle_call(:propagate, _caller, data) do
+    propagate(data)
   end
 
   defp propagate(
@@ -322,7 +318,7 @@ defmodule CPSolver.Space do
       |> Search.branch(search, data)
       |> Enum.take_while(fn {branch_variables, constraint} ->
         !CPSolver.complete?(get_shared(data)) &&
-          spawn_space(
+          run_branch(
             data
             |> Map.put(:parent_id, id)
             |> Map.put(:id, make_ref())
@@ -352,10 +348,7 @@ defmodule CPSolver.Space do
   end
 
   defp finalize(data, reason) do
-    caller = data[:caller]
-    caller && GenServer.reply(caller, :done)
-
-    Map.put(data, :finalized, true)
+    data
     |> tap(fn _ -> Shared.finalize_space(get_shared(data), data, self(), reason) end)
   end
 
