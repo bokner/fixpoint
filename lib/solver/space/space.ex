@@ -171,8 +171,8 @@ defmodule CPSolver.Space do
       |> Map.put(:objective, update_objective(space_opts[:objective], variables))
       |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
 
-    (space_opts[:postpone] &&
-       {:ok, space_data}) || {:ok, space_data, {:continue, :propagate}}
+    space_opts[:postpone] && {:ok, space_data}
+       || {:ok, space_data, {:continue, :propagate}}
   end
 
   @impl true

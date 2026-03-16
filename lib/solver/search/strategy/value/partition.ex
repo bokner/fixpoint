@@ -68,6 +68,10 @@ defmodule CPSolver.Search.Partition do
   end
 
   ## Default partitioning
+  defp partition_by_fix(value, %{variable: variable} = _variable_rec) do
+    partition_by_fix(value, variable)
+  end
+  
   defp partition_by_fix(value, variable) do
     domain = Interface.domain(variable)
 
