@@ -181,14 +181,15 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :checkin_space_thread_impl)
   end
 
-  def checkin_space_thread_impl(
-        solver,
+  def checkin_space_thread_impl(solver,
         node \\ Node.self()
       ) do
     (complete?(solver) && :ok) ||
       (
         counter_ref = get_space_thread_counters(solver, node)
-        :counters.get(counter_ref, 1) > 0 && :counters.sub(counter_ref, 1, 1)
+        if :counters.get(counter_ref, 1) > 0 do
+          :counters.sub(counter_ref, 1, 1)
+        end
       )
   end
 
