@@ -22,7 +22,8 @@ defmodule CPSolver.Shared do
       space_thread_counters: init_space_thread_counters(space_threads),
       times: init_times(),
       distributed: distributed,
-      auxillary: init_auxillary_map()
+      auxillary: init_auxillary_map(),
+      space_queue: Agent.start_link(fn -> :queue.new() end) |> elem(1)
     }
   end
 
@@ -157,6 +158,14 @@ defmodule CPSolver.Shared do
     end)
   end
 
+  def wait_for_checkout(solver, pid \\ self()) do
+    add_to_queue(solver, pid)
+    receive do
+      :checkout -> :checkout
+    end
+    checkout_space_thread(solver)
+  end
+
   def checkout_space_thread(solver, node \\ Node.self()) do
     (on_primary_node?(solver) &&
        checkout_space_thread_impl(solver, node)) ||
@@ -191,6 +200,27 @@ defmodule CPSolver.Shared do
           :counters.sub(counter_ref, 1, 1)
         end
       )
+  end
+
+  defp remove_from_queue(%{space_queue: space_queue} = _solver) do
+    Agent.update(space_queue, fn queue ->
+      {el, q} = :queue.out(queue)
+      case el do
+        {:value, pid} ->
+          if Process.alive?(pid) do
+            IO.inspect("Sending to #{inspect pid}")
+            send(pid, :checkout)
+          end
+        :empty -> :ok
+      end
+      q
+    end)
+  end
+
+  defp add_to_queue(%{space_queue: space_queue} = _solver, pid) do
+    Agent.update(space_queue, fn queue ->
+      :queue.in(pid, queue)
+    end)
   end
 
   @active_node_count_pos 2
@@ -343,6 +373,7 @@ defmodule CPSolver.Shared do
     )
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
+    Agent.stop(solver.space_queue)
     reset_objective(objective)
     :ok
   end

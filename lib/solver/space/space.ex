@@ -108,7 +108,7 @@ defmodule CPSolver.Space do
 
   def run_space(data) do
     solver = get_shared(data)
-    if !parent_space?(data) && Shared.checkout_space_thread(solver, Node.self()) do
+    if !top_space?(data) && Shared.checkout_space_thread(solver, Node.self()) do
        spawn(fn ->
          run_space_impl(data, solver)
          Shared.checkin_space_thread(solver)
@@ -124,7 +124,7 @@ defmodule CPSolver.Space do
            data
          ) do
       {:ok, space_pid} ->
-        if parent_space?(data) do
+        if top_space?(data) do
           :ok
         else
           Shared.add_active_spaces(solver, [space_pid])
@@ -177,16 +177,16 @@ defmodule CPSolver.Space do
 
   @impl true
   def handle_continue(:propagate, data) do
-    parent_space?(data) && propagate(data)
+    top_space?(data) && propagate(data)
       || {:noreply, data}
   end
 
   @impl true
   def handle_call(:propagate, _caller, data) do
-    parent_space?(data) && {:noreply, data} || propagate(data)
+    top_space?(data) && {:noreply, data} || propagate(data)
   end
 
-  def parent_space?(data) do
+  def top_space?(data) do
     is_nil(data[:parent_id])
   end
 
