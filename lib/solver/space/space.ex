@@ -86,9 +86,7 @@ defmodule CPSolver.Space do
 
   def start_propagation(space_pid) when is_pid(space_pid) do
     try do
-      #propagate()
-      #:done =
-        GenServer.call(space_pid, :propagate, :infinity)
+      GenServer.call(space_pid, :propagate, :infinity)
     catch
       :exit, {:normal, {GenServer, :call, _}} = _reason ->
         :ignore
@@ -110,26 +108,28 @@ defmodule CPSolver.Space do
 
   def run_space(data) do
     solver = get_shared(data)
-    if Shared.checkout_space_thread(solver, Node.self()) do
+    if !parent_space?(data) && Shared.checkout_space_thread(solver, Node.self()) do
        spawn(fn ->
-         run_space_impl(data)
+         run_space_impl(data, solver)
          Shared.checkin_space_thread(solver)
        end)
     else
-      run_space_impl(data)
+      run_space_impl(data, solver)
     end
   end
 
-  defp run_space_impl(data) do
-    solver = get_shared(data)
+  defp run_space_impl(data, solver) do
 
     case create(
            data
          ) do
       {:ok, space_pid} ->
-        Shared.add_active_spaces(solver, [space_pid])
-        start_propagation(space_pid)
-
+        if parent_space?(data) do
+          :ok
+        else
+          Shared.add_active_spaces(solver, [space_pid])
+          start_propagation(space_pid)
+        end
       {:error, _} ->
         :ignore
     end
@@ -177,14 +177,17 @@ defmodule CPSolver.Space do
 
   @impl true
   def handle_continue(:propagate, data) do
-    data[:parent_id] && {:noreply, data}
-    ||
-    propagate(data)
+    parent_space?(data) && propagate(data)
+      || {:noreply, data}
   end
 
   @impl true
   def handle_call(:propagate, _caller, data) do
-    propagate(data)
+    parent_space?(data) && {:noreply, data} || propagate(data)
+  end
+
+  def parent_space?(data) do
+    is_nil(data[:parent_id])
   end
 
   defp propagate(
