@@ -108,7 +108,7 @@ defmodule CPSolver.Space do
 
   def run_space(data) do
     solver = get_shared(data)
-    if !parent_space?(data) && Shared.checkout_space_thread(solver, Node.self()) do
+    if top_space?(data) || checkout?(solver) do
        spawn(fn ->
          run_space_impl(data, solver)
          Shared.checkin_space_thread(solver)
@@ -124,7 +124,7 @@ defmodule CPSolver.Space do
            data
          ) do
       {:ok, space_pid} ->
-        if parent_space?(data) do
+        if top_space?(data) do
           :ok
         else
           Shared.add_active_spaces(solver, [space_pid])
@@ -146,6 +146,10 @@ defmodule CPSolver.Space do
         {Interface.id(var), Utils.domain_values(var)}
       end)
     )
+  end
+
+  defp checkout?(solver) do
+    Shared.checkout_space_thread(solver, Node.self())
   end
 
   @impl true
@@ -171,22 +175,30 @@ defmodule CPSolver.Space do
       |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
       |> Map.put(:objective, update_objective(space_opts[:objective], variables))
       |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
-
     {:ok, space_data, {:continue, :propagate}}
   end
 
   @impl true
   def handle_continue(:propagate, data) do
-    parent_space?(data) && propagate(data)
-      || {:noreply, data}
+    if top_space?(data) do
+      propagate(data)
+    else
+      {:noreply, data}
+    end
   end
 
   @impl true
   def handle_call(:propagate, _caller, data) do
-    parent_space?(data) && {:noreply, data} || propagate(data)
+    top_space?(data) && {:reply, :ok, data} ||
+    propagate(data)
   end
 
-  def parent_space?(data) do
+  @impl true
+  def handle_cast(:checkout, data) do
+    propagate(data)
+  end
+
+  def top_space?(data) do
     is_nil(data[:parent_id])
   end
 

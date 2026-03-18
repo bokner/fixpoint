@@ -193,6 +193,12 @@ defmodule CPSolver.Shared do
       )
   end
 
+  def process_alive?(solver, pid) do
+    (on_primary_node?(solver) &&
+       Process.alive?(pid)) ||
+      distributed_call(solver, :process_alive?, [pid])
+  end
+
   @active_node_count_pos 2
   @failure_count_pos 3
   @solution_count_pos 4
