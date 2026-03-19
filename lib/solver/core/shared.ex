@@ -147,14 +147,16 @@ defmodule CPSolver.Shared do
          %{space_thread_counters: node_threads_ref} = _shared,
          node
        ) do
-    :ets.lookup(node_threads_ref, node)
-    |> then(fn
-      [] ->
-        nil
+    try do
+      :ets.lookup(node_threads_ref, node)
+      |> then(fn
+        [] ->
+          nil
 
-      [{^node, counter_ref}] ->
-        counter_ref
-    end)
+        [{^node, counter_ref}] ->
+          counter_ref
+      end)
+    rescue _e -> nil  end
   end
 
   def checkout_space_thread(solver, node \\ Node.self()) do
@@ -342,7 +344,7 @@ defmodule CPSolver.Shared do
 
   def cleanup_impl(%{solver_pid: solver_pid, objective: objective} = solver) do
     Enum.each(
-      [:solutions, :statistics, :active_nodes, :auxillary, :times, :complete_flag],
+      [:solutions, :statistics, :active_nodes, :auxillary, :times, :complete_flag, :space_thread_counters],
       fn item ->
         Map.get(solver, item) |> safe_ets_delete()
       end
