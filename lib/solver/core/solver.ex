@@ -234,15 +234,6 @@ defmodule CPSolver do
     {:noreply, Map.put(state, :space, top_space)}
   end
 
-  @impl true
-  def handle_info(event, state) do
-    {:noreply, handle_event(event, state)}
-  end
-
-  def handle_event(_event, state) do
-    state
-  end
-
   ## Build a solution handler on top of initial one.
   ## For now, this adds handling logic for stop conditions
   defp build_solution_handler(solution_handler, solver_state) do

@@ -108,10 +108,10 @@ defmodule CPSolver.Space do
 
   def run_space(data) do
     solver = get_shared(data)
-    if top_space?(data) || checkout?(solver) do
+    if checkout?(solver) do
        spawn(fn ->
          run_space_impl(data, solver)
-         Shared.checkin_space_thread(solver)
+         checkin(solver)
        end)
     else
       run_space_impl(data, solver)
@@ -152,6 +152,10 @@ defmodule CPSolver.Space do
     Shared.checkout_space_thread(solver, Node.self())
   end
 
+  defp checkin(solver) do
+    Shared.checkin_space_thread(solver)
+  end
+
   @impl true
   def init(%{domains: domains, variables: variables} = data) do
     updated_variables =
@@ -175,6 +179,7 @@ defmodule CPSolver.Space do
       |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
       |> Map.put(:objective, update_objective(space_opts[:objective], variables))
       |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
+
     {:ok, space_data, {:continue, :propagate}}
   end
 
@@ -189,12 +194,8 @@ defmodule CPSolver.Space do
 
   @impl true
   def handle_call(:propagate, _caller, data) do
+    :erlang.garbage_collect(self())
     top_space?(data) && {:reply, :ok, data} ||
-    propagate(data)
-  end
-
-  @impl true
-  def handle_cast(:checkout, data) do
     propagate(data)
   end
 

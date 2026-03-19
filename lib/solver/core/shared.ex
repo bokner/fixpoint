@@ -171,7 +171,7 @@ defmodule CPSolver.Shared do
       ) do
     counter_ref = get_space_thread_counters(solver, node)
 
-    if countter_ref && :counters.get(counter_ref, 1) < :counters.get(counter_ref, 2) do
+    if counter_ref && :counters.get(counter_ref, 1) < :counters.get(counter_ref, 2) do
       :counters.add(counter_ref, 1, 1)
       true
     end
