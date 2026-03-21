@@ -1,4 +1,4 @@
-defmodule CPSolverTest.Search.FirstFail do
+defmodule CPSolverTest.Search.Brancher do
   use ExUnit.Case
 
   alias CPSolver.IntVariable, as: Variable

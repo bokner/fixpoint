@@ -25,18 +25,12 @@ defmodule CPSolver.Examples.BinPacking.Search do
         ## All item assignments were made - we're done
         nil
       else
-        var = hd(item_vars)
-
-        %{
-          variable: var,
-          value: value_branching(var, bin_load_vars, item_assignment_map, capacity)
-        }
+        hd(item_vars)
       end
     end
 
-    choose_value_fun = fn %{variable: _var, value: value} ->
-      ## the value was computed by choose_variable_fun
-      value
+    choose_value_fun = fn var ->
+      value_branching(var, bin_load_vars, item_assignment_map, capacity)
     end
 
     {choose_variable_fun, choose_value_fun}
