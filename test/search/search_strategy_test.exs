@@ -5,6 +5,7 @@ defmodule CPSolverTest.Search.Brancher do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Search
   alias CPSolver.Search.Partition
+  
   describe "First-fail search strategy" do
     alias CPSolver.Search.VariableSelector, as: SearchStrategy
 

@@ -17,9 +17,12 @@ defmodule CPSolver.Search.Partition do
     {:ok, partition_impl(variable, value_choice)}
   end
 
+  defp partition_impl(variable, value) when is_integer(value) do
+    partition_by_fix(value, variable)
+  end
+
   defp partition_impl(variable, value_choice) when is_function(value_choice) do
-    value_choice.(variable)
-    |> partition_by_fix(variable)
+    partition_impl(variable, value_choice.(variable))
   end
 
   defp partition_impl(variable, value_choice) when is_atom(value_choice) do
@@ -68,11 +71,7 @@ defmodule CPSolver.Search.Partition do
   end
 
   ## Default partitioning
-  defp partition_by_fix(value, %{variable: variable} = _variable_rec) do
-    partition_by_fix(value, variable)
-  end
-  
-  defp partition_by_fix(value, variable) do
+  def partition_by_fix(value, variable) do
     domain = Interface.domain(variable)
 
     try do

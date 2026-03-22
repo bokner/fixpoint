@@ -2,8 +2,8 @@ defmodule CPSolverTest.Search.FirstFail do
   use ExUnit.Case
 
   alias CPSolver.Search
-  alias CPSolver.Search.Brancher
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Search.DefaultBrancher
 
   test "default brancher is the same as {:first_fail, :indomain_min}" do
       v1_values = 0..9
@@ -13,7 +13,7 @@ defmodule CPSolverTest.Search.FirstFail do
       values = [v1_values, v2_values, v3_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
-      _default_brancher_partitions = [partition1, partition2] = Search.branch(variables, TestDefaultBrancher, :some_data)
+      _default_brancher_partitions = [partition1, partition2] = Search.branch(variables, DefaultBrancher, :some_data)
 
       ## 1st partition has var3 fixed
       {vars, changes} = partition1
@@ -27,8 +27,4 @@ defmodule CPSolverTest.Search.FirstFail do
       refute Variable.contains?(var3_copy, 1)
 
   end
-end
-
-defmodule TestDefaultBrancher do
-  use CPSolver.Search.Brancher
 end

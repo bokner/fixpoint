@@ -1,10 +1,26 @@
 defmodule CPSolver.Examples.BinPacking.Search do
   alias CPSolver.Variable.Interface
 
+  use CPSolver.Search.Brancher
+
   @doc """
   Complete decreasing best fit branching,
   roughly as per https://www.gecode.dev/doc-latest/MPG.pdf, chapter 20
   """
+  @impl true
+  def branch(variables,
+    %{
+      weights: item_weights,
+      capacity: capacity,
+      item_assignment_vars: item_assignment_vars,
+      bin_load_vars: bin_load_vars
+    } = _data) do
+      {choose_variable_fun, choose_value_fun} = cdbf(item_weights, item_assignment_vars, bin_load_vars, capacity)
+      variable = choose_variable_fun.(variables)
+      value = choose_value_fun.(variable)
+      CPSolver.Search.Partition.partition(variable, value) |> elem(1)
+  end
+
   def cdbf(item_weights, item_assignment_vars, bin_load_vars, capacity) do
     ## Create a list [{item_assignment_index,  item_weight}]
     ## (will be used for matching the item assignment variables with items' weights)
