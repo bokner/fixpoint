@@ -23,16 +23,15 @@ defmodule CPSolver.Examples.BinPacking.Search do
       ## get all (unfixed) item assignment vars
       item_vars =
         Enum.reduce_while(variables, nil, fn v, item_vars_acc ->
-          if Interface.fixed?(v) do
-            {:cont, item_vars_acc}
-          else
-            item_var? = v.name in item_assignment_ids
-            if is_nil(item_vars_acc) do
+          item_var? = v.name in item_assignment_ids
+          cond do
+            Interface.fixed?(v) -> {:cont, item_vars_acc}
+
+            is_nil(item_vars_acc) ->
               item_var? && {:cont, [v]} || {:cont, nil}
-            else
+            true ->
               item_var? && {:cont, [v | item_vars_acc]} || {:halt, item_vars_acc}
             end
-          end
 
         end)
 
@@ -47,9 +46,18 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
     fn :init, _, _ -> :ok
       :branch, variables, data ->
-
+        variables = Enum.reject(variables, fn v -> Interface.fixed?(v) end)
         Search.variable_value_choice(variables, choose_variable_fun, choose_value_fun, data)
         #|> IO.inspect(label: :partitions)
+      # case choose_variable_fun.(variables) do
+      #   nil ->
+      #     []
+
+      #   selected_variable ->
+      #     {:ok, domain_partitions} =
+      #       Partition.partition(selected_variable, choose_value_fun)
+      #       List.wrap(Search.partition_record(selected_variable, domain_partitions))
+      # end
     end
 
   end
