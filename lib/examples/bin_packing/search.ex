@@ -1,25 +1,12 @@
 defmodule CPSolver.Examples.BinPacking.Search do
   alias CPSolver.Variable.Interface
-
-  use CPSolver.Search.Brancher
+  alias CPSolver.Search
+  alias CPSolver.Search.Partition
 
   @doc """
   Complete decreasing best fit branching,
   roughly as per https://www.gecode.dev/doc-latest/MPG.pdf, chapter 20
   """
-  @impl true
-  def branch(variables,
-    %{
-      weights: item_weights,
-      capacity: capacity,
-      item_assignment_vars: item_assignment_vars,
-      bin_load_vars: bin_load_vars
-    } = _data) do
-      {choose_variable_fun, choose_value_fun} = cdbf(item_weights, item_assignment_vars, bin_load_vars, capacity)
-      variable = choose_variable_fun.(variables)
-      value = choose_value_fun.(variable)
-      CPSolver.Search.Partition.partition(variable, value) |> elem(1)
-  end
 
   def cdbf(item_weights, item_assignment_vars, bin_load_vars, capacity) do
     ## Create a list [{item_assignment_index,  item_weight}]
@@ -34,14 +21,23 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
     choose_variable_fun = fn variables ->
       ## get all (unfixed) item assignment vars
-      {item_vars, _rest_vars} =
-        Enum.split_with(variables, fn v -> v.name in item_assignment_ids end)
+      item_vars =
+        Enum.reduce_while(variables, nil, fn v, item_vars_acc ->
+          if Interface.fixed?(v) do
+            {:cont, item_vars_acc}
+          else
+            item_var? = v.name in item_assignment_ids
+            if is_nil(item_vars_acc) do
+              item_var? && {:cont, [v]} || {:cont, nil}
+            else
+              item_var? && {:cont, [v | item_vars_acc]} || {:halt, item_vars_acc}
+            end
+          end
 
-      if Enum.empty?(item_vars) do
-        ## All item assignments were made - we're done
-        nil
-      else
-        hd(item_vars)
+        end)
+
+      if item_vars do
+        List.last(item_vars)
       end
     end
 
@@ -49,7 +45,13 @@ defmodule CPSolver.Examples.BinPacking.Search do
       value_branching(var, bin_load_vars, item_assignment_map, capacity)
     end
 
-    {choose_variable_fun, choose_value_fun}
+    fn :init, _, _ -> :ok
+      :branch, variables, data ->
+
+        Search.variable_value_choice(variables, choose_variable_fun, choose_value_fun, data)
+        #|> IO.inspect(label: :partitions)
+    end
+
   end
 
   defp value_branching(var, bin_load_vars, item_assignment_map, capacity) do

@@ -5,6 +5,8 @@ defmodule CPSolver.Search.Partition do
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random, Split}
 
+  import CPSolver.Utils
+  
   require Logger
 
   def initialize(partition, _space_data) do
@@ -72,30 +74,23 @@ defmodule CPSolver.Search.Partition do
 
   ## Default partitioning
   def partition_by_fix(value, variable) do
-    domain = Interface.domain(variable)
 
     try do
-      {remove_changes, _domain} = Domain.remove(domain, value)
-
-       [
-         {
-           Domain.new(value),
-           %{variable.id => :fixed}
-           # Equal.new(variable, value)
-         },
-         {
-           domain,
-           %{variable.id => remove_changes}
-           # NotEqual.new(variable, value)
-         }
-       ]
-      catch
-      :fail ->
-        Logger.error(
-          "Failure on partitioning with value #{inspect(value)}, domain: #{inspect(CPSolver.BitVectorDomain.raw(domain))}"
-        )
-
-        throw(:fail)
+      remove_changes = Interface.remove(variable, value)
+      [
+        domain_partition(Domain.new(value), %{variable.id => :fixed}), # Equal.new(variable, value)
+        domain_partition(Interface.domain(variable), %{variable.id => remove_changes}), # NotEqual.new(variable, value)
+      ]
+    catch
+    :fail ->
+      Logger.error(
+        "Failure on partitioning with value #{inspect(value)}, domain: #{domain_values(variable)}}"
+      )
+      throw(:fail)
     end
+  end
+
+  def domain_partition(domain, constraint) do
+    {domain, constraint}
   end
 end

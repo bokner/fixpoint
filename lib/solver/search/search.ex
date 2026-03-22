@@ -3,6 +3,7 @@ defmodule CPSolver.Search do
 
   alias CPSolver.Search.VariableSelector
   alias CPSolver.Search.Partition
+  alias CPSolver.Variable.Interface
 
   require Logger
 
@@ -33,27 +34,38 @@ defmodule CPSolver.Search do
   ### Helpers
   def branch(variables, branching, space_data \\ %{})
 
-  def branch(variables, brancher_fun, space_data) when is_function(brancher_fun, 3) do
-    brancher_fun.(:branch, variables, space_data)
-    |> partitions_impl(variables, space_data)
-    |> List.wrap()
+  def branch(variables, branching, space_data) do
+    variables
+    |> branch_impl(branching, space_data)
   end
 
-  def branch(variables, brancher_impl, space_data) when is_atom(brancher_impl) do
+  defp branch_impl(variables, brancher_fun, space_data) when is_function(brancher_fun, 3) do
+    variables
+    |> filter_fixed_variables()
+    |> then(fn unfixed_vars ->
+        brancher_fun.(:branch, unfixed_vars, space_data)
+        |> partitions_impl(variables, space_data)
+    end)
+    #|> List.wrap()
+  end
+
+  defp branch_impl(variables, brancher_impl, space_data) when is_atom(brancher_impl) do
     if Code.ensure_loaded(brancher_impl) == {:module, brancher_impl}
       && function_exported?(brancher_impl, :branch, 2) do
-        brancher_impl.branch(variables, space_data)
+        variables
+        |> filter_fixed_variables()
+        |> brancher_impl.branch(space_data)
         |> partitions_impl(variables, space_data)
     else
       throw({:unknown_brancher, brancher_impl})
     end
   end
 
-  def branch(variables, {variable_choice, partition_strategy}, space_data) do
-    branch(variables, variable_choice, partition_strategy, space_data)
+  defp branch_impl(variables, {variable_choice, partition_strategy}, space_data) do
+    branch_impl(variables, variable_choice, partition_strategy, space_data)
   end
 
-  def branch(variables, variable_choice, partition_strategy, space_data) do
+  defp branch_impl(variables, variable_choice, partition_strategy, space_data) do
     variable_value_choice(variables, variable_choice, partition_strategy, space_data)
     |> partitions_impl(variables, space_data)
   end
@@ -74,6 +86,10 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, domain)
   end
 
+  defp filter_fixed_variables(vars) do
+    Enum.reject(vars, fn var -> Interface.fixed?(var) end)
+  end
+
   defp partitions_impl(nil, _variables, _space_data) do
     []
   end
@@ -86,11 +102,11 @@ defmodule CPSolver.Search do
   end
 
   ## Build partitions for a single variable
-  defp variable_partitions_impl(%{variable: selected_variable, partitions: domain_partitions}, variables, _space_data) do
+  defp variable_partitions_impl(%{variable_id: selected_variable_id, partitions: domain_partitions}, variables, _space_data) do
     Enum.map(domain_partitions, fn {domain, constraint} ->
       {Arrays.map(variables, fn var ->
          domain_copy =
-           ((var.id == selected_variable.id && domain) || var.domain)
+           ((var.id == selected_variable_id && domain) || var.domain)
            |> Domain.copy()
 
          set_domain(var, domain_copy)
@@ -100,6 +116,6 @@ defmodule CPSolver.Search do
   end
 
   def partition_record(variable, domain_partitions) do
-    %{variable: variable, partitions: domain_partitions}
+    %{variable_id: variable.id, partitions: domain_partitions}
   end
 end
