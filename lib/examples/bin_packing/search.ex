@@ -24,15 +24,17 @@ defmodule CPSolver.Examples.BinPacking.Search do
       item_vars =
         Enum.reduce_while(variables, nil, fn v, item_vars_acc ->
           item_var? = v.name in item_assignment_ids
+
           cond do
-            Interface.fixed?(v) -> {:cont, item_vars_acc}
+            #Interface.fixed?(v) ->
+            #  {:cont, item_vars_acc}
 
             is_nil(item_vars_acc) ->
-              item_var? && {:cont, [v]} || {:cont, nil}
-            true ->
-              item_var? && {:cont, [v | item_vars_acc]} || {:halt, item_vars_acc}
-            end
+              (item_var? && {:cont, [v]}) || {:cont, nil}
 
+            true ->
+              (item_var? && {:cont, [v | item_vars_acc]}) || {:halt, item_vars_acc}
+          end
         end)
 
       if item_vars do
@@ -44,22 +46,22 @@ defmodule CPSolver.Examples.BinPacking.Search do
       value_branching(var, bin_load_vars, item_assignment_map, capacity)
     end
 
-    fn :init, _, _ -> :ok
-      :branch, variables, data ->
-        variables = Enum.reject(variables, fn v -> Interface.fixed?(v) end)
-        Search.variable_value_choice(variables, choose_variable_fun, choose_value_fun, data)
-        #|> IO.inspect(label: :partitions)
-      # case choose_variable_fun.(variables) do
-      #   nil ->
-      #     []
+    fn
+      :init, _, _ ->
+        :ok
 
-      #   selected_variable ->
-      #     {:ok, domain_partitions} =
-      #       Partition.partition(selected_variable, choose_value_fun)
-      #       List.wrap(Search.partition_record(selected_variable, domain_partitions))
-      # end
+      :branch, variables, _data ->
+        case choose_variable_fun.(variables) do
+          nil ->
+            []
+
+          selected_variable ->
+            {:ok, domain_partitions} =
+              Partition.partition(selected_variable, choose_value_fun)
+
+            List.wrap(Search.partition_record(selected_variable, domain_partitions))
+        end
     end
-
   end
 
   defp value_branching(var, bin_load_vars, item_assignment_map, capacity) do
@@ -73,8 +75,8 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
     {bins, bin_slack} =
       Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil}, fn {load_var, bin_idx},
-                                                                          {min_bins, min_slack} =
-                                                                            slack_acc ->
+                                                                         {min_bins, min_slack} =
+                                                                           slack_acc ->
         cond do
           Interface.contains?(var, bin_idx) ->
             slack = capacity - Interface.min(load_var) - item_weight

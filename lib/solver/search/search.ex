@@ -43,10 +43,9 @@ defmodule CPSolver.Search do
     variables
     |> filter_fixed_variables()
     |> then(fn unfixed_vars ->
-        brancher_fun.(:branch, unfixed_vars, space_data)
-        |> partitions_impl(variables, space_data)
+      brancher_fun.(:branch, unfixed_vars, space_data)
+      |> partitions_impl(variables, space_data)
     end)
-    #|> List.wrap()
   end
 
   defp branch_impl(variables, brancher_impl, space_data) when is_atom(brancher_impl) do
@@ -87,7 +86,11 @@ defmodule CPSolver.Search do
   end
 
   defp filter_fixed_variables(vars) do
-    Enum.reject(vars, fn var -> Interface.fixed?(var) end)
+    case Enum.reject(vars, fn var -> Interface.fixed?(var) end) do
+      [] -> throw(:all_vars_fixed)
+      unfixed_vars ->
+        unfixed_vars
+      end
   end
 
   defp partitions_impl(nil, _variables, _space_data) do
