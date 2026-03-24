@@ -6,7 +6,7 @@ defmodule CPSolver.Search.Partition do
   alias CPSolver.Search.ValueSelector.{Min, Max, Random, Split}
 
   import CPSolver.Utils
-  
+
   require Logger
 
   def initialize(partition, _space_data) do
@@ -78,7 +78,7 @@ defmodule CPSolver.Search.Partition do
     try do
       remove_changes = Interface.remove(variable, value)
       [
-        domain_partition(Domain.new(value), %{variable.id => :fixed}), # Equal.new(variable, value)
+        fixed_partition(value, variable), # Equal.new(variable, value)
         domain_partition(Interface.domain(variable), %{variable.id => remove_changes}), # NotEqual.new(variable, value)
       ]
     catch
@@ -88,6 +88,10 @@ defmodule CPSolver.Search.Partition do
       )
       throw(:fail)
     end
+  end
+
+  def fixed_partition(value, variable) do
+    domain_partition(Domain.new(value), %{variable.id => :fixed})
   end
 
   def domain_partition(domain, constraint) do

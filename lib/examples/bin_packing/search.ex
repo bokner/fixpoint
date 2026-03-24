@@ -55,9 +55,9 @@ defmodule CPSolver.Examples.BinPacking.Search do
           item_variables ->
             ## By construction (choose_variable_fun), item vars are in increasing order of weights
             selected_variable = List.last(item_variables)
-            {bins, slack} = choose_value_fun.(selected_variable)
+            {bins, slack, num_loads} = choose_value_fun.(selected_variable)
             domain_partitions =
-              partitions(selected_variable, bins, slack)
+              partitions(selected_variable, bins, slack, num_loads)
 
             List.wrap(Search.partition_record(selected_variable, domain_partitions))
         end
@@ -73,7 +73,7 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ## TODO: advanced branching, as described by Gecode docs ("two alternatives" case)
     ##
 
-    {_bins, _bin_slack} =
+    {bins, bin_slack} =
       Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil}, fn {load_var, bin_idx},
                                                                          {min_bins, min_slack} =
                                                                            slack_acc ->
@@ -128,16 +128,19 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ## (see CPSolver.Search.ValueSelector.Split for an example).
     ##
     ##
+
+    ## Also, return length of bin loads (to be used when building partitions)
+    {bins, bin_slack, length(bin_load_vars)}
   end
 
-  defp partitions(variable, bins, slack) do
-    value = if slack == 0 do ##|| length(bins) == length(bin_load_vars) do
-      List.first(bins)
+  defp partitions(variable, bins, slack, _num_loads) do
+    first_bin = List.first(bins)
+    if (slack == 0) do #|| (length(bins) == num_loads) do
+      Partition.fixed_partition(first_bin, variable)
     else
-      ## TODO: to replace with second alternative implementation
-      List.first(bins)
+      Partition.partition_by_fix(first_bin, variable)
     end
+    |> List.wrap()
 
-    Partition.partition_by_fix(value, variable)
   end
 end

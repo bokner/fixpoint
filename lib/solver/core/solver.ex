@@ -15,6 +15,7 @@ defmodule CPSolver do
   require Logger
 
   @default_timeout 30_000
+  @null_objective InPlace.Array.null()
 
   @doc """
 
@@ -150,7 +151,10 @@ defmodule CPSolver do
   end
 
   def objective_value(solver) do
-    Shared.objective_value(solver)
+    case Shared.objective_value(solver) do
+      @null_objective -> nil
+      value -> value
+    end
   end
 
   def get_state(solver) when is_pid(solver) do
