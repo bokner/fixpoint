@@ -21,7 +21,7 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
     choose_variable_fun = fn variables ->
       ## get all (unfixed) item assignment vars
-      item_vars =
+      _item_vars =
         Enum.reduce_while(variables, nil, fn v, item_vars_acc ->
           item_var? = v.name in item_assignment_ids
 
@@ -37,9 +37,6 @@ defmodule CPSolver.Examples.BinPacking.Search do
           end
         end)
 
-      if item_vars do
-        List.last(item_vars)
-      end
     end
 
     choose_value_fun = fn var ->
@@ -55,9 +52,12 @@ defmodule CPSolver.Examples.BinPacking.Search do
           nil ->
             []
 
-          selected_variable ->
-            {:ok, domain_partitions} =
-              Partition.partition(selected_variable, choose_value_fun)
+          item_variables ->
+            ## By construction (choose_variable_fun), item vars are in increasing order of weights
+            selected_variable = List.last(item_variables)
+            {bins, slack} = choose_value_fun.(selected_variable)
+            domain_partitions =
+              partitions(selected_variable, bins, slack)
 
             List.wrap(Search.partition_record(selected_variable, domain_partitions))
         end
@@ -73,7 +73,7 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ## TODO: advanced branching, as described by Gecode docs ("two alternatives" case)
     ##
 
-    {bins, bin_slack} =
+    {_bins, _bin_slack} =
       Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil}, fn {load_var, bin_idx},
                                                                          {min_bins, min_slack} =
                                                                            slack_acc ->
@@ -128,12 +128,16 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ## (see CPSolver.Search.ValueSelector.Split for an example).
     ##
     ##
+  end
 
-    if bin_slack == 0 || length(bins) == length(bin_load_vars) do
+  defp partitions(variable, bins, slack) do
+    value = if slack == 0 do ##|| length(bins) == length(bin_load_vars) do
       List.first(bins)
     else
       ## TODO: to replace with second alternative implementation
       List.first(bins)
     end
+
+    Partition.partition_by_fix(value, variable)
   end
 end
