@@ -73,10 +73,10 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ## TODO: advanced branching, as described by Gecode docs ("two alternatives" case)
     ##
 
-    {bins, bin_slack} =
-      Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil}, fn {load_var, bin_idx},
-                                                                         {min_bins, min_slack} =
-                                                                           slack_acc ->
+    {bins, bin_slack, num_loads} =
+      Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil, 0}, fn
+        {load_var, bin_idx},
+        {min_bins, min_slack, load_count} = slack_acc ->
         cond do
           Interface.contains?(var, bin_idx) ->
             slack = capacity - Interface.min(load_var) - item_weight
@@ -87,11 +87,11 @@ defmodule CPSolver.Examples.BinPacking.Search do
                 ## so the item has to be there (no choice).
                 ## TODO: this is the case where further branching doesn't make sense.
                 ## The related issue: https://github.com/bokner/fixpoint/issues/96
-                {:halt, {[bin_idx], 0}}
+                {:halt, {[bin_idx], nil, nil}}
 
               slack == 0 ->
                 ## Perfect fit
-                {:halt, {[bin_idx], 0}}
+                {:halt, {[bin_idx], nil, nil}}
 
               slack < 0 ->
                 ## No fit
@@ -99,11 +99,11 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
               slack < min_slack ->
                 ## Better fit
-                {:cont, {[bin_idx], slack}}
+                {:cont, {[bin_idx], slack, load_count + 1}}
 
               true ->
                 ## Keep current min, add bin to the list of current min bins
-                {:cont, {[bin_idx | min_bins], min_slack}}
+                {:cont, {[bin_idx | min_bins], min_slack, load_count + 1}}
             end
 
           true ->
@@ -130,15 +130,15 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ##
 
     ## Also, return length of bin loads (to be used when building partitions)
-    {bins, bin_slack, length(bin_load_vars)}
+    {bins, bin_slack, num_loads}
   end
 
   defp partitions(variable, bins, slack, _num_loads) do
-    first_bin = List.first(bins)
-    if (slack == 0) do #|| (length(bins) == num_loads) do
-      Partition.fixed_partition(first_bin, variable)
+    bin = Enum.random(bins)
+    if slack in [nil, 0] do ##|| (length(bins) == num_loads) do
+      Partition.fixed_partition(bin, variable)
     else
-      Partition.partition_by_fix(first_bin, variable)
+      Partition.partition_by_fix(bin, variable)
     end
     |> List.wrap()
 
