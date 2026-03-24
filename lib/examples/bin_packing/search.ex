@@ -1,10 +1,13 @@
 defmodule CPSolver.Examples.BinPacking.Search do
   alias CPSolver.Variable.Interface
+  alias CPSolver.Search
+  alias CPSolver.Search.Partition
 
   @doc """
   Complete decreasing best fit branching,
   roughly as per https://www.gecode.dev/doc-latest/MPG.pdf, chapter 20
   """
+
   def cdbf(item_weights, item_assignment_vars, bin_load_vars, capacity) do
     ## Create a list [{item_assignment_index,  item_weight}]
     ## (will be used for matching the item assignment variables with items' weights)
@@ -18,28 +21,47 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
     choose_variable_fun = fn variables ->
       ## get all (unfixed) item assignment vars
-      {item_vars, _rest_vars} =
-        Enum.split_with(variables, fn v -> v.name in item_assignment_ids end)
+      _item_vars =
+        Enum.reduce_while(variables, nil, fn v, item_vars_acc ->
+          item_var? = v.name in item_assignment_ids
 
-      if Enum.empty?(item_vars) do
-        ## All item assignments were made - we're done
-        nil
-      else
-        var = hd(item_vars)
+          cond do
+            #Interface.fixed?(v) ->
+            #  {:cont, item_vars_acc}
 
-        %{
-          variable: var,
-          value: value_branching(var, bin_load_vars, item_assignment_map, capacity)
-        }
-      end
+            is_nil(item_vars_acc) ->
+              (item_var? && {:cont, [v]}) || {:cont, nil}
+
+            true ->
+              (item_var? && {:cont, [v | item_vars_acc]}) || {:halt, item_vars_acc}
+          end
+        end)
+
     end
 
-    choose_value_fun = fn %{variable: _var, value: value} ->
-      ## the value was computed by choose_variable_fun
-      value
+    choose_value_fun = fn var ->
+      value_branching(var, bin_load_vars, item_assignment_map, capacity)
     end
 
-    {choose_variable_fun, choose_value_fun}
+    fn
+      :init, _, _ ->
+        :ok
+
+      :branch, variables, _data ->
+        case choose_variable_fun.(variables) do
+          nil ->
+            []
+
+          item_variables ->
+            ## By construction (choose_variable_fun), item vars are in increasing order of weights
+            selected_variable = List.last(item_variables)
+            {bins, slack, num_loads} = choose_value_fun.(selected_variable)
+            domain_partitions =
+              partitions(selected_variable, bins, slack, num_loads)
+
+            List.wrap(Search.partition_record(selected_variable, domain_partitions))
+        end
+    end
   end
 
   defp value_branching(var, bin_load_vars, item_assignment_map, capacity) do
@@ -51,10 +73,10 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ## TODO: advanced branching, as described by Gecode docs ("two alternatives" case)
     ##
 
-    {bins, bin_slack} =
-      Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil}, fn {load_var, bin_idx},
-                                                                          {min_bins, min_slack} =
-                                                                            slack_acc ->
+    {bins, bin_slack, num_loads} =
+      Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil, 0}, fn
+        {load_var, bin_idx},
+        {min_bins, min_slack, load_count} = slack_acc ->
         cond do
           Interface.contains?(var, bin_idx) ->
             slack = capacity - Interface.min(load_var) - item_weight
@@ -65,11 +87,11 @@ defmodule CPSolver.Examples.BinPacking.Search do
                 ## so the item has to be there (no choice).
                 ## TODO: this is the case where further branching doesn't make sense.
                 ## The related issue: https://github.com/bokner/fixpoint/issues/96
-                {:halt, {[bin_idx], 0}}
+                {:halt, {[bin_idx], nil, nil}}
 
               slack == 0 ->
                 ## Perfect fit
-                {:halt, {[bin_idx], 0}}
+                {:halt, {[bin_idx], nil, nil}}
 
               slack < 0 ->
                 ## No fit
@@ -77,11 +99,11 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
               slack < min_slack ->
                 ## Better fit
-                {:cont, {[bin_idx], slack}}
+                {:cont, {[bin_idx], slack, load_count + 1}}
 
               true ->
                 ## Keep current min, add bin to the list of current min bins
-                {:cont, {[bin_idx | min_bins], min_slack}}
+                {:cont, {[bin_idx | min_bins], min_slack, load_count + 1}}
             end
 
           true ->
@@ -107,11 +129,18 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ##
     ##
 
-    if bin_slack == 0 || length(bins) == length(bin_load_vars) do
-      List.first(bins)
+    ## Also, return length of bin loads (to be used when building partitions)
+    {bins, bin_slack, num_loads}
+  end
+
+  defp partitions(variable, bins, slack, _num_loads) do
+    bin = Enum.random(bins)
+    if slack in [nil, 0] do ##|| (length(bins) == num_loads) do
+      Partition.fixed_partition(bin, variable)
     else
-      ## TODO: to replace with second alternative implementation
-      List.first(bins)
+      Partition.partition_by_fix(bin, variable)
     end
+    |> List.wrap()
+
   end
 end

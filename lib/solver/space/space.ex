@@ -48,7 +48,8 @@ defmodule CPSolver.Space do
       opts: space_opts
     }
 
-    search = initialize_search(space_opts[:search], space_data)
+    search = space_opts[:search]
+    initialize_search(search, space_data)
     ## Save initial constraint graph in shared data
     ## (for shared search strategies etc.)
     create(

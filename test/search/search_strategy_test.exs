@@ -1,10 +1,11 @@
-defmodule CPSolverTest.Search.FirstFail do
+defmodule CPSolverTest.Search.Brancher do
   use ExUnit.Case
 
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Search
   alias CPSolver.Search.Partition
+  
   describe "First-fail search strategy" do
     alias CPSolver.Search.VariableSelector, as: SearchStrategy
 

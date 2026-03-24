@@ -34,17 +34,23 @@ defmodule CPSolver.Examples.BinPacking do
         [
           search: model.search,
           solution_handler: solution_handler(),
-          timeout: :timer.seconds(30)
+          timeout: :timer.seconds(30),
+          upper_bound: upper_bound
         ],
         opts
       )
 
     Logger.warning("Started")
 
+    Logger.warning("Upper bound: #{opts[:upper_bound]}")
+
     CPSolver.solve(model, opts)
     |> tap(fn {:ok, res} ->
-      if res.status in [:optimal, :satisfied] do
-        check_solution(res, weights, capacity) || throw({:error, :invalid_solution})
+      if res.status not in [:unknown, :unsatisfiable] do
+        check_solution(res, weights, capacity) && Logger.warning("Solution is valid")
+        || throw({:error, :invalid_solution})
+      else
+        Logger.error("No solution found")
       end
     end)
   end
@@ -249,6 +255,7 @@ defmodule CPSolver.Examples.BinPacking do
   end
 
   def check_solution(result, item_weights, capacity) do
+    item_weights = Enum.sort(item_weights, :desc)
     best_solution = result.solutions |> List.last()
 
     %{loads: bin_loads, bin_contents: bin_contents} =
