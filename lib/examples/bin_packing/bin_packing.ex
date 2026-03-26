@@ -254,12 +254,16 @@ defmodule CPSolver.Examples.BinPacking do
     |> Map.new()
   end
 
-  def check_solution(result, item_weights, capacity) do
+  def check_solution(%{solutions: solutions, variables: variable_names} = _result, item_weights, capacity) do
     item_weights = Enum.sort(item_weights, :desc)
-    best_solution = result.solutions |> List.last()
+    Enum.all?(solutions, fn sol ->
+      check_solution(sol, item_weights, capacity, variable_names)
+    end)
+  end
 
+  def check_solution(solution, item_weights, capacity, variable_names) do
     item_assignments =
-      Enum.zip(best_solution, result.variables)
+      Enum.zip(solution, variable_names)
       |> Enum.flat_map(fn {value, variable_name} ->
         if is_binary(variable_name) && String.starts_with?(to_string(variable_name), "x_") do
           value
