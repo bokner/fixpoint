@@ -133,11 +133,13 @@ defmodule CPSolver.Examples.BinPacking.Search do
     {bins, bin_slack, num_loads}
   end
 
-  defp partitions(variable, bins, slack, _num_loads) do
-    bin = Enum.random(bins)
-    if slack in [nil, 0] do ##|| (length(bins) == num_loads) do
-      Partition.fixed_partition(bin, variable)
-    else
+  defp partitions(variable, bins, slack, num_loads) do
+    bin = List.first(bins)
+    cond do
+      is_nil(bin) || num_loads == 0 -> throw(:fail)
+      slack in [nil, 0]  ->
+        Partition.fixed_partition(bin, variable)
+    true ->
       Partition.partition_by_fix(bin, variable)
     end
     |> List.wrap()

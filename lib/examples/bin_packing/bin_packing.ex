@@ -258,57 +258,41 @@ defmodule CPSolver.Examples.BinPacking do
     item_weights = Enum.sort(item_weights, :desc)
     best_solution = result.solutions |> List.last()
 
+    item_assignments =
+      Enum.zip(best_solution, result.variables)
+      |> Enum.flat_map(fn {value, variable_name} ->
+        if is_binary(variable_name) && String.starts_with?(to_string(variable_name), "x_") do
+          value
+        end
+        |> List.wrap()
+      end)
+
     %{loads: bin_loads, bin_contents: bin_contents} =
-      solution_to_bin_content(best_solution, item_weights, capacity, result.objective)
+      solution_to_bin_content(item_assignments, item_weights)
 
     ## Loads do no exceed max capacity
     true = Enum.all?(bin_loads, fn l -> l <= capacity end)
     ## All items are placed into bins
     all_item_indices =
-      Enum.reduce(tl(bin_contents), hd(bin_contents), fn bin_items, acc ->
-        MapSet.union(acc, bin_items)
+      Enum.reduce(tl(bin_contents), hd(bin_contents) |> MapSet.new(), fn bin_items, acc ->
+        MapSet.union(acc, MapSet.new(bin_items))
       end)
 
-    true = all_item_indices == MapSet.new(0..(length(item_weights) - 1))
-    ## For each bin, the load is the sum of weights of items placed to bin
-    true =
-      Enum.all?(Enum.zip(bin_loads, bin_contents), fn {load, items} ->
-        load == Enum.sum_by(items, fn item_idx -> Enum.at(item_weights, item_idx) end)
-      end)
+    true = all_item_indices == MapSet.new(1..(length(item_weights)))
 
     ## The total sum of bin weights equals the total sum of item weights
     true = Enum.sum(item_weights) == Enum.sum(bin_loads)
   end
 
-  def solution_to_bin_content(solution, item_weights, _capacity, objective) do
-    num_items = length(item_weights)
-    ## First block in the solution is 'bin indicators',
-    ## followed by the objective value
-    ## The number of indicators is given to the solver as 'upper bound',
-    ## and is used in the model as initial number of bins.
-    {bin_indicators, rest} = Enum.split_while(solution, fn el -> el != objective end)
-    total_bins = length(bin_indicators)
-    {all_bin_loads, rest} = Enum.split(tl(rest), total_bins)
-    {assignments, _rest} = Enum.split(rest, num_items * total_bins)
-
-    ## placements[i] row corresponds to the placement of the item
-    ## (position of 1 signifies the bin the item was assigned to)
-
-    placements = Enum.chunk_every(assignments, total_bins)
-
-    ### Transpose placements to get bins as rows
+  def solution_to_bin_content(item_assignments, item_weights) do
     bin_contents =
-      Enum.zip_with(placements, &Function.identity/1)
-      |> Enum.flat_map(fn bin ->
-        bin_content =
-          Enum.reduce(Enum.with_index(bin, 0), MapSet.new(), fn {i, pos}, acc ->
-            (i == 0 && acc) || MapSet.put(acc, pos)
-          end)
-
-        (MapSet.size(bin_content) == 0 && []) || [bin_content]
-      end)
-
-    %{loads: Enum.take(all_bin_loads, objective), bin_contents: bin_contents}
+    Enum.group_by(Enum.with_index(item_assignments, 1), fn {val, _} -> val end, fn {_, idx} -> idx end)
+    loads = Map.new(bin_contents, fn {bin, content} ->
+      {
+        bin,
+        Enum.sum_by(content, fn item_id -> Enum.at(item_weights, item_id - 1) end)
+      } end)
+    %{loads: Map.values(loads), bin_contents: Map.values(bin_contents)}
   end
 
   def model(item_weights, capacity, upper_bound, type \\ :minimize)
