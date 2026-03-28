@@ -77,7 +77,7 @@ defmodule CPSolver.Search do
       selected_variable ->
         {:ok, domain_partitions} =
           Partition.partition(selected_variable, partition_strategy)
-          List.wrap(partition_record(selected_variable, domain_partitions))
+        domain_partitions
     end
   end
 
@@ -98,27 +98,25 @@ defmodule CPSolver.Search do
   end
 
   defp partitions_impl(partitions, variables, space_data) when is_list(partitions) do
-    variables = Arrays.new(variables, implementation: Aja.Vector)
     Enum.reduce(partitions, [], fn variable_partition, acc ->
       acc ++ variable_partitions_impl(variable_partition, variables, space_data)
     end)
   end
 
   ## Build partitions for a single variable
-  defp variable_partitions_impl(%{variable_id: selected_variable_id, partitions: domain_partitions}, variables, _space_data) do
-    Enum.map(domain_partitions, fn {domain, constraint} ->
-      {Arrays.map(variables, fn var ->
+  defp variable_partitions_impl(domain_partitions, variables, _space_data) do
+    variables_copy = Arrays.new([], implementation: Aja.Vector)
+    Enum.map(List.wrap(domain_partitions), fn {domain, change} ->
+      variable_id = Map.keys(change) |> hd
+      {Enum.reduce(variables, variables_copy, fn var, acc ->
          domain_copy =
-           ((var.id == selected_variable_id && domain) || var.domain)
+           ((var.id == variable_id && domain) || var.domain)
            |> Domain.copy()
 
-         set_domain(var, domain_copy)
+         Arrays.append(acc, set_domain(var, domain_copy))
        end),
-       constraint}
+       change}
     end)
   end
 
-  def partition_record(variable, domain_partitions) do
-    %{variable_id: variable.id, partitions: domain_partitions}
-  end
 end
