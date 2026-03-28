@@ -11,17 +11,17 @@ defmodule CPSolver.Search.ValueSelector.Split do
     variable
     |> domain_values()
     |> then(fn values ->
-      Enum.at(values, div(MapSet.size(values) - 1, 2))
+      Enum.at(values, div(MapSet.size(values), 2))
     end)
   end
 
   @impl true
   def partition(value) do
     [
-      fn domain ->
-        Domain.removeAbove(domain, value) end,
-      fn domain ->
-        Domain.removeBelow(domain, value + 1) end,
+      fn variable ->
+        Interface.removeAbove(variable, value - 1) end,
+      fn variable ->
+        Interface.removeBelow(variable, value) end,
     ]
   end
 end

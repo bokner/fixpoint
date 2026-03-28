@@ -43,8 +43,8 @@ defmodule CPSolver.Examples.BinPacking.Search do
           item_var? = v.name in item_assignment_ids
 
           cond do
-            #Interface.fixed?(v) ->
-            #  {:cont, item_vars_acc}
+            Interface.fixed?(v) ->
+              {:cont, item_vars_acc}
 
             is_nil(item_vars_acc) ->
               (item_var? && {:cont, [v]}) || {:cont, nil}
@@ -129,9 +129,9 @@ defmodule CPSolver.Examples.BinPacking.Search do
     cond do
       is_nil(bin) || num_loads == 0 -> throw(:fail)
       slack in [nil, 0]  ->
-        Partition.fixed_partition(bin, variable)
+        Partition.fixed_value_partition(variable, bin)
     true ->
-      Partition.partition_by_fix(bin, variable)
+      Partition.partition_by_fix(variable, bin)
     end
     |> List.wrap()
 

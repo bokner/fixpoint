@@ -15,10 +15,7 @@ defmodule CPSolver.Search.ValueSelector do
       end
 
       def partition(value) do
-        [
-          fn domain -> Domain.fix(domain, value) end,
-          fn domain -> Domain.remove(domain, value) end,
-        ]
+        fn variable -> CPSolver.Search.Partition.partition_by_fix(variable, value) end
       end
 
       defoverridable initialize: 1, partition: 1

@@ -1,11 +1,7 @@
 defmodule CPSolver.Search.Partition do
-  alias CPSolver.DefaultDomain, as: Domain
-
   alias CPSolver.Variable.Interface
 
   alias CPSolver.Search.ValueSelector.{Min, Max, Random, Split}
-
-  import CPSolver.Utils
 
   require Logger
 
@@ -20,7 +16,7 @@ defmodule CPSolver.Search.Partition do
   end
 
   defp partition_impl(variable, value) when is_integer(value) do
-    partition_by_fix(value, variable)
+    partition_by_fix(variable, value)
   end
 
   defp partition_impl(variable, value_choice) when is_function(value_choice) do
@@ -28,25 +24,25 @@ defmodule CPSolver.Search.Partition do
   end
 
   defp partition_impl(variable, value_choice) when is_atom(value_choice) do
-    domain = Interface.domain(variable)
     impl = strategy(value_choice)
-
 
     selected_value = impl.select_value(variable)
 
-    impl.partition(selected_value)
-    |> Enum.map(fn partition_fun ->
-      d_copy = Domain.copy(domain)
-      domain_changes = partition_fun.(d_copy) |> normalize_domain_changes()
-      {
-        d_copy,
-        %{variable.id => domain_changes}
-      }
+    case impl.partition(selected_value) do
+      reduction when is_function(reduction, 1) ->
+        reduction.(variable)
+
+      functions when is_list(functions) ->
+        functions
+    end
+    |> Enum.map(fn
+      reduction when is_map(reduction) ->
+        reduction
+
+      reduction when is_function(reduction, 1) ->
+        %{variable.id => reduction}
     end)
   end
-
-  defp normalize_domain_changes({changes, _domain}), do: changes
-  defp normalize_domain_changes(changes) when is_atom(changes), do: changes
 
   defp strategy(:indomain_min) do
     Min
@@ -73,28 +69,30 @@ defmodule CPSolver.Search.Partition do
   end
 
   ## Default partitioning
-  def partition_by_fix(value, variable) do
-
-    try do
-      remove_changes = Interface.remove(variable, value)
-      [
-        fixed_partition(value, variable), # Equal.new(variable, value)
-        domain_partition(Interface.domain(variable), %{variable.id => remove_changes}), # NotEqual.new(variable, value)
-      ]
-    catch
-    :fail ->
-      Logger.error(
-        "Failure on partitioning with value #{inspect(value)}, domain: #{domain_values(variable)}}"
-      )
-      throw(:fail)
-    end
+  def partition_by_fix(variable, value) when is_integer(value) do
+    [
+      # Equal.new(variable, value)
+      fixed_value_partition(variable, value),
+      # NotEqual.new(variable, value)
+      removed_value_partition(variable, value)
+    ]
   end
 
-  def fixed_partition(value, variable) do
-    domain_partition(Domain.new(value), %{variable.id => :fixed})
+  def fixed_value_partition(variable, value) do
+    new(
+      variable,
+      fn variable -> Interface.fix(variable, value) end
+    )
   end
 
-  def domain_partition(domain, constraint) do
-    {domain, constraint}
+  def removed_value_partition(variable, value) do
+    new(
+      variable,
+      fn variable -> Interface.remove(variable, value) end
+    )
+  end
+
+  def new(variable, reduction) when is_function(reduction, 1) do
+    %{variable.id => reduction}
   end
 end
