@@ -69,20 +69,20 @@ runner =
 
 ```elixir
 instance = 
-  #instance_200_items
-  #gecode_doc_example
-  t60_00
-  #t120_00
+  # instance_200_items
+  gecode_doc_example
+  # t60_00
+  # t120_00
 threads = 
-  3
+   3
   # 4
-timeout = :timer.minutes(60)
+timeout = :timer.minutes(5)
 # search = {:first_fail, :indomain_max} 
 # {Strategy.afc({:afc_size_min, 0.75}, &List.first/1), :indomain_max}
-runner.(instance, [
-  timeout: timeout, space_threads: threads,
-  #search: search
-]
-  #search: search
+runner.(instance, 
+  [
+    timeout: timeout, space_threads: threads,
+    #search: search
+  ]
 )
 ```

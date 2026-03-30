@@ -19,9 +19,9 @@ defmodule CPSolver.Search do
   end
 
   def initialize(brancher_impl, data) when is_atom(brancher_impl) do
-    if Code.ensure_loaded(brancher_impl) == {:module, brancher_impl}
-      && function_exported?(brancher_impl, :branch, 2) do
-        brancher_impl.initialize(data)
+    if Code.ensure_loaded(brancher_impl) == {:module, brancher_impl} &&
+         function_exported?(brancher_impl, :branch, 2) do
+      brancher_impl.initialize(data)
     else
       throw({:unknown_brancher, brancher_impl})
     end
@@ -36,25 +36,22 @@ defmodule CPSolver.Search do
 
   def branch(variables, branching, space_data) do
     variables
-    |> branch_impl(branching, space_data)
-  end
-
-  defp branch_impl(variables, brancher_fun, space_data) when is_function(brancher_fun, 3) do
-    variables
     |> filter_fixed_variables()
     |> then(fn unfixed_vars ->
-      brancher_fun.(:branch, unfixed_vars, space_data)
-      |> partitions_impl(variables, space_data)
+      unfixed_vars
+      |> branch_impl(branching, space_data)
+      |> partitions_impl(space_data)
     end)
   end
 
+  defp branch_impl(variables, brancher_fun, space_data) when is_function(brancher_fun, 3) do
+    brancher_fun.(:branch, variables, space_data)
+  end
+
   defp branch_impl(variables, brancher_impl, space_data) when is_atom(brancher_impl) do
-    if Code.ensure_loaded(brancher_impl) == {:module, brancher_impl}
-      && function_exported?(brancher_impl, :branch, 2) do
-        variables
-        |> filter_fixed_variables()
-        |> brancher_impl.branch(space_data)
-        |> partitions_impl(variables, space_data)
+    if Code.ensure_loaded(brancher_impl) == {:module, brancher_impl} &&
+         function_exported?(brancher_impl, :branch, 2) do
+      brancher_impl.branch(variables, space_data)
     else
       throw({:unknown_brancher, brancher_impl})
     end
@@ -65,8 +62,13 @@ defmodule CPSolver.Search do
   end
 
   defp branch_impl(variables, variable_choice, partition_strategy, space_data) do
-    variable_value_choice(variables, variable_choice, partition_strategy, space_data)
-    |> partitions_impl(variables, space_data)
+    branch_impl(
+      variables,
+      fn :branch, variables, space_data ->
+        variable_value_choice(variables, variable_choice, partition_strategy, space_data)
+      end,
+      space_data
+    )
   end
 
   def variable_value_choice(variables, variable_choice, partition_strategy, space_data) do
@@ -77,48 +79,64 @@ defmodule CPSolver.Search do
       selected_variable ->
         {:ok, domain_partitions} =
           Partition.partition(selected_variable, partition_strategy)
-          List.wrap(partition_record(selected_variable, domain_partitions))
+
+        domain_partitions
     end
   end
 
-  defp set_domain(variable, domain) do
-    Map.put(variable, :domain, domain)
+  defp copy_variable(%{domain: domain} = variable) do
+    Map.put(variable, :domain, Domain.copy(domain))
   end
 
   defp filter_fixed_variables(vars) do
     case Enum.reject(vars, fn var -> Interface.fixed?(var) end) do
-      [] -> throw(:all_vars_fixed)
+      [] ->
+        throw(:all_vars_fixed)
+
       unfixed_vars ->
         unfixed_vars
-      end
+    end
   end
 
-  defp partitions_impl(nil, _variables, _space_data) do
+  defp partitions_impl(nil, _space_data) do
     []
   end
 
-  defp partitions_impl(partitions, variables, space_data) when is_list(partitions) do
-    variables = Arrays.new(variables, implementation: Aja.Vector)
+  defp partitions_impl(partitions, space_data) when is_list(partitions) do
     Enum.reduce(partitions, [], fn variable_partition, acc ->
-      acc ++ variable_partitions_impl(variable_partition, variables, space_data)
+      acc ++ variable_partitions_impl(variable_partition, space_data)
     end)
   end
 
   ## Build partitions for a single variable
-  defp variable_partitions_impl(%{variable_id: selected_variable_id, partitions: domain_partitions}, variables, _space_data) do
-    Enum.map(domain_partitions, fn {domain, constraint} ->
-      {Arrays.map(variables, fn var ->
-         domain_copy =
-           ((var.id == selected_variable_id && domain) || var.domain)
-           |> Domain.copy()
-
-         set_domain(var, domain_copy)
-       end),
-       constraint}
+  defp variable_partitions_impl(domain_partitions, _space_data) do
+    Enum.map(List.wrap(domain_partitions), fn partition ->
+      build_reduction(partition)
     end)
   end
 
-  def partition_record(variable, domain_partitions) do
-    %{variable_id: variable.id, partitions: domain_partitions}
+  ## Partition is a map %{var_id => reduction}
+  ## `reduction is a function that takes a variable
+  ## and performs domain reduction.
+  ##
+  defp build_reduction(partition) do
+    fn variables ->
+      var_array = Arrays.new([], implementation: Aja.Vector)
+
+      Enum.reduce(variables, {var_array, Map.new()}, fn var, {variables_acc, changes_acc} ->
+        var_copy = copy_variable(var)
+
+        changes_acc =
+          case Map.get(partition, var.id) do
+            nil -> changes_acc
+            reduction -> Map.put(changes_acc, var.id, reduction.(var_copy))
+          end
+
+        {
+          Arrays.append(variables_acc, var_copy),
+          changes_acc
+        }
+      end)
+    end
   end
 end

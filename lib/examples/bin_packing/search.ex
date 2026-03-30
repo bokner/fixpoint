@@ -1,6 +1,5 @@
 defmodule CPSolver.Examples.BinPacking.Search do
   alias CPSolver.Variable.Interface
-  alias CPSolver.Search
   alias CPSolver.Search.Partition
 
   @doc """
@@ -19,15 +18,33 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
     item_assignment_ids = MapSet.new(Map.keys(item_assignment_map))
 
-    choose_variable_fun = fn variables ->
-      ## get all (unfixed) item assignment vars
-      _item_vars =
+    fn
+      :init, _, _ ->
+        :ok
+
+      :branch, variables, _data ->
+        case get_item_variables(variables, item_assignment_ids) do
+          nil ->
+            []
+
+          item_variables ->
+            ## By construction (choose_variable_fun), item vars are in increasing order of weights
+            selected_variable = List.last(item_variables)
+            {bins, slack, num_loads} = value_branching(selected_variable, bin_load_vars, item_assignment_map, capacity)
+
+            partitions(selected_variable, bins, slack, num_loads)
+
+        end
+    end
+  end
+
+  defp get_item_variables(variables, item_assignment_ids) do
         Enum.reduce_while(variables, nil, fn v, item_vars_acc ->
           item_var? = v.name in item_assignment_ids
 
           cond do
-            #Interface.fixed?(v) ->
-            #  {:cont, item_vars_acc}
+            Interface.fixed?(v) ->
+              {:cont, item_vars_acc}
 
             is_nil(item_vars_acc) ->
               (item_var? && {:cont, [v]}) || {:cont, nil}
@@ -36,32 +53,6 @@ defmodule CPSolver.Examples.BinPacking.Search do
               (item_var? && {:cont, [v | item_vars_acc]}) || {:halt, item_vars_acc}
           end
         end)
-
-    end
-
-    choose_value_fun = fn var ->
-      value_branching(var, bin_load_vars, item_assignment_map, capacity)
-    end
-
-    fn
-      :init, _, _ ->
-        :ok
-
-      :branch, variables, _data ->
-        case choose_variable_fun.(variables) do
-          nil ->
-            []
-
-          item_variables ->
-            ## By construction (choose_variable_fun), item vars are in increasing order of weights
-            selected_variable = List.last(item_variables)
-            {bins, slack, num_loads} = choose_value_fun.(selected_variable)
-            domain_partitions =
-              partitions(selected_variable, bins, slack, num_loads)
-
-            List.wrap(Search.partition_record(selected_variable, domain_partitions))
-        end
-    end
   end
 
   defp value_branching(var, bin_load_vars, item_assignment_map, capacity) do
@@ -138,9 +129,9 @@ defmodule CPSolver.Examples.BinPacking.Search do
     cond do
       is_nil(bin) || num_loads == 0 -> throw(:fail)
       slack in [nil, 0]  ->
-        Partition.fixed_partition(bin, variable)
+        Partition.fixed_value_partition(variable, bin)
     true ->
-      Partition.partition_by_fix(bin, variable)
+      Partition.partition_by_fix(variable, bin)
     end
     |> List.wrap()
 

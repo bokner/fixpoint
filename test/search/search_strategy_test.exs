@@ -2,10 +2,11 @@ defmodule CPSolverTest.Search.Brancher do
   use ExUnit.Case
 
   alias CPSolver.IntVariable, as: Variable
+  alias CPSolver.Variable.Interface
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Search
   alias CPSolver.Search.Partition
-  
+
   describe "First-fail search strategy" do
     alias CPSolver.Search.VariableSelector, as: SearchStrategy
 
@@ -27,13 +28,18 @@ defmodule CPSolverTest.Search.Brancher do
              end)
 
       # indomain_min splits domain of selected variable into min and the rest of the domain
-      {:ok, [{min_value_partition, _equal_constraint}, {no_min_partition, _not_equal_constraint}]} =
+      {:ok, [fixed_value_partition, _removed_value_partition]} =
         Partition.partition(selected_variable, :indomain_min)
 
-      min_value = Domain.min(min_value_partition)
+      ## Apply the 'partition' function
+      fixed_value_fun = Map.get(fixed_value_partition, selected_variable.id)
 
-      assert Domain.to_list(no_min_partition) |> Enum.sort() ==
-               List.delete(Enum.to_list(v2_values), min_value) |> Enum.sort()
+      refute Interface.fixed?(selected_variable)
+
+      fixed_value_fun.(selected_variable)
+
+      assert Interface.fixed?(selected_variable)
+
     end
 
     test "first_fail fails if no unfixed variables" do
@@ -60,7 +66,9 @@ defmodule CPSolverTest.Search.Brancher do
       variables = Enum.map(values, fn d -> Variable.new(d) end)
 
       [b_left, b_right] =
-        branches = Search.branch(variables, {:first_fail, :indomain_min})
+        branches =
+          Search.branch(variables, {:first_fail, :indomain_min})
+          |> Enum.map(fn partition_fun -> partition_fun.(variables) end)
 
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars
@@ -94,12 +102,30 @@ defmodule CPSolverTest.Search.Brancher do
     end
 
     test "indomain_split" do
-      var = Variable.new([1, 2, 3, 4, 5])
-      {:ok, [p1, p2]} = Partition.partition(var, :indomain_split)
-      p1_domain = elem(p1, 0)
-      assert Domain.to_list(p1_domain) == MapSet.new([1, 2, 3])
-      p2_domain = elem(p2, 0)
-      assert Domain.to_list(p2_domain) == MapSet.new([4, 5])
+      domain = [1, 2, 3, 4, 5]
+      {part1, part2} = Enum.split(domain, div(length(domain), 2))
+      variable = Variable.new(domain)
+      {:ok, [p1, p2]} = Partition.partition(variable, :indomain_split)
+
+      ## Apply the 'left-side partition' function
+      ls_partition_fun = Map.get(p1, variable.id)
+
+      variable_copy = Variable.new(domain)
+
+      ls_partition_fun.(variable_copy)
+
+      assert CPSolver.Utils.domain_values(variable_copy) == MapSet.new(part1)
+
+      ## Apply the 'right-side partition' function
+      rs_partition_fun = Map.get(p2, variable.id)
+
+      variable_copy = Variable.new(domain)
+
+      rs_partition_fun.(variable_copy)
+
+      assert CPSolver.Utils.domain_values(variable_copy) == MapSet.new(part2)
+
+
     end
   end
 end

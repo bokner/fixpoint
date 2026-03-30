@@ -179,7 +179,7 @@ defmodule CPSolver.Space do
       data
       |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
       |> Map.put(:objective, update_objective(space_opts[:objective], variables))
-      |> Map.put(:changes, Keyword.get(space_opts, :branch_constraint, %{}))
+      |> Map.put(:changes, Keyword.get(space_opts, :changes, %{}))
 
     {:ok, space_data, {:continue, :propagate}}
   end
@@ -333,15 +333,17 @@ defmodule CPSolver.Space do
     try do
       variables
       |> Search.branch(search, data)
-      |> Enum.take_while(fn {branch_variables, constraint} ->
-        !CPSolver.complete?(get_shared(data)) &&
+      |> Enum.take_while(fn partition_fun ->
+        if !CPSolver.complete?(get_shared(data)) do
+          {branch_variables, changes} = partition_fun.(variables)
           run_branch(
             data
             |> Map.put(:parent_id, id)
             |> Map.put(:id, make_ref())
             |> Map.put(:variables, branch_variables)
-            |> put_in([:opts, :branch_constraint], constraint)
+            |> put_in([:opts, :changes], changes)
           )
+        end
       end)
 
       shutdown(data, :distribute)
