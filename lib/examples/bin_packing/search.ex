@@ -16,43 +16,56 @@ defmodule CPSolver.Examples.BinPacking.Search do
       Enum.zip(item_assignment_vars, item_weights)
       |> Map.new(fn {var, weight} -> {var.name, weight} end)
 
-    item_assignment_ids = MapSet.new(Map.keys(item_assignment_map))
-
     fn
       :init, _, _ ->
         :ok
 
       :branch, variables, _data ->
-        case get_item_variables(variables, item_assignment_ids) do
+        case get_item_variables(variables, item_assignment_map) do
           nil ->
             []
 
           item_variables ->
-            ## By construction (choose_variable_fun), item vars are in increasing order of weights
-            selected_variable = List.last(item_variables)
-            {bins, slack, num_loads} = value_branching(selected_variable, bin_load_vars, item_assignment_map, capacity)
+            selected_variable = List.first(item_variables)
 
-            partitions(selected_variable, bins, slack, num_loads)
+            {bins, slack, num_loads} =
+              value_branching(selected_variable, bin_load_vars, item_assignment_map, capacity)
 
+            partitions(item_variables, bins, slack, num_loads)
         end
     end
   end
 
-  defp get_item_variables(variables, item_assignment_ids) do
-        Enum.reduce_while(variables, nil, fn v, item_vars_acc ->
-          item_var? = v.name in item_assignment_ids
+  defp get_item_variables(variables, item_assignment_map) do
+    ## We rely on:
+    ## - item weights sorted in descending order
+    ## - the item assignment variables are adjacent within the variable list
+    Enum.reduce_while(variables, {nil, nil}, fn v, {last_item_weight, item_vars_acc}  = acc ->
+      ## Is variable an 'item assignment' variable?
+      item_weight = Map.get(item_assignment_map, v.name)
 
-          cond do
-            Interface.fixed?(v) ->
-              {:cont, item_vars_acc}
+      cond do
+        is_nil(item_vars_acc) ->
+          (item_weight && {:cont, {item_weight, [v]}}) || {:cont, {nil, nil}}
 
-            is_nil(item_vars_acc) ->
-              (item_var? && {:cont, [v]}) || {:cont, nil}
-
-            true ->
-              (item_var? && {:cont, [v | item_vars_acc]}) || {:halt, item_vars_acc}
+        true ->
+          if item_weight do
+            ## Found another item assignment var
+            ## The weight is different?
+            ## We are only interested in the vars with the identical weights
+            if last_item_weight < item_weight do
+              {:halt, acc}
+            else
+              {:cont, {item_weight, [v | item_vars_acc]}}
+            end
+          else
+            ## The end of item assignment variables' block
+            ## (these variables have to be adjacent in the list of all variables)
+            {:halt, acc}
           end
-        end)
+      end
+    end)
+    |> then(fn {_, res} -> if res, do: Enum.reverse(res) end)
   end
 
   defp value_branching(var, bin_load_vars, item_assignment_map, capacity) do
@@ -66,40 +79,39 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
     {bins, bin_slack, num_loads} =
       Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil, 0}, fn
-        {load_var, bin_idx},
-        {min_bins, min_slack, load_count} = slack_acc ->
-        cond do
-          Interface.contains?(var, bin_idx) ->
-            slack = capacity - Interface.min(load_var) - item_weight
+        {load_var, bin_idx}, {min_bins, min_slack, load_count} = slack_acc ->
+          cond do
+            Interface.contains?(var, bin_idx) ->
+              slack = capacity - Interface.min(load_var) - item_weight
 
-            cond do
-              Interface.fixed?(load_var) ->
-                ## The bin load has already been fixed,
-                ## so the item has to be there (no choice).
-                ## TODO: this is the case where further branching doesn't make sense.
-                ## The related issue: https://github.com/bokner/fixpoint/issues/96
-                {:halt, {[bin_idx], nil, nil}}
+              cond do
+                Interface.fixed?(load_var) ->
+                  ## The bin load has already been fixed,
+                  ## so the item has to be there (no choice).
+                  ## TODO: this is the case where further branching doesn't make sense.
+                  ## The related issue: https://github.com/bokner/fixpoint/issues/96
+                  {:halt, {[bin_idx], nil, nil}}
 
-              slack == 0 ->
-                ## Perfect fit
-                {:halt, {[bin_idx], nil, nil}}
+                slack == 0 ->
+                  ## Perfect fit
+                  {:halt, {[bin_idx], nil, nil}}
 
-              slack < 0 ->
-                ## No fit
-                {:cont, slack_acc}
+                slack < 0 ->
+                  ## No fit
+                  {:cont, slack_acc}
 
-              slack < min_slack ->
-                ## Better fit
-                {:cont, {[bin_idx], slack, load_count + 1}}
+                slack < min_slack ->
+                  ## Better fit
+                  {:cont, {[bin_idx], slack, load_count + 1}}
 
-              true ->
-                ## Keep current min, add bin to the list of current min bins
-                {:cont, {[bin_idx | min_bins], min_slack, load_count + 1}}
-            end
+                true ->
+                  ## Keep current min, add bin to the list of current min bins
+                  {:cont, {[bin_idx | min_bins], min_slack, load_count + 1}}
+              end
 
-          true ->
-            {:cont, slack_acc}
-        end
+            true ->
+              {:cont, slack_acc}
+          end
       end)
 
     ## TODO:
@@ -113,7 +125,8 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ## - For the first branch we fix the variable with the chosen value;
     ## - For the second branch, we remove the value from the variable.
     ##
-    ## - To match Gecode, we will have to remove values for several variables (the ones with the same slack)
+    ## - To match Gecode, we will have to remove values for several variables
+    ## (the ones with the same slack)
     ##
     ## May be possible by implementing custom value selector:
     ## (see CPSolver.Search.ValueSelector.Split for an example).
@@ -124,16 +137,33 @@ defmodule CPSolver.Examples.BinPacking.Search do
     {bins, bin_slack, num_loads}
   end
 
-  defp partitions(variable, bins, slack, num_loads) do
+  defp partitions([variable | _rest] = _item_variables, bins, slack, num_loads) do
     bin = List.first(bins)
+
     cond do
-      is_nil(bin) || num_loads == 0 -> throw(:fail)
-      slack in [nil, 0]  ->
-        Partition.fixed_value_partition(variable, bin)
-    true ->
-      Partition.partition_by_fix(variable, bin)
+      is_nil(bin) || num_loads == 0 ->
+        throw(:fail)
+
+      slack == 0 || is_nil(slack) ->
+        [
+          Partition.fixed_value_partition(variable, bin),
+          #Partition.removed_value_partition(variable, bin)
+        ]
+
+      true ->
+        # purge_variables_partition =
+        #   Enum.reduce(item_variables, Map.new(),
+        #     fn variable, acc ->
+        #       Map.put(acc, variable.id, fn variable ->
+        #         Interface.remove(variable, bin) end)
+        #   end)
+        [
+          Partition.fixed_value_partition(variable, bin),
+          #purge_variables_partition
+          Partition.removed_value_partition(variable, bin)
+        ]
+
     end
     |> List.wrap()
-
   end
 end
