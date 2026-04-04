@@ -37,7 +37,7 @@ defmodule CPSolver.Test.Helpers do
 
   ## Compare two iterables
   def iterables_equal?(iterable1, iterable2) do
-    Iterable.to_list(iterable1) |> Enum.sort()
-    == Iterable.to_list(iterable2) |> Enum.sort()
+    Iterable.to_list(iterable1) |> Enum.sort() ==
+      Iterable.to_list(iterable2) |> Enum.sort()
   end
 end

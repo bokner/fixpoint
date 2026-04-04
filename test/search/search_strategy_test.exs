@@ -39,7 +39,6 @@ defmodule CPSolverTest.Search.Brancher do
       fixed_value_fun.(selected_variable)
 
       assert Interface.fixed?(selected_variable)
-
     end
 
     test "first_fail fails if no unfixed variables" do
@@ -67,13 +66,13 @@ defmodule CPSolverTest.Search.Brancher do
 
       [b_left, b_right] =
         branches =
-          Search.branch(variables, {:first_fail, :indomain_min})
-          |> Enum.map(fn partition_fun -> partition_fun.(variables) end)
+        Search.branch(variables, {:first_fail, :indomain_min})
+        |> Enum.map(fn partition_fun -> partition_fun.(variables) end)
 
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars
       assert Enum.all?(branches, fn {branch, _constraint} ->
-              Arrays.size(branch) == length(variables)
+               Arrays.size(branch) == length(variables)
              end)
 
       ## Left branch contains v2 variable fixed at 0
@@ -124,8 +123,6 @@ defmodule CPSolverTest.Search.Brancher do
       rs_partition_fun.(variable_copy)
 
       assert CPSolver.Utils.domain_values(variable_copy) == MapSet.new(part2)
-
-
     end
   end
 end
