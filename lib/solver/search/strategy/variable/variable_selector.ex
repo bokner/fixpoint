@@ -164,7 +164,7 @@ defmodule CPSolver.Search.VariableSelector do
 
   def action({action_mode, decay}, break_even_fun \\ FirstFail)
       when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
-      variable_choice({Action, mode: action_mode, decay: decay}, break_even_fun)
+    variable_choice({Action, mode: action_mode, decay: decay}, break_even_fun)
   end
 
   def chb(chb_mode, break_even_fun \\ FirstFail)
@@ -228,5 +228,4 @@ defmodule CPSolver.Search.VariableSelector do
   def variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
     variable_choice({strategy_impl, nil}, break_even_fun)
   end
-
 end

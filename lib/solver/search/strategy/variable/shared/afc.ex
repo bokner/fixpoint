@@ -53,16 +53,18 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   def initialize(space_data, opts) do
     shared = Space.get_shared(space_data)
     decay = opts[:decay]
+
     Shared.get_auxillary(shared, :afc) ||
       (
         afc_table = Shared.create_shared_ets_table(shared)
         Shared.put_auxillary(shared, :afc, %{propagator_afcs: afc_table, decay: decay})
-        Shared.add_handler(shared, :on_failure,
-          fn solver, {:fail, propagator_id} = _failure, failure_count ->
-            Shared.complete?(solver) ||
+
+        Shared.add_handler(shared, :on_failure, fn solver,
+                                                   {:fail, propagator_id} = _failure,
+                                                   failure_count ->
+          Shared.complete?(solver) ||
             update_afc(propagator_id, solver, true, failure_count)
-          end
-        )
+        end)
       )
   end
 
@@ -233,21 +235,22 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   ## Update AFC in 'shared'
   def update_afc(propagator_id, shared, failure?, global_failure_count \\ nil) do
     case Shared.get_auxillary(shared, :afc) do
-      nil -> :ok
+      nil ->
+        :ok
+
       %{propagator_afcs: afc_table, decay: decay} ->
+        failure_count = global_failure_count || Shared.get_failure_count(shared)
 
-      failure_count = global_failure_count || Shared.get_failure_count(shared)
+        updated_record =
+          case get_afc_record(afc_table, propagator_id) do
+            nil ->
+              propagator_afc(afc_record(1, 0), decay, failure_count, failure?)
 
-      updated_record =
-        case get_afc_record(afc_table, propagator_id) do
-          nil ->
-            propagator_afc(afc_record(1, 0), decay, failure_count, failure?)
+            afc_record ->
+              propagator_afc(afc_record, decay, failure_count, failure?)
+          end
 
-          afc_record ->
-            propagator_afc(afc_record, decay, failure_count, failure?)
-        end
-
-      :ets.insert(afc_table, {propagator_id, updated_record})
+        :ets.insert(afc_table, {propagator_id, updated_record})
     end
   end
 end

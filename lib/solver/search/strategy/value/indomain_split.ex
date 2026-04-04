@@ -19,9 +19,11 @@ defmodule CPSolver.Search.ValueSelector.Split do
   def partition(value) do
     [
       fn variable ->
-        Interface.removeAbove(variable, value - 1) end,
+        Interface.removeAbove(variable, value - 1)
+      end,
       fn variable ->
-        Interface.removeBelow(variable, value) end,
+        Interface.removeBelow(variable, value)
+      end
     ]
   end
 end

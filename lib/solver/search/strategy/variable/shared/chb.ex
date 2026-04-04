@@ -65,13 +65,14 @@ defmodule CPSolver.Search.VariableSelector.CHB do
         chb_table = Shared.create_shared_ets_table(shared)
         init_variable_chbs(variables, chb_table, opts[:q_score] || @default_q_score)
         Shared.put_auxillary(shared, :chb, %{variable_chbs: chb_table})
-        Shared.add_handler(shared, :on_space_finalized,
-        fn solver,  %{variables: variables} = _space_data, reason ->
+
+        Shared.add_handler(shared, :on_space_finalized, fn solver,
+                                                           %{variables: variables} = _space_data,
+                                                           reason ->
           Shared.complete?(solver) ||
-          update_chbs(variables, reason == :failure, solver)
+            update_chbs(variables, reason == :failure, solver)
         end)
       )
-
   end
 
   defp init_variable_chbs(variables, chb_table, q_score) do
@@ -111,39 +112,43 @@ defmodule CPSolver.Search.VariableSelector.CHB do
 
   def update_chbs(variables, failure?, shared) do
     case Shared.get_auxillary(shared, :chb) do
-      nil -> :ok
+      nil ->
+        :ok
+
       %{variable_chbs: chb_table} ->
-        Enum.reduce_while(variables, :ok,
-        fn var, _acc ->
-          Shared.complete?(shared) && {:halt, :ok} ||
-          (
-          update_variable_chb(var, chb_table, failure?, shared)
-          {:cont, :ok}
-          )
+        Enum.reduce_while(variables, :ok, fn var, _acc ->
+          (Shared.complete?(shared) && {:halt, :ok}) ||
+            (
+              update_variable_chb(var, chb_table, failure?, shared)
+              {:cont, :ok}
+            )
         end)
-      end
+    end
   end
 
   ## Update chb for individual variable in 'shared'
   defp update_variable_chb(%{id: variable_id} = variable, chb_table, failure?, shared) do
     case Shared.get_failure_count(shared) do
       global_failure_count when is_integer(global_failure_count) ->
+        cond do
+          pruned?(variable) ->
+            chb = get_chb(chb_table, variable_id)
 
-      cond do
-        pruned?(variable) ->
-          chb = get_chb(chb_table, variable_id)
+            updated_chb =
+              %{chb | q_score: q_score(chb, failure?, global_failure_count)}
+              |> then(fn rec ->
+                (failure? && %{rec | last_failure: max(chb.last_failure, global_failure_count)}) ||
+                  rec
+              end)
 
-          updated_chb =
-            %{chb | q_score: q_score(chb, failure?, global_failure_count)}
-            |> then(fn rec -> (failure? && %{rec | last_failure: max(chb.last_failure, global_failure_count)}) || rec end)
+            :ets.insert(chb_table, {variable_id, updated_chb})
 
-          :ets.insert(chb_table, {variable_id, updated_chb})
+          true ->
+            :ignore
+        end
 
-        true ->
-          :ignore
-      end
-
-      _ -> :ok
+      _ ->
+        :ok
     end
   end
 
