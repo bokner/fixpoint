@@ -47,8 +47,8 @@ defmodule CPSolver.Examples.BinPacking do
     CPSolver.solve(model, opts)
     |> tap(fn {:ok, res} ->
       if res.status not in [:unknown, :unsatisfiable] do
-        check_solution(res, weights, capacity) && Logger.warning("Solution is valid")
-        || throw({:error, :invalid_solution})
+        (check_solution(res, weights, capacity) && Logger.warning("Solution is valid")) ||
+          throw({:error, :invalid_solution})
       else
         Logger.error("No solution found")
       end
@@ -254,8 +254,13 @@ defmodule CPSolver.Examples.BinPacking do
     |> Map.new()
   end
 
-  def check_solution(%{solutions: solutions, variables: variable_names} = _result, item_weights, capacity) do
+  def check_solution(
+        %{solutions: solutions, variables: variable_names} = _result,
+        item_weights,
+        capacity
+      ) do
     item_weights = Enum.sort(item_weights, :desc)
+
     Enum.all?(solutions, fn sol ->
       check_solution(sol, item_weights, capacity, variable_names)
     end)
@@ -282,7 +287,7 @@ defmodule CPSolver.Examples.BinPacking do
         MapSet.union(acc, MapSet.new(bin_items))
       end)
 
-    true = all_item_indices == MapSet.new(1..(length(item_weights)))
+    true = all_item_indices == MapSet.new(1..length(item_weights))
 
     ## The total sum of bin weights equals the total sum of item weights
     true = Enum.sum(item_weights) == Enum.sum(bin_loads)
@@ -290,12 +295,18 @@ defmodule CPSolver.Examples.BinPacking do
 
   def solution_to_bin_content(item_assignments, item_weights) do
     bin_contents =
-    Enum.group_by(Enum.with_index(item_assignments, 1), fn {val, _} -> val end, fn {_, idx} -> idx end)
-    loads = Map.new(bin_contents, fn {bin, content} ->
-      {
-        bin,
-        Enum.sum_by(content, fn item_id -> Enum.at(item_weights, item_id - 1) end)
-      } end)
+      Enum.group_by(Enum.with_index(item_assignments, 1), fn {val, _} -> val end, fn {_, idx} ->
+        idx
+      end)
+
+    loads =
+      Map.new(bin_contents, fn {bin, content} ->
+        {
+          bin,
+          Enum.sum_by(content, fn item_id -> Enum.at(item_weights, item_id - 1) end)
+        }
+      end)
+
     %{loads: Map.values(loads), bin_contents: Map.values(bin_contents)}
   end
 

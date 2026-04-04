@@ -58,11 +58,17 @@ defmodule CPSolver.Search.VariableSelector.Action do
       (
         action_table = Shared.create_shared_ets_table(shared)
         init_variable_actions(variables, action_table)
-        Shared.put_auxillary(shared, :action, %{variable_actions: action_table, decay: opts[:decay]})
-        Shared.add_handler(shared, :on_space_finalized,
-        fn solver,  %{variables: variables} = _space_data, _reason ->
+
+        Shared.put_auxillary(shared, :action, %{
+          variable_actions: action_table,
+          decay: opts[:decay]
+        })
+
+        Shared.add_handler(shared, :on_space_finalized, fn solver,
+                                                           %{variables: variables} = _space_data,
+                                                           _reason ->
           Shared.complete?(solver) ||
-          update_actions(variables, solver)
+            update_actions(variables, solver)
         end)
       )
   end
@@ -100,10 +106,12 @@ defmodule CPSolver.Search.VariableSelector.Action do
 
   def update_actions(variables, shared) do
     case Shared.get_auxillary(shared, :action) do
-      nil -> :ok
+      nil ->
+        :ok
+
       %{variable_actions: action_table, decay: decay} ->
         Enum.each(variables, fn var -> update_variable_action(var, action_table, decay) end)
-      end
+    end
   end
 
   ## Update action for individual variable in 'shared'

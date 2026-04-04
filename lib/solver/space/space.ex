@@ -102,6 +102,7 @@ defmodule CPSolver.Space do
 
   defp run_space(worker_node, solver, data) do
     Shared.increment_node_counts(solver)
+
     (worker_node == Node.self() &&
        run_space(data)) ||
       :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data)])
@@ -109,21 +110,19 @@ defmodule CPSolver.Space do
 
   def run_space(data) do
     solver = get_shared(data)
+
     if checkout?(solver) do
-       spawn(fn ->
-         run_space_impl(data, solver)
-         checkin(solver)
-       end)
+      spawn(fn ->
+        run_space_impl(data, solver)
+        checkin(solver)
+      end)
     else
       run_space_impl(data, solver)
     end
   end
 
   defp run_space_impl(data, solver) do
-
-    case create(
-           data
-         ) do
+    case create(data) do
       {:ok, space_pid} ->
         if top_space?(data) do
           :ok
@@ -131,6 +130,7 @@ defmodule CPSolver.Space do
           Shared.add_active_spaces(solver, [space_pid])
           start_propagation(space_pid)
         end
+
       {:error, _} ->
         :ignore
     end
@@ -196,8 +196,9 @@ defmodule CPSolver.Space do
   @impl true
   def handle_call(:propagate, _caller, data) do
     :erlang.garbage_collect(self())
-    top_space?(data) && {:reply, :ok, data} ||
-    propagate(data)
+
+    (top_space?(data) && {:reply, :ok, data}) ||
+      propagate(data)
   end
 
   def top_space?(data) do
@@ -243,10 +244,10 @@ defmodule CPSolver.Space do
   end
 
   defp process_solutions(data) do
-        maybe_tighten_objective_bound(data[:objective])
-        ## Generate solutions and run them through solution handler.
-        solutions(data)
-        shutdown(data, :solved)
+    maybe_tighten_objective_bound(data[:objective])
+    ## Generate solutions and run them through solution handler.
+    solutions(data)
+    shutdown(data, :solved)
   end
 
   defp handle_error(exception, data) do
@@ -273,11 +274,14 @@ defmodule CPSolver.Space do
             CPSolver.complete?(get_shared(data)) ->
               ## Stop producing solutions if the solving is complete
               throw(:complete)
+
             data[:objective] ->
               ## Stop producing solution is it's an optimization problem.
               ## This will avoid solutions with the same objective
               throw({:same_objective, handler_result})
-            true -> handler_result
+
+            true ->
+              handler_result
           end
         end)
       end)
@@ -336,6 +340,7 @@ defmodule CPSolver.Space do
       |> Enum.take_while(fn partition_fun ->
         if !CPSolver.complete?(get_shared(data)) do
           {branch_variables, changes} = partition_fun.(variables)
+
           run_branch(
             data
             |> Map.put(:parent_id, id)
@@ -370,5 +375,4 @@ defmodule CPSolver.Space do
     data
     |> tap(fn _ -> Shared.finalize_space(get_shared(data), data, self(), reason) end)
   end
-
 end
