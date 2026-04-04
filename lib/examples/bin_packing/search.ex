@@ -151,7 +151,8 @@ defmodule CPSolver.Examples.BinPacking.Search do
         ]
 
       true ->
-        ## As suggested by Gecode docs for 2-alternative branching:
+        ## As suggested by Gecode docs for 2-alternative branching
+        ## (https://www.gecode.dev/doc-latest/MPG.pdf, chapter 20):
         ###
         ### – Not only prune bin b from the potential bins for item i,
         ##    but also prune all bins with the same slack as b
