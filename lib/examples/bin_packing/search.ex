@@ -63,10 +63,10 @@ defmodule CPSolver.Examples.BinPacking.Search do
             ## Found another item assignment var
             ## The weight is different?
             ## We are only interested in the vars with the identical weights
-            if last_item_weight < item_weight do
-              {:halt, acc}
-            else
+            if last_item_weight == item_weight do
               {:cont, {item_weight, [v | item_vars_acc]}}
+            else
+              {:halt, acc}
             end
           else
             ## The end of item assignment variables' block
