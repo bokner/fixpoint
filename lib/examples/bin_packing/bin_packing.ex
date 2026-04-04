@@ -197,61 +197,9 @@ defmodule CPSolver.Examples.BinPacking do
     #   end
 
     [
-      used_bins_first
+      used_bins_first,
+      # decreasing_loads
     ]
-  end
-
-  def print_result(%{status: status} = result) do
-    result =
-      cond do
-        status == :unsatisfiable ->
-          "Solution does not exist"
-
-        status == :unknown ->
-          "No solution found  within allotted time"
-
-        true ->
-          Enum.map_join(items_by_bin(result), "\n", fn {bin, items} ->
-            "Bin #{bin} contains: #{Enum.join(items, ", ")}"
-          end)
-      end
-
-    IO.puts(result)
-  end
-
-  defp items_by_bin(result) do
-    solution = List.last(result.solutions)
-    variable_names = result.variables
-
-    assignments =
-      Enum.zip(variable_names, solution)
-      |> Enum.filter(fn {name, value} ->
-        is_binary(name) and value == 1 and String.starts_with?(name, "item_")
-      end)
-
-    Enum.reduce(assignments, %{}, fn {name, _}, acc ->
-      case String.split(name, "_in_bin_") do
-        [item, bin] ->
-          Map.update(acc, bin, [item], fn items -> [item | items] end)
-
-        _ ->
-          acc
-      end
-    end)
-    |> Enum.map(fn {bin_str, items} ->
-      bin = String.to_integer(bin_str)
-
-      item_ids =
-        items
-        |> Enum.map(fn item ->
-          item
-          |> String.replace_prefix("item_", "")
-          |> String.to_integer()
-        end)
-
-      {bin, item_ids}
-    end)
-    |> Map.new()
   end
 
   def check_solution(
