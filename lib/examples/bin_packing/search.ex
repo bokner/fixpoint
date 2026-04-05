@@ -28,14 +28,14 @@ defmodule CPSolver.Examples.BinPacking.Search do
           item_variables ->
             selected_variable = List.first(item_variables)
 
-            {bins, slack, num_loads} =
+            {bins, slack, no_fit_bins} =
               value_branching(selected_variable, bin_load_vars, item_assignment_map, capacity)
 
             partitions(
               item_variables,
               bins,
               slack,
-              num_loads,
+              no_fit_bins,
               bin_load_vars,
               item_assignment_map,
               capacity
@@ -83,13 +83,12 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ## (see `choose_variable_fun`)
 
     item_weight = get_item_weight(var, item_assignment_map)
-    ## Find bin with minimal slack
-    ## TODO: advanced branching, as described by Gecode docs ("two alternatives" case)
+    ## Find bins with minimal slack
     ##
 
-    {bins, bin_slack, num_loads} =
-      Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil, 0}, fn
-        {load_var, bin_idx}, {min_bins, min_slack, load_count} = slack_acc ->
+    {_bins, _bin_slack, _no_fit_bins} =
+      Enum.reduce_while(Enum.with_index(bin_load_vars, 1), {[], nil, []}, fn
+        {load_var, bin_idx}, {min_bins, min_slack, no_fit_bins} = slack_acc ->
           cond do
             Interface.contains?(var, bin_idx) ->
               slack = slack(item_weight, capacity, load_var)
@@ -100,23 +99,23 @@ defmodule CPSolver.Examples.BinPacking.Search do
                   ## so the item has to be there (no choice).
                   ## TODO: this is the case where further branching doesn't make sense.
                   ## The related issue: https://github.com/bokner/fixpoint/issues/96
-                  {:halt, {[bin_idx], nil, nil}}
+                  {:halt, {[bin_idx], nil, []}}
 
                 slack == 0 ->
                   ## Perfect fit
-                  {:halt, {[bin_idx], 0, nil}}
+                  {:halt, {[bin_idx], 0, []}}
 
                 slack < 0 ->
                   ## No fit
-                  {:cont, slack_acc}
+                  {:cont, {min_bins, min_slack, [bin_idx | no_fit_bins]}}
 
                 slack < min_slack ->
                   ## Better fit
-                  {:cont, {[bin_idx], slack, load_count + 1}}
+                  {:cont, {[bin_idx], slack, no_fit_bins}}
 
                 true ->
                   ## Keep current min, add bin to the list of current min bins
-                  {:cont, {[bin_idx | min_bins], min_slack, load_count + 1}}
+                  {:cont, {[bin_idx | min_bins], min_slack, no_fit_bins}}
               end
 
             true ->
@@ -124,14 +123,13 @@ defmodule CPSolver.Examples.BinPacking.Search do
           end
       end)
 
-    {bins, bin_slack, num_loads}
   end
 
   defp partitions(
          [selected_variable | other_item_variables] = _item_variables,
          bins,
          slack,
-         num_loads,
+         no_fit_bins,
          bin_load_vars,
          item_assignment_map,
          capacity
@@ -139,7 +137,7 @@ defmodule CPSolver.Examples.BinPacking.Search do
     bin = List.first(bins)
 
     cond do
-      is_nil(bin) || num_loads == 0 ->
+      is_nil(bin) ->
         throw(:fail)
 
       slack in [0, nil] ->
@@ -148,6 +146,12 @@ defmodule CPSolver.Examples.BinPacking.Search do
         ##
         [
           Partition.fixed_value_partition(selected_variable, bin)
+        ]
+
+      Enum.empty?(no_fit_bins) ->
+        [
+          Partition.fixed_value_partition(selected_variable, bin),
+          Partition.removed_value_partition(selected_variable, bin)
         ]
 
       true ->
@@ -165,7 +169,7 @@ defmodule CPSolver.Examples.BinPacking.Search do
         prune_partition =
           Enum.reduce(
             other_item_variables,
-            Partition.removed_value_partition(selected_variable, bin),
+            Partition.remove_multiple_values_partition(selected_variable, no_fit_bins),
             fn variable, acc ->
               w = get_item_weight(variable, item_assignment_map)
 
@@ -201,7 +205,6 @@ defmodule CPSolver.Examples.BinPacking.Search do
         ]
     end
 
-    # |> List.wrap()
   end
 
   defp slack(item_weight, capacity, load_variable) do

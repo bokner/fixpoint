@@ -92,6 +92,23 @@ defmodule CPSolver.Search.Partition do
     )
   end
 
+  ## Here we build a reduction that removes multiple values
+  ## from the domain of variable.
+  def remove_multiple_values_partition(variable, values) do
+    new(
+      variable,
+      fn variable ->
+        Enum.reduce(values, Map.new(), fn val, acc ->
+          if Interface.contains?(variable, val) do
+            Map.put(acc, variable.id, Interface.remove(variable, val))
+          else
+            acc
+          end
+        end)
+      end
+    )
+  end
+
   def new(variable, reduction) when is_function(reduction, 1) do
     %{variable.id => reduction}
   end
