@@ -11,6 +11,7 @@ Mix.install([
 
 ```elixir
 alias CPSolver.Search.VariableSelector, as: Strategy
+alias CPSolver.Examples.BinPacking.UpperBound
 gecode_doc_example =
   %{
     capacity: 100,
@@ -72,28 +73,27 @@ falkenauer_u120_00 = %{
 runner =
   fn %{capacity: capacity, weights: weights} = _instance, opts ->
     CPSolver.Examples.BinPacking.solve(weights, capacity,
-      opts
+     opts
     )
   end
 ```
 
 ```elixir
-{instance, threads, timeout} = 
-{instance_200_items, 3, :timer.minutes(120)}
-#{gecode_doc_example, 3, :timer.minutes(5)}
-#{falkenauer_u120_00, 3, :timer.minutes(60)}
-#{t60_00, 3, :timer.minutes(60)}
-#{t120_00, 3, :timer.minutes(60)}
-#threads = 
-#   4
-  # 4
-timeout = :timer.minutes(120)
+{instance, threads, upper_bound, timeout} = 
+#{instance_200_items, 2, nil, :timer.minutes(10)}
+
+#{gecode_doc_example, 3, nil, :timer.minutes(3)}
+{falkenauer_u120_00, 3, 63, :timer.hours(10)}
+#{t60_00, 3, nil, :timer.minutes(5)}
+#{t120_00, 3, 45, :timer.minutes(60)}
+
 # search = {:first_fail, :indomain_max} 
 # {Strategy.afc({:afc_size_min, 0.75}, &List.first/1), :indomain_max}
 runner.(instance, 
   [
     timeout: timeout,
-    #upper_bound: 25,
+    upper_bound: upper_bound || 
+      UpperBound.first_fit_decreasing(instance.weights, instance.capacity),
     space_threads: threads,
     ## stop_on: {:max_solutions, 1}
     #search: search
