@@ -112,6 +112,7 @@ defmodule CPSolver.Space do
     solver = get_shared(data)
 
     if checkout?(solver) do
+      ## TODO: we want to skip spawning!
       spawn(fn ->
         run_space_impl(data, solver)
         checkin(solver)

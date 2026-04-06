@@ -1,6 +1,5 @@
 defmodule CPSolverTest.Propagator.ConstraintGraph do
   use ExUnit.Case
-  require Logger
 
   describe "Propagator graph" do
     alias CPSolver.Propagator.ConstraintGraph
