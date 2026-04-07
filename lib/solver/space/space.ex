@@ -47,7 +47,7 @@ defmodule CPSolver.Space do
     }
 
     search = space_opts[:search]
-    initialize_search(search, space_data)
+    Search.initialize(search, space_data)
     ## Save initial constraint graph in shared data
     ## (for shared search strategies etc.)
     top_space_data =
@@ -61,17 +61,14 @@ defmodule CPSolver.Space do
     ## Start the 'top space' process and start propagation
     {:ok,
       spawn(fn ->
-        space_data = init_impl(top_space_data)
-        propagate(space_data)
+        top_space_data
+        |> init_impl()
+        |> propagate()
       end)
     }
     |> tap(fn {:ok, space_pid} ->
       Shared.add_active_spaces(shared, [space_pid])
     end)
-  end
-
-  defp initialize_search(search, space_data) do
-    Search.initialize(search, space_data)
   end
 
   defp assign_unique_ids(propagators) do
@@ -120,22 +117,18 @@ defmodule CPSolver.Space do
   end
 
   defp run_space_impl(data, solver) do
-    if top_space?(data) do
-      :ok
-    else
-      pid = self()
+    pid = self()
 
-      space_pid =
-        spawn(fn ->
-          space_data = init_impl(data)
-          wait_for(:propagate)
-          propagate(space_data)
-          send(pid, :done)
-        end)
+    space_pid =
+      spawn(fn ->
+        space_data = init_impl(data)
+        wait_for(:propagate)
+        propagate(space_data)
+        send(pid, :done)
+      end)
 
-      Shared.add_active_spaces(solver, [space_pid])
-      start_propagation(space_pid)
-    end
+    Shared.add_active_spaces(solver, [space_pid])
+    start_propagation(space_pid)
   end
 
   defp wait_for(response) do
@@ -183,10 +176,6 @@ defmodule CPSolver.Space do
     |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
     |> Map.put(:objective, update_objective(space_opts[:objective], variables))
     |> Map.put(:changes, Keyword.get(space_opts, :changes, %{}))
-  end
-
-  def top_space?(data) do
-    is_nil(data[:parent_id])
   end
 
   defp propagate(
