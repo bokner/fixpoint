@@ -134,24 +134,16 @@ defmodule CPSolver.Examples.BinPacking.Search do
          item_assignment_map,
          capacity
        ) do
-    bin = List.first(bins)
 
     cond do
-      is_nil(bin) ->
+      Enum.empty?(bins) ->
         throw(:fail)
 
       slack in [0, nil] ->
         ## Perfect fit or the bin being fixed.
-        ## We only need a single partition.
-        ##
+        ## We only need a single partition with the fixed value.
         [
-          Partition.fixed_value_partition(selected_variable, bin)
-        ]
-
-      Enum.empty?(no_fit_bins) ->
-        [
-          Partition.fixed_value_partition(selected_variable, bin),
-          Partition.removed_value_partition(selected_variable, bin)
+          Partition.fixed_value_partition(selected_variable, List.first(bins)),
         ]
 
       true ->
@@ -162,14 +154,21 @@ defmodule CPSolver.Examples.BinPacking.Search do
         ##    but also prune all bins with the same slack as b
         ##    from the potential bins for all items with the same size as i
         ##
-        ##  At this point, all item variables have the same size as the first item variable;
+        ##
+        ##  Note: at this point, all item variables are assocated with the same item size as the first item variable.
+        ##
         ##  For each item variable, we will iterate over bin load vars to
         ##  identify the ones with the same slack as computed for the first variable.
         ##
+        selected_bin = List.first(bins)
+        ## We will also prune the selected variable, if there are no-fit bins
+        selected_variable_prun_partition =
+          Enum.empty?(no_fit_bins) &&
+            Partition.removed_value_partition(selected_variable, selected_bin) ||
+            Partition.remove_multiple_values_partition(selected_variable, no_fit_bins)
+
         prune_partition =
-          Enum.reduce(
-            other_item_variables,
-            Partition.remove_multiple_values_partition(selected_variable, no_fit_bins),
+          Enum.reduce(other_item_variables, selected_variable_prun_partition,
             fn variable, acc ->
               w = get_item_weight(variable, item_assignment_map)
 
@@ -200,7 +199,7 @@ defmodule CPSolver.Examples.BinPacking.Search do
           )
 
         [
-          Partition.fixed_value_partition(selected_variable, bin),
+          Partition.fixed_value_partition(selected_variable, selected_bin),
           prune_partition
         ]
     end
