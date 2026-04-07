@@ -2,6 +2,7 @@ defmodule CPSolver.Shared do
   alias CPSolver.Objective
   alias CPSolver.Variable.Interface
   alias CPSolver.Distributed
+  alias CPSolver.Space.ThreadPool
 
   def init_shared_data(opts) do
     distributed = Keyword.get(opts, :distributed, false)
@@ -20,6 +21,10 @@ defmodule CPSolver.Shared do
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       complete_flag: init_complete_flag(),
       space_thread_counters: init_space_thread_counters(space_threads),
+      thread_pool: (
+        {:ok, thread_pool} = ThreadPool.new(space_threads)
+        thread_pool
+      ),
       times: init_times(),
       distributed: distributed,
       auxillary: init_auxillary_map()
@@ -67,9 +72,9 @@ defmodule CPSolver.Shared do
     |> div(1_000)
   end
 
-  defp init_complete_flag() do
+  defp init_complete_flag(value \\ false) do
     :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
-    |> tap(fn ref -> :ets.insert(ref, {:complete_flag, false}) end)
+    |> tap(fn ref -> :ets.insert(ref, {:complete_flag, value}) end)
   end
 
   defp init_auxillary_map() do
@@ -342,7 +347,7 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :cleanup_impl)
   end
 
-  def cleanup_impl(%{solver_pid: solver_pid, objective: objective} = solver) do
+  def cleanup_impl(%{thread_pool: thread_pool, solver_pid: solver_pid, objective: objective} = solver) do
     Enum.each(
       [:solutions, :statistics, :active_nodes, :auxillary, :times, :complete_flag, :space_thread_counters],
       fn item ->
@@ -351,6 +356,7 @@ defmodule CPSolver.Shared do
     )
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
+    Process.alive?(thread_pool) && GenServer.stop(thread_pool)
     reset_objective(objective)
     :ok
   end

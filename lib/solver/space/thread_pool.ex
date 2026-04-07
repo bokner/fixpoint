@@ -22,16 +22,18 @@ defmodule CPSolver.Space.ThreadPool do
     end
   end
 
-  def handle_call(:get_pool_state, _caller, %{pool_size: pool_size, pool_ref: pool_ref, space_queue: queue} = state) do
-    {:reply,
-      {:ok,
-        %{queue: queue, pool_size: pool_size, available: get_free_threads(pool_ref)}}, state}
+  def handle_call(
+        :get_pool_state,
+        _caller,
+        %{pool_size: pool_size, pool_ref: pool_ref, space_queue: queue} = state
+      ) do
+    {:reply, {:ok, %{queue: queue, pool_size: pool_size, available: get_free_threads(pool_ref)}},
+     state}
   end
 
   @impl true
-  def handle_cast(:checkin, %{space_queue: queue} = state) do
-    checkin_impl(state)
-    updated_queue = notify_first_in_queue(queue)
+  def handle_cast(:checkin, state) do
+    updated_queue = checkin_impl(state)
     {:noreply, Map.put(state, :space_queue, updated_queue)}
   end
 
@@ -71,7 +73,34 @@ defmodule CPSolver.Space.ThreadPool do
     end
   end
 
-  defp checkin_impl(%{pool_size: pool_size, pool_ref: pool_ref} = _state) do
+  defp checkin_impl(%{pool_size: pool_size, pool_ref: pool_ref, space_queue: queue} = _state) do
+    increase_available_pool_count(pool_ref, pool_size)
+    {process_to_checkout, updated_queue} = get_waiting_process(queue)
+
+    if process_to_checkout do
+      decrease_available_pool_count(pool_ref)
+      ## Wake up the waiting the process
+      GenServer.reply(process_to_checkout, true)
+    end
+
+    updated_queue
+  end
+
+  def get_waiting_process(queue) do
+    case :queue.out(queue) do
+      {:empty, q} ->
+        {nil, q}
+
+      {{:value, {pid, _ref} = caller}, q} ->
+        if Process.alive?(pid) do
+          {caller, q}
+        else
+          get_waiting_process(q)
+        end
+    end
+  end
+
+  defp increase_available_pool_count(pool_ref, pool_size) do
     Array.update(pool_ref, 1, fn current ->
       if current < pool_size do
         current + 1
@@ -79,22 +108,11 @@ defmodule CPSolver.Space.ThreadPool do
     end)
   end
 
-  def notify_first_in_queue(
-        queue,
-        select_value_fun \\ fn {pid, _ref} = caller ->
-          Process.alive?(pid) && GenServer.reply(caller, true)
-        end
-      ) do
-    case :queue.out(queue) do
-      {:empty, q} ->
-        q
-
-      {{:value, caller}, q} ->
-        if select_value_fun.(caller) do
-          q
-        else
-          notify_first_in_queue(q, select_value_fun)
-        end
-    end
+  defp decrease_available_pool_count(pool_ref) do
+    Array.update(pool_ref, 1, fn current ->
+      if current > 0 do
+        current - 1
+      end
+    end)
   end
 end
