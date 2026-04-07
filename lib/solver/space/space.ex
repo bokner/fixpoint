@@ -19,8 +19,6 @@ defmodule CPSolver.Space do
 
   require Logger
 
-  @behaviour GenServer
-
   def default_space_opts() do
     [
       solution_handler: Solution.default_handler(),
@@ -52,21 +50,24 @@ defmodule CPSolver.Space do
     initialize_search(search, space_data)
     ## Save initial constraint graph in shared data
     ## (for shared search strategies etc.)
-    create(
+    top_space_data =
       space_data
       |> Map.put(:search, search)
       |> put_shared(:initial_constraint_graph, initial_constraint_graph)
-    )
+
+    shared = get_shared(space_data)
+    Shared.increment_node_counts(shared)
+
+    ## Start the 'top space' process and start propagation
+    {:ok,
+      spawn(fn ->
+        space_data = init_impl(top_space_data)
+        propagate(space_data)
+      end)
+    }
     |> tap(fn {:ok, space_pid} ->
-      shared = get_shared(space_data)
-      Shared.increment_node_counts(shared)
       Shared.add_active_spaces(shared, [space_pid])
     end)
-  end
-
-  ## Child space creation
-  def create(data) do
-    GenServer.start(__MODULE__, data)
   end
 
   defp initialize_search(search, space_data) do
@@ -86,12 +87,8 @@ defmodule CPSolver.Space do
   end
 
   def start_propagation(space_pid) when is_pid(space_pid) do
-    try do
-      GenServer.call(space_pid, :propagate, :infinity)
-    catch
-      :exit, {:normal, {GenServer, :call, _}} = _reason ->
-        :ignore
-    end
+    send(space_pid, :propagate)
+    wait_for(:done)
   end
 
   defp run_branch(data) do
@@ -112,6 +109,7 @@ defmodule CPSolver.Space do
     solver = get_shared(data)
 
     if checkout?(solver) do
+      ## TODO: we want to skip spawning!
       spawn(fn ->
         run_space_impl(data, solver)
         checkin(solver)
@@ -122,17 +120,27 @@ defmodule CPSolver.Space do
   end
 
   defp run_space_impl(data, solver) do
-    case create(data) do
-      {:ok, space_pid} ->
-        if top_space?(data) do
-          :ok
-        else
-          Shared.add_active_spaces(solver, [space_pid])
-          start_propagation(space_pid)
-        end
+    if top_space?(data) do
+      :ok
+    else
+      pid = self()
 
-      {:error, _} ->
-        :ignore
+      space_pid =
+        spawn(fn ->
+          space_data = init_impl(data)
+          wait_for(:propagate)
+          propagate(space_data)
+          send(pid, :done)
+        end)
+
+      Shared.add_active_spaces(solver, [space_pid])
+      start_propagation(space_pid)
+    end
+  end
+
+  defp wait_for(response) do
+    receive do
+      ^response -> :ok
     end
   end
 
@@ -157,8 +165,9 @@ defmodule CPSolver.Space do
     Shared.checkin_space_thread(solver)
   end
 
-  @impl true
-  def init(%{domains: domains, variables: variables} = data) do
+  ## This head is for handling remote spaces.
+  ## The data contains :domains, which is a %{var_id => domain_values} map
+  defp init_impl(%{domains: domains, variables: variables} = data) do
     updated_variables =
       Enum.map(variables, fn var ->
         domain = Map.get(domains, Interface.id(var))
@@ -167,38 +176,13 @@ defmodule CPSolver.Space do
 
     data
     |> Map.put(:variables, updated_variables)
-    |> init_impl()
-  end
-
-  def init(data) do
-    init_impl(data)
   end
 
   defp init_impl(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
-    space_data =
-      data
-      |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
-      |> Map.put(:objective, update_objective(space_opts[:objective], variables))
-      |> Map.put(:changes, Keyword.get(space_opts, :changes, %{}))
-
-    {:ok, space_data, {:continue, :propagate}}
-  end
-
-  @impl true
-  def handle_continue(:propagate, data) do
-    if top_space?(data) do
-      propagate(data)
-    else
-      {:noreply, data}
-    end
-  end
-
-  @impl true
-  def handle_call(:propagate, _caller, data) do
-    :erlang.garbage_collect(self())
-
-    (top_space?(data) && {:reply, :ok, data}) ||
-      propagate(data)
+    data
+    |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
+    |> Map.put(:objective, update_objective(space_opts[:objective], variables))
+    |> Map.put(:changes, Keyword.get(space_opts, :changes, %{}))
   end
 
   def top_space?(data) do
@@ -359,7 +343,7 @@ defmodule CPSolver.Space do
   end
 
   defp shutdown(data, reason) do
-    {:stop, :normal, (!data[:finalized] && finalize(data, reason)) || data}
+    (!data[:finalized] && finalize(data, reason)) || data
   end
 
   def get_shared(data) do

@@ -3,8 +3,6 @@ defmodule CPSolverTest.Examples.Queens do
 
   alias CPSolver.Examples.Queens
 
-  require Logger
-
   ## No solutions
   test "3 Queens" do
     test_queens(3, 0)
