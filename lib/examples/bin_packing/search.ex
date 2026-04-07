@@ -146,14 +146,6 @@ defmodule CPSolver.Examples.BinPacking.Search do
           Partition.fixed_value_partition(selected_variable, List.first(bins)),
         ]
 
-      Enum.empty?(no_fit_bins) ->
-        ## All bins can be used
-        bin = List.first(bins)
-        [
-          Partition.fixed_value_partition(selected_variable, bin),
-          Partition.removed_value_partition(selected_variable, bin)
-        ]
-
       true ->
         ## As suggested by Gecode docs for 2-alternative branching
         ## (https://www.gecode.dev/doc-latest/MPG.pdf, chapter 20):
@@ -169,10 +161,14 @@ defmodule CPSolver.Examples.BinPacking.Search do
         ##  identify the ones with the same slack as computed for the first variable.
         ##
         selected_bin = List.first(bins)
+        ## We will also prune the selected variable, if there are no-fit bins
+        selected_variable_prun_partition =
+          Enum.empty?(no_fit_bins) &&
+            Partition.removed_value_partition(selected_variable, selected_bin) ||
+            Partition.remove_multiple_values_partition(selected_variable, no_fit_bins)
+
         prune_partition =
-          Enum.reduce(
-            other_item_variables,
-            Partition.remove_multiple_values_partition(selected_variable, no_fit_bins),
+          Enum.reduce(other_item_variables, selected_variable_prun_partition,
             fn variable, acc ->
               w = get_item_weight(variable, item_assignment_map)
 
