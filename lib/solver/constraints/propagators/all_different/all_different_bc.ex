@@ -13,7 +13,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
   """
   @impl true
   def arguments(args) do
-    Arrays.new(args, implementation: Aja.Vector)
+    Arrays.new(args, implementation: Arrays.Implementations.ErlangArray)
   end
 
   @impl true

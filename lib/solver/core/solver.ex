@@ -273,7 +273,7 @@ defmodule CPSolver do
   defp prepare(variables) do
     ## At this point, `variables` list can contain views
     ## In this case, we will extract variables from views.
-    Enum.reduce(variables, Arrays.new([], implementation: Aja.Vector), fn var,
+    Enum.reduce(variables, Arrays.new([], implementation: Arrays.Implementations.ErlangArray), fn var,
     vars_acc ->
       Arrays.append(vars_acc, Interface.variable(var))
     end)

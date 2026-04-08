@@ -12,7 +12,7 @@ defmodule CPSolver.Propagator.ElementVar do
 
   @impl true
   def arguments([var_array, var_index, var_value]) do
-    [Arrays.new(var_array, implementation: Aja.Vector), var_index, var_value]
+    [Arrays.new(var_array, implementation: Arrays.Implementations.ErlangArray), var_index, var_value]
   end
 
   @impl true

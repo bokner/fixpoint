@@ -121,7 +121,7 @@ defmodule CPSolver.Search do
   ##
   defp build_reduction(partition) do
     fn variables ->
-      var_array = Arrays.new([], implementation: Aja.Vector)
+      var_array = Arrays.new([], implementation: Arrays.Implementations.ErlangArray)
 
       Enum.reduce(variables, {var_array, Map.new()}, fn var, {variables_acc, changes_acc} ->
         var_copy = copy_variable(var)
