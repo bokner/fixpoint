@@ -13,7 +13,7 @@ defmodule CPSolver.Propagator.Sum do
 
   @impl true
   def arguments(args) do
-    Arrays.new(args, implementation: Arrays.Implementations.ErlangArray)
+    Vector.new(args)
   end
 
   defp initial_state(args) do

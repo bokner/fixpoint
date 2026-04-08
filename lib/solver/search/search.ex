@@ -4,6 +4,7 @@ defmodule CPSolver.Search do
   alias CPSolver.Search.VariableSelector
   alias CPSolver.Search.Partition
   alias CPSolver.Variable.Interface
+  alias CPSolver.Utils.Vector
 
   require Logger
 
@@ -121,7 +122,7 @@ defmodule CPSolver.Search do
   ##
   defp build_reduction(partition) do
     fn variables ->
-      var_array = Arrays.new([], implementation: Arrays.Implementations.ErlangArray)
+      var_array = Vector.new([])
 
       Enum.reduce(variables, {var_array, Map.new()}, fn var, {variables_acc, changes_acc} ->
         var_copy = copy_variable(var)
@@ -133,7 +134,7 @@ defmodule CPSolver.Search do
           end
 
         {
-          Arrays.append(variables_acc, var_copy),
+          Vector.append(variables_acc, var_copy),
           changes_acc
         }
       end)

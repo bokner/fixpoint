@@ -10,6 +10,8 @@ defmodule CPSolver do
 
   alias CPSolver.Shared
 
+  alias CPSolver.Utils.Vector
+
   use GenServer
 
   require Logger
@@ -273,9 +275,9 @@ defmodule CPSolver do
   defp prepare(variables) do
     ## At this point, `variables` list can contain views
     ## In this case, we will extract variables from views.
-    Enum.reduce(variables, Arrays.new([], implementation: Arrays.Implementations.ErlangArray), fn var,
+    Enum.reduce(variables, Vector.new([]), fn var,
     vars_acc ->
-      Arrays.append(vars_acc, Interface.variable(var))
+      Vector.append(vars_acc, Interface.variable(var))
     end)
   end
 end

@@ -14,7 +14,7 @@ defmodule CPSolver.Propagator.Or do
 
   @impl true
   def arguments(args) do
-    Arrays.new(args, implementation: Arrays.Implementations.ErlangArray)
+    Vector.new(args)
   end
 
   @impl true
@@ -62,7 +62,7 @@ defmodule CPSolver.Propagator.Or do
   end
 
   defp initial_reduction(all_vars) do
-    Enum.reduce_while(0..(Arrays.size(all_vars) - 1), MapSet.new(), fn var_idx, candidates_acc ->
+    Enum.reduce_while(0..(Vector.size(all_vars) - 1), MapSet.new(), fn var_idx, candidates_acc ->
       var = Propagator.arg_at(all_vars, var_idx)
 
       if fixed?(var) do

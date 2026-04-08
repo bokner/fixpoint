@@ -5,6 +5,8 @@ defmodule CPSolverTest.Search.FirstFail do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Search.DefaultBrancher
 
+  alias CPSolver.Utils.Vector
+
   test "default brancher is the same as {:first_fail, :indomain_min}" do
     v1_values = 0..9
     v2_values = 1..10
@@ -18,12 +20,12 @@ defmodule CPSolverTest.Search.FirstFail do
 
     ## 1st partition has var3 fixed
     {vars, changes} = partition1.(variables)
-    var3_copy = Arrays.get(vars, 2)
+    var3_copy = Vector.at(vars, 2)
     assert Map.values(changes) == [:fixed]
     assert Variable.fixed?(var3_copy) && Variable.min(var3_copy) == 1
     ## 2nd partition has min value (1) removed from var3
     {vars, changes} = partition2.(variables)
-    var3_copy = Arrays.get(vars, 2)
+    var3_copy = Vector.at(vars, 2)
     assert Map.values(changes) == [:min_change]
     refute Variable.contains?(var3_copy, 1)
   end

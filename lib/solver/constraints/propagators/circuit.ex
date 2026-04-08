@@ -15,7 +15,7 @@ defmodule CPSolver.Propagator.Circuit do
 
   @impl true
   def arguments(args) do
-    Arrays.new(args, implementation: Arrays.Implementations.ErlangArray)
+    Vector.new(args)
   end
 
   @impl true
@@ -37,7 +37,7 @@ defmodule CPSolver.Propagator.Circuit do
   end
 
   defp initial_state(variables) do
-    l = Arrays.size(variables)
+    l = Vector.size(variables)
 
     domain_graph =
       variables
@@ -132,7 +132,7 @@ defmodule CPSolver.Propagator.Circuit do
       next_value = min(next)
       if next_value in fixed_chain do
         ## short loop?
-        if MapSet.size(fixed_chain) < Arrays.size(vars), do: fail()
+        if MapSet.size(fixed_chain) < Vector.size(vars), do: fail()
         ## follow the chain
         short_loop_check(vars, next_value, MapSet.put(fixed_chain, next_value))
       end
@@ -157,7 +157,7 @@ defmodule CPSolver.Propagator.Circuit do
         |> get_variable(vertex_index - 1)
         |> domain_iterator()
       _graph, vertex_index, :in ->
-        FlatMapper.new(1..Arrays.size(vars),
+        FlatMapper.new(1..Vector.size(vars),
           fn idx ->
             contains?(get_variable(vars, idx - 1), vertex_index - 1) && [idx] || []
           end

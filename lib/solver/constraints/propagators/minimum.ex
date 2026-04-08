@@ -12,7 +12,7 @@ defmodule CPSolver.Propagator.Minimum do
 
   @impl true
   def arguments(args) do
-    Arrays.new(args, implementation: Arrays.Implementations.ErlangArray)
+    Vector.new(args)
   end
 
   @impl true

@@ -10,7 +10,7 @@ defmodule CPSolver.Propagator do
   @callback failed?(Propagator.t(), state :: map() | nil) :: boolean()
 
   @callback variables(args :: list()) :: list()
-  @callback arguments(args :: list()) :: Arrays.t()
+  @callback arguments(args :: list()) :: Vector.t()
 
   alias CPSolver.Variable
   alias CPSolver.Variable.Interface
@@ -19,6 +19,7 @@ defmodule CPSolver.Propagator do
   alias CPSolver.DefaultDomain, as: Domain
   alias CPSolver.Propagator.ConstraintGraph
   alias CPSolver.Utils.TupleArray
+  alias CPSolver.Utils.Vector
   alias CPSolver.Common
 
   require Logger
@@ -28,6 +29,8 @@ defmodule CPSolver.Propagator do
       alias CPSolver.Propagator
       alias CPSolver.Variable.Interface
       alias CPSolver.DefaultDomain, as: Domain
+      alias CPSolver.Utils.Vector
+
       import CPSolver.Propagator.Variable
       import CPSolver.Utils
 
@@ -316,7 +319,7 @@ defmodule CPSolver.Propagator do
   end
 
   def arg_at(args, pos) do
-       Arrays.get(args, pos)
+    CPSolver.Utils.Vector.at(args, pos)
   end
 
   def arg_map(%{args: args} = _propagator, mapper) do
@@ -332,7 +335,7 @@ defmodule CPSolver.Propagator do
   end
 
   def arg_map(args, mapper) when is_function(mapper) do
-       Arrays.map(args, mapper)
+       Vector.map(args, mapper)
   end
 
   def arg_size(args) when is_tuple(args) do
@@ -344,7 +347,7 @@ defmodule CPSolver.Propagator do
   end
 
   def arg_size(args) do
-       Arrays.size(args)
+       Vector.size(args)
   end
 
 

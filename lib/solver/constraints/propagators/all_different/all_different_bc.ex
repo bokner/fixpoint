@@ -1,7 +1,6 @@
 defmodule CPSolver.Propagator.AllDifferent.BC do
   use CPSolver.Propagator
 
-  alias CPSolver.Utils
   import CPSolver.Utils.MutableArray
   alias CPSolver.Utils.MutableArray
 
@@ -13,7 +12,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
   """
   @impl true
   def arguments(args) do
-    Arrays.new(args, implementation: Arrays.Implementations.ErlangArray)
+    Vector.new(args)
   end
 
   @impl true
@@ -29,7 +28,7 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
   end
 
   defp initialize_state(vars) do
-    n = Arrays.size(vars)
+    n = Vector.size(vars)
     {_, lbs, ubs} = Enum.reduce(vars, {0, [], []}, fn var, {idx, min_acc, max_acc} ->
       {idx + 1, [min(var) | min_acc], [max(var) | max_acc]}
     end)
@@ -343,47 +342,8 @@ defmodule CPSolver.Propagator.AllDifferent.BC do
     throw(:fail)
   end
 
-
-  defp print_state(state) do
-    Map.put(state, :bounds, to_array(state.bounds))
-    |> Map.put(:minsorted, to_array(state.minsorted))
-    |> Map.put(:maxsorted, to_array(state.maxsorted))
-    |> Map.put(:minrank, to_array(state.minrank))
-    |> Map.put(:maxrank, to_array(state.maxrank))
-    |> Map.put(:hall, to_array(state.hall))
-    |> Map.put(:tree, to_array(state.tree))
-    |> Map.put(:diffs, to_array(state.diffs))
-    |> IO.inspect(label: :state)
-  end
-
   defp make_array(arity) when is_integer(arity) do
     MutableArray.new(arity)
   end
 
-  def test do
-    alias CPSolver.IntVariable, as: Variable
-    alias CPSolver.Utils
-
-    vars =
-      Enum.map(
-        [{:x1, 3..4}, {:x2, 2..4}, {:x3, 3..4}, {:x4, 2..5}, {:x5, 3..6}, {:x6, 1..6}],
-        # [{:x1, 1..1}, {:x2, 2..2}, {:x3, 3}],
-        fn {name, d} -> Variable.new(d, name: name) end
-      )
-
-    args = arguments(vars)
-    state = update_state(args, nil, %{}) |> prepare()
-    print_state(state)
-
-    filter(args, state, %{})
-    |> tap(fn r -> IO.inspect(r, label: :state) end)
-
-    {state, Enum.map(vars, fn v ->
-      try do
-        {v.name, Utils.domain_values(v)}
-      catch
-        _ -> {:fail, v.name}
-      end
-    end)}
-  end
 end

@@ -7,6 +7,8 @@ defmodule CPSolverTest.Search.Brancher do
   alias CPSolver.Search
   alias CPSolver.Search.Partition
 
+  alias CPSolver.Utils.Vector
+
   describe "First-fail search strategy" do
     alias CPSolver.Search.VariableSelector, as: SearchStrategy
 
@@ -72,16 +74,16 @@ defmodule CPSolverTest.Search.Brancher do
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars
       assert Enum.all?(branches, fn {branch, _constraint} ->
-               Arrays.size(branch) == length(variables)
+               Vector.size(branch) == length(variables)
              end)
 
       ## Left branch contains v2 variable fixed at 0
-      assert Arrays.get(b_left |> elem(0), 2)
+      assert Vector.at(b_left |> elem(0), 2)
              |> Map.get(:domain)
              |> then(fn domain -> Domain.size(domain) == 1 && Domain.min(domain) == 0 end)
 
       ## Right branch contains v2 variable with 0 removed
-      refute Arrays.get(b_right |> elem(0), 2) |> Map.get(:domain) |> Domain.contains?(0)
+      refute Vector.at(b_right |> elem(0), 2) |> Map.get(:domain) |> Domain.contains?(0)
     end
   end
 

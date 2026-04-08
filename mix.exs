@@ -29,7 +29,7 @@ defmodule CPSolver.MixProject do
       {:libgraph, "~> 0.16.0"},
       {:bitgraph, "~> 0.4.3"},
       {:iterex, "~> 0.1"},
-      {:arrays, "~> 1.0"},
+      {:aja, "~> 0.7.4"},
       {:math, "~> 0.7.0", only: :test},
       {:permutation, "~> 0.1.0", only: [:dev, :test]},
       {:ex_doc, ">= 0.0.0", only: [:dev, :test], runtime: false},

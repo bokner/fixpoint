@@ -7,7 +7,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
 
   @impl true
   def arguments(args) do
-    Arrays.new(args, implementation: Arrays.Implementations.ErlangArray)
+    Vector.new(args)
   end
 
   @impl true
@@ -38,7 +38,7 @@ defmodule CPSolver.Propagator.AllDifferent.FWC do
   end
 
   defp initial_split(vars) do
-    Enum.reduce(0..(Arrays.size(vars) - 1), {MapSet.new(), MapSet.new()}, fn idx,
+    Enum.reduce(0..(Vector.size(vars) - 1), {MapSet.new(), MapSet.new()}, fn idx,
                                                                              {unfixed_acc,
                                                                               fixed_vals_acc} ->
       var = Propagator.arg_at(vars, idx)

@@ -12,14 +12,14 @@ defmodule CPSolver.Propagator.ElementVar do
 
   @impl true
   def arguments([var_array, var_index, var_value]) do
-    [Arrays.new(var_array, implementation: Arrays.Implementations.ErlangArray), var_index, var_value]
+    [Vector.new(var_array), var_index, var_value]
   end
 
   @impl true
   def bind(%{args: [var_array, var_index, var_value] = _args} = propagator, source, var_field) do
     bound_args =
       [
-        Arrays.map(var_array, fn var -> Propagator.bind_to_variable(var, source, var_field) end),
+        Vector.map(var_array, fn var -> Propagator.bind_to_variable(var, source, var_field) end),
         Propagator.bind_to_variable(var_index, source, var_field),
         Propagator.bind_to_variable(var_value, source, var_field)
       ]
@@ -46,13 +46,13 @@ defmodule CPSolver.Propagator.ElementVar do
     # var_index is an index in array2d,
     # so we trim D(var_index) to the size of array (0-based).
     removeBelow(var_index, 0)
-    removeAbove(var_index, Arrays.size(var_array) - 1)
+    removeAbove(var_index, Vector.size(var_array) - 1)
     reduction(var_array, var_index, var_value, state, changes)
   end
 
   @impl true
   def filter([var_array, var_index, var_value] = args, state, changes) do
-    new_state = state || %{var_index_position: Arrays.size(var_array)}
+    new_state = state || %{var_index_position: Vector.size(var_array)}
 
     (state && filter_impl(var_array, var_index, var_value, new_state, changes)) ||
       initial_reduction(var_array, var_index, var_value, new_state, changes)
