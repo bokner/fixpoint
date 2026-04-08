@@ -10,6 +10,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Search, as: Search
   alias CPSolver.Solution, as: Solution
   alias CPSolver.Propagator.ConstraintGraph
+  alias CPSolver.Propagator
   alias CPSolver.Space.Propagation
   alias CPSolver.Objective
 
@@ -238,7 +239,7 @@ defmodule CPSolver.Space do
         values
         |> Enum.reverse()
         |> Enum.reduce({0, Map.new()}, fn val, {idx_acc, map_acc} ->
-          {idx_acc + 1, Map.put(map_acc, Arrays.get(variables, idx_acc).name, val)}
+          {idx_acc + 1, Map.put(map_acc, Propagator.arg_at(variables, idx_acc).name, val)}
         end)
         |> elem(1)
         |> Solution.run_handler(data.opts[:solution_handler])
@@ -289,7 +290,7 @@ defmodule CPSolver.Space do
 
   defp update_domain(variable, space_variables) do
     var_domain =
-      Arrays.get(space_variables, Interface.variable(variable).index - 1)
+      Propagator.arg_at(space_variables, Interface.variable(variable).index - 1)
       |> Interface.domain()
 
     Interface.update(variable, :domain, var_domain)

@@ -51,7 +51,7 @@ defmodule CPSolver.Propagator.Sum2 do
     updated_state =
       Enum.reduce(changes, state, fn
         {pos, domain_change}, state_acc ->
-          var = Arrays.get(vars, pos)
+          var = Propagator.arg_at(vars, pos)
           update_state_impl(var, pos, domain_change, state_acc)
       end)
 

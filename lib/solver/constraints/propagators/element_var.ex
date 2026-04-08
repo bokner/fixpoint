@@ -83,7 +83,7 @@ defmodule CPSolver.Propagator.ElementVar do
 
     total_value_intersection =
       Enum.reduce(index_domain, MapSet.new(), fn idx, intersection_acc ->
-        case Arrays.get(var_array, idx) do
+        case Propagator.arg_at(var_array, idx) do
           nil ->
             IO.inspect("Unexpected: no element at #{idx}")
             throw(:unexpected_no_element)
