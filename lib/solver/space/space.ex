@@ -66,10 +66,10 @@ defmodule CPSolver.Space do
         |> init_impl()
         |> propagate()
       end)
-    }
-    |> tap(fn {:ok, space_pid} ->
+      |> tap(fn space_pid ->
       Shared.add_active_spaces(shared, [space_pid])
     end)
+  }
   end
 
   defp assign_unique_ids(propagators) do
@@ -89,47 +89,45 @@ defmodule CPSolver.Space do
     wait_for(:done)
   end
 
-  defp run_branch(data) do
+  defp run_branch(%{variables: variables} = data, partition_fun) do
     solver = get_shared(data)
     worker_node = Distributed.choose_worker_node(solver.distributed)
-    run_space(worker_node, solver, data)
+    run_space(worker_node, solver, data, partition_fun)
   end
 
-  defp run_space(worker_node, solver, data) do
+  defp run_space(worker_node, solver, data, partition_fun) do
     Shared.increment_node_counts(solver)
 
     (worker_node == Node.self() &&
-       run_space(data)) ||
-      :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data)])
+       run_space(data, partition_fun)) ||
+      :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data), partition_fun])
   end
 
-  def run_space(data) do
+  def run_space(data, partition_fun) do
     solver = get_shared(data)
 
     if checkout?(solver) do
       ## TODO: we want to skip spawning!
       spawn(fn ->
-        run_space_impl(data, solver)
+        run_space_impl(data, solver, partition_fun)
         checkin(solver)
       end)
     else
-      run_space_impl(data, solver)
+      run_space_impl(data, solver, partition_fun)
     end
   end
 
-  defp run_space_impl(data, solver) do
-    pid = self()
+  defp run_space_impl(%{variables: variables} = data, solver, partition_fun) do
+    {branch_variables, changes} = partition_fun.(variables)
+    data =
+      data
+      |> Map.put(:variables, branch_variables)
+      |> put_in([:opts, :changes], changes)
 
-    space_pid =
-      spawn(fn ->
-        space_data = init_impl(data)
-        wait_for(:propagate)
-        propagate(space_data)
-        send(pid, :done)
-      end)
+    Shared.add_active_spaces(solver, [self()])
 
-    Shared.add_active_spaces(solver, [space_pid])
-    start_propagation(space_pid)
+    space_data = init_impl(data)
+    propagate(space_data)
   end
 
   defp wait_for(response) do
@@ -313,14 +311,11 @@ defmodule CPSolver.Space do
       |> Search.branch(search, data)
       |> Enum.take_while(fn partition_fun ->
         if !CPSolver.complete?(get_shared(data)) do
-          {branch_variables, changes} = partition_fun.(variables)
-
           run_branch(
             data
             |> Map.put(:parent_id, id)
-            |> Map.put(:id, make_ref())
-            |> Map.put(:variables, branch_variables)
-            |> put_in([:opts, :changes], changes)
+            |> Map.put(:id, make_ref()),
+            partition_fun
           )
         end
       end)
