@@ -84,23 +84,8 @@ defmodule CPSolver.Space do
     [objective.propagator | propagators]
   end
 
-  def make_branches(variables, search, data) do
-    Search.branch(variables, search, data)
-    # solver = get_shared(data)
-    # if solver.distributed do
-    #   worker_node = Distributed.choose_worker_node(solver.distributed)
-
-    # if worker_node == Node.self() do
-    #   Search.branch(variables, search, data)
-    # else
-    #   ## Branch
-    #   IO.inspect(worker_node, label: :remote_branching)
-    #   :erpc.call(worker_node, __MODULE__, :remote_branching, [search, prepare_remote(data)])
-    # end
-  end
-
   ## We had to serialize variable domains before sending variables
-  ## to a remote node.
+  ## to a remote node (see run_remote_space/3).
   ## Here we are restoring the domains and do branching.
   def remote_branching(search, %{domains: domains, variables: variables} = data) do
     ## Reconstruct variables with the domain values
@@ -162,15 +147,14 @@ defmodule CPSolver.Space do
 
   defp run_space_impl(%{variables: variables} = data, solver, partition_fun) do
     {branch_variables, changes} = partition_fun.(variables)
-    data =
-      data
-      |> Map.put(:variables, branch_variables)
-      |> put_in([:opts, :changes], changes)
 
     Shared.add_active_spaces(solver, [self()])
 
-    space_data = init_impl(data)
-    propagate(space_data)
+    data
+    |> Map.put(:variables, branch_variables)
+    |> put_in([:opts, :changes], changes)
+    |> init_impl()
+    |> propagate()
   end
 
   ## Prepare local data to be used on remote node
@@ -332,7 +316,7 @@ defmodule CPSolver.Space do
       ) do
     try do
       variables
-      |> make_branches(search, data)
+      |> Search.branch(search, data)
       |> Enum.take_while(fn partition_fun ->
         if !CPSolver.complete?(get_shared(data)) do
           run_branch(
