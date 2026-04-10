@@ -84,30 +84,43 @@ defmodule CPSolver.Space do
     [objective.propagator | propagators]
   end
 
-  def start_propagation(space_pid) when is_pid(space_pid) do
-    send(space_pid, :propagate)
-    wait_for(:done)
+  def make_branches(variables, search, data) do
+    Search.branch(variables, search, data)
+    # solver = get_shared(data)
+    # if solver.distributed do
+    #   worker_node = Distributed.choose_worker_node(solver.distributed)
+
+    # if worker_node == Node.self() do
+    #   Search.branch(variables, search, data)
+    # else
+    #   ## Branch
+    #   IO.inspect(worker_node, label: :remote_branching)
+    #   :erpc.call(worker_node, __MODULE__, :remote_branching, [search, prepare_remote(data)])
+    # end
   end
 
-  defp run_branch(%{variables: variables} = data, partition_fun) do
-    solver = get_shared(data)
-    worker_node = Distributed.choose_worker_node(solver.distributed)
-    run_space(worker_node, solver, data, partition_fun)
+  ## We had to serialize variable domains before sending variables
+  ## to a remote node.
+  ## Here we are restoring the domains and do branching.
+  def remote_branching(search, %{domains: domains, variables: variables} = data) do
+    ## Reconstruct variables with the domain values
+    restored_variables =
+      Enum.map(variables, fn var ->
+        domain = Map.get(domains, Interface.id(var))
+        Map.put(var, :domain, Domain.new(domain))
+      end)
+    Search.branch(restored_variables, search, Map.put(data, :variables, restored_variables))
   end
 
-  defp run_space(worker_node, solver, data, partition_fun) do
-    Shared.increment_node_counts(solver)
-
-    (worker_node == Node.self() &&
-       run_space(data, partition_fun)) ||
-      :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data), partition_fun])
+  defp run_branch(data, partition_fun) do
+    run_space(data, partition_fun)
   end
 
   def run_space(data, partition_fun) do
     solver = get_shared(data)
+    Shared.increment_node_counts(solver)
 
     if checkout?(solver) do
-      ## TODO: we want to skip spawning!
       spawn(fn ->
         run_space_impl(data, solver, partition_fun)
         checkin(solver)
@@ -308,7 +321,7 @@ defmodule CPSolver.Space do
       ) do
     try do
       variables
-      |> Search.branch(search, data)
+      |> make_branches(search, data)
       |> Enum.take_while(fn partition_fun ->
         if !CPSolver.complete?(get_shared(data)) do
           run_branch(
