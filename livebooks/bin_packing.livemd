@@ -82,10 +82,13 @@ runner =
 {instance, threads, upper_bound, timeout} = 
 #{instance_200_items, 2, nil, :timer.minutes(10)}
 
-#{gecode_doc_example, 3, nil, :timer.minutes(3)}
-{falkenauer_u120_00, 3, 63, :timer.hours(10)}
-#{t60_00, 3, nil, :timer.minutes(5)}
-#{t120_00, 3, 45, :timer.minutes(60)}
+{gecode_doc_example, 4, nil, :timer.minutes(5)}
+
+#{falkenauer_u120_00, 3, nil, :timer.minutes(15)}
+
+#{t60_00, 3, nil, :timer.minutes(30)}
+
+{t120_00, 3, 45, :timer.minutes(60)}
 
 # search = {:first_fail, :indomain_max} 
 # {Strategy.afc({:afc_size_min, 0.75}, &List.first/1), :indomain_max}

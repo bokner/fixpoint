@@ -1,4 +1,5 @@
 Logger.configure(level: :error)
+
 ExUnit.start(capture_log: true, exclude: [:superslow])
 
 alias CPSolver.Propagator
@@ -40,4 +41,18 @@ defmodule CPSolver.Test.Helpers do
     Iterable.to_list(iterable1) |> Enum.sort() ==
       Iterable.to_list(iterable2) |> Enum.sort()
   end
+
+  ## Flush received messages
+    def flush() do
+    flush([])
+  end
+
+  defp flush(acc) do
+    receive do
+      msg -> flush([msg | acc])
+    after
+      0 -> acc
+    end
+  end
+
 end

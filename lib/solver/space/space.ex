@@ -66,10 +66,10 @@ defmodule CPSolver.Space do
         |> init_impl()
         |> propagate()
       end)
-    }
-    |> tap(fn {:ok, space_pid} ->
+      |> tap(fn space_pid ->
       Shared.add_active_spaces(shared, [space_pid])
     end)
+  }
   end
 
   defp assign_unique_ids(propagators) do
@@ -84,58 +84,93 @@ defmodule CPSolver.Space do
     [objective.propagator | propagators]
   end
 
-  def start_propagation(space_pid) when is_pid(space_pid) do
-    send(space_pid, :propagate)
-    wait_for(:done)
+  def make_branches(variables, search, data) do
+    Search.branch(variables, search, data)
+    # solver = get_shared(data)
+    # if solver.distributed do
+    #   worker_node = Distributed.choose_worker_node(solver.distributed)
+
+    # if worker_node == Node.self() do
+    #   Search.branch(variables, search, data)
+    # else
+    #   ## Branch
+    #   IO.inspect(worker_node, label: :remote_branching)
+    #   :erpc.call(worker_node, __MODULE__, :remote_branching, [search, prepare_remote(data)])
+    # end
   end
 
-  defp run_branch(data) do
+  ## We had to serialize variable domains before sending variables
+  ## to a remote node.
+  ## Here we are restoring the domains and do branching.
+  def remote_branching(search, %{domains: domains, variables: variables} = data) do
+    ## Reconstruct variables with the domain values
+    restored_variables =
+      Enum.map(variables, fn var ->
+        domain = Map.get(domains, Interface.id(var))
+        Map.put(var, :domain, Domain.new(domain))
+      end)
+    Search.branch(restored_variables, search, Map.put(data, :variables, restored_variables))
+  end
+
+  defp run_branch(data, partition_fun) do
     solver = get_shared(data)
-    worker_node = Distributed.choose_worker_node(solver.distributed)
-    run_space(worker_node, solver, data)
+    if solver.distributed do
+      worker_node = Distributed.choose_worker_node(solver.distributed)
+      run_remote_space(worker_node, data, partition_fun)
+    else
+      run_space(data, partition_fun)
+    end
   end
 
-  defp run_space(worker_node, solver, data) do
+  defp run_remote_space(worker_node, data, partition_fun) do
+    ## TODO!
+    #run_space(data, partition_fun)
+    :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data), partition_fun])
+  end
+
+  ## This head is for handling remote space operations
+  ## We had to serialize variable domains before sending variables
+  ## to a remote node.
+  ## Here we are restoring the domains and do branching.
+  def run_space(%{domains: domains, variables: variables} = data, partition_fun) do
+    restored_variables =
+      Enum.map(variables, fn var ->
+        domain = Map.get(domains, Interface.id(var))
+        Map.put(var, :domain, Domain.new(domain))
+      end)
+    ## ..and we can now run it locally
+    run_space(
+      data
+      |> Map.delete(:domains)
+      |> Map.put(:variables, restored_variables),
+      partition_fun)
+  end
+
+  def run_space(data, partition_fun) do
+    solver = get_shared(data)
     Shared.increment_node_counts(solver)
 
-    (worker_node == Node.self() &&
-       run_space(data)) ||
-      :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data)])
-  end
-
-  def run_space(data) do
-    solver = get_shared(data)
-
     if checkout?(solver) do
-      ## TODO: we want to skip spawning!
       spawn(fn ->
-        run_space_impl(data, solver)
+        run_space_impl(data, solver, partition_fun)
         checkin(solver)
       end)
     else
-      run_space_impl(data, solver)
+      run_space_impl(data, solver, partition_fun)
     end
   end
 
-  defp run_space_impl(data, solver) do
-    pid = self()
+  defp run_space_impl(%{variables: variables} = data, solver, partition_fun) do
+    {branch_variables, changes} = partition_fun.(variables)
+    data =
+      data
+      |> Map.put(:variables, branch_variables)
+      |> put_in([:opts, :changes], changes)
 
-    space_pid =
-      spawn(fn ->
-        space_data = init_impl(data)
-        wait_for(:propagate)
-        propagate(space_data)
-        send(pid, :done)
-      end)
+    Shared.add_active_spaces(solver, [self()])
 
-    Shared.add_active_spaces(solver, [space_pid])
-    start_propagation(space_pid)
-  end
-
-  defp wait_for(response) do
-    receive do
-      ^response -> :ok
-    end
+    space_data = init_impl(data)
+    propagate(space_data)
   end
 
   ## Prepare local data to be used on remote node
@@ -157,19 +192,6 @@ defmodule CPSolver.Space do
 
   defp checkin(solver) do
     Shared.checkin_space_thread(solver)
-  end
-
-  ## This head is for handling remote spaces.
-  ## The data contains :domains, which is a %{var_id => domain_values} map
-  defp init_impl(%{domains: domains, variables: variables} = data) do
-    updated_variables =
-      Enum.map(variables, fn var ->
-        domain = Map.get(domains, Interface.id(var))
-        Map.put(var, :domain, Domain.new(domain))
-      end)
-
-    data
-    |> Map.put(:variables, updated_variables)
   end
 
   defp init_impl(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
@@ -310,17 +332,14 @@ defmodule CPSolver.Space do
       ) do
     try do
       variables
-      |> Search.branch(search, data)
+      |> make_branches(search, data)
       |> Enum.take_while(fn partition_fun ->
         if !CPSolver.complete?(get_shared(data)) do
-          {branch_variables, changes} = partition_fun.(variables)
-
           run_branch(
             data
             |> Map.put(:parent_id, id)
-            |> Map.put(:id, make_ref())
-            |> Map.put(:variables, branch_variables)
-            |> put_in([:opts, :changes], changes)
+            |> Map.put(:id, make_ref()),
+            partition_fun
           )
         end
       end)
