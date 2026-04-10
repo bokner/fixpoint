@@ -34,7 +34,6 @@ defmodule CPSolver.MixProject do
       {:permutation, "~> 0.1.0", only: [:dev, :test]},
       {:ex_doc, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.2", only: [:dev], runtime: false},
-      {:local_cluster, "~> 1.2", only: :test},
       {:replbug, "~> 1.0.2", only: :dev}
     ]
   end
