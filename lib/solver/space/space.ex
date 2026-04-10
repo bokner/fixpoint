@@ -113,7 +113,37 @@ defmodule CPSolver.Space do
   end
 
   defp run_branch(data, partition_fun) do
-    run_space(data, partition_fun)
+    solver = get_shared(data)
+    if solver.distributed do
+      worker_node = Distributed.choose_worker_node(solver.distributed)
+      run_remote_space(worker_node, data, partition_fun)
+    else
+      run_space(data, partition_fun)
+    end
+  end
+
+  defp run_remote_space(worker_node, data, partition_fun) do
+    ## TODO!
+    #run_space(data, partition_fun)
+    :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data), partition_fun])
+  end
+
+  ## This head is for handling remote space operations
+  ## We had to serialize variable domains before sending variables
+  ## to a remote node.
+  ## Here we are restoring the domains and do branching.
+  def run_space(%{domains: domains, variables: variables} = data, partition_fun) do
+    restored_variables =
+      Enum.map(variables, fn var ->
+        domain = Map.get(domains, Interface.id(var))
+        Map.put(var, :domain, Domain.new(domain))
+      end)
+    ## ..and we can now run it locally
+    run_space(
+      data
+      |> Map.delete(:domains)
+      |> Map.put(:variables, restored_variables),
+      partition_fun)
   end
 
   def run_space(data, partition_fun) do
@@ -143,12 +173,6 @@ defmodule CPSolver.Space do
     propagate(space_data)
   end
 
-  defp wait_for(response) do
-    receive do
-      ^response -> :ok
-    end
-  end
-
   ## Prepare local data to be used on remote node
   ## Currently we add the raw domain values to the opts,
   ## so the domains could be rebuilt on the remote nodes
@@ -168,19 +192,6 @@ defmodule CPSolver.Space do
 
   defp checkin(solver) do
     Shared.checkin_space_thread(solver)
-  end
-
-  ## This head is for handling remote spaces.
-  ## The data contains :domains, which is a %{var_id => domain_values} map
-  defp init_impl(%{domains: domains, variables: variables} = data) do
-    updated_variables =
-      Enum.map(variables, fn var ->
-        domain = Map.get(domains, Interface.id(var))
-        Map.put(var, :domain, Domain.new(domain))
-      end)
-
-    data
-    |> Map.put(:variables, updated_variables)
   end
 
   defp init_impl(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do

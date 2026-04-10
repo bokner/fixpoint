@@ -102,4 +102,18 @@ defmodule CPSolver.Utils do
         end
     end
   end
+
+  ## Flush all received messages
+  def flush() do
+    flush([])
+  end
+
+  defp flush(acc) do
+    receive do
+      msg -> flush([msg | acc])
+    after
+      0 -> acc
+    end
+  end
+
 end

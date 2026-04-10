@@ -1,4 +1,4 @@
-defmodule CpSolverTest do
+defmodule CPSolverTest do
   use ExUnit.Case
 
   alias CPSolver.IntVariable
