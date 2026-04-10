@@ -194,7 +194,7 @@ defmodule CPSolver.Shared do
     (complete?(solver) && :ok) ||
       (
         counter_ref = get_space_thread_counters(solver, node)
-        if :counters.get(counter_ref, 1) > 0 do
+        if counter_ref && :counters.get(counter_ref, 1) > 0 do
           :counters.sub(counter_ref, 1, 1)
         end
       )
