@@ -244,10 +244,10 @@ defmodule CPSolver.Space do
       |> Utils.lazy_cartesian(fn values ->
         values
         |> Enum.reverse()
-        |> Enum.reduce({0, Map.new()}, fn val, {idx_acc, map_acc} ->
-          {idx_acc + 1, Map.put(map_acc, Propagator.arg_at(variables, idx_acc).name, val)}
+        |> Enum.zip(variables)
+        |> Map.new(fn {val, variable} ->
+          {variable.name, val}
         end)
-        |> elem(1)
         |> Solution.run_handler(data.opts[:solution_handler])
         |> tap(fn handler_result ->
           cond do
@@ -256,8 +256,8 @@ defmodule CPSolver.Space do
               throw(:complete)
 
             data[:objective] ->
-              ## Stop producing solution is it's an optimization problem.
-              ## This will avoid solutions with the same objective
+              ## Stop producing solutions is it's an optimization problem.
+              ## This will avoid solutions with the same objective value
               throw({:same_objective, handler_result})
 
             true ->
