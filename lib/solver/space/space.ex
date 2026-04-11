@@ -171,7 +171,7 @@ defmodule CPSolver.Space do
   end
 
   defp checkout?(solver) do
-    Shared.checkout_space_thread(solver, Node.self())
+    Shared.checkout_space_thread(solver)
   end
 
   defp checkin(solver) do

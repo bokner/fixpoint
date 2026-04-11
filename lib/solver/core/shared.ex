@@ -3,6 +3,7 @@ defmodule CPSolver.Shared do
   alias CPSolver.Variable.Interface
   alias CPSolver.Distributed
   alias CPSolver.Space.ThreadPool
+  alias InPlace.Array
 
   def init_shared_data(opts) do
     distributed = Keyword.get(opts, :distributed, false)
@@ -13,8 +14,7 @@ defmodule CPSolver.Shared do
       sync_mode: false,
       solver_pid: self(),
       statistics:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
-        |> tap(fn stats_ref -> :ets.insert(stats_ref, {:stats, 0, 0, 0, 0}) end),
+        Array.new(4, 0),
       solutions:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       active_nodes:
@@ -48,16 +48,11 @@ defmodule CPSolver.Shared do
   end
 
   def complete_impl(%{complete_flag: complete_flag} = _solver) do
-    try do
-      :ets.lookup_element(complete_flag, :complete_flag, 2)
-    rescue
-      _ ->
-        true
-    end
+    Array.get(complete_flag, 1) == 1
   end
 
   def set_complete(%{complete_flag: complete_flag, caller: caller, sync_mode: sync?} = solver) do
-    :ets.insert(complete_flag, {:complete_flag, true})
+    Array.put(complete_flag, 1, 1)
 
     set_end_time(solver)
     |> tap(fn _ -> sync? && send(caller, {:solver_completed, complete_flag}) end)
@@ -73,8 +68,7 @@ defmodule CPSolver.Shared do
   end
 
   defp init_complete_flag(value \\ false) do
-    :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: false])
-    |> tap(fn ref -> :ets.insert(ref, {:complete_flag, value}) end)
+    Array.new(1, value && 1 || 0)
   end
 
   defp init_auxillary_map() do
@@ -206,10 +200,10 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :process_alive?, [pid])
   end
 
-  @active_node_count_pos 2
-  @failure_count_pos 3
-  @solution_count_pos 4
-  @node_count_pos 5
+  @active_node_count_pos 1
+  @failure_count_pos 2
+  @solution_count_pos 3
+  @node_count_pos 4
 
   def on_primary_node?(%{solver_pid: solver_pid} = _solver) do
     Node.self() == node(solver_pid)
@@ -221,8 +215,8 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :increment_node_counts_impl)
   end
 
-  def increment_node_counts_impl(%{statistics: stats_table} = solver) do
-    update_stats_counters(stats_table, [{@active_node_count_pos, 1}, {@node_count_pos, 1}])
+  def increment_node_counts_impl(%{statistics: stats_ref} = solver) do
+    update_stats_counters(stats_ref, [{@active_node_count_pos, 1}, {@node_count_pos, 1}])
     |> tap(fn
       [active_node_count, total_node_count] ->
         on_new_node(solver, active_node_count, total_node_count)
@@ -300,15 +294,15 @@ defmodule CPSolver.Shared do
   end
 
   def finalize_space_impl(
-        %{statistics: stats_table, active_nodes: active_nodes_table} = solver,
+        %{statistics: stats_ref, active_nodes: active_nodes_table} = solver,
         space_data,
         space_pid,
         reason
       ) do
     try do
-      [active_node_count | _] =
-        update_stats_counters(stats_table, [
-          {@active_node_count_pos, -1, 0, 0}
+      [active_node_count] =
+        update_stats_counters(stats_ref, [
+          {@active_node_count_pos, -1}
         ])
 
       :ets.delete(active_nodes_table, space_pid)
@@ -349,7 +343,7 @@ defmodule CPSolver.Shared do
 
   def cleanup_impl(%{thread_pool: thread_pool, solver_pid: solver_pid, objective: objective} = solver) do
     Enum.each(
-      [:solutions, :statistics, :active_nodes, :auxillary, :times, :complete_flag, :space_thread_counters],
+      [:solutions, :active_nodes, :auxillary, :times, :space_thread_counters],
       fn item ->
         Map.get(solver, item) |> safe_ets_delete()
       end
@@ -373,8 +367,8 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :add_failure_impl, [failure])
   end
 
-  def add_failure_impl(%{statistics: stats_table} = solver, failure) do
-    update_stats_counters(stats_table, [{@failure_count_pos, 1}])
+  def add_failure_impl(%{statistics: stats_ref} = solver, failure) do
+    update_stats_counters(stats_ref, [{@failure_count_pos, 1}])
     |> tap(fn
       [failure_count] ->
         on_failure(solver, failure, failure_count)
@@ -407,11 +401,11 @@ defmodule CPSolver.Shared do
   end
 
   def add_solution_impl(
-        %{solutions: solution_table, statistics: stats_table, objective: objective_rec} = _solver,
+        %{solutions: solution_table, statistics: stats_ref, objective: objective_rec} = _solver,
         solution
       ) do
     try do
-      update_stats_counters(stats_table, [{@solution_count_pos, 1}])
+      update_stats_counters(stats_ref, [{@solution_count_pos, 1}])
 
       :ets.insert(
         solution_table,
@@ -427,12 +421,10 @@ defmodule CPSolver.Shared do
     end
   end
 
-  defp update_stats_counters(stats_table, update_ops) do
-    try do
-      :ets.update_counter(stats_table, :stats, update_ops)
-    rescue
-      _e -> []
-    end
+  defp update_stats_counters(stats_ref, update_ops) do
+    Enum.map(update_ops, fn {pos, val} ->
+      Array.update(stats_ref, pos, fn current -> current + val end)
+    end)
   end
 
   defp reset_objective(objective) do
@@ -447,8 +439,8 @@ defmodule CPSolver.Shared do
 
   def statistics_impl(solver) do
     try do
-      [{:stats, active_node_count, failure_count, solution_count, node_count}] =
-        :ets.lookup(solver.statistics, :stats)
+      [active_node_count, failure_count, solution_count, node_count] =
+        Array.to_list(solver.statistics)
 
       %{
         active_node_count: active_node_count,
