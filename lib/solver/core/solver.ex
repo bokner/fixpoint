@@ -101,10 +101,6 @@ defmodule CPSolver do
     Shared.cleanup(solver)
   end
 
-  def statistics(solver) when is_pid(solver) do
-    GenServer.call(solver, :get_stats)
-  end
-
   def statistics(solver) when is_map(solver) do
     Shared.statistics(solver)
   end
@@ -142,10 +138,6 @@ defmodule CPSolver do
        ) do
     (objective_value && {:running, solutions_found: solution_count, objective: objective_value}) ||
       {:running, solutions_found: solution_count}
-  end
-
-  def solutions(solver) when is_pid(solver) do
-    GenServer.call(solver, :get_solutions)
   end
 
   def solutions(solver) when is_map(solver) do
