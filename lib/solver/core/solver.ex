@@ -83,13 +83,17 @@ defmodule CPSolver do
   end
 
   defp get_results(solver) do
+    statistics = statistics(solver)
+    objective = objective_value(solver)
+    complete? = complete?(solver)
+
     {:ok,
      %{
-       statistics: statistics(solver),
+       statistics: statistics,
        variables: solver.variable_names,
        solutions: solutions(solver),
-       objective: objective_value(solver),
-       status: status(solver)
+       objective: objective,
+       status: status(statistics, objective, complete?)
      }}
   end
 

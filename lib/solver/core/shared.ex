@@ -61,9 +61,9 @@ defmodule CPSolver.Shared do
 
   ## Elapsed time in microsecs
   def elapsed_time(solver) do
-    {start_time, end_time} = get_times(solver)
+    [start_time, _end_time] = get_times(solver)
 
-    (((end_time && end_time) || :erlang.monotonic_time()) - start_time)
+    (:erlang.monotonic_time() - start_time)
     |> div(1_000)
   end
 
@@ -100,8 +100,7 @@ defmodule CPSolver.Shared do
   end
 
   def init_times() do
-    :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
-    |> tap(fn ref -> :ets.insert(ref, {:times, {:erlang.monotonic_time(), nil}}) end)
+    Array.new(2, :erlang.monotonic_time())
   end
 
   def get_times(solver) do
@@ -111,7 +110,7 @@ defmodule CPSolver.Shared do
   end
 
   def get_times_impl(%{times: times_ref} = _solver) do
-    {_start_time, _end_time} = :ets.lookup(times_ref, :times) |> hd |> elem(1)
+    [_start_time, _end_time] = Array.to_list(times_ref)
   end
 
   def set_end_time(solver) do
@@ -120,9 +119,8 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :get_times_impl)
   end
 
-  def set_end_time_impl(%{times: times_ref} = solver) do
-    {start_time, _end_time} = get_times(solver)
-    :ets.insert(times_ref, {:times, {start_time, :erlang.monotonic_time()}})
+  def set_end_time_impl(%{times: times_ref} = _solver) do
+    Array.put(times_ref, 2, :erlang.monotonic_time())
     :ok
   end
 
@@ -343,7 +341,7 @@ defmodule CPSolver.Shared do
 
   def cleanup_impl(%{thread_pool: thread_pool, solver_pid: solver_pid, objective: objective} = solver) do
     Enum.each(
-      [:solutions, :active_nodes, :auxillary, :times, :space_thread_counters],
+      [:solutions, :active_nodes, :auxillary, :space_thread_counters],
       fn item ->
         Map.get(solver, item) |> safe_ets_delete()
       end
