@@ -41,6 +41,7 @@ defmodule CPSolver.Search do
     |> then(fn unfixed_vars ->
       unfixed_vars
       |> branch_impl(branching, space_data)
+      |> then(fn branching -> branching || branch_impl(variables, default_strategy(), space_data) end)
       |> partitions_impl(space_data)
     end)
   end
