@@ -152,8 +152,8 @@ defmodule CPSolver.Examples.BinPacking.Search do
           Partition.fixed_value_partition(selected_variable, selected_bin)
         ]
 
-      slack == 0 ->
-        ## Perfect fit
+      slack == 0 || Enum.empty?(no_fit_bins) ->
+        ## Perfect fit or all bins are fitting and have the same slack
         selected_bin = List.first(bins)
         [
           Partition.fixed_value_partition(selected_variable, selected_bin),
