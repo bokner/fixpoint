@@ -23,14 +23,13 @@ defmodule CPSolver.Examples.BinPacking.Search do
       :branch, variables, _data ->
         case get_item_variables(variables, item_assignment_map) do
           nil ->
-            []
+            nil
 
           item_variables ->
             selected_variable = List.first(item_variables)
 
             {bins, slack, no_fit_bins} =
               value_branching(selected_variable, bin_load_vars, item_assignment_map, capacity)
-
             partitions(
               item_variables,
               bins,
@@ -137,13 +136,28 @@ defmodule CPSolver.Examples.BinPacking.Search do
 
     cond do
       Enum.empty?(bins) ->
-        throw(:fail)
+        if Enum.empty?(no_fit_bins) do
+          ## all item variables are fixed
+          nil
+        else
+          ## no bin is available for placement
+          throw(:fail)
+        end
 
-      slack in [0, nil] ->
-        ## Perfect fit or the bin being fixed.
+      is_nil(slack)  ->
+        # The bin for the item has already been fixed.
         ## We only need a single partition with the fixed value.
+        selected_bin = List.first(bins)
         [
-          Partition.fixed_value_partition(selected_variable, List.first(bins)),
+          Partition.fixed_value_partition(selected_variable, selected_bin)
+        ]
+
+      slack == 0 ->
+        ## Perfect fit
+        selected_bin = List.first(bins)
+        [
+          Partition.fixed_value_partition(selected_variable, selected_bin),
+          Partition.removed_value_partition(selected_variable, selected_bin)
         ]
 
       true ->

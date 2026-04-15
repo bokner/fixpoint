@@ -169,7 +169,14 @@ defmodule CPSolver.Examples.BinPacking do
       constraints,
       objective: Objective.minimize(total_bins_used)
     )
-    |> Map.put(:search, Search.cdbf(item_weights, x, bin_load, capacity))
+    |> Map.put(:search,
+      ## if lower_bound = upper_bound, we do not need an advanced strategy
+      ## TODO: maybe even run linear BPP (`first_fit_decreasing` etc)
+      if lower_bound == num_bins do
+        {:first_fail, :indomain_max}
+      else
+        Search.cdbf(item_weights, x, bin_load, capacity)
+      end)
   end
 
   defp symmetry_breaking_constraints(bin_used, _bin_load, num_bins, _num_over_half_capacity) do

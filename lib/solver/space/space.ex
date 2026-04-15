@@ -56,19 +56,18 @@ defmodule CPSolver.Space do
       |> Map.put(:search, search)
       |> put_shared(:initial_constraint_graph, initial_constraint_graph)
 
+
     shared = get_shared(space_data)
     Shared.increment_node_counts(shared)
 
     ## Create the 'top space' process and start propagation
     {:ok,
-      spawn(fn ->
+      spawn_link(fn ->
         top_space_data
         |> init_impl()
+        |> tap(fn _ -> Shared.add_active_spaces(shared, [self()]) end)
         |> propagate()
       end)
-      |> tap(fn space_pid ->
-      Shared.add_active_spaces(shared, [space_pid])
-    end)
   }
   end
 
@@ -214,7 +213,7 @@ defmodule CPSolver.Space do
     end
   end
 
-  defp handle_failure(data, {:fail, _p_id} = failure) do
+  defp handle_failure(data, failure) do
     Shared.add_failure(get_shared(data), failure)
     shutdown(data, :failure)
   end
@@ -303,7 +302,11 @@ defmodule CPSolver.Space do
   end
 
   defp handle_stable(data) do
-    distribute(data)
+    if CPSolver.complete?(get_shared(data)) do
+      shutdown(data, :distribute)
+    else
+      distribute(data)
+    end
   end
 
   def distribute(
@@ -318,13 +321,16 @@ defmodule CPSolver.Space do
       variables
       |> Search.branch(search, data)
       |> Enum.take_while(fn partition_fun ->
-        if !CPSolver.complete?(get_shared(data)) do
+        if CPSolver.complete?(get_shared(data)) do
+          false
+        else
           run_branch(
             data
             |> Map.put(:parent_id, id)
             |> Map.put(:id, make_ref()),
             partition_fun
           )
+          true
         end
       end)
 
@@ -332,11 +338,13 @@ defmodule CPSolver.Space do
     catch
       :all_vars_fixed ->
         process_solutions(data)
+      :fail ->
+        handle_failure(data, :failure)
     end
   end
 
   defp shutdown(data, reason) do
-    (!data[:finalized] && finalize(data, reason)) || data
+    Shared.finalize_space(get_shared(data), data, self(), reason)
   end
 
   def get_shared(data) do
@@ -348,8 +356,4 @@ defmodule CPSolver.Space do
     |> tap(fn _ -> Shared.put_auxillary(get_in(data, [:opts, :solver_data]), key, value) end)
   end
 
-  defp finalize(data, reason) do
-    data
-    |> tap(fn _ -> Shared.finalize_space(get_shared(data), data, self(), reason) end)
-  end
 end

@@ -47,8 +47,8 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :complete_impl)
   end
 
-  def complete_impl(%{complete_flag: complete_flag} = _solver) do
-    Array.get(complete_flag, 1) == 1
+  def complete_impl(%{complete_flag: complete_flag, solver_pid: solver_pid} = _solver) do
+    (Array.get(complete_flag, 1) == 1) || !Process.alive?(solver_pid)
   end
 
   def set_complete(%{complete_flag: complete_flag, caller: caller, sync_mode: sync?} = solver) do
@@ -56,7 +56,6 @@ defmodule CPSolver.Shared do
 
     set_end_time(solver)
     |> tap(fn _ -> sync? && send(caller, {:solver_completed, complete_flag}) end)
-    |> tap(fn _ -> CPSolver.stop_spaces(solver) end)
   end
 
   ## Elapsed time in microsecs
@@ -340,6 +339,7 @@ defmodule CPSolver.Shared do
   end
 
   def cleanup_impl(%{thread_pool: thread_pool, solver_pid: solver_pid, objective: objective} = solver) do
+    stop_spaces(solver)
     Enum.each(
       [:solutions, :active_nodes, :auxillary, :space_thread_counters],
       fn item ->

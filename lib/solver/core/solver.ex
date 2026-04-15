@@ -97,10 +97,6 @@ defmodule CPSolver do
      }}
   end
 
-  def stop_spaces(solver) do
-    Shared.stop_spaces(solver)
-  end
-
   defp cleanup(solver) do
     Shared.cleanup(solver)
   end
