@@ -70,6 +70,30 @@ falkenauer_u120_00 = %{
  capacity: 120
 }
 
+trucks1 = %{
+  weights: [
+    39417, 42900, 44929, 6558, 37891, 35, 257, 2197, 36544, 1228, 5224, 18880, 7169, 1010, 8569, 
+    1512, 27091, 457, 2003, 1822, 23, 765, 22081, 1021, 8833, 7676, 
+    2391, 5112, 906, 4174, 43, 1311, 3065, 4487, 2975, 3175, 1414, 
+    1057, 12, 15503, 6059, 65, 1065, 135, 4586, 6527, 265, 1921, 24, 
+    4772, 531, 417, 24548, 453, 139, 
+    41, 178, 184, 24988, 54, 10698, 5485, 2430, 21, 6629, 
+    4039, 10448, 16725, 21401, 6457, 13506
+  ],
+  capacity: 45000
+}
+
+trucks2 = %{
+  weights: 
+  [
+    60, 60, 32, 19, 27, 1, 1, 4, 52, 3, 4, 32, 6, 2, 14, 3, 47, 2, 2, 4,
+    1, 1, 38, 2, 15, 6, 3, 8, 3, 4, 1, 4, 5, 7, 8, 8, 4, 2, 1, 39,
+    10, 1, 1, 1, 5, 17, 1, 4, 1, 8, 1, 1, 19, 2, 1, 1, 1, 1, 20, 1,
+    18, 15, 2, 1, 7, 7, 28, 12, 32, 6, 19
+  ],
+  capacity: 60
+}
+
 runner =
   fn %{capacity: capacity, weights: weights} = _instance, opts ->
     CPSolver.Examples.BinPacking.solve(weights, capacity,
@@ -79,18 +103,25 @@ runner =
 ```
 
 ```elixir
-{instance, threads, upper_bound, timeout} = 
-#{instance_200_items, 2, nil, :timer.minutes(10)}
+processes_before = :erlang.processes() |> length()
 
-{gecode_doc_example, 4, nil, :timer.minutes(5)}
+{instance, threads, upper_bound, timeout} = 
+
+#{instance_200_items, 4, nil, :timer.minutes(10)}
+
+# {gecode_doc_example, 8, nil, :timer.minutes(5)}
 
 #{falkenauer_u120_00, 3, nil, :timer.minutes(15)}
 
-#{t60_00, 3, nil, :timer.minutes(30)}
+#{trucks1, 4, nil, :timer.minutes(5)}
 
-{t120_00, 3, 45, :timer.minutes(60)}
+#{trucks2, 4, nil, :timer.minutes(5)}
 
-# search = {:first_fail, :indomain_max} 
+{t60_00, 4, nil, :timer.minutes(60 * 10)}
+
+{t120_00, 4, nil, :timer.minutes(60)}
+
+search = {:first_fail, :indomain_max} 
 # {Strategy.afc({:afc_size_min, 0.75}, &List.first/1), :indomain_max}
 runner.(instance, 
   [
@@ -102,4 +133,10 @@ runner.(instance,
     #search: search
   ]
 )
+```
+
+```elixir
+processes_after = :erlang.processes() |> length()
+
+stray_processes = processes_after - processes_before
 ```

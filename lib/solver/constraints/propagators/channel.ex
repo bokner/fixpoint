@@ -42,7 +42,15 @@ defmodule CPSolver.Propagator.Channel do
     }
   end
 
-  defp reduce(vars, %{unfixed_vars: unfixed_b_var_indices} = _state, _changes) do
+  defp reduce(vars, %{unfixed_vars: unfixed_b_var_indices} = _state, changes) when is_map(changes) do
+    if map_size(changes) == 0 do
+      full_reduction(vars, unfixed_b_var_indices)
+    else
+      partial_reduction(vars, unfixed_b_var_indices, changes)
+    end
+  end
+
+  defp full_reduction(vars, unfixed_b_var_indices) do
     x_var = Vector.at(vars, 0)
     if fixed?(x_var) do
       ## We're done
@@ -51,6 +59,10 @@ defmodule CPSolver.Propagator.Channel do
     else
       reduce_booleans(x_var, vars, unfixed_b_var_indices)
     end
+  end
+
+  defp partial_reduction(vars, unfixed_b_var_indices, changes) do
+    full_reduction(vars, unfixed_b_var_indices)
   end
 
   defp fix_booleans(fixed_index, vars, unfixed_b_var_indices) do
