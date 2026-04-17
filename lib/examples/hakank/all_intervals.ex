@@ -58,7 +58,7 @@
 # See also my Elixir page: http://www.hakank.org/elxir/
 #
 ## Boris Okner: modified to sync with the latest API,
-## change naming nad result handling.
+## change naming and result handling.
 ##
 defmodule CPSolver.Examples.Hakank.AllInterval do
 

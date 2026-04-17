@@ -169,6 +169,9 @@ defmodule CPSolver.Examples.Hakank.Assignment do
   #
   # See http://www.hakank.org/minizinc/assignment6.mzn
   #
+  ## Boris Okner: modified to sync with the latest API,
+  ## change naming and result handling.
+  ##
   def problem(6) do
     op = :minimize
     cost = [[13, 21, 20, 12,  8, 26, 22, 11],
