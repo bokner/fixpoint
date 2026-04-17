@@ -48,8 +48,11 @@ defmodule CPSolver.Examples.Hakank.CoinsGrid do
   def run() do
 
 
-    n = 7 # 31
-    c = 3 # 14
+    n =
+      # 7
+      31
+    c = # 3
+     14
 
     rs = 0..n-1
     x = for i <- rs do
@@ -93,11 +96,13 @@ defmodule CPSolver.Examples.Hakank.CoinsGrid do
 
     opts = [
       # search: {:first_fail, :indomain_max},
-      search: {:input_order, :indomain_min},
+      # search: {:dom_deg, :indomain_max},
+       search: {:most_constrained, :indomain_split},
+      #search: {:max_regret, :indomain_max},
       # search: {:first_fail, :indomain_random},
       space_threads: 8,
-      timeout: :timer.hours(1),
-      # stop_on: {:max_solutions, 2},
+      timeout: :timer.hours(10),
+      stop_on: {:max_solutions, 1},
       ]
     {:ok, res} = CPSolver.solve(model,
                                      opts
