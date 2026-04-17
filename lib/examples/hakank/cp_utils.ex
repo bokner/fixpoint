@@ -7,7 +7,7 @@ defmodule Hakank.CPUtils do
   alias CPSolver.Constraint.Sum
   # alias CPSolver.Constraint.Equal
   alias CPSolver.Constraint.LessOrEqual
-  alias CPSolver.Constraint.AllDifferent.FWC, as: AllDifferent
+  alias CPSolver.Constraint.AllDifferent.DC.Fast, as: AllDifferent
   # alias CPSolver.Model
   import CPSolver.Variable.View.Factory
 

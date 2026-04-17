@@ -24,11 +24,10 @@
 # See also my Elixir page: http://www.hakank.org/elxir/
 #
 ## Boris Okner: modified to sync with the latest API,
-## change naming and result handling.
+## change then naming and the result handling.
 ##
 
 defmodule CPSolver.Examples.Hakank.QuasigroupCompletion do
-
   import Hakank.CPUtils
 
   alias CPSolver.IntVariable
@@ -102,18 +101,19 @@ defmodule CPSolver.Examples.Hakank.QuasigroupCompletion do
   # There are _many_ solutions to this problem.
   #
   def puzzle(5) do
-    [[0,0,0,1,0,0,0,0,0,0],
-     [0,0,1,0,0,0,0,0,0,0],
-     [0,1,0,0,0,2,0,0,0,0],
-     [1,0,0,0,2,0,0,0,0,0],
-     [0,0,0,2,1,0,0,0,0,0],
-     [0,0,2,0,0,1,0,0,0,0],
-     [0,0,0,0,0,0,1,0,0,0],
-     [0,0,0,0,0,0,0,1,0,2],
-     [0,0,0,0,0,0,0,0,2,0],
-     [0,0,0,0,0,0,0,2,0,0]]
+    [
+      [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      [0, 1, 0, 0, 0, 2, 0, 0, 0, 0],
+      [1, 0, 0, 0, 2, 0, 0, 0, 0, 0],
+      [0, 0, 0, 2, 1, 0, 0, 0, 0, 0],
+      [0, 0, 2, 0, 0, 1, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 1, 0, 2],
+      [0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+      [0, 0, 0, 0, 0, 0, 0, 2, 0, 0]
+    ]
   end
-
 
   #
   # Problem from http://www.cs.cornell.edu/gomes/QUASIdemo.html
@@ -122,18 +122,19 @@ defmodule CPSolver.Examples.Hakank.QuasigroupCompletion do
   # There are many solutions to this problem.
   #
   def puzzle(6) do
-    [[0,0,1,2,3,4,0,0,0,0],
-     [0,1,2,3,0,0,4,0,0,0],
-     [1,2,3,0,0,0,0,4,0,0],
-     [2,3,0,0,0,0,0,0,4,0],
-     [3,0,0,0,0,0,0,0,0,4],
-     [5,6,0,0,0,0,0,0,0,0],
-     [0,5,6,0,0,0,0,0,0,0],
-     [0,0,5,6,0,0,0,0,0,0],
-     [0,0,0,5,6,0,0,0,0,0],
-     [0,0,0,0,5,6,0,0,0,0]]
+    [
+      [0, 0, 1, 2, 3, 4, 0, 0, 0, 0],
+      [0, 1, 2, 3, 0, 0, 4, 0, 0, 0],
+      [1, 2, 3, 0, 0, 0, 0, 4, 0, 0],
+      [2, 3, 0, 0, 0, 0, 0, 0, 4, 0],
+      [3, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [5, 6, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 5, 6, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 5, 6, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 5, 6, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 5, 6, 0, 0, 0, 0]
+    ]
   end
-
 
   #
   # Problem from http://www.cs.cornell.edu/gomes/QUASIdemo.html
@@ -155,18 +156,19 @@ defmodule CPSolver.Examples.Hakank.QuasigroupCompletion do
   # This takes 9.5s, about to solve and print all solutions.
   #
   def puzzle(7) do
-    [[0, 0, 1, 5, 2, 6, 7, 8, 0, 0],
-     [0, 1, 5, 2, 0, 0, 6, 7, 8, 0],
-     [1, 5, 2, 0, 0, 0, 0, 6, 7, 8],
-     [5, 2, 0, 0, 0, 0, 0, 0, 6, 7],
-     [2, 0, 0, 0, 0, 0, 0, 0, 0, 6],
-     [4,10, 0, 0, 0, 0, 0, 0, 3, 9],
-     [0, 4,10, 0, 0, 0, 0, 3, 9, 0],
-     [0, 0, 4,10, 0, 0, 3, 9, 0, 0],
-     [0, 0, 0, 4,10, 3, 9, 0, 0, 0],
-     [ 0, 0, 0, 0, 4,9, 0, 0, 0, 0]]
+    [
+      [0, 0, 1, 5, 2, 6, 7, 8, 0, 0],
+      [0, 1, 5, 2, 0, 0, 6, 7, 8, 0],
+      [1, 5, 2, 0, 0, 0, 0, 6, 7, 8],
+      [5, 2, 0, 0, 0, 0, 0, 0, 6, 7],
+      [2, 0, 0, 0, 0, 0, 0, 0, 0, 6],
+      [4, 10, 0, 0, 0, 0, 0, 0, 3, 9],
+      [0, 4, 10, 0, 0, 0, 0, 3, 9, 0],
+      [0, 0, 4, 10, 0, 0, 3, 9, 0, 0],
+      [0, 0, 0, 4, 10, 3, 9, 0, 0, 0],
+      [0, 0, 0, 0, 4, 9, 0, 0, 0, 0]
+    ]
   end
-
 
   #
   # Problem from http://www.cs.cornell.edu/gomes/QUASIdemo.html
@@ -179,18 +181,19 @@ defmodule CPSolver.Examples.Hakank.QuasigroupCompletion do
   # Note: There are no solutions to this problem.
   #
   def puzzle(8) do
-    [[1,0,0,0,0,0,0,0,0,0],
-     [2,1,0,0,0,0,0,0,0,4],
-     [3,2,1,0,0,0,0,0,4,0],
-     [0,3,2,1,0,0,0,4,0,0],
-     [0,0,3,2,1,0,4,0,0,0],
-     [0,0,0,3,2,1,0,0,0,0],
-     [0,0,0,0,3,2,1,0,0,0],
-     [0,0,0,4,0,3,2,1,0,0],
-     [0,0,4,0,0,0,3,2,1,0],
-     [0,4,0,0,0,0,0,3,2,1]]
+    [
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [2, 1, 0, 0, 0, 0, 0, 0, 0, 4],
+      [3, 2, 1, 0, 0, 0, 0, 0, 4, 0],
+      [0, 3, 2, 1, 0, 0, 0, 4, 0, 0],
+      [0, 0, 3, 2, 1, 0, 4, 0, 0, 0],
+      [0, 0, 0, 3, 2, 1, 0, 0, 0, 0],
+      [0, 0, 0, 0, 3, 2, 1, 0, 0, 0],
+      [0, 0, 0, 4, 0, 3, 2, 1, 0, 0],
+      [0, 0, 4, 0, 0, 0, 3, 2, 1, 0],
+      [0, 4, 0, 0, 0, 0, 0, 3, 2, 1]
+    ]
   end
-
 
   #
   # Problem from http://www.cs.cornell.edu/gomes/QUASIdemo.html
@@ -199,56 +202,56 @@ defmodule CPSolver.Examples.Hakank.QuasigroupCompletion do
   # Note: There are no solutions to this problem.
   #
   def puzzle(9) do
-    [[0,0,0,0,0,0,0,0,0,1],
-     [0,0,0,0,0,0,0,0,1,0],
-     [0,0,0,0,0,0,0,1,0,0],
-     [0,0,0,0,0,0,2,0,0,0],
-     [0,0,0,0,0,1,0,0,0,0],
-     [0,0,0,0,1,0,0,0,0,0],
-     [0,0,0,1,0,0,0,0,0,0],
-     [0,0,1,0,0,0,0,0,0,0],
-     [0,1,0,0,0,0,0,0,0,0],
-     [1,0,0,0,0,0,0,0,0,0]]
+    [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+      [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+      [0, 0, 0, 0, 0, 0, 2, 0, 0, 0],
+      [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+      [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+      [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    ]
   end
 
-
   #
   #
   #
-  def run() do
-
+  def run(opts \\ []) do
     # Problem 5..7 yields a huge number of solutions.
     # Let's just pick the first.
     1..7
-    |> Enum.map(fn p -> IO.puts("Running problem #{p}")
+    |> Enum.map(fn p ->
+      IO.puts("Running problem #{p}")
+
       cond do
-        p in 5..7 -> quasigroup_completion(puzzle(p),1)
-        true   -> quasigroup_completion(puzzle(p))
-       end
+        p in [5..7] -> solve_puzzle(p, Keyword.put(opts, :num_solutions, 1))
+        true -> solve_puzzle(p, opts)
+      end
     end)
+  end
 
+  def solve_puzzle(id, opts \\ []) do
+    quasigroup_completion(puzzle(id), opts)
   end
 
   #
-  # Problem5
-  # Generating all 40944 solutions takes a long time
-  #
-  def run2() do
-    quasigroup_completion(puzzle(5))
-  end
-
-  #
-  # Running problem 8 (no solution)
+  # Running problems 8 and 9 (no solution)
   # Takes long time in current Fixpoint version
-  def run3() do
-    quasigroup_completion(puzzle(8))
-  end
-
-  #
-  # Running problem 9 (no solution)
-  # Takes long time in current Fixpoint version
-  def main4() do
-    quasigroup_completion(puzzle(9))
+  ##
+  ## Boris Okner: if using AllDifferent.DC.Fast for `latin_square`,
+  ## these puzzles will instantly fail due to early propagation.
+  def run_unsatisfiable(opts \\ []) do
+    Enum.each([8, 9], fn puzzle_id ->
+      try do
+        solve_puzzle(puzzle_id, opts)
+      catch
+        {:fail, _} ->
+          IO.puts("Puzzle #{puzzle_id} doesn't have solutions")
+      end
+    end)
   end
 
   @doc """
@@ -258,7 +261,7 @@ defmodule CPSolver.Examples.Hakank.QuasigroupCompletion do
   `num_sols` are the required number of solutions, defaults to :infinity.
 
   """
-  def quasigroup_completion(mat,num_sols \\ :infinity) do
+  def quasigroup_completion(mat, opts \\ []) do
     n = length(mat)
     dom = 1..n
 
@@ -266,18 +269,20 @@ defmodule CPSolver.Examples.Hakank.QuasigroupCompletion do
     # Decision variables
     #
 
-    x = for i <- 0..n-1 do
-          for j <- 0..n-1 do
-            v = mat_at(mat,i,j)
-            if v > 0 do
-              # > 0: this is a hint
-              IntVariable.new(v, name: "x[#{i},#{j}]")
-            else
-              # 0: unknown
-              IntVariable.new(dom, name: "x[#{i},#{j}]")
-            end
+    x =
+      for i <- 0..(n - 1) do
+        for j <- 0..(n - 1) do
+          v = mat_at(mat, i, j)
+
+          if v > 0 do
+            # > 0: this is a hint
+            IntVariable.new(v, name: "x[#{i},#{j}]")
+          else
+            # 0: unknown
+            IntVariable.new(dom, name: "x[#{i},#{j}]")
           end
-    end
+        end
+      end
 
     x_flatten = List.flatten(x)
 
@@ -286,26 +291,42 @@ defmodule CPSolver.Examples.Hakank.QuasigroupCompletion do
     #
     constraints = latin_square(x)
 
-    model = Model.new(x_flatten,
-                      constraints
-    )
+    model =
+      Model.new(
+        x_flatten,
+        constraints
+      )
 
     Logger.configure(level: :info)
+
+    opts =
+      Keyword.merge(default_opts(), opts)
+      |> then(fn opts ->
+        Keyword.put(opts, :stop_on, {:max_solutions, opts[:num_solutions]})
+      end)
+
     {:ok, result} =
-      CPSolver.solve(model,
-        search: {:first_fail, :indomain_max},
-        # search: {:first_fail, :indomain_min},
-        # search: {:first_fail, :indomain_random},
-        # search: {:input_order, :indomain_max},
-        stop_on: {:max_solutions, num_sols},
-        timeout: :infinity
+      CPSolver.solve(
+        model,
+        opts
       )
+
+    ## Print last solution
+    print_matrix(result.solutions |> List.last(), n, n, "~3w")
+    ##
     IO.inspect(result.statistics)
 
-    result.solutions
-    |> Enum.map(fn s -> print_matrix(s,n,n,"~3w") end)
-    # IO.inspect(result.statistics)
-
+    {:ok, result}
   end
 
+  defp default_opts() do
+    [
+      search: {:first_fail, :indomain_max},
+      # search: {:first_fail, :indomain_min},
+      # search: {:first_fail, :indomain_random},
+      # search: {:input_order, :indomain_max},
+      num_solutions: :infinity,
+      timeout: :timer.minutes(5)
+    ]
+  end
 end
