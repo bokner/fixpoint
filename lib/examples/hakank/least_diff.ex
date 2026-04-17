@@ -17,7 +17,7 @@
 
 defmodule CPSolver.Examples.Hakank.LeastDiff do
 
-  # import CPUtils
+  # import Hakank.CPUtils
 
   alias CPSolver.IntVariable
   alias CPSolver.Constraint.Sum

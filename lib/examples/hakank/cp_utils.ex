@@ -24,7 +24,7 @@ defmodule Hakank.CPUtils do
 
        > Util.timeit(&Test1.main/0)
 
-       > Util.timeit(fn () -> Test1.main() end)
+       > Util.timeit(fn () -> Test1.run() end)
 
   """
   def timeit(fun) do

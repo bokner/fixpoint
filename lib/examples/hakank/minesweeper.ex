@@ -36,7 +36,11 @@
 # This program was created by Hakan Kjellerstrand, hakank@gmail.com
 # See also my Elixir page: http://www.hakank.org/elxir/
 #
-defmodule Minesweeper do
+## Boris Okner: modified to sync with the latest API,
+## change naming and result handling.
+##
+
+defmodule CPSolver.Examples.Hakank.Minesweeper do
   import Hakank.CPUtils
 
   alias CPSolver.IntVariable
