@@ -32,7 +32,6 @@
 ## change naming and result handling.
 ##
 defmodule CPSolver.Examples.Hakank.CoinsGrid do
-
   alias Hakank.CPUtils
 
   alias CPSolver.IntVariable
@@ -45,73 +44,131 @@ defmodule CPSolver.Examples.Hakank.CoinsGrid do
   # import CPSolver.Constraint.Factory
   import CPSolver.Variable.View.Factory
 
-  def run() do
+  require Logger
 
+  def run(opts \\ []) do
+    run(31, 14, opts)
+  end
 
-    n =
-      # 7
-      31
-    c = # 3
-     14
+  def run_7_3(opts) do
+    run(7, 3, opts)
+  end
 
-    rs = 0..n-1
-    x = for i <- rs do
-          for j <- rs do
-            IntVariable.new(0..1, name: "x[#{i},#{j}]")
-          end
+  def run(n, c, opts \\ []) do
+    Logger.configure(level: :info)
+    opts =
+      Keyword.merge(
+      default_opts()
+      |> Keyword.put(:solution_handler,
+        fn solution -> print_solution(solution, n, false)
+      end),
+      opts
+    )
+    Logger.info("Started with n = #{n}, c = #{c}")
+    # 7
+    ##n =
+    #  31
+
+    # 3
+    ##c =
+    ##  14
+
+    rs = 0..(n - 1)
+
+    x =
+      for i <- rs do
+        for j <- rs do
+          IntVariable.new(0..1, name: "x[#{i},#{j}]")
         end
+      end
 
     x_flatten = List.flatten(x)
 
     # To be minimized
-    z = IntVariable.new(0..n*n*n, name: "z]")
+    z = IntVariable.new(0..(n * n * n), name: "z")
 
     # quadratic horizontal distance
     # MiniZinc: z = sum(i,j in 1..n) (  x[i,j]*(abs(i-j))*(abs(i-j))  )
-    sum_constraint = Sum.new(z, for i <- rs, j <- rs do
-                                         mul(CPUtils.mat_at(x,i,j),abs(i-j)**2)
-                                       end)
-
+    sum_constraint =
+      Sum.new(
+        z,
+        for i <- rs, j <- rs do
+          mul(CPUtils.mat_at(x, i, j), abs(i - j) ** 2)
+        end
+      )
 
     # MiniZinc: forall(i in 1..n) (  sum(j in 1..n) (x[i,j]) = c  )
-    row_constraints = for row <- x do
-      Sum.new(c,row)
-    end
+    row_constraints =
+      for row <- x do
+        Sum.new(c, row)
+      end
 
     # MiniZinc: forall(j in 1..n) (  sum(i in 1..n) (x[i,j]) = c  )
-    col_constraints = for col <- CPUtils.transpose(x) do
-      Sum.new(c,col)
-    end
+    col_constraints =
+      for col <- CPUtils.transpose(x) do
+        Sum.new(c, col)
+      end
 
-    constraints = ([sum_constraint] ++ row_constraints ++ col_constraints) # |> List.flatten
+    # |> List.flatten
+    constraints = [sum_constraint] ++ row_constraints ++ col_constraints
     # constraints = row_constraints ++ col_constraints
 
-    model = Model.new(x_flatten ++ [z],
-                      constraints,
-                      # minimize z
-                      objective: Objective.minimize(z)
-    )
+    model =
+      Model.new(
+        [z | x_flatten],
+        constraints,
+        # minimize z
+        objective: Objective.minimize(z)
+      )
 
-    Logger.configure(level: :info)
+    {:ok, res} =
+      CPSolver.solve(
+        model,
+        opts)
 
-    opts = [
-      # search: {:first_fail, :indomain_max},
-      # search: {:dom_deg, :indomain_max},
-       search: {:most_constrained, :indomain_split},
-      #search: {:max_regret, :indomain_max},
-      # search: {:first_fail, :indomain_random},
-      space_threads: 8,
-      timeout: :timer.hours(10),
-      stop_on: {:max_solutions, 1},
-      ]
-    {:ok, res} = CPSolver.solve(model,
-                                     opts
-                                     )
+
     IO.inspect(res.statistics)
-    res.solutions
-    |> Enum.map(fn s -> IO.puts("z: #{Enum.at(s,n*n)}")
-                        Enum.take(s,n*n) |> CPUtils.print_matrix(n,n) end)
+    best_solution = List.last(res.solutions)
 
+    if best_solution do
+      print_solution(best_solution, n, true)
+    else
+      Logger.info("No solutions found")
+    end
   end
 
+  defp print_solution(solution, n, print_matrix?) do
+    solution = Enum.map(solution,
+    fn {_name, value} ->
+      value
+      value when is_integer(value) -> value
+    end)
+    coins = hd(solution)
+    matrix = tl(solution) |> Enum.take(n * n)
+    Logger.info("coins: #{coins}")
+
+    print_matrix? &&
+      Enum.chunk_every(matrix, n)
+      |> Enum.map(fn row -> Enum.join(row, " ") end)
+      |> Enum.join("\n")
+      |> then(fn matrix_str ->
+        IO.puts("\nmatrix:\n" <> matrix_str <> "\n")
+      end)
+  end
+
+  defp default_opts() do
+      [
+        n: 31, c: 14,
+      search: {:first_fail, :indomain_max},
+      #search: {:input_order, :indomain_max},
+      # search: {:most_constrained, :indomain_max},
+      # search: {:dom_deg, :indomain_max},
+      # search: {:first_fail, :indomain_min},
+      # search: {:max_regret, :indomain_max},
+      #search: {:first_fail, :indomain_random},
+      space_threads: 8,
+      timeout: :timer.hours(1),
+      # stop_on: {:max_solutions, 1},
+    ]
+  end
 end
