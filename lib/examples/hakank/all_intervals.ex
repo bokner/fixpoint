@@ -112,7 +112,7 @@ defmodule CPSolver.Examples.Hakank.AllInterval do
       search: {:input_order, :indomain_min},
       #search: {:first_fail, :indomain_min},
       # search: {:input_order, :indomain_random},
-      #space_threads: 12,
+      space_threads: 8,
       timeout: :timer.hours(1),
       # stop_on: {:max_solutions, 2},
     ]
