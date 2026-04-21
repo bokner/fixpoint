@@ -35,18 +35,13 @@ defmodule CPSolver.Propagator.Channel do
   end
 
   defp initial_state(vars) do
-    b_vars_num = Vector.size(vars) - 1
-    bool_var_indices = Range.to_list(1..b_vars_num)
+    bool_var_indices = Range.to_list(1..Vector.size(vars) - 1)
     %{
       unfixed_vars: bool_var_indices
     }
   end
 
-  defp reduce(vars, %{unfixed_vars: unfixed_b_var_indices} = _state, changes) when is_map(changes) do
-    full_reduction(vars, unfixed_b_var_indices)
-  end
-
-  defp full_reduction(vars, unfixed_b_var_indices) do
+  defp reduce(vars, %{unfixed_vars: unfixed_b_var_indices} = _state, changes) do
     x_var = Vector.at(vars, 0)
     if fixed?(x_var) do
       ## We're done
