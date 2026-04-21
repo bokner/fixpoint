@@ -11,9 +11,9 @@ defmodule CPSolver.Constraint.Channel do
   end
 
   @impl true
-  def propagators(args) do
+  def propagators([x | b]) do
     [
-      CPSolver.Propagator.Channel.new(args)
+      CPSolver.Propagator.Channel.new(x, b)
     ]
   end
 

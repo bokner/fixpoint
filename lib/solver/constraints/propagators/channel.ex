@@ -1,6 +1,18 @@
 defmodule CPSolver.Propagator.Channel do
   use CPSolver.Propagator
 
+  def new(x, bools) do
+    b_vars_num = length(bools)
+    removeBelow(x, 1)
+    removeAbove(x, b_vars_num)
+    Enum.each(bools, fn b_var ->
+      removeAbove(b_var, 1)
+      removeBelow(b_var, 0)
+    end)
+
+    new([x | bools])
+  end
+
   @impl true
   def variables([x | b_vars]) do
     [
@@ -23,31 +35,15 @@ defmodule CPSolver.Propagator.Channel do
   end
 
   defp initial_state(vars) do
-    x_var = Vector.at(vars, 0)
     b_vars_num = Vector.size(vars) - 1
-    ## x_var has to be a position in b_vars list,
-    ## so we prune values outside of range of b_vars.
-    ##
-    removeBelow(x_var, 1)
-    removeAbove(x_var, b_vars_num)
-    ## Make sure boolean variables have proper domains
     bool_var_indices = Range.to_list(1..b_vars_num)
-    Enum.each(bool_var_indices, fn b_idx ->
-      b_var = vars[b_idx]
-      removeAbove(b_var, 1)
-      removeBelow(b_var, 0)
-    end)
     %{
       unfixed_vars: bool_var_indices
     }
   end
 
   defp reduce(vars, %{unfixed_vars: unfixed_b_var_indices} = _state, changes) when is_map(changes) do
-    if map_size(changes) == 0 do
-      full_reduction(vars, unfixed_b_var_indices)
-    else
-      partial_reduction(vars, unfixed_b_var_indices, changes)
-    end
+    full_reduction(vars, unfixed_b_var_indices)
   end
 
   defp full_reduction(vars, unfixed_b_var_indices) do
@@ -59,10 +55,6 @@ defmodule CPSolver.Propagator.Channel do
     else
       reduce_booleans(x_var, vars, unfixed_b_var_indices)
     end
-  end
-
-  defp partial_reduction(vars, unfixed_b_var_indices, changes) do
-    full_reduction(vars, unfixed_b_var_indices)
   end
 
   defp fix_booleans(fixed_index, vars, unfixed_b_var_indices) do
