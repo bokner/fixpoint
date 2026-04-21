@@ -18,15 +18,19 @@ IEx.Helpers.c(Path.join([System.get_env("HOME"),
 ```
 
 ```elixir
+:erlang.processes() |> length
+```
+
+```elixir
 require Logger
 alias CPSolver.Examples.Sudoku
 alias CPSolver.Constraint.AllDifferent.{DC, BC, FWC, DC.Fast}
 
 puzzle_file = 
   
-#"data/sudoku/clue17"
+"data/sudoku/clue17"
 #"data/sudoku/top95"
-"data/sudoku/hardest"
+#"data/sudoku/hardest"
 #"data/sudoku/puzzles5_forum_hardest_1905_11+"
 #"data/sudoku/quasi_uniform_834"
 num_instances = 100_000
@@ -70,4 +74,8 @@ res = Map.merge(res,
   total: Enum.sum(res.elapsed),
   elapsed: Enum.sort(res.elapsed)
 })
+```
+
+```elixir
+:erlang.processes() |> length
 ```
