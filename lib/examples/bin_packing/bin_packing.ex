@@ -14,7 +14,7 @@ defmodule CPSolver.Examples.BinPacking do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.Sum
-  alias CPSolver.Constraint.{LessOrEqual, Equal, Reified}
+  alias CPSolver.Constraint.{LessOrEqual, Channel}
   import CPSolver.Variable.View.Factory
 
   alias CPSolver.Objective
@@ -118,9 +118,7 @@ defmodule CPSolver.Examples.BinPacking do
         x_i = Enum.at(x, i)
         bin_indicators = Enum.at(indicators, i)
 
-        for j <- 1..num_bins do
-          Reified.new(Equal.new(x_i, j), Enum.at(bin_indicators, j - 1))
-        end
+        Channel.new(x_i, bin_indicators)
       end
 
     bin_load_constraints =
