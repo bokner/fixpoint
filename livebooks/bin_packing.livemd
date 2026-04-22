@@ -109,7 +109,7 @@ processes_before = :erlang.processes() |> length()
 
 #{instance_200_items, 4, nil, :timer.minutes(10)}
 
-#{gecode_doc_example, 8, nil, :timer.minutes(5)}
+# {gecode_doc_example, 8, nil, :timer.minutes(5)}
 
 #{falkenauer_u120_00, 3, nil, :timer.minutes(15)}
 
