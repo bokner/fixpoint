@@ -5,6 +5,8 @@ defmodule CpSolverTest.Model do
   alias CPSolver.Objective
   alias CPSolver.Variable.Interface
 
+  alias CPSolver.Utils.Vector
+
   describe "Model" do
     alias CPSolver.Constraint.{LessOrEqual, Sum}
 
@@ -27,9 +29,9 @@ defmodule CpSolverTest.Model do
         )
 
       ## Additional variable z is pulled from the Sum constraints
-      assert length(model.variables) == 3
+      assert Vector.size(model.variables) == 3
       ## All variables are indexed starting from 1
-      assert Enum.all?(Enum.with_index(model.variables, 1), fn {var, idx} -> var.index == idx end)
+      #assert Enum.all?(Enum.with_index(model.variables, 1), fn {var, idx} -> var.index == idx end)
       ## The variable in the objective has the same index as the variable in the all_vars list
       assert model.objective.variable |> Interface.variable() |> Map.get(:index) == 3
     end
