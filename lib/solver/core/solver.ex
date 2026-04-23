@@ -267,9 +267,10 @@ defmodule CPSolver do
   defp prepare(variables) do
     ## At this point, `variables` list can contain views
     ## In this case, we will extract variables from views.
-    Enum.reduce(variables, Vector.new([]), fn var,
+    Enum.reduce(
+      Enum.with_index(variables, 1), Vector.new([]), fn {var, idx},
     vars_acc ->
-      Vector.append(vars_acc, Interface.variable(var))
+      Vector.append(vars_acc, Interface.variable(Interface.update(var, :index, idx)))
     end)
   end
 end

@@ -56,8 +56,7 @@ defmodule CPSolver.Model do
     (safe_variables ++ additional_variables)
     |> Enum.with_index(1)
     |> Enum.map_reduce(objective, fn {var, idx}, obj_acc ->
-      {
-        Interface.update(var, :index, idx),
+        {var,
         if obj_acc && Interface.id(var) == Interface.id(obj_acc.variable) do
           obj_var = Interface.update(obj_acc.variable, :index, idx)
           Map.put(objective, :variable, obj_var)

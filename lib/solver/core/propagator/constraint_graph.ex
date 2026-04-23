@@ -6,7 +6,7 @@ defmodule CPSolver.Propagator.ConstraintGraph do
   """
   alias CPSolver.Propagator
   alias CPSolver.Variable.Interface
-  
+
   require Logger
 
   @spec create([Propagator.t()]) :: Graph.t()
@@ -258,7 +258,6 @@ defmodule CPSolver.Propagator.ConstraintGraph do
     vertex = variable_vertex(Interface.id(variable))
 
     Map.put(graph, :vertex_labels, Map.put(labels, identifier.(vertex), variable))
-    #graph
   end
 
   defp delete_vertex(%Graph{} = graph, vertex) do
