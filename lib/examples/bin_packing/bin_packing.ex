@@ -117,7 +117,7 @@ defmodule CPSolver.Examples.BinPacking do
       for i <- 0..(num_items - 1) do
         x_i = Enum.at(x, i)
         bin_indicators = Enum.at(indicators, i)
-
+        ## x[i] = j iff ind[i, j] = 1
         Channel.new(x_i, bin_indicators)
       end
 
