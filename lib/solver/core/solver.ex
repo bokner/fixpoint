@@ -34,7 +34,7 @@ defmodule CPSolver do
       |> Map.put(:sync_mode, opts[:sync_mode])
 
     {:ok, solver_pid} =
-      GenServer.start(CPSolver, [model, Keyword.put(opts, :shared, shared_data)])
+      GenServer.start(CPSolver, [model, shared_data, opts])
 
     {:ok,
      shared_data
@@ -179,15 +179,13 @@ defmodule CPSolver do
   ## GenServer callbacks
 
   @impl true
-  def init([%{propagators: propagators, variables: variables} = model, solver_opts]) do
+  def init([%{propagators: propagators, variables: variables} = model, shared_data, solver_opts]) do
     stop_on = Keyword.get(solver_opts, :stop_on)
     ## Some data (stats, solutions, possibly more - TBD) has to be shared between spaces
-    shared = Keyword.get(solver_opts, :shared)
 
     variables = prepare(variables)
 
     objective = Map.get(model, :objective)
-
 
     {:ok,
      %{
@@ -195,7 +193,7 @@ defmodule CPSolver do
        variables: variables,
        propagators: propagators,
        objective: objective,
-       shared: Map.put(shared, :objective, objective),
+       shared: Map.put(shared_data, :objective, objective),
        stop_on: stop_on,
        solver_opts: solver_opts
      }, {:continue, :solve}}
@@ -206,8 +204,6 @@ defmodule CPSolver do
         :solve,
         %{
           variables: variables,
-          propagators: propagators,
-          objective: objective,
           solver_opts: solver_opts,
           shared: shared
         } = state
@@ -220,10 +216,8 @@ defmodule CPSolver do
 
     {:ok, top_space} =
       Space.create(
-        variables,
-        propagators,
+        state,
         solver_opts
-        |> Keyword.put(:objective, objective)
         |> Keyword.put(:solver_data, shared)
         |> Keyword.delete(:shared)
         |> Keyword.put(:solution_handler, solution_handler_fun)
@@ -267,8 +261,7 @@ defmodule CPSolver do
   defp prepare(variables) do
     ## At this point, `variables` list can contain views
     ## In this case, we will extract variables from views.
-    Enum.reduce(variables, Vector.new([]), fn var,
-    vars_acc ->
+    Enum.reduce(variables, Vector.new([]), fn var, vars_acc ->
       Vector.append(vars_acc, Interface.variable(var))
     end)
   end
