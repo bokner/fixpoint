@@ -134,26 +134,33 @@ defmodule CPSolver.Space do
     solver = get_shared(data)
     Shared.increment_node_counts(solver)
 
+    data = apply_partition(data, partition_fun)
+
     if checkout?(solver) do
       spawn(fn ->
-        run_space_impl(data, solver, partition_fun)
+        run_space_impl(data, solver)
         checkin(solver)
       end)
     else
-      run_space_impl(data, solver, partition_fun)
+      run_space_impl(data, solver)
     end
   end
 
-  defp run_space_impl(%{variables: variables} = data, solver, partition_fun) do
-    {branch_variables, changes} = partition_fun.(variables)
-
+  defp run_space_impl(data, solver) do
     Shared.add_active_spaces(solver, [self()])
+
+    data
+    |> init_impl()
+    |> propagate()
+  end
+
+  defp apply_partition(%{variables: variables} = data, partition_fun) do
+    {branch_variables, changes} = partition_fun.(variables)
 
     data
     |> Map.put(:variables, branch_variables)
     |> put_in([:opts, :changes], changes)
-    |> init_impl()
-    |> propagate()
+
   end
 
   ## Prepare local data to be used on remote node

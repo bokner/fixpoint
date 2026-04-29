@@ -68,7 +68,7 @@ defmodule CPSolver.Space.ThreadPool do
         ## All threads are taken
         false
 
-      _oversplill ->
+      _overspill ->
         throw({:error, :thread_pool_checkout_error})
     end
   end
