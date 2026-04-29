@@ -42,6 +42,15 @@ defmodule CPSolver.Space.ThreadPool do
     {:ok, _pid} = GenServer.start(__MODULE__, pool_size)
   end
 
+  def run_task(task, thread_pool, timeout \\ :infinity) when is_function(task) do
+    checkout(thread_pool, timeout)
+    try do
+      task.()
+      after
+        checkin(thread_pool)
+    end
+  end
+
   def checkout(thread_pool, timeout \\ :infinity) when is_pid(thread_pool) do
     GenServer.call(thread_pool, :checkout, timeout)
   end
