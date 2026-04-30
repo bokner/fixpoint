@@ -5,6 +5,8 @@ defmodule CPSolver.Model do
   alias CPSolver.Variable.Interface
   alias CPSolver.Objective
 
+  alias CPSolver.Utils.Vector
+
   defstruct [:name, :variables, :constraints, :propagators, :objective, :extra, :id]
 
   @type t :: %__MODULE__{
@@ -19,7 +21,7 @@ defmodule CPSolver.Model do
 
   def new(variables, constraints, opts \\ []) do
     constraints =
-    normalize_constraints(constraints)
+      normalize_constraints(constraints)
 
     {all_variables, objective} = init_model(variables, constraints, opts[:objective])
 
@@ -36,8 +38,11 @@ defmodule CPSolver.Model do
 
   defp init_model(variables, constraints, objective) do
     safe_variables =
-      Enum.map(variables, fn v ->
-        (is_integer(v) && Variable.new(v)) || v
+      Enum.reduce(variables, Vector.new([]), fn v, acc ->
+        Vector.append(
+          acc,
+          (is_integer(v) && Variable.new(v)) || v
+        )
       end)
 
     variable_map =
@@ -53,19 +58,24 @@ defmodule CPSolver.Model do
       |> extract_variables_from_constraints()
       |> Enum.reject(fn c_var -> Map.has_key?(variable_map, c_var.id) end)
 
-    (safe_variables ++ additional_variables)
-    |> Enum.with_index(1)
-    |> Enum.map_reduce(objective, fn {var, idx}, obj_acc ->
-      {
-        Interface.update(var, :index, idx),
+    all_variables =
+      Enum.reduce(additional_variables, safe_variables, fn var, acc ->
+        Vector.append(acc, var)
+      end)
+
+    indexed_objective =
+      all_variables
+      |> Enum.with_index(1)
+      |> Enum.reduce_while(objective, fn {var, idx}, obj_acc ->
         if obj_acc && Interface.id(var) == Interface.id(obj_acc.variable) do
           obj_var = Interface.update(obj_acc.variable, :index, idx)
-          Map.put(objective, :variable, obj_var)
+          {:halt, Map.put(objective, :variable, obj_var)}
         else
-          obj_acc
+          {:cont, obj_acc}
         end
-      }
-    end)
+      end)
+
+    {all_variables, indexed_objective}
   end
 
   defp extract_variables_from_constraints(constraints) do

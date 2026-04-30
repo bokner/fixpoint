@@ -57,12 +57,11 @@ defmodule CPSolverTest.Propagator.ConstraintGraph do
       graph = build_graph(AllDifferent, 3)
       graph_variables = get_variables(graph)
 
-      new_variables =
-        Enum.map(graph_variables, fn v ->
-          Variable.copy(v) |> tap(fn c -> Variable.remove(c, 3) end)
+        Enum.each(graph_variables, fn v ->
+          Variable.remove(v, 3)
         end)
 
-      updated_graph = ConstraintGraph.update(graph, new_variables)
+      updated_graph = ConstraintGraph.update(graph, graph_variables)
       ## The domains fo variables in the graph should be updated with domains of new variables
       assert Enum.all?(
                get_variables(updated_graph),

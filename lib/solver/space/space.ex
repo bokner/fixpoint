@@ -164,6 +164,7 @@ defmodule CPSolver.Space do
     data
     |> Map.put(:variables, branch_variables)
     |> put_in([:opts, :changes], changes)
+
   end
 
   ## Prepare local data to be used on remote node

@@ -35,10 +35,6 @@ defmodule CPSolver.Variable do
         }
       end
 
-      def copy(variable) do
-        Map.put(variable, :id, make_ref())
-      end
-
       defp default_opts() do
         [domain_impl: CPSolver.DefaultDomain]
       end
