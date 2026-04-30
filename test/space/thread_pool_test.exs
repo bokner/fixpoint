@@ -13,9 +13,9 @@ defmodule CPSolverTest.Space.ThreadPool do
       ## the process queue is empty.
       assert Enum.all?(1..num_threads, fn i ->
         spawn(fn ->
-          ThreadPool.checkout(thread_pool)
-          :timer.sleep(100)
-          ThreadPool.checkin(thread_pool)
+          ThreadPool.run_task(
+            fn -> :timer.sleep(100) end,
+            thread_pool)
         end)
         ## Give it a bit of time for the process to check out.
         :timer.sleep(10)
@@ -29,9 +29,11 @@ defmodule CPSolverTest.Space.ThreadPool do
       ## This process will be added to pool queue
       my_pid = self()
       waiting_process = spawn(fn ->
-        ThreadPool.checkout(thread_pool)
-        ThreadPool.checkin(thread_pool)
-        send(my_pid, {:completed, self()})
+        ThreadPool.run_task(
+        fn ->
+          send(my_pid, {:completed, self()})
+        end,
+        thread_pool)
       end)
       ## Give it a bit of time for the process to be added to the thread pool.
       :timer.sleep(10)

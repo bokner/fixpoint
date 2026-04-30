@@ -30,11 +30,14 @@ defmodule CPSolver.Space do
   end
 
   ## Top space creation
-  def create(variables, propagators, space_opts \\ default_space_opts()) do
+  def create(
+        %{variables: variables, propagators: propagators, objective: objective} = _state,
+        space_opts \\ default_space_opts()
+      ) do
     propagators =
       propagators
       |> assign_unique_ids()
-      |> maybe_add_objective_propagator(space_opts[:objective])
+      |> maybe_add_objective_propagator(objective)
 
     initial_constraint_graph = ConstraintGraph.create(propagators)
 
@@ -43,6 +46,7 @@ defmodule CPSolver.Space do
       id: make_ref(),
       variables: variables,
       propagators: propagators,
+      objective: objective,
       constraint_graph: initial_constraint_graph,
       opts: space_opts
     }
@@ -56,19 +60,17 @@ defmodule CPSolver.Space do
       |> Map.put(:search, search)
       |> put_shared(:initial_constraint_graph, initial_constraint_graph)
 
-
     shared = get_shared(space_data)
     Shared.increment_node_counts(shared)
 
     ## Create the 'top space' process and start propagation
     {:ok,
-      spawn_link(fn ->
-        top_space_data
-        |> init_impl()
-        |> tap(fn _ -> Shared.add_active_spaces(shared, [self()]) end)
-        |> propagate()
-      end)
-  }
+     spawn_link(fn ->
+       top_space_data
+       |> init_impl()
+       |> tap(fn _ -> Shared.add_active_spaces(shared, [self()]) end)
+       |> propagate()
+     end)}
   end
 
   defp assign_unique_ids(propagators) do
@@ -93,11 +95,13 @@ defmodule CPSolver.Space do
         domain = Map.get(domains, Interface.id(var))
         Map.put(var, :domain, Domain.new(domain))
       end)
+
     Search.branch(restored_variables, search, Map.put(data, :variables, restored_variables))
   end
 
   defp run_branch(data, partition_fun) do
     solver = get_shared(data)
+
     if solver.distributed do
       worker_node = Distributed.choose_worker_node(solver.distributed)
       run_remote_space(worker_node, data, partition_fun)
@@ -107,8 +111,6 @@ defmodule CPSolver.Space do
   end
 
   defp run_remote_space(worker_node, data, partition_fun) do
-    ## TODO!
-    #run_space(data, partition_fun)
     :erpc.call(worker_node, __MODULE__, :run_space, [prepare_remote(data), partition_fun])
   end
 
@@ -122,12 +124,14 @@ defmodule CPSolver.Space do
         domain = Map.get(domains, Interface.id(var))
         Map.put(var, :domain, Domain.new(domain))
       end)
+
     ## ..and we can now run it locally
     run_space(
       data
       |> Map.delete(:domains)
       |> Map.put(:variables, restored_variables),
-      partition_fun)
+      partition_fun
+    )
   end
 
   def run_space(data, partition_fun) do
@@ -184,10 +188,13 @@ defmodule CPSolver.Space do
     Shared.checkin_space_thread(solver)
   end
 
-  defp init_impl(%{variables: variables, opts: space_opts, constraint_graph: graph} = data) do
+  defp init_impl(
+         %{variables: variables, objective: objective, opts: space_opts, constraint_graph: graph} =
+           data
+       ) do
     data
     |> Map.put(:constraint_graph, update_constraint_graph(graph, variables))
-    |> Map.put(:objective, update_objective(space_opts[:objective], variables))
+    |> Map.put(:objective, update_objective(objective, variables))
     |> Map.put(:changes, Keyword.get(space_opts, :changes, %{}))
   end
 
@@ -337,6 +344,7 @@ defmodule CPSolver.Space do
             |> Map.put(:id, make_ref()),
             partition_fun
           )
+
           true
         end
       end)
@@ -345,6 +353,7 @@ defmodule CPSolver.Space do
     catch
       :all_vars_fixed ->
         process_solutions(data)
+
       :fail ->
         handle_failure(data, :failure)
     end
@@ -362,5 +371,4 @@ defmodule CPSolver.Space do
     data
     |> tap(fn _ -> Shared.put_auxillary(get_in(data, [:opts, :solver_data]), key, value) end)
   end
-
 end
