@@ -37,7 +37,7 @@ defmodule CPSolver.Search do
 
   def branch(variables, branching, space_data) do
     variables
-    |> filter_fixed_variables()
+    |> filter_fixed_variables(space_data)
     |> then(fn unfixed_vars ->
       unfixed_vars
       |> branch_impl(branching, space_data)
@@ -90,7 +90,7 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, Domain.copy(domain))
   end
 
-  defp filter_fixed_variables(vars) do
+  defp filter_fixed_variables(vars, %{unfixed_variables_tracker: _unfixed_tracker} = _space_data) do
     case Enum.reject(vars, fn var -> Interface.fixed?(var) end) do
       [] ->
         throw(:all_vars_fixed)

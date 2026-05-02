@@ -18,6 +18,9 @@ defmodule CPSolver.Space do
   alias CPSolver.Distributed
   alias CPSolver.Utils
 
+  alias CPSolver.Utils.Vector
+  alias InPlace.SparseSet
+
   require Logger
 
   def default_space_opts() do
@@ -31,7 +34,8 @@ defmodule CPSolver.Space do
 
   ## Top space creation
   def create(
-        %{variables: variables, propagators: propagators, objective: objective} = _state,
+        %{variables: variables, propagators: propagators,
+        objective: objective} = _state,
         space_opts \\ default_space_opts()
       ) do
     propagators =
@@ -40,11 +44,15 @@ defmodule CPSolver.Space do
       |> maybe_add_objective_propagator(objective)
 
     initial_constraint_graph = ConstraintGraph.create(propagators)
+    num_variables = Vector.size(variables)
+    unfixed_vars_tracker = SparseSet.new(num_variables)
+    update_unfixed_variables(unfixed_vars_tracker, variables)
 
     space_data = %{
       parent_id: nil,
       id: make_ref(),
       variables: variables,
+      unfixed_variables_tracker: unfixed_vars_tracker,
       propagators: propagators,
       objective: objective,
       constraint_graph: initial_constraint_graph,
@@ -83,6 +91,12 @@ defmodule CPSolver.Space do
 
   defp maybe_add_objective_propagator(propagators, objective) do
     [objective.propagator | propagators]
+  end
+
+  defp update_unfixed_variables(tracker, variables) do
+    SparseSet.each(tracker, fn var_idx ->
+      Interface.fixed?(variables[var_idx - 1]) && SparseSet.delete(tracker, var_idx)
+    end)
   end
 
   ## We had to serialize variable domains before sending variables
