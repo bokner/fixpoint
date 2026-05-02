@@ -16,7 +16,7 @@ defmodule CPSolverTest.Search.FirstFail do
     variables = Enum.map(values, fn d -> Variable.new(d) end)
 
     _default_brancher_partitions =
-      [partition1, partition2] = Search.branch(variables, DefaultBrancher, :some_data)
+      [partition1, partition2] = Search.branch(variables, DefaultBrancher, %{})
 
     ## 1st partition has var3 fixed
     %{variable_copies: vars, domain_changes: changes} = partition1.(variables)

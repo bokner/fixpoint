@@ -107,13 +107,18 @@ defmodule CPSolver.Search do
 
   # end
 
-  defp filter_fixed_variables(vars, _space_data) do
-    case Enum.reject(vars, fn var -> Interface.fixed?(var) end) do
-      false ->
+  defp filter_fixed_variables(vars, space_data) do
+    tracker = space_data[:unfixed_variables_tracker]
+    if tracker && SparseSet.empty?(tracker) do
         throw(:all_vars_fixed)
+    else
+      case Enum.reject(vars, fn var -> Interface.fixed?(var) end) do
+        false ->
+          throw(:all_vars_fixed)
 
-      unfixed_vars ->
-        unfixed_vars
+        unfixed_vars ->
+          unfixed_vars
+      end
     end
   end
 
@@ -138,7 +143,7 @@ defmodule CPSolver.Search do
   ## `reduction is a function that takes a variable
   ## and performs domain reduction.
   ##
-  defp build_reduction(partition, _space_data) do
+  defp build_reduction(partition, space_data) do
     fn variables ->
       var_array = Vector.new([])
 
@@ -157,9 +162,17 @@ defmodule CPSolver.Search do
           changes_acc
         }
       end)
+
+      ## Copy "unfixed variables" tracker
+      tracker_copy = case space_data[:unfixed_variables_tracker] do
+        nil -> nil
+        tracker -> SparseSet.copy(tracker) #|> SparseSet.to_list() |> IO.inspect()
+      end
+
       %{
           variable_copies: variable_copies,
-          domain_changes: domain_changes
+          domain_changes: domain_changes,
+          unfixed_variables_tracker: tracker_copy
       }
 
     end
