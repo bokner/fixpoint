@@ -5,6 +5,7 @@ defmodule CPSolver.Search do
   alias CPSolver.Search.Partition
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils.Vector
+  alias InPlace.SparseSet
 
   require Logger
 
@@ -90,9 +91,25 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, Domain.copy(domain))
   end
 
-  defp filter_fixed_variables(vars, %{unfixed_variables_tracker: _unfixed_tracker} = _space_data) do
+  # defp filter_fixed_variables(vars, %{unfixed_variables_tracker: tracker} = _space_data) do
+  #   ## Update the tracker - delete indices for fixed variables
+  #   SparseSet.reduce(tracker, [],
+  #     fn idx, acc ->
+  #       var = vars[idx - 1]
+  #       if Interface.fixed?(var) do
+  #         SparseSet.delete(tracker, idx)
+  #         acc
+  #       else
+  #         [var | acc]
+  #       end
+  #     end)
+  #   |> Enum.reverse()
+
+  # end
+
+  defp filter_fixed_variables(vars, _space_data) do
     case Enum.reject(vars, fn var -> Interface.fixed?(var) end) do
-      [] ->
+      false ->
         throw(:all_vars_fixed)
 
       unfixed_vars ->
@@ -111,9 +128,9 @@ defmodule CPSolver.Search do
   end
 
   ## Build partitions for a single variable
-  defp variable_partitions_impl(domain_partitions, _space_data) do
+  defp variable_partitions_impl(domain_partitions, space_data) do
     Enum.map(List.wrap(domain_partitions), fn partition ->
-      build_reduction(partition)
+      build_reduction(partition, space_data)
     end)
   end
 
@@ -121,11 +138,12 @@ defmodule CPSolver.Search do
   ## `reduction is a function that takes a variable
   ## and performs domain reduction.
   ##
-  defp build_reduction(partition) do
+  defp build_reduction(partition, _space_data) do
     fn variables ->
       var_array = Vector.new([])
 
-      Enum.reduce(variables, {var_array, Map.new()}, fn var, {variables_acc, changes_acc} ->
+      {variable_copies, domain_changes} =
+        Enum.reduce(variables, {var_array, Map.new()}, fn var, {variables_acc, changes_acc} ->
         var_copy = copy_variable(var)
 
         changes_acc =
@@ -139,6 +157,11 @@ defmodule CPSolver.Search do
           changes_acc
         }
       end)
+      %{
+          variable_copies: variable_copies,
+          domain_changes: domain_changes
+      }
+
     end
   end
 end

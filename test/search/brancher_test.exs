@@ -19,12 +19,12 @@ defmodule CPSolverTest.Search.FirstFail do
       [partition1, partition2] = Search.branch(variables, DefaultBrancher, :some_data)
 
     ## 1st partition has var3 fixed
-    {vars, changes} = partition1.(variables)
+    %{variable_copies: vars, domain_changes: changes} = partition1.(variables)
     var3_copy = Vector.at(vars, 2)
     assert Map.values(changes) == [:fixed]
     assert Variable.fixed?(var3_copy) && Variable.min(var3_copy) == 1
     ## 2nd partition has min value (1) removed from var3
-    {vars, changes} = partition2.(variables)
+    %{variable_copies: vars, domain_changes: changes} = partition2.(variables)
     var3_copy = Vector.at(vars, 2)
     assert Map.values(changes) == [:min_change]
     refute Variable.contains?(var3_copy, 1)

@@ -173,7 +173,8 @@ defmodule CPSolver.Space do
   end
 
   defp apply_partition(%{variables: variables} = data, partition_fun) do
-    {branch_variables, changes} = partition_fun.(variables)
+    %{variable_copies: branch_variables,
+     domain_changes: changes} = partition_fun.(variables)
 
     data
     |> Map.put(:variables, branch_variables)
