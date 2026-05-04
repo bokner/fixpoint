@@ -5,6 +5,7 @@ defmodule CPSolver.Search do
   alias CPSolver.Search.Partition
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils.Vector
+  alias InPlace.SparseSet
 
   require Logger
 
@@ -37,7 +38,7 @@ defmodule CPSolver.Search do
 
   def branch(variables, branching, space_data) do
     variables
-    |> filter_fixed_variables()
+    |> filter_fixed_variables(space_data)
     |> then(fn unfixed_vars ->
       unfixed_vars
       |> branch_impl(branching, space_data)
@@ -90,13 +91,30 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, Domain.copy(domain))
   end
 
-  defp filter_fixed_variables(vars) do
-    case Enum.reject(vars, fn var -> Interface.fixed?(var) end) do
-      [] ->
-        throw(:all_vars_fixed)
+  defp filter_fixed_variables(vars, space_data) do
+    tracker = space_data[:unfixed_variables_tracker]
+    cond do
+      is_nil(tracker) ->
+        Enum.reject(vars, fn var -> Interface.fixed?(var) end)
 
-      unfixed_vars ->
-        unfixed_vars
+      SparseSet.empty?(tracker) ->
+        throw(:all_vars_fixed)
+      true ->
+        SparseSet.reduce(tracker, [],
+          fn idx, acc ->
+            var = vars[idx - 1]
+            if Interface.fixed?(var) do
+              SparseSet.delete(tracker, idx)
+              acc
+            else
+              [var | acc]
+            end
+          end)
+          ## Restore the order in variable list.
+          ## This is important for search strategies that rely on the
+          ## order (one example  :input_order)
+          ## TODO: consider doing sorting internally for such strategies.
+          |> Enum.sort_by(fn var -> var.index end)
     end
   end
 
@@ -122,10 +140,11 @@ defmodule CPSolver.Search do
   ## and performs domain reduction.
   ##
   defp build_reduction(partition) do
-    fn variables ->
+    fn variables, space_data ->
       var_array = Vector.new([])
 
-      Enum.reduce(variables, {var_array, Map.new()}, fn var, {variables_acc, changes_acc} ->
+      {variable_copies, domain_changes} =
+        Enum.reduce(variables, {var_array, Map.new()}, fn var, {variables_acc, changes_acc} ->
         var_copy = copy_variable(var)
 
         changes_acc =
@@ -139,6 +158,19 @@ defmodule CPSolver.Search do
           changes_acc
         }
       end)
+
+      ## Copy "unfixed variables" tracker
+      tracker_copy = case space_data[:unfixed_variables_tracker] do
+        nil -> nil
+        tracker -> SparseSet.copy(tracker) #|> SparseSet.to_list() |> IO.inspect()
+      end
+
+      %{
+          variable_copies: variable_copies,
+          domain_changes: domain_changes,
+          unfixed_variables_tracker: tracker_copy
+      }
+
     end
   end
 end

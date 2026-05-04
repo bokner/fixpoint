@@ -17,6 +17,10 @@ defmodule CPSolver.Utils.Vector do
     Aja.Vector.map(vector, mapper)
   end
 
+  def sort_by(vector, sorter) when is_struct(vector, Aja.Vector) and is_function(sorter, 1) do
+    Aja.Vector.sort_by(vector, sorter)
+  end
+
   def append(vector, el) when is_struct(vector, Aja.Vector) do
     Aja.Vector.append(vector, el)
   end

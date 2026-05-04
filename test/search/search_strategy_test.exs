@@ -69,21 +69,21 @@ defmodule CPSolverTest.Search.Brancher do
       [b_left, b_right] =
         branches =
         Search.branch(variables, {:first_fail, :indomain_min})
-        |> Enum.map(fn partition_fun -> partition_fun.(variables) end)
+        |> Enum.map(fn partition_fun -> partition_fun.(variables, %{}) end)
 
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars
-      assert Enum.all?(branches, fn {branch, _constraint} ->
-               Vector.size(branch) == length(variables)
+      assert Enum.all?(branches, fn %{variable_copies: branch_variables} ->
+               Vector.size(branch_variables) == length(variables)
              end)
 
       ## Left branch contains v2 variable fixed at 0
-      assert Vector.at(b_left |> elem(0), 2)
+      assert Vector.at(b_left |> Map.get(:variable_copies), 2)
              |> Map.get(:domain)
              |> then(fn domain -> Domain.size(domain) == 1 && Domain.min(domain) == 0 end)
 
       ## Right branch contains v2 variable with 0 removed
-      refute Vector.at(b_right |> elem(0), 2) |> Map.get(:domain) |> Domain.contains?(0)
+      refute Vector.at(b_right |> Map.get(:variable_copies), 2) |> Map.get(:domain) |> Domain.contains?(0)
     end
   end
 

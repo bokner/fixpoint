@@ -166,7 +166,6 @@ defmodule CPSolver.Examples.Hakank.CoinsGrid do
       # search: {:first_fail, :indomain_min},
       # search: {:max_regret, :indomain_max},
       #search: {:first_fail, :indomain_random},
-      space_threads: 8,
       timeout: :timer.hours(1),
       # stop_on: {:max_solutions, 1},
     ]

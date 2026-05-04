@@ -237,8 +237,7 @@ defmodule CPSolver.Examples.Hakank.SurvoPuzzle do
       CPSolver.solve(model,
         search: {:first_fail, :indomain_min},
         # stop_on: {:max_solutions, 1},
-        timeout: :infinity,
-        space_threads: 12
+        timeout: :infinity
       )
 
     # IO.inspect(result.solutions)

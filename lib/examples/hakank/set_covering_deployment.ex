@@ -110,7 +110,6 @@ defmodule CPSolver.Examples.Hakank.SetCoveringDeployment do
       search: {:first_fail, :indomain_min},
       # search: {:input_order, :indomain_min},
       # search: {:first_fail, :indomain_random},
-      space_threads: 12,
       timeout: :infinity,
       # stop_on: {:max_solutions, 2},
       ]
