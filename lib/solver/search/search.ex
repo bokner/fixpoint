@@ -91,28 +91,26 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, Domain.copy(domain))
   end
 
-  # defp filter_fixed_variables(vars, %{unfixed_variables_tracker: tracker} = _space_data) do
-  #   ## Update the tracker - delete indices for fixed variables
-  #   SparseSet.reduce(tracker, [],
-  #     fn idx, acc ->
-  #       var = vars[idx - 1]
-  #       if Interface.fixed?(var) do
-  #         SparseSet.delete(tracker, idx)
-  #         acc
-  #       else
-  #         [var | acc]
-  #       end
-  #     end)
-  #   |> Enum.reverse()
-
-  # end
-
   defp filter_fixed_variables(vars, space_data) do
     tracker = space_data[:unfixed_variables_tracker]
-    if tracker && SparseSet.empty?(tracker) do
+    cond do
+      is_nil(tracker) ->
+        Enum.reject(vars, fn var -> Interface.fixed?(var) end)
+
+      SparseSet.empty?(tracker) ->
         throw(:all_vars_fixed)
-    else
-      Enum.reject(vars, fn var -> Interface.fixed?(var) end)
+      true ->
+        SparseSet.reduce(tracker, Vector.new([]),
+          fn idx, acc ->
+            var = vars[idx - 1]
+            if Interface.fixed?(var) do
+              SparseSet.delete(tracker, idx)
+              acc
+            else
+              Vector.append(acc, var)
+            end
+          end)
+          |> Vector.sort_by(fn var -> var.index end)
     end
   end
 
