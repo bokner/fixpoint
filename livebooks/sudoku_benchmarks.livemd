@@ -2,6 +2,7 @@
 
 ```elixir
 Mix.install([
+  #:fixpoint
   {:fixpoint, path: Path.join(System.get_env("HOME"), "projects/cpsolver")}
 ])
 
@@ -65,14 +66,16 @@ alldiff_impl = Fast
   #|> Enum.sort()
 res = %{elapsed: elapsed_times, success: success_count, no_solution: failure_count, incorrect: incorrect_count} 
 
+elapsed = Enum.sort(res.elapsed)
 res = Map.merge(res, 
 %{
   source: puzzle_file,
-  shortest: Enum.min(res.elapsed), 
-  longest: Enum.max(res.elapsed), 
-  average: Enum.sum(res.elapsed) / length(res.elapsed), 
-  total: Enum.sum(res.elapsed),
-  elapsed: Enum.sort(res.elapsed)
+  shortest: Enum.min(elapsed), 
+  longest: Enum.max(elapsed), 
+  average: Enum.sum(elapsed) / length(elapsed) |> ceil(),
+  median: Enum.at(elapsed, div(length(elapsed), 2)),
+  total: Enum.sum(elapsed),
+  elapsed: elapsed
 })
 ```
 
