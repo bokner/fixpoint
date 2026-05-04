@@ -112,13 +112,7 @@ defmodule CPSolver.Search do
     if tracker && SparseSet.empty?(tracker) do
         throw(:all_vars_fixed)
     else
-      case Enum.reject(vars, fn var -> Interface.fixed?(var) end) do
-        false ->
-          throw(:all_vars_fixed)
-
-        unfixed_vars ->
-          unfixed_vars
-      end
+      Enum.reject(vars, fn var -> Interface.fixed?(var) end)
     end
   end
 
@@ -133,9 +127,9 @@ defmodule CPSolver.Search do
   end
 
   ## Build partitions for a single variable
-  defp variable_partitions_impl(domain_partitions, space_data) do
+  defp variable_partitions_impl(domain_partitions, _space_data) do
     Enum.map(List.wrap(domain_partitions), fn partition ->
-      build_reduction(partition, space_data)
+      build_reduction(partition)
     end)
   end
 
@@ -143,8 +137,8 @@ defmodule CPSolver.Search do
   ## `reduction is a function that takes a variable
   ## and performs domain reduction.
   ##
-  defp build_reduction(partition, space_data) do
-    fn variables ->
+  defp build_reduction(partition) do
+    fn variables, space_data ->
       var_array = Vector.new([])
 
       {variable_copies, domain_changes} =

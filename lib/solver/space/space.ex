@@ -99,20 +99,6 @@ defmodule CPSolver.Space do
     end)
   end
 
-  ## We had to serialize variable domains before sending variables
-  ## to a remote node (see run_remote_space/3).
-  ## Here we are restoring the domains and do branching.
-  def remote_branching(search, %{domains: domains, variables: variables} = data) do
-    ## Reconstruct variables with the domain values
-    restored_variables =
-      Enum.map(variables, fn var ->
-        domain = Map.get(domains, Interface.id(var))
-        Map.put(var, :domain, Domain.new(domain))
-      end)
-
-    Search.branch(restored_variables, search, Map.put(data, :variables, restored_variables))
-  end
-
   defp run_branch(data, partition_fun) do
     solver = get_shared(data)
 
@@ -132,18 +118,23 @@ defmodule CPSolver.Space do
   ## We had to serialize variable domains before sending variables
   ## to a remote node.
   ## Here we are restoring the domains and do branching.
-  def run_space(%{domains: domains, variables: variables} = data, partition_fun) do
+  ## Unfixed vars tracker:
+  ## We also had to serialize the tracker - restoring it as well
+  def run_space(%{domains: domains, variables: variables, unfixed_tracker_serialized: tracker} = data, partition_fun) do
     restored_variables =
       Enum.map(variables, fn var ->
         domain = Map.get(domains, Interface.id(var))
         Map.put(var, :domain, Domain.new(domain))
       end)
 
+    restored_tracker = SparseSet.deserialize(tracker)
     ## ..and we can now run it locally
     run_space(
       data
       |> Map.delete(:domains)
-      |> Map.put(:variables, restored_variables),
+      |> Map.delete(:unfixed_tracker_serialized)
+      |> Map.put(:variables, restored_variables)
+      |> Map.put(:unfixed_variables_tracker, restored_tracker),
       partition_fun
     )
   end
@@ -177,7 +168,7 @@ defmodule CPSolver.Space do
       variable_copies: branch_variables,
       domain_changes: changes,
       unfixed_variables_tracker: tracker
-      } = partition_fun.(variables)
+      } = partition_fun.(variables, data)
 
     data
     |> Map.put(:variables, branch_variables)
@@ -186,9 +177,18 @@ defmodule CPSolver.Space do
 
   end
 
-  ## Prepare local data to be used on remote node
+  ## Prepare local data to be used on remote node.
+  ## Why?
+  ## variables contain local references to the instances of :atomics,
+  ## so we have to serialize the data in :atomics
+  ## and send it to remote node(s) as raw data.
+  ## How?
   ## Currently we add the raw domain values to the opts,
-  ## so the domains could be rebuilt on the remote nodes
+  ## so the domains could be deserialized and
+  ## rebuilt on the remote nodes.
+  ##
+  ## We also serialize data for the tracker of unfixed
+  ## variables in a similar way.
   defp prepare_remote(data) do
     data
     |> Map.put(
@@ -197,6 +197,7 @@ defmodule CPSolver.Space do
         {Interface.id(var), Utils.domain_values(var)}
       end)
     )
+    |> Map.put(:unfixed_tracker_serialized, SparseSet.serialize(data.unfixed_variables_tracker))
   end
 
   defp checkout?(solver) do

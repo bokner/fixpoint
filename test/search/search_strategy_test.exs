@@ -69,7 +69,7 @@ defmodule CPSolverTest.Search.Brancher do
       [b_left, b_right] =
         branches =
         Search.branch(variables, {:first_fail, :indomain_min})
-        |> Enum.map(fn partition_fun -> partition_fun.(variables) end)
+        |> Enum.map(fn partition_fun -> partition_fun.(variables, %{}) end)
 
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars
