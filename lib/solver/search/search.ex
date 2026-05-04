@@ -100,17 +100,21 @@ defmodule CPSolver.Search do
       SparseSet.empty?(tracker) ->
         throw(:all_vars_fixed)
       true ->
-        SparseSet.reduce(tracker, Vector.new([]),
+        SparseSet.reduce(tracker, [],
           fn idx, acc ->
             var = vars[idx - 1]
             if Interface.fixed?(var) do
               SparseSet.delete(tracker, idx)
               acc
             else
-              Vector.append(acc, var)
+              [var | acc]
             end
           end)
-          |> Vector.sort_by(fn var -> var.index end)
+          ## Restore the order in variable list.
+          ## This is important for search strategies that rely on the
+          ## order (one example  :input_order)
+          ## TODO: consider doing sorting internally for such strategies.
+          |> Enum.sort_by(fn var -> var.index end)
     end
   end
 

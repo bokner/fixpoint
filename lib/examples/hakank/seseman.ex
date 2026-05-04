@@ -110,8 +110,7 @@ defmodule CPSolver.Examples.Hakank.Seseman do
       CPSolver.solve(model,
         search: {:first_fail, :indomain_max},
         # stop_on: {:max_solutions, 3}, # It should be 85 solutions
-        timeout: :infinity,
-        space_threads: 12
+        timeout: :infinity
       )
 
     result.solutions

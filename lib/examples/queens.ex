@@ -51,8 +51,7 @@ defmodule CPSolver.Examples.Queens do
       CPSolver.solve(model(nqueens, :half_symmetry),
         search: {:input_order, :indomain_random},
         stop_on: {:max_solutions, 1},
-        timeout: timeout,
-        space_threads: 4
+        timeout: timeout
       )
 
     case result.solutions do

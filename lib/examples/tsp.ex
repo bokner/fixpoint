@@ -31,7 +31,6 @@ defmodule CPSolver.Examples.TSP do
         [
           search: search(model),
           solution_handler: solution_handler(model),
-          space_threads: 8,
           timeout: :timer.minutes(5)
         ],
         opts

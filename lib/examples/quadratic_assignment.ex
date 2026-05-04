@@ -43,7 +43,6 @@ defmodule CPSolver.Examples.QAP do
         [
           search: search(model),
           solution_handler: solution_handler(model),
-          space_threads: 8,
           timeout: :timer.seconds(30)
         ],
         opts
