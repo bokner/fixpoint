@@ -36,7 +36,7 @@ defmodule CPSolver.Examples.QAP do
   @failure_symbol "\u1D350"
 
   def run(instance, opts \\ []) do
-    model = model(instance)
+    model = model(instance, Keyword.get(opts, :solution))
 
     opts =
       Keyword.merge(
@@ -52,12 +52,12 @@ defmodule CPSolver.Examples.QAP do
   end
 
   ## Read and compile data from instance file
-  def model(data) when is_binary(data) do
+  def model(data, solution \\ nil) when is_binary(data) do
     {_n, distances, weights} = parse_instance(data)
-    model(distances, weights)
+    model(distances, weights, solution)
   end
 
-  def model(distances, weights) do
+  def model(distances, weights, solution) do
     ## TODO: for now we are forced to use 0..n-1 for domains of assignment vars,
     ## as they will represent 0-based indices (i.e., x and y args) in element2d constraint.
     ## Not a big deal, but maybe think of supplying the index base for element2d as an option
@@ -71,6 +71,10 @@ defmodule CPSolver.Examples.QAP do
     assignments =
       Enum.map(0..(n - 1), fn i -> Variable.new(0..(n - 1), name: "location_#{i}") end)
 
+    if solution do
+      Enum.zip(assignments, solution)
+      |> Enum.each(fn {var, assignment} -> Variable.fix(var, assignment) end)
+    end
     ## Build "weighted distance" views and element2d constraints
     {weighted_distances, element2d_constraints} =
       for i <- 0..(n - 2), j <- (i + 1)..(n - 1), reduce: {[], []} do
