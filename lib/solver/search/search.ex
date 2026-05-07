@@ -42,7 +42,9 @@ defmodule CPSolver.Search do
     |> then(fn unfixed_vars ->
       unfixed_vars
       |> branch_impl(branching, space_data)
-      |> then(fn branching -> branching || branch_impl(variables, default_strategy(), space_data) end)
+      |> then(fn branching ->
+        branching || branch_impl(unfixed_vars, default_strategy(), space_data)
+      end)
       |> partitions_impl(space_data)
     end)
   end
@@ -93,28 +95,26 @@ defmodule CPSolver.Search do
 
   defp filter_fixed_variables(vars, space_data) do
     tracker = space_data[:unfixed_variables_tracker]
+
     cond do
       is_nil(tracker) ->
         Enum.reject(vars, fn var -> Interface.fixed?(var) end)
 
       SparseSet.empty?(tracker) ->
         throw(:all_vars_fixed)
+
       true ->
-        SparseSet.reduce(tracker, [],
-          fn idx, acc ->
-            var = vars[idx - 1]
-            if Interface.fixed?(var) do
-              SparseSet.delete(tracker, idx)
-              acc
-            else
-              [var | acc]
-            end
-          end)
-          ## Restore the order in variable list.
-          ## This is important for search strategies that rely on the
-          ## order (one example  :input_order)
-          ## TODO: consider doing sorting internally for such strategies.
-          |> Enum.sort_by(fn var -> var.index end)
+        SparseSet.iterate_ordered(tracker, [], fn idx, acc ->
+          var = vars[idx - 1]
+
+          if Interface.fixed?(var) do
+            SparseSet.delete(tracker, idx)
+            acc
+          else
+            [var | acc]
+          end
+        end)
+        |> Enum.reverse()
     end
   end
 
@@ -145,32 +145,33 @@ defmodule CPSolver.Search do
 
       {variable_copies, domain_changes} =
         Enum.reduce(variables, {var_array, Map.new()}, fn var, {variables_acc, changes_acc} ->
-        var_copy = copy_variable(var)
+          var_copy = copy_variable(var)
 
-        changes_acc =
-          case Map.get(partition, var.id) do
-            nil -> changes_acc
-            reduction -> Map.put(changes_acc, var.id, reduction.(var_copy))
-          end
+          changes_acc =
+            case Map.get(partition, var.id) do
+              nil -> changes_acc
+              reduction -> Map.put(changes_acc, var.id, reduction.(var_copy))
+            end
 
-        {
-          Vector.append(variables_acc, var_copy),
-          changes_acc
-        }
-      end)
+          {
+            Vector.append(variables_acc, var_copy),
+            changes_acc
+          }
+        end)
 
       ## Copy "unfixed variables" tracker
-      tracker_copy = case space_data[:unfixed_variables_tracker] do
-        nil -> nil
-        tracker -> SparseSet.copy(tracker) #|> SparseSet.to_list() |> IO.inspect()
-      end
+      tracker_copy =
+        case space_data[:unfixed_variables_tracker] do
+          nil -> nil
+          # |> SparseSet.to_list() |> IO.inspect()
+          tracker -> SparseSet.copy(tracker)
+        end
 
       %{
-          variable_copies: variable_copies,
-          domain_changes: domain_changes,
-          unfixed_variables_tracker: tracker_copy
+        variable_copies: variable_copies,
+        domain_changes: domain_changes,
+        unfixed_variables_tracker: tracker_copy
       }
-
     end
   end
 end
