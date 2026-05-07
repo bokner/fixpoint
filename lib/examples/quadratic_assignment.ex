@@ -171,6 +171,7 @@ defmodule CPSolver.Examples.QAP do
     filename
     |> File.read!()
     |> String.split("\n", trim: true)
+    |> Enum.filter(fn line -> String.trim(line) != "" end)
     |> then(fn [n_str | lines] ->
       n = String.to_integer(String.trim(n_str))
 
@@ -189,7 +190,8 @@ defmodule CPSolver.Examples.QAP do
   end
 
   defp parse_matrix(lines) do
-    Enum.map(lines, fn line ->
+    lines
+    |> Enum.map(fn line ->
       line
       |> String.replace("\t", " ")
       |> String.split(" ", trim: true)
