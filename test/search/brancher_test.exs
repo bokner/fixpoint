@@ -13,7 +13,7 @@ defmodule CPSolverTest.Search.FirstFail do
     # This domain (will be assigned to `v2` variable) is the smallest among unfixed
     v3_values = 1..5
     values = [v1_values, v2_values, v3_values]
-    variables = Enum.map(values, fn d -> Variable.new(d) end)
+    variables = Enum.map(values, fn d -> Variable.new(d) end) |> Vector.new()
 
     ## Mocked space data
     space_data = %{unfixed_variables_tracker: nil}

@@ -106,17 +106,16 @@ defmodule CPSolver.Search do
       true ->
         ## We want to keep the original order in the list of variables
         ## for strategies that depend on it (:input_order, bin packing etc.)
-        Tracker.iterate_ordered(tracker, [], fn idx, acc ->
+        Tracker.iterate_ordered(tracker, Vector.new([]), fn idx, acc ->
           var = vars[idx - 1]
 
           if Interface.fixed?(var) do
             Tracker.delete(tracker, idx)
             acc
           else
-            [var | acc]
+            Vector.append(acc, var)
           end
         end)
-        |> Enum.reverse()
     end
   end
 
@@ -143,10 +142,10 @@ defmodule CPSolver.Search do
   ##
   defp build_reduction(partition) do
     fn variables, space_data ->
-      var_array = Vector.new([])
+      var_array = variables ##Vector.new([])
 
-      {variable_copies, domain_changes} =
-        Enum.reduce(variables, {var_array, Map.new()}, fn var, {variables_acc, changes_acc} ->
+      {_idx, variable_copies, domain_changes} =
+        Vector.reduce(variables, {0, var_array, Map.new()}, fn var, {var_idx, variables_acc, changes_acc} ->
           var_copy = copy_variable(var)
 
           changes_acc =
@@ -156,7 +155,8 @@ defmodule CPSolver.Search do
             end
 
           {
-            Vector.append(variables_acc, var_copy),
+            var_idx + 1,
+            Vector.update(variables_acc, var_idx, var_copy),
             changes_acc
           }
         end)

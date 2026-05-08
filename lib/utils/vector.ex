@@ -17,12 +17,20 @@ defmodule CPSolver.Utils.Vector do
     Aja.Vector.map(vector, mapper)
   end
 
+  def reduce(vector, initial, reducer) when is_struct(vector, Aja.Vector) and is_function(reducer, 2) do
+    Aja.Vector.foldl(vector, initial, reducer)
+  end
+
   def sort_by(vector, sorter) when is_struct(vector, Aja.Vector) and is_function(sorter, 1) do
     Aja.Vector.sort_by(vector, sorter)
   end
 
   def append(vector, el) when is_struct(vector, Aja.Vector) do
     Aja.Vector.append(vector, el)
+  end
+
+  def update(vector, pos, el) do
+    Aja.Vector.replace_at(vector, pos, el)
   end
 
   def to_list(vector) when is_struct(vector, Aja.Vector) do

@@ -18,8 +18,9 @@ defmodule CPSolver.Space do
   alias CPSolver.Distributed
   alias CPSolver.Utils
 
+  alias CPSolver.Utils.Vector
   alias CPSolver.Variables.UnfixedTracker, as: Tracker
-  
+
   require Logger
 
   def default_space_opts() do
@@ -113,9 +114,9 @@ defmodule CPSolver.Space do
   ## We also had to serialize the tracker - restoring it as well
   def run_space(%{domains: domains, variables: variables, unfixed_tracker_serialized: tracker} = data, partition_fun) do
     restored_variables =
-      Enum.map(variables, fn var ->
+      Vector.reduce(variables, Vector.new([]), fn var, acc ->
         domain = Map.get(domains, Interface.id(var))
-        Map.put(var, :domain, Domain.new(domain))
+        Vector.append(acc, Map.put(var, :domain, Domain.new(domain)))
       end)
 
     restored_tracker = Tracker.deserialize(tracker)

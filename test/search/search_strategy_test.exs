@@ -64,7 +64,7 @@ defmodule CPSolverTest.Search.Brancher do
       v3_values = 1..1
       v4_values = -5..5
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
-      variables = Enum.map(values, fn d -> Variable.new(d) end)
+      variables = Enum.map(values, fn d -> Variable.new(d) end) |> Vector.new()
 
       [b_left, b_right] =
         branches =
@@ -74,7 +74,7 @@ defmodule CPSolverTest.Search.Brancher do
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars
       assert Enum.all?(branches, fn %{variable_copies: branch_variables} ->
-               Vector.size(branch_variables) == length(variables)
+               Vector.size(branch_variables) == Vector.size(variables)
              end)
 
       ## Left branch contains v2 variable fixed at 0
