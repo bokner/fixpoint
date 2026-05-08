@@ -87,9 +87,11 @@ defmodule CPSolver.Variable do
     apply_op(:fix, variable, value)
   end
 
-  defp apply_op(op, %{domain: domain} = _variable, value)
+  defp apply_op(op, %{domain: domain} = variable, value)
        when op in [:remove, :removeAbove, :removeBelow, :fix] do
-      apply(Domain, op, [domain, value]) |> normalize_update_result()
+      apply(Domain, op, [domain, value])
+      |> normalize_update_result()
+      |> tap(fn domain_change -> domain_update_callback(variable, domain_change) end)
   end
 
   defp apply_op(:contains?, %{domain: domain} = _variable, value) do
@@ -107,6 +109,15 @@ defmodule CPSolver.Variable do
 
   defp apply_op(:domain, %{domain: domain}) when not is_nil(domain) do
     domain
+  end
+
+
+  defp domain_update_callback(%{update_callback: callback} = _variable, domain_change) do
+    callback.(domain_change)
+  end
+
+  defp domain_update_callback(_variable, _domain_change) do
+    :ignore
   end
 
   defp normalize_update_result({change, _}), do: change

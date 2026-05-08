@@ -18,9 +18,8 @@ defmodule CPSolver.Space do
   alias CPSolver.Distributed
   alias CPSolver.Utils
 
-  alias CPSolver.Utils.Vector
-  alias InPlace.SparseSet
-
+  alias CPSolver.Variables.UnfixedTracker, as: Tracker
+  
   require Logger
 
   def default_space_opts() do
@@ -44,9 +43,7 @@ defmodule CPSolver.Space do
       |> maybe_add_objective_propagator(objective)
 
     initial_constraint_graph = ConstraintGraph.create(propagators)
-    num_variables = Vector.size(variables)
-    unfixed_vars_tracker = SparseSet.new(num_variables)
-    update_unfixed_variables(unfixed_vars_tracker, variables)
+    unfixed_vars_tracker = Tracker.new(variables)
 
     space_data = %{
       parent_id: nil,
@@ -93,12 +90,6 @@ defmodule CPSolver.Space do
     [objective.propagator | propagators]
   end
 
-  defp update_unfixed_variables(tracker, variables) do
-    SparseSet.each(tracker, fn var_idx ->
-      Interface.fixed?(variables[var_idx - 1]) && SparseSet.delete(tracker, var_idx)
-    end)
-  end
-
   defp run_branch(data, partition_fun) do
     solver = get_shared(data)
 
@@ -127,7 +118,7 @@ defmodule CPSolver.Space do
         Map.put(var, :domain, Domain.new(domain))
       end)
 
-    restored_tracker = SparseSet.deserialize(tracker)
+    restored_tracker = Tracker.deserialize(tracker)
     ## ..and we can now run it locally
     run_space(
       data
@@ -197,7 +188,7 @@ defmodule CPSolver.Space do
         {Interface.id(var), Utils.domain_values(var)}
       end)
     )
-    |> Map.put(:unfixed_tracker_serialized, SparseSet.serialize(data.unfixed_variables_tracker))
+    |> Map.put(:unfixed_tracker_serialized, Tracker.serialize(data.unfixed_variables_tracker))
   end
 
   defp checkout?(solver) do

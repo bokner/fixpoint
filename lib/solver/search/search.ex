@@ -5,7 +5,7 @@ defmodule CPSolver.Search do
   alias CPSolver.Search.Partition
   alias CPSolver.Variable.Interface
   alias CPSolver.Utils.Vector
-  alias InPlace.SparseSet
+  alias CPSolver.Variables.UnfixedTracker, as: Tracker
 
   require Logger
 
@@ -100,15 +100,17 @@ defmodule CPSolver.Search do
       is_nil(tracker) ->
         Enum.reject(vars, fn var -> Interface.fixed?(var) end)
 
-      SparseSet.empty?(tracker) ->
+      Tracker.empty?(tracker) ->
         throw(:all_vars_fixed)
 
       true ->
-        SparseSet.iterate_ordered(tracker, [], fn idx, acc ->
+        ## We want to keep the original order in the list of variables
+        ## for strategies that depend on it (:input_order, bin packing etc.)
+        Tracker.iterate_ordered(tracker, [], fn idx, acc ->
           var = vars[idx - 1]
 
           if Interface.fixed?(var) do
-            SparseSet.delete(tracker, idx)
+            Tracker.delete(tracker, idx)
             acc
           else
             [var | acc]
@@ -163,8 +165,7 @@ defmodule CPSolver.Search do
       tracker_copy =
         case space_data[:unfixed_variables_tracker] do
           nil -> nil
-          # |> SparseSet.to_list() |> IO.inspect()
-          tracker -> SparseSet.copy(tracker)
+          tracker -> Tracker.copy(tracker)
         end
 
       %{
