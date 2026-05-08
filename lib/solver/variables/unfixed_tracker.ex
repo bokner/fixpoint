@@ -3,19 +3,22 @@ defmodule CPSolver.Variables.UnfixedTracker do
   alias CPSolver.Utils.Vector
   alias CPSolver.Variable.Interface
 
+  def new(variables) when is_list(variables) do
+    new(Vector.new(variables))
+  end
+
   def new(variables) do
     variables
     |> Vector.size()
     |> SparseSet.new()
-    |> then(fn tracker -> update(tracker, variables)
-      tracker
-    end)
+    |> update(variables)
   end
 
   def update(tracker, variables) do
     each(tracker, fn var_idx ->
       Interface.fixed?(variables[var_idx - 1]) && delete(tracker, var_idx)
     end)
+    tracker
 
   end
 
