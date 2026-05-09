@@ -4,7 +4,7 @@ defmodule CPSolver.Search do
   alias CPSolver.Search.VariableSelector
   alias CPSolver.Search.Partition
   alias CPSolver.Utils.Vector
-  alias CPSolver.Variables.UnfixedTracker, as: Tracker
+  alias CPSolver.Variable.UnfixedTracker, as: Tracker
 
   require Logger
 
@@ -135,7 +135,8 @@ defmodule CPSolver.Search do
           }
         end)
 
-      ## Copy "unfixed variables" tracker
+      ## Create a copy of "unfixed variables" tracker.
+      ## 
       tracker_copy =
         case space_data[:unfixed_variables_tracker] do
           nil -> nil

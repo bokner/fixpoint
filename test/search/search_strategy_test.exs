@@ -8,7 +8,7 @@ defmodule CPSolverTest.Search.Brancher do
   alias CPSolver.Search.Partition
 
   alias CPSolver.Utils.Vector
-  alias CPSolver.Variables.UnfixedTracker, as: Tracker
+  alias CPSolver.Variable.UnfixedTracker, as: Tracker
 
   describe "First-fail search strategy" do
     alias CPSolver.Search.VariableSelector, as: SearchStrategy

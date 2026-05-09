@@ -6,7 +6,7 @@ defmodule CPSolverTest.Search.FirstFail do
   alias CPSolver.Search.DefaultBrancher
 
   alias CPSolver.Utils.Vector
-  alias CPSolver.Variables.UnfixedTracker, as: Tracker
+  alias CPSolver.Variable.UnfixedTracker, as: Tracker
 
   test "default brancher is the same as {:first_fail, :indomain_min}" do
     v1_values = 0..9

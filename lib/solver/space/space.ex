@@ -19,7 +19,7 @@ defmodule CPSolver.Space do
   alias CPSolver.Utils
 
   alias CPSolver.Utils.Vector
-  alias CPSolver.Variables.UnfixedTracker, as: Tracker
+  alias CPSolver.Variable.UnfixedTracker, as: Tracker
 
   require Logger
 

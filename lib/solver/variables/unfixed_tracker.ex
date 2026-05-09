@@ -1,4 +1,4 @@
-defmodule CPSolver.Variables.UnfixedTracker do
+defmodule CPSolver.Variable.UnfixedTracker do
   alias InPlace.SparseSet
   alias CPSolver.Utils.Vector
   alias CPSolver.Variable.Interface

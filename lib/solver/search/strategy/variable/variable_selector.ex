@@ -14,7 +14,7 @@ defmodule CPSolver.Search.VariableSelector do
     CHB
   }
 
-  alias CPSolver.Variables.UnfixedTracker, as: Tracker
+  alias CPSolver.Variable.UnfixedTracker, as: Tracker
 
   defmacro __using__(_) do
     quote do

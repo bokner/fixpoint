@@ -2,7 +2,7 @@ defmodule CPSolver.Examples.BinPacking.Search do
   alias CPSolver.Variable.Interface
   alias CPSolver.Search.Partition
 
-  alias CPSolver.Variables.UnfixedTracker, as: Tracker
+  alias CPSolver.Variable.UnfixedTracker, as: Tracker
 
   @doc """
   Complete decreasing best fit branching,
