@@ -8,6 +8,7 @@ defmodule CPSolverTest.Search.Brancher do
   alias CPSolver.Search.Partition
 
   alias CPSolver.Utils.Vector
+  alias CPSolver.Variables.UnfixedTracker, as: Tracker
 
   describe "First-fail search strategy" do
     alias CPSolver.Search.VariableSelector, as: SearchStrategy
@@ -20,10 +21,10 @@ defmodule CPSolverTest.Search.Brancher do
       v3_values = 1..1
       v4_values = -5..5
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
-      variables = Enum.map(values, fn d -> Variable.new(d) end)
-
+      variables = Enum.map(values, fn d -> Variable.new(d) end) |> Vector.new()
+      state = %{variables: variables, unfixed_variables_tracker: Tracker.new(variables)}
       # first_fail chooses among unfixed variables
-      selected_variable = SearchStrategy.select_variable(variables, nil, :first_fail)
+      selected_variable = SearchStrategy.select_variable(state, :first_fail)
 
       assert selected_variable.id in Enum.map([1, 2, 4], fn var_pos ->
                Enum.at(variables, var_pos) |> Map.get(:id)
@@ -51,8 +52,8 @@ defmodule CPSolverTest.Search.Brancher do
       v4_values = 5..5
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end)
-
-      assert catch_throw(Search.branch(variables, {:first_fail, :indomain_min})) ==
+      state = %{variables: variables, unfixed_variables_tracker: Tracker.new(variables)}
+      assert catch_throw(Search.branch({:first_fail, :indomain_min}, state)) ==
                SearchStrategy.all_vars_fixed_exception()
     end
 
@@ -65,10 +66,10 @@ defmodule CPSolverTest.Search.Brancher do
       v4_values = -5..5
       values = [v0_values, v1_values, v2_values, v3_values, v4_values]
       variables = Enum.map(values, fn d -> Variable.new(d) end) |> Vector.new()
-
+      state =%{variables: variables, unfixed_variables_tracker: Tracker.new(variables)}
       [b_left, b_right] =
         branches =
-        Search.branch(variables, {:first_fail, :indomain_min})
+        Search.branch({:first_fail, :indomain_min}, state)
         |> Enum.map(fn partition_fun -> partition_fun.(variables, %{}) end)
 
       refute b_left == b_right

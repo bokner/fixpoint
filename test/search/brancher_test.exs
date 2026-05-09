@@ -6,6 +6,7 @@ defmodule CPSolverTest.Search.FirstFail do
   alias CPSolver.Search.DefaultBrancher
 
   alias CPSolver.Utils.Vector
+  alias CPSolver.Variables.UnfixedTracker, as: Tracker
 
   test "default brancher is the same as {:first_fail, :indomain_min}" do
     v1_values = 0..9
@@ -16,9 +17,9 @@ defmodule CPSolverTest.Search.FirstFail do
     variables = Enum.map(values, fn d -> Variable.new(d) end) |> Vector.new()
 
     ## Mocked space data
-    space_data = %{unfixed_variables_tracker: nil}
+    space_data = %{unfixed_variables_tracker: Tracker.new(variables), variables: variables}
     _default_brancher_partitions =
-      [partition1, partition2] = Search.branch(variables, DefaultBrancher, space_data)
+      [partition1, partition2] = Search.branch(DefaultBrancher, space_data)
 
     ## 1st partition has var3 fixed
     %{variable_copies: vars, domain_changes: changes} = partition1.(variables, space_data)

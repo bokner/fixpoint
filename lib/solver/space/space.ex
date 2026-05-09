@@ -338,14 +338,12 @@ defmodule CPSolver.Space do
   def distribute(
         %{
           id: id,
-          variables: variables,
           constraint_graph: _graph,
           search: search
         } = data
       ) do
     try do
-      variables
-      |> Search.branch(search, data)
+      Search.branch(search, data)
       |> Enum.take_while(fn partition_fun ->
         if CPSolver.complete?(get_shared(data)) do
           false

@@ -3,8 +3,6 @@ defmodule CPSolver.Search.VariableSelector do
   @callback update(map(), Keyword.t()) :: :ok
   @callback select([Variable.t()], map(), any()) :: Variable.t() | nil
 
-  alias CPSolver.Variable.Interface
-
   alias CPSolver.Search.VariableSelector.{
     FirstFail,
     MostConstrained,
@@ -15,6 +13,8 @@ defmodule CPSolver.Search.VariableSelector do
     Action,
     CHB
   }
+
+  alias CPSolver.Variables.UnfixedTracker, as: Tracker
 
   defmacro __using__(_) do
     quote do
@@ -39,13 +39,13 @@ defmodule CPSolver.Search.VariableSelector do
     selector
   end
 
-  def select_variable(variables, data, variable_choice) when is_atom(variable_choice) do
-    select_variable(variables, data, strategy(variable_choice))
+  def select_variable(data, variable_choice) when is_atom(variable_choice) do
+    select_variable(data, strategy(variable_choice))
   end
 
-  def select_variable(variables, data, variable_choice) when is_function(variable_choice) do
-    variables
-    |> Enum.reject(fn v -> Interface.fixed?(v) end)
+  def select_variable(%{unfixed_variables_tracker: tracker, variables: variables} = data, variable_choice) when is_function(variable_choice) do
+    tracker
+    |> Tracker.iterate_unfixed(variables)
     |> then(fn
       [] -> throw(all_vars_fixed_exception())
       unfixed_vars -> execute_variable_choice(variable_choice, unfixed_vars, data)

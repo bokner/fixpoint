@@ -3,7 +3,6 @@ defmodule CPSolver.Search do
 
   alias CPSolver.Search.VariableSelector
   alias CPSolver.Search.Partition
-  alias CPSolver.Variable.Interface
   alias CPSolver.Utils.Vector
   alias CPSolver.Variables.UnfixedTracker, as: Tracker
 
@@ -29,55 +28,54 @@ defmodule CPSolver.Search do
     end
   end
 
-  def initialize(brancher_fun, space_data) when is_function(brancher_fun, 3) do
-    brancher_fun.(:init, space_data, nil)
+  def initialize(brancher_fun, space_data) when is_function(brancher_fun, 2) do
+    brancher_fun.(:init, space_data)
   end
 
-  ### Helpers
-  def branch(variables, branching, space_data \\ %{})
+  def branch(branching, space_data) do
+    if Tracker.empty?(space_data[:unfixed_variables_tracker]) do
+      throw(:all_vars_fixed)
+    else
+      case branch_impl(branching, space_data) do
+        nil ->
+          branch_impl(default_strategy(), space_data)
 
-  def branch(variables, branching, space_data) do
-    variables
-    |> filter_fixed_variables(space_data)
-    |> then(fn unfixed_vars ->
-      unfixed_vars
-      |> branch_impl(branching, space_data)
-      |> then(fn branching ->
-        branching || branch_impl(unfixed_vars, default_strategy(), space_data)
-      end)
-      |> partitions_impl(space_data)
-    end)
+        branching ->
+          branching
+      end
+      |> partitions_impl()
+    end
   end
 
-  defp branch_impl(variables, brancher_fun, space_data) when is_function(brancher_fun, 3) do
-    brancher_fun.(:branch, variables, space_data)
+  defp branch_impl(brancher_fun, space_data) when is_function(brancher_fun, 2) do
+    brancher_fun.(:branch, space_data)
   end
 
-  defp branch_impl(variables, brancher_impl, space_data) when is_atom(brancher_impl) do
+  defp branch_impl(brancher_impl, space_data) when is_atom(brancher_impl) do
     if Code.ensure_loaded(brancher_impl) == {:module, brancher_impl} &&
          function_exported?(brancher_impl, :branch, 2) do
-      brancher_impl.branch(variables, space_data)
+      space_data
+      |> brancher_impl.branch(space_data)
     else
       throw({:unknown_brancher, brancher_impl})
     end
   end
 
-  defp branch_impl(variables, {variable_choice, partition_strategy}, space_data) do
-    branch_impl(variables, variable_choice, partition_strategy, space_data)
+  defp branch_impl({variable_choice, partition_strategy}, space_data) do
+    branch_impl(variable_choice, partition_strategy, space_data)
   end
 
-  defp branch_impl(variables, variable_choice, partition_strategy, space_data) do
+  defp branch_impl(variable_choice, partition_strategy, space_data) do
     branch_impl(
-      variables,
-      fn :branch, variables, space_data ->
-        variable_value_choice(variables, variable_choice, partition_strategy, space_data)
+      fn :branch, space_data ->
+        variable_value_choice(variable_choice, partition_strategy, space_data)
       end,
       space_data
     )
   end
 
-  def variable_value_choice(variables, variable_choice, partition_strategy, space_data) do
-    case VariableSelector.select_variable(variables, space_data, variable_choice) do
+  def variable_value_choice(variable_choice, partition_strategy, space_data) do
+    case VariableSelector.select_variable(space_data, variable_choice) do
       nil ->
         []
 
@@ -93,44 +91,18 @@ defmodule CPSolver.Search do
     Map.put(variable, :domain, Domain.copy(domain))
   end
 
-  defp filter_fixed_variables(vars, space_data) do
-    tracker = space_data[:unfixed_variables_tracker]
-
-    cond do
-      is_nil(tracker) ->
-        Enum.reject(vars, fn var -> Interface.fixed?(var) end)
-
-      Tracker.empty?(tracker) ->
-        throw(:all_vars_fixed)
-
-      true ->
-        ## We want to keep the original order in the list of variables
-        ## for strategies that depend on it (:input_order, bin packing etc.)
-        Tracker.iterate_ordered(tracker, Vector.new([]), fn idx, acc ->
-          var = vars[idx - 1]
-
-          if Interface.fixed?(var) do
-            Tracker.delete(tracker, idx)
-            acc
-          else
-            Vector.append(acc, var)
-          end
-        end)
-    end
-  end
-
-  defp partitions_impl(nil, _space_data) do
+  defp partitions_impl(nil) do
     []
   end
 
-  defp partitions_impl(partitions, space_data) when is_list(partitions) do
+  defp partitions_impl(partitions) when is_list(partitions) do
     Enum.reduce(partitions, [], fn variable_partition, acc ->
-      acc ++ variable_partitions_impl(variable_partition, space_data)
+      acc ++ variable_partitions_impl(variable_partition)
     end)
   end
 
   ## Build partitions for a single variable
-  defp variable_partitions_impl(domain_partitions, _space_data) do
+  defp variable_partitions_impl(domain_partitions) do
     Enum.map(List.wrap(domain_partitions), fn partition ->
       build_reduction(partition)
     end)
@@ -142,10 +114,12 @@ defmodule CPSolver.Search do
   ##
   defp build_reduction(partition) do
     fn variables, space_data ->
-      var_array = variables ##Vector.new([])
+      var_array = variables
 
       {_idx, variable_copies, domain_changes} =
-        Vector.reduce(variables, {0, var_array, Map.new()}, fn var, {var_idx, variables_acc, changes_acc} ->
+        Vector.reduce(variables, {0, var_array, Map.new()}, fn var,
+                                                               {var_idx, variables_acc,
+                                                                changes_acc} ->
           var_copy = copy_variable(var)
 
           changes_acc =

@@ -19,7 +19,6 @@ defmodule CPSolver.Variables.UnfixedTracker do
       Interface.fixed?(variables[var_idx - 1]) && delete(tracker, var_idx)
     end)
     tracker
-
   end
 
   def copy(tracker) do
@@ -44,6 +43,23 @@ defmodule CPSolver.Variables.UnfixedTracker do
 
   def iterate_ordered(tracker, initial, reducer) do
     SparseSet.iterate_ordered(tracker, initial, reducer)
+  end
+
+  def iterate_unfixed(tracker, variables) do
+    iterate_unfixed(tracker, variables, [], fn var, acc -> [var | acc] end)
+    |> Enum.reverse()
+  end
+
+  def iterate_unfixed(tracker, variables, initial, reducer) when is_function(reducer, 2) do
+    iterate_ordered(tracker, initial, fn idx, acc ->
+      var = variables[idx - 1]
+      if Interface.fixed?(var) do
+        delete(tracker, idx)
+        acc
+      else
+        reducer.(var, acc)
+      end
+    end)
   end
 
   def empty?(tracker) do

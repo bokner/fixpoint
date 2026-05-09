@@ -2,6 +2,8 @@ defmodule CPSolver.Examples.BinPacking.Search do
   alias CPSolver.Variable.Interface
   alias CPSolver.Search.Partition
 
+  alias CPSolver.Variables.UnfixedTracker, as: Tracker
+
   @doc """
   Complete decreasing best fit branching,
   roughly as per https://www.gecode.dev/doc-latest/MPG.pdf, chapter 20
@@ -17,11 +19,11 @@ defmodule CPSolver.Examples.BinPacking.Search do
       |> Map.new(fn {var, weight} -> {var.name, weight} end)
 
     fn
-      :init, _, _ ->
+      :init, _space_data ->
         :ok
 
-      :branch, variables, _data ->
-        case get_item_variables(variables, item_assignment_map) do
+      :branch, data ->
+        case get_item_variables(data, item_assignment_map) do
           nil ->
             nil
 
@@ -44,12 +46,15 @@ defmodule CPSolver.Examples.BinPacking.Search do
   end
 
   ## Get the (unfixed) variables with the largest item weight.
-  defp get_item_variables(variables, item_assignment_map) do
+  defp get_item_variables(
+    %{
+      unfixed_variables_tracker: tracker,
+      variables: variables} = _space_data, item_assignment_map) do
     ## We rely on:
     ## - item weights sorted in descending order
     ## - the item assignment variables are adjacent to each other within the variable list;
     ## that is, all of them are located in the single block.
-    Enum.reduce_while(variables, {nil, nil}, fn v, {last_item_weight, item_vars_acc} = acc ->
+    Tracker.iterate_unfixed(tracker, variables, {nil, nil}, fn v, {last_item_weight, item_vars_acc} = acc ->
       ## Is variable an 'item assignment' variable?
       item_weight = Map.get(item_assignment_map, v.name)
 
