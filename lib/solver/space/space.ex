@@ -155,12 +155,12 @@ defmodule CPSolver.Space do
     |> propagate()
   end
 
-  defp apply_partition(%{variables: variables} = data, partition_fun) do
+  defp apply_partition(data, partition_fun) do
     %{
       variable_copies: branch_variables,
       domain_changes: changes,
       unfixed_variables_tracker: tracker
-      } = partition_fun.(variables, data)
+      } = partition_fun.(data)
 
     data
     |> Map.put(:variables, branch_variables)

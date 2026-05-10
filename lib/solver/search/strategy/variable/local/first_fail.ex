@@ -7,7 +7,7 @@ defmodule CPSolver.Search.VariableSelector.FirstFail do
     get_minimals(variables)
   end
 
-  def get_minimals(variables) do
+  defp get_minimals(variables) do
     Utils.minimals(variables, &Interface.size/1)
   end
 end

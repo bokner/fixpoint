@@ -105,7 +105,7 @@ defmodule CPSolver.Examples.TSP do
         Enum.random(d_values)
     end
 
-    choose_variable_fun = fn variables ->
+    choose_variable_fun = fn variables, %{} ->
       circuit_vars = Enum.filter(variables, fn v -> v.index <= n end)
 
       if !Enum.empty?(circuit_vars) do

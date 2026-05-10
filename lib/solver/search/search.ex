@@ -113,11 +113,10 @@ defmodule CPSolver.Search do
   ## and performs domain reduction.
   ##
   defp build_reduction(partition) do
-    fn variables, space_data ->
-      var_array = variables
+    fn %{variables: variables} = space_data ->
 
       {_idx, variable_copies, domain_changes} =
-        Vector.reduce(variables, {0, var_array, Map.new()}, fn var,
+        Vector.reduce(variables, {0, variables, Map.new()}, fn var,
                                                                {var_idx, variables_acc,
                                                                 changes_acc} ->
           var_copy = copy_variable(var)
@@ -136,7 +135,7 @@ defmodule CPSolver.Search do
         end)
 
       ## Create a copy of "unfixed variables" tracker.
-      ## 
+      ##
       tracker_copy =
         case space_data[:unfixed_variables_tracker] do
           nil -> nil
