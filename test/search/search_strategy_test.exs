@@ -54,7 +54,7 @@ defmodule CPSolverTest.Search.Brancher do
       variables = Enum.map(values, fn d -> Variable.new(d) end)
       state = %{variables: variables, unfixed_variables_tracker: Tracker.new(variables)}
       assert catch_throw(Search.branch({:first_fail, :indomain_min}, state)) ==
-               SearchStrategy.all_vars_fixed_exception()
+               :all_vars_fixed
     end
 
     test "branch creation" do
@@ -70,7 +70,7 @@ defmodule CPSolverTest.Search.Brancher do
       [b_left, b_right] =
         branches =
         Search.branch({:first_fail, :indomain_min}, state)
-        |> Enum.map(fn partition_fun -> partition_fun.(variables, %{}) end)
+        |> Enum.map(fn partition_fun -> partition_fun.(state) end)
 
       refute b_left == b_right
       ## Each branch has the same number of variables, as the original list of vars

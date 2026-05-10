@@ -47,27 +47,27 @@ defmodule CPSolver.Search.VariableSelector do
     tracker
     |> Tracker.iterate_unfixed(variables)
     |> then(fn
-      [] -> throw(all_vars_fixed_exception())
-      unfixed_vars -> execute_variable_choice(variable_choice, unfixed_vars, data)
+      [] -> all_vars_fixed_exception()
+      unfixed_vars -> normalize_choice_fun(variable_choice).(unfixed_vars, data)
     end)
   end
 
   def all_vars_fixed_exception() do
-    :all_vars_fixed
+    throw(:all_vars_fixed)
   end
 
   def failed_variables_in_search_exception() do
     :failed_variables_in_search
   end
 
-  defp execute_variable_choice(variable_choice, unfixed_vars, _data)
+  defp normalize_choice_fun(variable_choice)
        when is_function(variable_choice, 1) do
-    variable_choice.(unfixed_vars)
+    fn vars, _ -> variable_choice.(vars) end
   end
 
-  defp execute_variable_choice(variable_choice, unfixed_vars, data)
-       when is_function(variable_choice, 2) do
-    variable_choice.(unfixed_vars, data)
+  defp normalize_choice_fun(variable_choice)
+    when is_function(variable_choice, 2) do
+      variable_choice
   end
 
   ######################################
