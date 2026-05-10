@@ -60,6 +60,11 @@ defmodule CPSolver.Search.VariableSelector do
     :failed_variables_in_search
   end
 
+  defp execute_variable_choice(variable_choice, unfixed_vars, _data)
+       when is_function(variable_choice, 1) do
+    variable_choice.(unfixed_vars)
+  end
+
   defp execute_variable_choice(variable_choice, unfixed_vars, data)
        when is_function(variable_choice, 2) do
     variable_choice.(unfixed_vars, data)
