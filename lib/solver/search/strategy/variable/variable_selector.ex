@@ -43,7 +43,11 @@ defmodule CPSolver.Search.VariableSelector do
     select_variable(data, strategy(variable_choice))
   end
 
-  def select_variable(%{unfixed_variables_tracker: tracker, variables: variables} = data, variable_choice) when is_function(variable_choice) do
+  def select_variable(
+        %{unfixed_variables_tracker: tracker, variables: variables} = data,
+        variable_choice
+      )
+      when is_function(variable_choice) do
     tracker
     |> Tracker.iterate_unfixed(variables)
     |> then(fn
@@ -66,56 +70,56 @@ defmodule CPSolver.Search.VariableSelector do
   end
 
   defp normalize_choice_fun(variable_choice)
-    when is_function(variable_choice, 2) do
-      variable_choice
+       when is_function(variable_choice, 2) do
+    variable_choice
   end
 
   ######################################
   ## Variable choice (shortcuts)      ##
   ######################################
-  def strategy({afc_mode, decay})
-      when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
+  defp strategy({afc_mode, decay})
+       when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
     afc({afc_mode, decay}, &Enum.random/1)
   end
 
-  def strategy({action_mode, decay})
-      when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
+  defp strategy({action_mode, decay})
+       when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
     action({action_mode, decay}, &Enum.random/1)
   end
 
-  def strategy(chb_mode)
-      when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
+  defp strategy(chb_mode)
+       when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
     chb(chb_mode, &Enum.random/1)
   end
 
-  def strategy(:first_fail) do
+  defp strategy(:first_fail) do
     first_fail(&List.first/1)
   end
 
-  def strategy(:input_order) do
+  defp strategy(:input_order) do
     fn variables ->
       Enum.sort_by(variables, fn %{index: idx} -> idx end)
       |> List.first()
     end
   end
 
-  def strategy(:most_constrained) do
+  defp strategy(:most_constrained) do
     most_constrained(&Enum.random/1)
   end
 
-  def strategy(:most_completed) do
+  defp strategy(:most_completed) do
     most_completed(&Enum.random/1)
   end
 
-  def strategy(:dom_deg) do
+  defp strategy(:dom_deg) do
     dom_deg(&Enum.random/1)
   end
 
-  def strategy(:max_regret) do
+  defp strategy(:max_regret) do
     max_regret(&Enum.random/1)
   end
 
-  def strategy(impl) when is_atom(impl) do
+  defp strategy(impl) when is_atom(impl) do
     if Code.ensure_loaded(impl) == {:module, impl} && function_exported?(impl, :select, 3) do
       impl
     else
