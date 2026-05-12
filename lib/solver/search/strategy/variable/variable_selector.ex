@@ -23,6 +23,7 @@ defmodule CPSolver.Search.VariableSelector do
       alias CPSolver.Search.VariableSelector
       alias CPSolver.Variable.Interface
       alias CPSolver.DefaultDomain, as: Domain
+      alias CPSolver.Variable.UnfixedTracker, as: Tracker
 
       @behaviour VariableSelector
       def initialize(_data, _opts) do
@@ -35,14 +36,18 @@ defmodule CPSolver.Search.VariableSelector do
 
       def select(%{unfixed_variables_tracker: tracker, variables: variables} = data, opts) do
         tracker
-        |> Tracker.iterate_unfixed(variables)
+        |> Tracker.iterate(variables)
         |> then(fn
           [] -> VariableSelector.all_vars_fixed_exception()
           unfixed_vars -> select(unfixed_vars, data, opts)
         end)
       end
 
-      defoverridable initialize: 2, update: 2, select: 2
+      def select(unfixed_variables, _data, _opts) do
+        List.first(unfixed_variables)
+      end
+
+      defoverridable initialize: 2, update: 2, select: 2, select: 3
     end
   end
 
@@ -123,7 +128,7 @@ defmodule CPSolver.Search.VariableSelector do
   end
 
   defp strategy(impl) when is_atom(impl) do
-    if Code.ensure_loaded(impl) == {:module, impl} && function_exported?(impl, :select, 3) do
+    if Code.ensure_loaded(impl) == {:module, impl} && function_exported?(impl, :select, 2) do
       impl
     else
       throw({:unknown_strategy, impl})
@@ -234,6 +239,7 @@ defmodule CPSolver.Search.VariableSelector do
       args = args || []
       initialize? && impl.initialize(data, args)
       impl.select(data, args)
+      |> tap(fn selection -> Enum.empty?(List.wrap(selection)) && all_vars_fixed_exception() end)
     end
 
     variable_choice(strategy_fun, break_even_fun)

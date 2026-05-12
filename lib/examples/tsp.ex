@@ -110,14 +110,13 @@ defmodule CPSolver.Examples.TSP do
     choose_variable_fun = fn %{
       unfixed_variables_tracker: tracker,
       variables: variables} = _space_data  ->
-      circuit_vars = Tracker.iterate_unfixed(tracker, variables, [], fn v, acc ->
+      circuit_vars = Tracker.iterate(tracker, variables, [], fn v, acc ->
         if v.index <= n do
           [v | acc]
         else
           acc
         end
       end)
-      #|> Enum.reverse()
 
       if !Enum.empty?(circuit_vars) do
         difference_between_closest_distances(circuit_vars, tuple_matrix)
