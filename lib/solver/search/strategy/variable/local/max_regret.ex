@@ -1,16 +1,17 @@
 defmodule CPSolver.Search.VariableSelector.MaxRegret do
   use CPSolver.Search.VariableSelector
   alias CPSolver.Utils
+  alias CPSolver.Search.Utils, as: SearchUtils
 
   ## Choose the variable(s) with largest difference
   ## between the two smallest values in its domain.
   @impl true
-  def select(variables, space_data, _opts) do
-    largest_difference(variables, space_data)
+  def select(space_data, _opts) do
+    largest_difference(space_data)
   end
 
-  defp largest_difference(variables, _space_data) do
-    Utils.maximals(variables, &difference/1)
+  defp largest_difference(%{unfixed_variables_tracker: tracker, variables: variables} = _space_data) do
+    SearchUtils.maximals(tracker, variables, &difference/1)
   end
 
   defp difference(variable) do

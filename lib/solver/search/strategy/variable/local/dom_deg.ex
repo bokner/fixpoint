@@ -2,15 +2,15 @@ defmodule CPSolver.Search.VariableSelector.DomDeg do
   use CPSolver.Search.VariableSelector
   alias CPSolver.Variable.Interface
   alias CPSolver.Propagator.ConstraintGraph
-  alias CPSolver.Utils
+  alias CPSolver.Search.Utils, as: SearchUtils
 
   @impl true
-  def select(variables, space_data, _opts) do
-    smallest_ratio(variables, space_data)
+  def select(space_data, _opts) do
+    smallest_ratio(space_data)
   end
 
   ## Smallest ratio of dom(x)/deg(x)
-  defp smallest_ratio(variables, space_data) do
+  defp smallest_ratio(%{unfixed_variables_tracker: tracker, variables: variables} = space_data) do
     graph = space_data[:constraint_graph]
 
     min_by_fun = fn var ->
@@ -20,6 +20,6 @@ defmodule CPSolver.Search.VariableSelector.DomDeg do
       end
     end
 
-    Utils.minimals(variables, min_by_fun)
+    SearchUtils.minimals(tracker, variables, min_by_fun)
   end
 end
