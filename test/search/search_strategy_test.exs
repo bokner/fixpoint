@@ -96,8 +96,10 @@ defmodule CPSolverTest.Search.Brancher do
 
       variables =
         Enum.map(Enum.with_index(domains, 1), fn {d, idx} -> Variable.new(d, name: idx) end)
+        |> Vector.new()
 
-      [var1, var2] = MaxRegretSelector.select(variables, :ignore, :ignore)
+      space_data = %{unfixed_variables_tracker: Tracker.new(variables), variables: variables}
+      [var1, var2] = MaxRegretSelector.select(space_data, [])
       ## Chooses variables with largest difference between 2 smallest values
       ## diff(1) = 1, diff(2) = 8, diff(3) = diff(4) = 9
       assert var1.name in [3, 4] && var2.name in [3, 4]

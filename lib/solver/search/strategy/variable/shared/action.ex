@@ -32,15 +32,17 @@ defmodule CPSolver.Search.VariableSelector.Action do
   end
 
   defp select_impl(variables, data, :action_size_min) do
+    action_data = Space.get_shared(data) |> Shared.get_auxillary(:action)
     Utils.minimals(
-      variable_actions(variables, Space.get_shared(data)),
+      variable_actions(variables, action_data),
       fn {var, action} -> action / Interface.size(var) end
     )
   end
 
   defp select_impl(variables, data, :action_size_max) do
+    action_data = Space.get_shared(data) |> Shared.get_auxillary(:action)
     Utils.maximals(
-      variable_actions(variables, Space.get_shared(data)),
+      variable_actions(variables, action_data),
       fn {var, action} ->
         action / Interface.size(var)
       end
@@ -82,9 +84,7 @@ defmodule CPSolver.Search.VariableSelector.Action do
   @doc """
   Compute actions of variables in one pass
   """
-  def variable_actions(variables, shared) do
-    action_data = Shared.get_auxillary(shared, :action)
-
+  def variable_actions(variables, action_data) do
     if action_data do
       %{variable_actions: action_table} = action_data
 

@@ -18,6 +18,8 @@ defmodule CPSolver.Examples.TSP do
   import CPSolver.Utils
   alias CPSolver.Utils.TupleArray
 
+  alias CPSolver.Variable.UnfixedTracker, as: Tracker
+
   require Logger
 
   @checkmark_symbol "\u2713"
@@ -105,8 +107,16 @@ defmodule CPSolver.Examples.TSP do
         Enum.random(d_values)
     end
 
-    choose_variable_fun = fn variables, %{} ->
-      circuit_vars = Enum.filter(variables, fn v -> v.index <= n end)
+    choose_variable_fun = fn %{
+      unfixed_variables_tracker: tracker,
+      variables: variables} = _space_data  ->
+      circuit_vars = Tracker.iterate(tracker, variables, [], fn v, acc ->
+        if v.index <= n do
+          [v | acc]
+        else
+          acc
+        end
+      end, false)
 
       if !Enum.empty?(circuit_vars) do
         difference_between_closest_distances(circuit_vars, tuple_matrix)

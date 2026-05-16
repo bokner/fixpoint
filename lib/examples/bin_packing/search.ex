@@ -54,7 +54,7 @@ defmodule CPSolver.Examples.BinPacking.Search do
     ## - item weights sorted in descending order
     ## - the item assignment variables are adjacent to each other within the variable list;
     ## that is, all of them are located in the single block.
-    Tracker.iterate_unfixed(tracker, variables, {nil, nil}, fn v, {last_item_weight, item_vars_acc} = acc ->
+    Tracker.iterate(tracker, variables, {nil, nil}, fn v, {last_item_weight, item_vars_acc} = acc ->
       ## Is variable an 'item assignment' variable?
       item_weight = Map.get(item_assignment_map, v.name)
 
@@ -78,7 +78,7 @@ defmodule CPSolver.Examples.BinPacking.Search do
             {:halt, acc}
           end
       end
-    end)
+    end, true)
     |> then(fn {_, res} -> if res, do: Enum.reverse(res) end)
   end
 

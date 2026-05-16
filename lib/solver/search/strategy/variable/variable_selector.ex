@@ -1,10 +1,12 @@
 defmodule CPSolver.Search.VariableSelector do
   @callback initialize(map(), any()) :: :ok
   @callback update(map(), Keyword.t()) :: :ok
-  @callback select([Variable.t()], map(), any()) :: Variable.t() | nil
+  @callback select(map(), Keyword.t()) :: Variable.t() | nil
+  @callback select([Variable.t()], map(), Keyword.t()) :: Variable.t() | nil
 
   alias CPSolver.Search.VariableSelector.{
     FirstFail,
+    InputOrder,
     MostConstrained,
     MostCompleted,
     DomDeg,
@@ -21,6 +23,7 @@ defmodule CPSolver.Search.VariableSelector do
       alias CPSolver.Search.VariableSelector
       alias CPSolver.Variable.Interface
       alias CPSolver.DefaultDomain, as: Domain
+      alias CPSolver.Variable.UnfixedTracker, as: Tracker
 
       @behaviour VariableSelector
       def initialize(_data, _opts) do
@@ -31,7 +34,19 @@ defmodule CPSolver.Search.VariableSelector do
         :ok
       end
 
-      defoverridable initialize: 2, update: 2
+      def select(data, opts) do
+        Tracker.iterate(data)
+        |> then(fn
+          [] -> VariableSelector.all_vars_fixed_exception()
+          unfixed_vars -> select(unfixed_vars, data, opts)
+        end)
+      end
+
+      def select(unfixed_variables, _data, _opts) do
+        List.first(unfixed_variables)
+      end
+
+      defoverridable initialize: 2, update: 2, select: 2, select: 3
     end
   end
 
@@ -43,13 +58,12 @@ defmodule CPSolver.Search.VariableSelector do
     select_variable(data, strategy(variable_choice))
   end
 
-  def select_variable(%{unfixed_variables_tracker: tracker, variables: variables} = data, variable_choice) when is_function(variable_choice) do
-    tracker
-    |> Tracker.iterate_unfixed(variables)
-    |> then(fn
-      [] -> all_vars_fixed_exception()
-      unfixed_vars -> normalize_choice_fun(variable_choice).(unfixed_vars, data)
-    end)
+  def select_variable(
+        data,
+        variable_choice
+      )
+      when is_function(variable_choice) do
+        normalize_choice_fun(variable_choice).(data)
   end
 
   def all_vars_fixed_exception() do
@@ -62,61 +76,58 @@ defmodule CPSolver.Search.VariableSelector do
 
   defp normalize_choice_fun(variable_choice)
        when is_function(variable_choice, 1) do
-    fn vars, _ -> variable_choice.(vars) end
+    fn data -> variable_choice.(data) end
   end
 
   defp normalize_choice_fun(variable_choice)
-    when is_function(variable_choice, 2) do
-      variable_choice
+       when is_function(variable_choice, 2) do
+    variable_choice
   end
 
   ######################################
   ## Variable choice (shortcuts)      ##
   ######################################
-  def strategy({afc_mode, decay})
-      when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
+  defp strategy({afc_mode, decay})
+       when afc_mode in [:afc_min, :afc_max, :afc_size_min, :afc_size_max] do
     afc({afc_mode, decay}, &Enum.random/1)
   end
 
-  def strategy({action_mode, decay})
-      when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
+  defp strategy({action_mode, decay})
+       when action_mode in [:action_min, :action_max, :action_size_min, :action_size_max] do
     action({action_mode, decay}, &Enum.random/1)
   end
 
-  def strategy(chb_mode)
-      when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
+  defp strategy(chb_mode)
+       when chb_mode in [:chb_min, :chb_max, :chb_size_min, :chb_size_max] do
     chb(chb_mode, &Enum.random/1)
   end
 
-  def strategy(:first_fail) do
+  defp strategy(:first_fail) do
     first_fail(&List.first/1)
   end
 
-  def strategy(:input_order) do
-    fn variables ->
-      Enum.sort_by(variables, fn %{index: idx} -> idx end)
-      |> List.first()
-    end
+  defp strategy(:input_order) do
+    input_order()
   end
 
-  def strategy(:most_constrained) do
+  defp strategy(:most_constrained) do
     most_constrained(&Enum.random/1)
   end
 
-  def strategy(:most_completed) do
+  defp strategy(:most_completed) do
     most_completed(&Enum.random/1)
   end
 
-  def strategy(:dom_deg) do
+  defp strategy(:dom_deg) do
     dom_deg(&Enum.random/1)
   end
 
-  def strategy(:max_regret) do
+  defp strategy(:max_regret) do
     max_regret(&Enum.random/1)
   end
 
-  def strategy(impl) when is_atom(impl) do
-    if Code.ensure_loaded(impl) == {:module, impl} && function_exported?(impl, :select, 3) do
+  defp strategy(impl) when is_atom(impl) do
+    if Code.ensure_loaded(impl) == {:module, impl} && function_exported?(impl, :select, 2) do
       impl
     else
       throw({:unknown_strategy, impl})
@@ -149,6 +160,10 @@ defmodule CPSolver.Search.VariableSelector do
 
   def first_fail(break_even_fun) when is_function(break_even_fun) do
     variable_choice(FirstFail, break_even_fun)
+  end
+
+  def input_order() do
+    variable_choice(InputOrder, nil)
   end
 
   def dom_deg(break_even_fun \\ &Enum.random/1)
@@ -194,6 +209,10 @@ defmodule CPSolver.Search.VariableSelector do
     |> extract_strategy()
   end
 
+  defp execute_break_even(selection, _data, nil) do
+    selection
+  end
+
   defp execute_break_even(selection, _data, break_even_fun) when is_function(break_even_fun, 1) do
     break_even_fun.(selection)
   end
@@ -202,30 +221,30 @@ defmodule CPSolver.Search.VariableSelector do
     break_even_fun.(selection, data)
   end
 
-  def variable_choice(strategy_fun, break_even_fun \\ &Enum.random/1)
-
-  def variable_choice(strategy_fun, break_even_fun) when is_function(strategy_fun) do
-    fn vars, data ->
-      vars
-      |> strategy_fun.(data)
+  defp variable_choice(strategy_fun, break_even_fun) when is_function(strategy_fun) do
+    fn data ->
+      data
+      |> strategy_fun.()
       |> execute_break_even(data, break_even_fun)
     end
   end
 
-  def variable_choice({strategy_impl, args}, break_even_fun) when is_atom(strategy_impl) do
+  defp variable_choice({strategy_impl, args}, break_even_fun) when is_atom(strategy_impl) do
     impl = strategy(strategy_impl)
 
     initialize? = function_exported?(impl, :initialize, 2)
 
-    strategy_fun = fn vars, data ->
+    strategy_fun = fn data ->
+      args = args || []
       initialize? && impl.initialize(data, args)
-      impl.select(vars, data, args)
+      impl.select(data, args)
+      |> tap(fn selection -> Enum.empty?(List.wrap(selection)) && all_vars_fixed_exception() end)
     end
 
     variable_choice(strategy_fun, break_even_fun)
   end
 
-  def variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
+  defp variable_choice(strategy_impl, break_even_fun) when is_atom(strategy_impl) do
     variable_choice({strategy_impl, nil}, break_even_fun)
   end
 end
