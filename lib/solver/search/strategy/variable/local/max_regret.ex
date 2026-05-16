@@ -10,8 +10,8 @@ defmodule CPSolver.Search.VariableSelector.MaxRegret do
     largest_difference(space_data)
   end
 
-  defp largest_difference(%{unfixed_variables_tracker: tracker, variables: variables} = _space_data) do
-    SearchUtils.maximals(tracker, variables, &difference/1)
+  defp largest_difference(space_data) do
+    SearchUtils.maximals(space_data, &difference/1)
   end
 
   defp difference(variable) do

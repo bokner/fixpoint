@@ -4,5 +4,5 @@ qap25  - 3661 (18, 14, 8, 6, 9, 1, 10, 4, 23, 3, 20, 7, 24, 15, 5, 11, 22, 0, 12
 qap12a_opt288 - 289 (7, 3, 11, 4, 0, 1, 9, 5, 10, 2, 6, 8)
 qap14_opt507 - 515
 qap16_opt34 - 34 (optimality not proven)
-had12 (OPT = 826), fixpoint: 826 (2, 9, 10, 1, 11, 4, 5, 6, 7, 0, 3, 8), optimality not proved
+had12 (OPT = 826), fixpoint: 826 (2, 9, 10, 1, 11, 4, 5, 6, 7, 0, 3, 8), optimality not proven
 had14 (OPT = 1361), fixpoint: 1387 (8, 3, 0, 5, 10, 13, 11, 4, 6, 1, 9, 2, 12, 7)

@@ -116,7 +116,7 @@ defmodule CPSolver.Examples.TSP do
         else
           acc
         end
-      end)
+      end, false)
 
       if !Enum.empty?(circuit_vars) do
         difference_between_closest_distances(circuit_vars, tuple_matrix)

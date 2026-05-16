@@ -9,11 +9,11 @@ defmodule CPSolver.Search.VariableSelector.MostConstrained do
     get_maximals(space_data)
   end
 
-  defp get_maximals(%{unfixed_variables_tracker: tracker, variables: variables} = space_data) do
+  defp get_maximals(space_data) do
     max_by_fun = fn var ->
       ConstraintGraph.variable_degree(space_data[:constraint_graph], Interface.id(var))
     end
 
-    SearchUtils.maximals(tracker, variables, max_by_fun)
+    SearchUtils.maximals(space_data, max_by_fun)
   end
 end

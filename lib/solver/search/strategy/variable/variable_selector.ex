@@ -34,9 +34,8 @@ defmodule CPSolver.Search.VariableSelector do
         :ok
       end
 
-      def select(%{unfixed_variables_tracker: tracker, variables: variables} = data, opts) do
-        tracker
-        |> Tracker.iterate(variables)
+      def select(data, opts) do
+        Tracker.iterate(data)
         |> then(fn
           [] -> VariableSelector.all_vars_fixed_exception()
           unfixed_vars -> select(unfixed_vars, data, opts)

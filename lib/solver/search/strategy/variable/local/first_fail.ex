@@ -4,8 +4,8 @@ defmodule CPSolver.Search.VariableSelector.FirstFail do
   alias CPSolver.Search.Utils, as: SearchUtils
 
   @impl true
-  def select(%{unfixed_variables_tracker: tracker, variables: variables} = _data, _opts) do
-    SearchUtils.minimals(tracker, variables, &Interface.size/1)
+  def select(data, _opts) do
+    SearchUtils.minimals(data, &Interface.size/1)
   end
 
 end
