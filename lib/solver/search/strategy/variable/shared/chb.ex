@@ -13,36 +13,34 @@ defmodule CPSolver.Search.VariableSelector.CHB do
 
   @impl true
   def select(variables, data, opts) do
-    select_impl(variables, data, opts[:mode])
+    variables
+    |> variable_chbs(Space.get_shared(data))
+    |> select_impl(opts[:mode])
     |> Enum.map(fn {var, _chb} -> var end)
   end
 
-  defp select_impl(variables, data, :chb_min) do
-    Utils.minimals(
-      variable_chbs(variables, Space.get_shared(data)),
+  defp select_impl(chbs, :chb_min) do
+    Utils.minimals(chbs,
       fn {_var, %{q_score: q_score} = _chb} -> q_score end
     )
   end
 
-  defp select_impl(variables, data, :chb_max) do
-    Utils.maximals(
-      variable_chbs(variables, Space.get_shared(data)),
+  defp select_impl(chbs, :chb_max) do
+    Utils.maximals(chbs,
       fn {_var, %{q_score: q_score} = _chb} -> q_score end
     )
   end
 
-  defp select_impl(variables, data, :chb_size_min) do
-    Utils.minimals(
-      variable_chbs(variables, Space.get_shared(data)),
+  defp select_impl(chbs, :chb_size_min) do
+    Utils.minimals(chbs,
       fn {var, %{q_score: q_score} = _chb} ->
         q_score / Interface.size(var)
       end
     )
   end
 
-  defp select_impl(variables, data, :chb_size_max) do
-    Utils.maximals(
-      variable_chbs(variables, Space.get_shared(data)),
+  defp select_impl(chbs, :chb_size_max) do
+    Utils.maximals(chbs,
       fn {var, %{q_score: q_score} = _chb} ->
         q_score / Interface.size(var)
       end

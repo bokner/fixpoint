@@ -12,34 +12,32 @@ defmodule CPSolver.Search.VariableSelector.AFC do
 
   @impl true
   def select(variables, data, opts) do
-    select_impl(variables, data, opts[:mode])
+    variables
+    |> variable_afcs(Space.get_shared(data))
+    |> select_impl(opts[:mode])
     |> Enum.map(fn {var, _afc} -> var end)
   end
 
-  defp select_impl(variables, data, :afc_min) do
-    Utils.minimals(
-      variable_afcs(variables, Space.get_shared(data)),
+  defp select_impl(afcs, :afc_min) do
+    Utils.minimals(afcs,
       fn {_var, afc} -> afc end
     )
   end
 
-  defp select_impl(variables, data, :afc_max) do
-    Utils.maximals(
-      variable_afcs(variables, Space.get_shared(data)),
+  defp select_impl(afcs, :afc_max) do
+    Utils.maximals(afcs,
       fn {_var, afc} -> afc end
     )
   end
 
-  defp select_impl(variables, data, :afc_size_min) do
-    Utils.minimals(
-      variable_afcs(variables, Space.get_shared(data)),
+  defp select_impl(afcs, :afc_size_min) do
+    Utils.minimals(afcs,
       fn {var, afc} -> afc / Interface.size(var) end
     )
   end
 
-  defp select_impl(variables, data, :afc_size_max) do
-    Utils.maximals(
-      variable_afcs(variables, Space.get_shared(data)),
+  defp select_impl(afcs, :afc_size_max) do
+    Utils.maximals(afcs,
       fn {var, afc} ->
         afc / Interface.size(var)
       end
@@ -72,11 +70,17 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   Compute AFCs of variables in one pass
   """
   def variable_afcs(variables, shared) do
-    graph = Shared.get_auxillary(shared, :initial_constraint_graph)
-    afc_data = Shared.get_auxillary(shared, :afc)
-    global_failure_count = Shared.get_failure_count(shared)
+    with graph when not is_nil(graph) <- Shared.get_auxillary(shared, :initial_constraint_graph),
+      afc_data when not is_nil(afc_data) <- Shared.get_auxillary(shared, :afc),
+      global_failure_count when not is_nil(global_failure_count) <- Shared.get_failure_count(shared) do
+      compute_afc_impl(variables, graph, afc_data, global_failure_count)
+    else
+      _ ->
+      Enum.map(variables, fn var -> {var, 1} end)
+    end
+  end
 
-    if graph && afc_data && global_failure_count do
+  defp compute_afc_impl(variables, graph, afc_data, failure_count) do
       %{propagator_afcs: afc_table, decay: decay} = afc_data
 
       {propagator_ids, propagators_by_variable} =
@@ -102,13 +106,10 @@ defmodule CPSolver.Search.VariableSelector.AFC do
            sum_acc +
              (afc_records
               |> Map.get(p_id, afc_record(1, 0))
-              |> propagator_afc(decay, global_failure_count)
+              |> propagator_afc(decay, failure_count)
               |> elem(0))
          end)}
       end)
-    else
-      Enum.map(variables, fn var -> {var, 1} end)
-    end
   end
 
   @doc """
