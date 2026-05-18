@@ -12,40 +12,34 @@ defmodule CPSolver.Search.VariableSelector.Action do
   @default_action_value 1
 
   @impl true
-  def select(variables, data, opts) do
-    select_impl(variables, data, opts[:mode])
-    |> Enum.map(fn {var, _action} -> var end)
+  def select(data, opts) do
+    data
+    |> variable_actions(Space.get_shared(data) |> Shared.get_auxillary(:action))
+    |> select_impl(opts[:mode])
+    |> Enum.map(fn {var, _afc} -> var end)
   end
 
-  defp select_impl(variables, data, :action_min) do
-    Utils.minimals(
-      variable_actions(variables, Space.get_shared(data)),
+  defp select_impl(actions, :action_min) do
+    Utils.minimals(actions,
       fn {_var, action} -> action end
     )
   end
 
-  defp select_impl(variables, data, :action_max) do
-    Utils.maximals(
-      variable_actions(variables, Space.get_shared(data)),
+  defp select_impl(actions, :action_max) do
+    Utils.maximals(actions,
       fn {_var, action} -> action end
     )
   end
 
-  defp select_impl(variables, data, :action_size_min) do
-    action_data = Space.get_shared(data) |> Shared.get_auxillary(:action)
-    Utils.minimals(
-      variable_actions(variables, action_data),
+  defp select_impl(actions, :action_size_min) do
+    Utils.minimals(actions,
       fn {var, action} -> action / Interface.size(var) end
     )
   end
 
-  defp select_impl(variables, data, :action_size_max) do
-    action_data = Space.get_shared(data) |> Shared.get_auxillary(:action)
-    Utils.maximals(
-      variable_actions(variables, action_data),
-      fn {var, action} ->
-        action / Interface.size(var)
-      end
+  defp select_impl(actions, :action_size_max) do
+    Utils.maximals(actions,
+      fn {var, action} -> action / Interface.size(var) end
     )
   end
 
@@ -84,24 +78,23 @@ defmodule CPSolver.Search.VariableSelector.Action do
   @doc """
   Compute actions of variables in one pass
   """
-  def variable_actions(variables, action_data) do
-    if action_data do
-      %{variable_actions: action_table} = action_data
-
+  def variable_actions(space_data, %{variable_actions: action_table} = _action_data) do
       actions =
         :ets.select(
           action_table,
-          for(var <- variables, do: {{Interface.id(var), :_}, [], [:"$_"]})
+          Tracker.iterate(space_data, [], fn var, acc ->
+            [{{Interface.id(var), :_}, [], [:"$_"]} | acc] end, false)
         )
         |> Map.new()
 
-      Enum.map(variables, fn var ->
+      Tracker.iterate(space_data, [], fn var, acc ->
         var_id = Interface.id(var)
-        {var, Map.get(actions, var_id, @default_action_value)}
-      end)
-    else
-      Enum.map(variables, fn var -> {var, @default_action_value} end)
-    end
+        [{var, Map.get(actions, var_id, @default_action_value)} | acc]
+      end, false)
+  end
+
+  def variable_actions(space_data, _action_data) do
+    Tracker.iterate(space_data, [], fn var, acc -> [{var, @default_action_value} | acc ] end, false)
   end
 
   def update_actions(variables, shared) do

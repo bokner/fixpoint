@@ -12,9 +12,9 @@ defmodule CPSolver.Search.VariableSelector.CHB do
   @default_q_score 0.05
 
   @impl true
-  def select(variables, data, opts) do
-    variables
-    |> variable_chbs(Space.get_shared(data))
+  def select(data, opts) do
+    data
+    |> variable_chbs(Space.get_shared(data) |> Shared.get_auxillary(:chb))
     |> select_impl(opts[:mode])
     |> Enum.map(fn {var, _chb} -> var end)
   end
@@ -86,25 +86,24 @@ defmodule CPSolver.Search.VariableSelector.CHB do
   @doc """
   Compute chbs of variables in one pass
   """
-  def variable_chbs(variables, shared) do
-    chb_data = Shared.get_auxillary(shared, :chb)
-
+  def variable_chbs(space_data, chb_data) do
     if chb_data do
       %{variable_chbs: chb_table} = chb_data
 
       chbs =
         :ets.select(
           chb_table,
-          for(var <- variables, do: {{Interface.id(var), :_}, [], [:"$_"]})
+          Tracker.iterate(space_data, [], fn var, acc ->
+            [{{Interface.id(var), :_}, [], [:"$_"]} | acc] end, false)
         )
         |> Map.new()
 
-      Enum.map(variables, fn var ->
+      Tracker.iterate(space_data, [], fn var, acc ->
         var_id = Interface.id(var)
-        {var, Map.get(chbs, var_id, chb_record(@default_q_score, 0))}
-      end)
+        [{var, Map.get(chbs, var_id, chb_record(@default_q_score, 0))} | acc]
+      end, false)
     else
-      Enum.map(variables, fn var -> {var, chb_record(@default_q_score, 0)} end)
+      Tracker.iterate(space_data, [], fn var, acc -> [{var, chb_record(@default_q_score, 0)} | acc ] end, false)
     end
   end
 
