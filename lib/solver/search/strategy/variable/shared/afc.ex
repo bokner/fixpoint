@@ -11,8 +11,8 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   alias CPSolver.Utils
 
   @impl true
-  def select(variables, data, opts) do
-    variables
+  def select(data, opts) do
+    data
     |> variable_afcs(Space.get_shared(data))
     |> select_impl(opts[:mode])
     |> Enum.map(fn {var, _afc} -> var end)
@@ -69,29 +69,31 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   @doc """
   Compute AFCs of variables in one pass
   """
-  def variable_afcs(variables, shared) do
+  def variable_afcs(data, shared) do
     with graph when not is_nil(graph) <- Shared.get_auxillary(shared, :initial_constraint_graph),
       afc_data when not is_nil(afc_data) <- Shared.get_auxillary(shared, :afc),
       global_failure_count when not is_nil(global_failure_count) <- Shared.get_failure_count(shared) do
-      compute_afc_impl(variables, graph, afc_data, global_failure_count)
+      compute_afc_impl(data, graph, afc_data, global_failure_count)
     else
       _ ->
-      Enum.map(variables, fn var -> {var, 1} end)
+      Tracker.iterate(data, [], fn var, acc ->
+        [{var, 1} | acc]
+      end, false)
     end
   end
 
-  defp compute_afc_impl(variables, graph, afc_data, failure_count) do
+  defp compute_afc_impl(data, graph, afc_data, failure_count) do
       %{propagator_afcs: afc_table, decay: decay} = afc_data
 
       {propagator_ids, propagators_by_variable} =
-        Enum.reduce(variables, {MapSet.new(), Map.new()}, fn var, {propagator_ids_acc, map_acc} ->
+        Tracker.iterate(data, {MapSet.new(), Map.new()}, fn var, {propagator_ids_acc, map_acc} ->
           p_ids = ConstraintGraph.get_propagator_ids(graph, Interface.id(var))
 
           {
             MapSet.union(propagator_ids_acc, MapSet.new(p_ids)),
             Map.put(map_acc, var, p_ids)
           }
-        end)
+        end, false)
 
       ## Get p_id => afc_record map from ETS table
 
