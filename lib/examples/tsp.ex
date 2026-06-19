@@ -38,6 +38,7 @@ defmodule CPSolver.Examples.TSP do
         opts
       )
 
+    Logger.warning("Bounds: #{model.extra.lb}, #{model.extra.ub}")
     {:ok, _res} = CPSolver.solve(model, opts)
   end
 
@@ -50,6 +51,7 @@ defmodule CPSolver.Examples.TSP do
   def model(distances) do
     n = length(distances)
 
+    {lb, ub} = get_bounds(distances)
     ## successor[i] = j <=> location j follows location i
     successors =
       Enum.map(0..(n - 1), fn i ->
@@ -67,6 +69,9 @@ defmodule CPSolver.Examples.TSP do
       |> Enum.unzip()
 
     {total_distance, sum_constraint} = sum(dist_succ)
+    ## Apply bounds
+    Variable.removeBelow(total_distance, lb)
+    Variable.removeAbove(total_distance, ub)
 
     Model.new(
       successors,
@@ -75,8 +80,21 @@ defmodule CPSolver.Examples.TSP do
         sum_constraint
       ] ++ element_constraints,
       objective: Objective.minimize(total_distance),
-      extra: %{n: n, distances: distances}
+      extra: %{n: n, distances: distances, lb: lb, ub: ub}
     )
+  end
+
+  defp get_bounds(distances) do
+    l = length(distances)
+    graph =
+    Enum.reduce(1..l-1, BitGraph.new(), fn v1, acc ->
+      Enum.reduce((v1 + 1)..l, acc, fn v2, acc2 ->
+      BitGraph.add_edge(acc2, v1, v2)
+    end)
+    end)
+    dist_fun = fn from, to -> Enum.at(distances, to - 1) |> Enum.at(from - 1) end
+    {_edges, lb} = BitGraph.mst(graph, dist_fun: dist_fun)
+    {lb, 2 * lb}
   end
 
   def check_solution(solution, %{extra: %{distances: distances}} = _model) do
