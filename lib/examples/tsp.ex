@@ -13,6 +13,7 @@ defmodule CPSolver.Examples.TSP do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.Circuit
+  alias CPSolver.Constraint.{Equal, Less}
   alias CPSolver.Objective
   import CPSolver.Constraint.Factory
   import CPSolver.Utils
@@ -26,14 +27,14 @@ defmodule CPSolver.Examples.TSP do
   @failure_symbol "\u1D350"
 
   def run(instance, opts \\ []) do
-    model = model(instance)
+    model = model(instance, opts)
 
     opts =
       Keyword.merge(
         [
           search: search(model),
           solution_handler: solution_handler(model),
-          timeout: :timer.minutes(5)
+          timeout: :timer.minutes(5),
         ],
         opts
       )
@@ -43,14 +44,16 @@ defmodule CPSolver.Examples.TSP do
   end
 
   ## Read and compile data from instance file
-  def model(data) when is_binary(data) do
+  def model(data, opts \\ [])
+  def model(data, opts) when is_binary(data) do
     {_n, distances} = parse_instance(data)
-    model(distances)
+    model(distances, opts)
   end
 
-  def model(distances) do
+  def model(distances, opts) do
     n = length(distances)
 
+    symmetry_breaking = Keyword.get(opts, :symmetry_breaking, true)
     {lb, ub} = get_bounds(distances)
     ## successor[i] = j <=> location j follows location i
     successors =
@@ -78,9 +81,21 @@ defmodule CPSolver.Examples.TSP do
       [
         Circuit.new(successors),
         sum_constraint
-      ] ++ element_constraints,
+      ] ++ element_constraints
+      ++ (symmetry_breaking && symmetry_constraints(successors) || []),
+
       objective: Objective.minimize(total_distance),
       extra: %{n: n, distances: distances, lb: lb, ub: ub}
+    )
+  end
+
+  defp symmetry_constraints(successors) do
+    zero_succ = hd(successors)
+    Enum.map(1..length(successors) - 1, fn idx ->
+      succ_var = Enum.at(successors, idx)
+      %{constraints: constraints} = impl(Equal.new(succ_var, 0), Less.new(zero_succ, idx))
+      constraints
+    end
     )
   end
 
