@@ -220,7 +220,7 @@ defmodule CPSolver.Constraint.Factory do
   ## - relational constraint (LessOrEqual for implications, Equal for equivalence)
   ## over control variables induced by reified constraints.
   ##
-  def impl(constraint1, constraint2) do
+  def imp(constraint1, constraint2) do
     compose(constraint1, constraint2, LessOrEqual)
   end
 
@@ -228,8 +228,8 @@ defmodule CPSolver.Constraint.Factory do
     compose(constraint1, constraint2, Equal)
   end
 
-  def inverse_impl(constraint1, constraint2) do
-    impl(constraint2, constraint1)
+  def inverse_imp(constraint1, constraint2) do
+    imp(constraint2, constraint1)
   end
 
   defp result(derived_variable, constraint) do

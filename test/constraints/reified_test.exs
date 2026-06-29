@@ -180,7 +180,7 @@ defmodule CPSolverTest.Constraint.Reified do
     end
 
     test "implication" do
-      model = build_model(1..2, 1..2, 1..2, LessOrEqual, :impl)
+      model = build_model(1..2, 1..2, 1..2, LessOrEqual, :imp)
       {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 6
 
@@ -190,7 +190,7 @@ defmodule CPSolverTest.Constraint.Reified do
     end
 
     test "inverse implication" do
-      model = build_model(1..2, 1..2, 1..2, LessOrEqual, :inverse_impl)
+      model = build_model(1..2, 1..2, 1..2, LessOrEqual, :inverse_imp)
       {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 6
 
@@ -215,7 +215,7 @@ defmodule CPSolverTest.Constraint.Reified do
       constraint (1 < x) -> (5 < y);
       """
 
-      impl_model = Factory.impl(Less.new(c1, x), Less.new(c2, y))
+      impl_model = Factory.imp(Less.new(c1, x), Less.new(c2, y))
       model = Model.new([], impl_model.constraints)
       {:ok, res} = CPSolver.solve(model)
       assert res.statistics.solution_count == 5

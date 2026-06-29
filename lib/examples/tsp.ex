@@ -93,7 +93,7 @@ defmodule CPSolver.Examples.TSP do
     zero_succ = hd(successors)
     Enum.map(1..length(successors) - 1, fn idx ->
       succ_var = Enum.at(successors, idx)
-      %{constraints: constraints} = impl(Equal.new(succ_var, 0), Less.new(zero_succ, idx))
+      %{constraints: constraints} = imp(Equal.new(succ_var, 0), Less.new(zero_succ, idx))
       constraints
     end
     )

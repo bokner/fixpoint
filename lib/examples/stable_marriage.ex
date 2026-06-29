@@ -139,7 +139,7 @@ defmodule CPSolver.Examples.StableMarriage do
             ConstraintFactory.element(rankWomen_w, Enum.at(husband, w))
 
           impl_submodel =
-            ConstraintFactory.impl(
+            ConstraintFactory.imp(
               Less.new([rankMen_h_w, rankMen_h_w_var]),
               Less.new([rankWomen_w_h_var, rankWomen_w_h])
             )
