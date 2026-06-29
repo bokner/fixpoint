@@ -53,7 +53,7 @@ defmodule CPSolver.Examples.TSP do
   def model(distances, opts) do
     n = length(distances)
 
-    symmetry_breaking = Keyword.get(opts, :symmetry_breaking, true)
+    symmetry_breaking = Keyword.get(opts, :symmetry_breaking, false)
     {lb, ub} = get_bounds(distances)
     ## successor[i] = j <=> location j follows location i
     successors =
@@ -90,6 +90,8 @@ defmodule CPSolver.Examples.TSP do
   end
 
   defp symmetry_constraints(successors) do
+    ## Predessor of succ[0]
+    ## has greater position than the successor of succ[0]
     zero_succ = hd(successors)
     Enum.map(1..length(successors) - 1, fn idx ->
       succ_var = Enum.at(successors, idx)
