@@ -13,7 +13,7 @@ defmodule CPSolver.Examples.TSP do
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
   alias CPSolver.Constraint.Circuit
-  alias CPSolver.Constraint.{Equal, Less}
+  alias CPSolver.Constraint.{Equal, Less, Channel, Reified}
   alias CPSolver.Objective
   import CPSolver.Constraint.Factory
   import CPSolver.Utils
@@ -61,7 +61,39 @@ defmodule CPSolver.Examples.TSP do
         Variable.new(0..(n - 1), name: "succ_#{i}")
       end)
 
-    # ++ [Variable.new(0, name: "succ_#{n - 1}")]
+    indicators =
+      for i <- 0..(n - 1) do
+        for j <- 0..(n - 1) do
+          if i != j do
+            Variable.new(0..1)
+          else
+            Variable.new(0)
+          end
+      end
+    end
+
+    distance_vars =
+      for i <- 0..(n - 1) do
+        dists = Enum.at(distances, i)
+        inds = Enum.at(indicators, i)
+        for j <- 0..(n - 1) do
+          if i != j do
+            CPSolver.Variable.View.Factory.mul(Enum.at(inds, j), Enum.at(dists, j))
+          else
+            Variable.new(0)
+          end
+      end
+    end
+
+
+    ## Channel constraints
+    channel_constraints = for i <- 0..(n - 1) do
+      succ_i = Enum.at(successors, i)
+      indicators = Enum.at(indicators, i)
+        ## succ[i] = j iff ind[i, j] = 1
+      Channel.new(CPSolver.Variable.View.Factory.inc(succ_i, 1), indicators)
+    end
+
 
     ## Element constraints
     ## For each i, distance between i and it's successor must be in i-row of distance matrix
@@ -71,7 +103,7 @@ defmodule CPSolver.Examples.TSP do
       end)
       |> Enum.unzip()
 
-    {total_distance, sum_constraint} = sum(dist_succ)
+    {total_distance, sum_constraint} = sum(List.flatten(distance_vars))
     ## Apply bounds
     Variable.removeBelow(total_distance, lb)
     Variable.removeAbove(total_distance, ub)
@@ -81,7 +113,8 @@ defmodule CPSolver.Examples.TSP do
       [
         Circuit.new(successors),
         sum_constraint
-      ] ++ element_constraints
+      ] #++ element_constraints
+      ++ channel_constraints
       ++ (symmetry_breaking && symmetry_constraints(successors) || []),
 
       objective: Objective.minimize(total_distance),
