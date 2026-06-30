@@ -301,10 +301,10 @@ defmodule CPSolver.Shared do
         update_stats_counters(stats_ref, [
           {@active_node_count_pos, -1}
         ])
-
-      :ets.delete(active_nodes_table, space_pid)
       ## The solving is done when there is no more active nodes
       active_node_count == 0 && set_complete(solver)
+
+      :ets.delete(active_nodes_table, space_pid)
       :ok
     rescue
       _e -> :ok
