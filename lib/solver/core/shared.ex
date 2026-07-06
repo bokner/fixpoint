@@ -127,32 +127,19 @@ defmodule CPSolver.Shared do
   ## The value is 2-element (:counters) array
   ## First element is a thread counter, 2nd is the max number of
   ## space processes allowed to run simultaneously on a given node.
-  defp init_space_thread_counters(space_threads, nodes \\ [Node.self() | Node.list()]) do
-    :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true])
+  defp init_space_thread_counters(max_space_threads, _nodes \\ [Node.self() | Node.list()]) do
+    Array.new(2)
     |> tap(fn space_threads_ref ->
-      Enum.each(nodes, fn node ->
-        ref = :counters.new(2, [:atomics])
-        :counters.put(ref, 1, 0)
-        :counters.put(ref, 2, space_threads)
-        :ets.insert(space_threads_ref, {node, ref})
-      end)
+      Array.put(space_threads_ref, 1, 0)
+      Array.put(space_threads_ref, 2, max_space_threads)
     end)
   end
 
   defp get_space_thread_counters(
-         %{space_thread_counters: node_threads_ref} = _shared,
-         node
+         %{space_thread_counters: space_threads_ref} = _shared,
+         _node
        ) do
-    try do
-      :ets.lookup(node_threads_ref, node)
-      |> then(fn
-        [] ->
-          nil
-
-        [{^node, counter_ref}] ->
-          counter_ref
-      end)
-    rescue _e -> nil  end
+        space_threads_ref
   end
 
   def checkout_space_thread(solver, node \\ Node.self()) do
@@ -167,10 +154,11 @@ defmodule CPSolver.Shared do
       ) do
     counter_ref = get_space_thread_counters(solver, node)
 
-    if counter_ref && :counters.get(counter_ref, 1) < :counters.get(counter_ref, 2) do
-      :counters.add(counter_ref, 1, 1)
-      true
-    end
+    Array.update(counter_ref, 1, fn current ->
+      if Array.get(counter_ref, 2) > current do
+        current + 1
+      end
+    end)
   end
 
   def checkin_space_thread(solver) do
@@ -185,9 +173,11 @@ defmodule CPSolver.Shared do
     (complete?(solver) && :ok) ||
       (
         counter_ref = get_space_thread_counters(solver, node)
-        if counter_ref && :counters.get(counter_ref, 1) > 0 do
-          :counters.sub(counter_ref, 1, 1)
-        end
+        Array.update(counter_ref, 1, fn current ->
+          if current > 0 do
+            current - 1
+          end
+        end)
       )
   end
 
@@ -340,7 +330,7 @@ defmodule CPSolver.Shared do
 
   def cleanup_impl(%{thread_pool: thread_pool, solver_pid: solver_pid, objective: objective} = solver) do
     Enum.each(
-      [:solutions, :active_nodes, :auxillary, :space_thread_counters],
+      [:solutions, :active_nodes, :auxillary],
       fn item ->
         Map.get(solver, item) |> safe_ets_delete()
       end
