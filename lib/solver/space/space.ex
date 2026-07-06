@@ -74,7 +74,6 @@ defmodule CPSolver.Space do
      spawn_link(fn ->
        top_space_data
        |> init_impl()
-       |> tap(fn _ -> Shared.add_active_spaces(shared, [self()]) end)
        |> propagate()
      end)}
   end
@@ -147,9 +146,7 @@ defmodule CPSolver.Space do
     end
   end
 
-  defp run_space_impl(data, solver) do
-    Shared.add_active_spaces(solver, [self()])
-
+  defp run_space_impl(data, _solver) do
     data
     |> init_impl()
     |> propagate()

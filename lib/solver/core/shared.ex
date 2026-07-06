@@ -17,9 +17,7 @@ defmodule CPSolver.Shared do
         Array.new(4, 0),
       solutions:
         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
-      active_nodes:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
-      complete_flag: init_complete_flag(),
+        complete_flag: init_complete_flag(),
       space_thread_counters: init_space_thread_counters(space_threads),
       thread_pool: (
         {:ok, thread_pool} = ThreadPool.new(space_threads)
@@ -257,23 +255,6 @@ defmodule CPSolver.Shared do
     get_auxillary(solver, handler_id) || []
   end
 
-  def add_active_spaces(
-        solver,
-        spaces
-      ) do
-    (on_primary_node?(solver) &&
-       add_active_spaces_impl(solver, spaces)) ||
-      distributed_call(solver, :add_active_spaces_impl, [spaces])
-  end
-
-  def add_active_spaces_impl(%{active_nodes: active_nodes_table} = _solver_state, spaces) do
-    try do
-      Enum.each(spaces, fn n -> :ets.insert(active_nodes_table, {n, n}) end)
-    rescue
-      _e -> :ok
-    end
-  end
-
   def finalize_space(solver, space_data, space_pid, reason) do
     (on_primary_node?(solver) &&
        finalize_space_impl(solver, space_data, space_pid, reason)) ||
@@ -281,9 +262,9 @@ defmodule CPSolver.Shared do
   end
 
   def finalize_space_impl(
-        %{statistics: stats_ref, active_nodes: active_nodes_table} = solver,
+        %{statistics: stats_ref} = solver,
         space_data,
-        space_pid,
+        _space_pid,
         reason
       ) do
     try do
@@ -293,8 +274,6 @@ defmodule CPSolver.Shared do
         ])
       ## The solving is done when there is no more active nodes
       active_node_count == 0 && set_complete(solver)
-
-      :ets.delete(active_nodes_table, space_pid)
       :ok
     rescue
       _e -> :ok
@@ -330,7 +309,7 @@ defmodule CPSolver.Shared do
 
   def cleanup_impl(%{thread_pool: thread_pool, solver_pid: solver_pid, objective: objective} = solver) do
     Enum.each(
-      [:solutions, :active_nodes, :auxillary],
+      [:solutions, :auxillary],
       fn item ->
         Map.get(solver, item) |> safe_ets_delete()
       end
@@ -465,14 +444,6 @@ defmodule CPSolver.Shared do
 
   def objective_value_impl(%{objective: objective_record} = _solver) do
     Objective.get_objective_value(objective_record)
-  end
-
-  def active_nodes(%{active_nodes: active_nodes_table} = _solver) do
-    try do
-      :ets.tab2list(active_nodes_table) |> Enum.map(fn {_k, n} -> n end)
-    rescue
-      _e -> []
-    end
   end
 
   defp objective_value_from_solution(solution, %{variable: objective_variable} = _objective_rec) do
