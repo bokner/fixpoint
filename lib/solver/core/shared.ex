@@ -339,7 +339,6 @@ defmodule CPSolver.Shared do
   end
 
   def cleanup_impl(%{thread_pool: thread_pool, solver_pid: solver_pid, objective: objective} = solver) do
-    stop_spaces(solver)
     Enum.each(
       [:solutions, :active_nodes, :auxillary, :space_thread_counters],
       fn item ->
@@ -351,12 +350,6 @@ defmodule CPSolver.Shared do
     Process.alive?(thread_pool) && GenServer.stop(thread_pool)
     reset_objective(objective)
     :ok
-  end
-
-  def stop_spaces(solver) do
-    Enum.each(active_nodes(solver), fn space ->
-      :erpc.cast(node(space), fn -> Process.alive?(space) && Process.exit(space, :normal) end)
-    end)
   end
 
   def add_failure(solver, failure) do
