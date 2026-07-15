@@ -13,7 +13,7 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   @impl true
   def select(data, opts) do
     data
-    |> variable_afcs(Space.get_shared(data))
+    |> variable_afcs(Space.get_solver(data))
     |> select_impl(opts[:mode])
     |> Enum.map(fn {var, _afc} -> var end)
   end
@@ -49,7 +49,7 @@ defmodule CPSolver.Search.VariableSelector.AFC do
   """
   @impl true
   def initialize(space_data, opts) do
-    shared = Space.get_shared(space_data)
+    shared = Space.get_solver(space_data)
     decay = opts[:decay]
 
     Shared.get_auxillary(shared, :afc) ||

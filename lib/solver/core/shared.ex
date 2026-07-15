@@ -16,8 +16,8 @@ defmodule CPSolver.Shared do
       statistics:
         Array.new(4, 0),
       solutions:
-        :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
-        complete_flag: init_complete_flag(),
+         :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
+      complete_flag: init_complete_flag(),
       space_thread_counters: init_space_thread_counters(space_threads),
       thread_pool: (
         {:ok, thread_pool} = ThreadPool.new(space_threads)
@@ -151,9 +151,9 @@ defmodule CPSolver.Shared do
         node
       ) do
     counter_ref = get_space_thread_counters(solver, node)
-
+    max_threads = Array.get(counter_ref, 2)
     Array.update(counter_ref, 1, fn current ->
-      if Array.get(counter_ref, 2) > current do
+      if max_threads > current do
         current + 1
       end
     end)
@@ -267,7 +267,6 @@ defmodule CPSolver.Shared do
         _space_pid,
         reason
       ) do
-    try do
       [active_node_count] =
         update_stats_counters(stats_ref, [
           {@active_node_count_pos, -1}
@@ -275,9 +274,6 @@ defmodule CPSolver.Shared do
       ## The solving is done when there is no more active nodes
       active_node_count == 0 && set_complete(solver)
       :ok
-    rescue
-      _e -> :ok
-    end
     |> tap(fn _ -> on_finalize_space(solver, space_data, reason) end)
   end
 
@@ -365,8 +361,6 @@ defmodule CPSolver.Shared do
         solution
       ) do
     try do
-      update_stats_counters(stats_ref, [{@solution_count_pos, 1}])
-
       :ets.insert(
         solution_table,
         {make_ref(),
@@ -379,6 +373,8 @@ defmodule CPSolver.Shared do
     rescue
       _e -> :ok
     end
+    update_stats_counters(stats_ref, [{@solution_count_pos, 1}])
+
   end
 
   defp update_stats_counters(stats_ref, update_ops) do

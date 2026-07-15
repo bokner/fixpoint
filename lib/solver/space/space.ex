@@ -66,12 +66,10 @@ defmodule CPSolver.Space do
       |> Map.put(:search, search)
       |> put_shared(:initial_constraint_graph, initial_constraint_graph)
 
-    shared = get_shared(space_data)
-    Shared.increment_node_counts(shared)
-
     ## Create the 'top space' process and start propagation
     {:ok,
      spawn_link(fn ->
+       Shared.increment_node_counts(get_solver(space_data))
        top_space_data
        |> init_impl()
        |> propagate()
@@ -91,7 +89,7 @@ defmodule CPSolver.Space do
   end
 
   defp run_branch(data, partition_fun) do
-    solver = get_shared(data)
+    solver = get_solver(data)
 
     if solver.distributed do
       worker_node = Distributed.choose_worker_node(solver.distributed)
@@ -131,7 +129,7 @@ defmodule CPSolver.Space do
   end
 
   def run_space(data, partition_fun) do
-    solver = get_shared(data)
+    solver = get_solver(data)
     Shared.increment_node_counts(solver)
 
     data = apply_partition(data, partition_fun)
@@ -237,7 +235,7 @@ defmodule CPSolver.Space do
   end
 
   defp handle_failure(data, failure) do
-    Shared.add_failure(get_shared(data), failure)
+    Shared.add_failure(get_solver(data), failure)
     shutdown(data, :failure)
   end
 
@@ -254,7 +252,7 @@ defmodule CPSolver.Space do
 
   defp handle_error(exception, data) do
     Logger.error(inspect(exception))
-    Shared.set_complete(get_shared(data))
+    Shared.set_complete(get_solver(data))
     shutdown(data, :error)
   end
 
@@ -273,7 +271,7 @@ defmodule CPSolver.Space do
         |> Solution.run_handler(data.opts[:solution_handler])
         |> tap(fn handler_result ->
           cond do
-            CPSolver.complete?(get_shared(data)) ->
+            CPSolver.complete?(get_solver(data)) ->
               ## Stop producing solutions if the solving is complete
               throw(:complete)
 
@@ -325,7 +323,7 @@ defmodule CPSolver.Space do
   end
 
   defp handle_stable(data) do
-    if CPSolver.complete?(get_shared(data)) do
+    if CPSolver.complete?(get_solver(data)) do
       shutdown(data, :distribute)
     else
       distribute(data)
@@ -342,7 +340,7 @@ defmodule CPSolver.Space do
     try do
       Search.branch(search, data)
       |> Enum.take_while(fn partition_fun ->
-        if CPSolver.complete?(get_shared(data)) do
+        if CPSolver.complete?(get_solver(data)) do
           false
         else
           run_branch(
@@ -367,10 +365,10 @@ defmodule CPSolver.Space do
   end
 
   defp shutdown(data, reason) do
-    Shared.finalize_space(get_shared(data), data, self(), reason)
+    Shared.finalize_space(get_solver(data), data, self(), reason)
   end
 
-  def get_shared(data) do
+  def get_solver(data) do
     data.opts[:solver_data]
   end
 

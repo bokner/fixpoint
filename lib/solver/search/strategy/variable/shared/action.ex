@@ -14,7 +14,7 @@ defmodule CPSolver.Search.VariableSelector.Action do
   @impl true
   def select(data, opts) do
     data
-    |> variable_actions(Space.get_shared(data) |> Shared.get_auxillary(:action))
+    |> variable_actions(Space.get_solver(data) |> Shared.get_auxillary(:action))
     |> select_impl(opts[:mode])
     |> Enum.map(fn {var, _afc} -> var end)
   end
@@ -48,7 +48,7 @@ defmodule CPSolver.Search.VariableSelector.Action do
   """
   @impl true
   def initialize(%{variables: variables} = space_data, opts) do
-    shared = Space.get_shared(space_data)
+    shared = Space.get_solver(space_data)
 
     Shared.get_auxillary(shared, :action) ||
       (
