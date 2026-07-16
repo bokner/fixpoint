@@ -69,7 +69,8 @@ defmodule CPSolver.Space do
     ## Create the 'top space' process and start propagation
     {:ok,
      spawn_link(fn ->
-       Shared.increment_node_counts(get_solver(space_data))
+       solver = get_solver(space_data)
+       Shared.increment_node_counts(solver)
        top_space_data
        |> init_impl()
        |> propagate()

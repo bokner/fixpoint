@@ -14,7 +14,7 @@ defmodule CPSolver.Shared do
       sync_mode: false,
       solver_pid: self(),
       statistics:
-        Array.new(4, 0),
+        :counters.new(4, [:atomics]),
       solutions:
          :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       complete_flag: init_complete_flag(),
@@ -379,7 +379,8 @@ defmodule CPSolver.Shared do
 
   defp update_stats_counters(stats_ref, update_ops) do
     Enum.map(update_ops, fn {pos, val} ->
-      Array.update(stats_ref, pos, fn current -> current + val end)
+      :counters.add(stats_ref, pos, val)
+      :counters.get(stats_ref, pos)
     end)
   end
 
@@ -396,7 +397,7 @@ defmodule CPSolver.Shared do
   def statistics_impl(solver) do
     try do
       [active_node_count, failure_count, solution_count, node_count] =
-        Array.to_list(solver.statistics)
+        Enum.map(1..4, fn pos -> :counters.get(solver.statistics, pos) end)
 
       %{
         active_node_count: active_node_count,
