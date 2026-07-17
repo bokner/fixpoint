@@ -44,21 +44,25 @@ defmodule CPSolver.Objective do
       remote_call(handle, :update_bound_impl, [value])
   end
 
-  def update_bound_impl(bound_handle, value) do
-    case :atomics.get(bound_handle, 1) do
-      prev_value when prev_value > value ->
-        case :atomics.compare_exchange(bound_handle, 1, prev_value, value) do
-          :ok ->
-            value
+  defp update_bound_impl(bound_handle, new_value) do
+    current_value = :atomics.get(bound_handle, 1)
+    update_bound_sync(bound_handle, current_value, new_value)
+  end
 
-          _changed_in_between ->
-            update_bound_impl(bound_handle, value)
-        end
+  defp update_bound_sync(_bound_handle, current_value, candidate_value) when current_value <= candidate_value do
+    current_value
+  end
 
-      prev_value ->
-        # previous value lesser than the proposed one - keep
-        prev_value
+  defp update_bound_sync(bound_handle, current_value, candidate_value) do
+    ## Lesser candidate value
+    case :atomics.compare_exchange(bound_handle, 1, current_value, candidate_value) do
+      :ok ->
+        candidate_value
+
+      changed_by_other_thread ->
+        update_bound_sync(bound_handle, changed_by_other_thread, candidate_value)
     end
+
   end
 
   def tighten(%{variable: variable, bound_handle: handle} = _objective) do
