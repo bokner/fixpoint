@@ -73,7 +73,7 @@ defmodule CPSolverTest do
     assert res.status == :all_solutions
     ## N-Queens for n = 8, async solving
     {:ok, solver} = CPSolver.solve_async(Queens.model(8))
-    Process.sleep(10)
+    Process.sleep(1)
     {:running, _} = CPSolver.status(solver)
     Process.sleep(100)
     assert :all_solutions = CPSolver.status(solver)
