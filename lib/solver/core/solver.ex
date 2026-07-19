@@ -223,7 +223,7 @@ defmodule CPSolver do
         |> Keyword.put(:solution_handler, solution_handler_fun)
       )
 
-    {:noreply, Map.put(state, :space, top_space)}
+    {:noreply, Map.put(state, :top_space, top_space)}
   end
 
   ## Build a solution handler on top of initial one.

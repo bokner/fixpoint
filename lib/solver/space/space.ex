@@ -70,10 +70,12 @@ defmodule CPSolver.Space do
     {:ok,
      spawn_link(fn ->
        solver = get_solver(space_data)
+       checkout?(solver)
        Shared.increment_node_counts(solver)
        top_space_data
        |> init_impl()
        |> propagate()
+       checkin(solver)
      end)}
   end
 

@@ -14,7 +14,7 @@ defmodule CPSolver.Shared do
       sync_mode: false,
       solver_pid: self(),
       statistics:
-        :counters.new(4, [:atomics]),
+        :atomics.new(4, signed: true),
       solutions:
          :ets.new(__MODULE__, [:set, :public, read_concurrency: true, write_concurrency: true]),
       complete_flag: init_complete_flag(),
@@ -122,7 +122,7 @@ defmodule CPSolver.Shared do
   end
 
   ## This is a %{nodes => atomics} map.
-  ## The value is 2-element (:counters) array
+  ## The value is 2-element (:atomics) array
   ## First element is a thread counter, 2nd is the max number of
   ## space processes allowed to run simultaneously on a given node.
   defp init_space_thread_counters(max_space_threads, _nodes \\ [Node.self() | Node.list()]) do
@@ -152,11 +152,12 @@ defmodule CPSolver.Shared do
       ) do
     counter_ref = get_space_thread_counters(solver, node)
     max_threads = Array.get(counter_ref, 2)
-    Array.update(counter_ref, 1, fn current ->
-      if max_threads > current do
-        current + 1
+    case :atomics.add_get(counter_ref, 1, 1) do
+      val when val <= max_threads -> val
+      _overshot ->
+        :atomics.sub(counter_ref, 1, 1)
+        nil
       end
-    end)
   end
 
   def checkin_space_thread(solver) do
@@ -171,13 +172,26 @@ defmodule CPSolver.Shared do
     (complete?(solver) && :ok) ||
       (
         counter_ref = get_space_thread_counters(solver, node)
-        Array.update(counter_ref, 1, fn current ->
-          if current > 0 do
-            current - 1
-          end
-        end)
+        case :atomics.sub_get(counter_ref, 1, 1) do
+          val when val >= 0 -> val
+          _overshot ->
+            :atomics.add(counter_ref, 1, 1)
+            nil
+        end
       )
   end
+
+  def get_active_space_threads(solver, node \\ Node.self()) do
+    (on_primary_node?(solver) &&
+       get_active_space_threads_impl(solver, node)) ||
+      distributed_call(solver, :get_active_space_threads, [node])
+  end
+
+  def get_active_space_threads_impl(solver, node \\ Node.self()) do
+    counter_ref = get_space_thread_counters(solver, node)
+    Array.get(counter_ref, 1)
+  end
+
 
   def process_alive?(solver, pid) do
     (on_primary_node?(solver) &&
@@ -271,8 +285,11 @@ defmodule CPSolver.Shared do
         update_stats_counters(stats_ref, [
           {@active_node_count_pos, -1}
         ])
-      ## The solving is done when there is no more active nodes
-      active_node_count == 0 && set_complete(solver)
+
+      if active_node_count == 0
+      do
+        set_complete(solver)
+      end
       :ok
     |> tap(fn _ -> on_finalize_space(solver, space_data, reason) end)
   end
@@ -303,7 +320,7 @@ defmodule CPSolver.Shared do
       distributed_call(solver, :cleanup_impl)
   end
 
-  def cleanup_impl(%{thread_pool: thread_pool, solver_pid: solver_pid, objective: objective} = solver) do
+  def cleanup_impl(%{thread_pool: thread_pool, solver_pid: solver_pid} = solver) do
     Enum.each(
       [:solutions, :auxillary],
       fn item ->
@@ -313,7 +330,6 @@ defmodule CPSolver.Shared do
 
     Process.alive?(solver_pid) && GenServer.stop(solver_pid)
     Process.alive?(thread_pool) && GenServer.stop(thread_pool)
-    reset_objective(objective)
     :ok
   end
 
@@ -378,14 +394,21 @@ defmodule CPSolver.Shared do
   end
 
   defp update_stats_counters(stats_ref, update_ops) do
-    Enum.map(update_ops, fn {pos, val} ->
-      :counters.add(stats_ref, pos, val)
-      :counters.get(stats_ref, pos)
+    Enum.map(update_ops, fn {pos, delta} ->
+      case :atomics.add_get(stats_ref, pos, delta) do
+        val when val < 0 ->
+          ## overshot to negative - roll back
+          :atomics.sub(stats_ref, pos, delta)
+        val -> val
+      end
+      # case :atomics.add_get(stats_ref, pos, delta) do
+      #   val when val < 0 ->
+      #     ## overshot - roll back
+      #     :atomics.sub(stats_ref, pos, delta)
+      #   _ ->
+      #     :ok
+      #   end
     end)
-  end
-
-  defp reset_objective(objective) do
-    objective && Objective.reset_bound(objective)
   end
 
   def statistics(solver) do
@@ -397,7 +420,7 @@ defmodule CPSolver.Shared do
   def statistics_impl(solver) do
     try do
       [active_node_count, failure_count, solution_count, node_count] =
-        Enum.map(1..4, fn pos -> :counters.get(solver.statistics, pos) end)
+        Enum.map(1..4, fn pos -> :atomics.get(solver.statistics, pos) end)
 
       %{
         active_node_count: active_node_count,

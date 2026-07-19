@@ -8,20 +8,24 @@ defmodule CpSolverTest.Objective do
 
   describe "Objective API" do
     test "low-level operations" do
-      handle = Objective.init_bound_handle()
+      objective_var = Variable.new(1..10)
+      handle = Objective.init_bound_handle(objective_var)
+      assert 10 == Objective.get_bound(handle)
+
       Objective.update_bound(handle, 100)
-      assert 100 == Objective.get_bound(handle)
+      assert 10 == Objective.get_bound(handle)
       ## Updates the bound with the lower value
-      Objective.update_bound(handle, 10)
-      assert 10 == Objective.get_bound(handle)
-      ## Doesn't update the bound with the higher value
-      Objective.update_bound(handle, 100)
-      assert 10 == Objective.get_bound(handle)
+      Objective.update_bound(handle, 9)
+      assert 9 == Objective.get_bound(handle)
+      ## Try update the bound with the higher value
+      Objective.update_bound(handle, 11)
+      ## No update
+      assert 9 == Objective.get_bound(handle)
     end
 
     test "concurrent updates to the bound result in setting the lowest bound value" do
-      handle = Objective.init_bound_handle()
-      refute 1 == Objective.get_bound(handle)
+      objective_var = Variable.new(1..10_000)
+      handle = Objective.init_bound_handle(objective_var)
       num_updates = 1000
       bounds = Enum.shuffle(1..num_updates)
 
