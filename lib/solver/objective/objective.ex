@@ -11,7 +11,7 @@ defmodule CPSolver.Objective do
         }
 
   def minimize(variable) do
-    bound_handle = init_bound_handle(variable)
+    bound_handle = init_bound_handle(Interface.variable(variable))
     propagator = ObjectivePropagator.new(variable, bound_handle)
 
     %{
