@@ -259,6 +259,7 @@ defmodule CPSolver.Space do
 
   defp process_solutions(%{variables: variables} = data) do
     ## Generate solutions and run them through solution handler.
+    solver_state = get_solver(data)
     try do
       Enum.map(variables, fn var ->
         Utils.domain_values(var)
@@ -270,10 +271,10 @@ defmodule CPSolver.Space do
         |> Map.new(fn {val, variable} ->
           {variable.name, val}
         end)
-        |> Solution.run_handler(data.opts[:solution_handler])
+        |> Solution.run_handler(data.opts[:solution_handler], solver_state)
         |> tap(fn handler_result ->
           cond do
-            CPSolver.complete?(get_solver(data)) ->
+            CPSolver.complete?(solver_state) ->
               ## Stop producing solutions if the solving is complete
               throw(:complete)
 

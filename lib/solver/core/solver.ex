@@ -212,7 +212,7 @@ defmodule CPSolver do
       solver_opts
       |> Keyword.get(:solution_handler, Solution.default_handler())
       |> build_solution_handler(state)
-      |> Solution.solution_handler(variables)
+      |> Solution.solution_handler(variables, state)
 
     {:ok, top_space} =
       Space.create(
@@ -228,28 +228,28 @@ defmodule CPSolver do
 
   ## Build a solution handler on top of initial one.
   ## For now, this adds handling logic for stop conditions
-  defp build_solution_handler(solution_handler, solver_state) do
-    stop_on_opt = get_in(solver_state, [:solver_opts, :stop_on])
+  defp build_solution_handler(solution_handler, space_state) do
+    stop_on_opt = get_in(space_state, [:solver_opts, :stop_on])
 
     fn solution ->
-      if not CPSolver.complete?(solver_state.shared) do
+      if not CPSolver.complete?(space_state.shared) do
         solution
-        |> Solution.run_handler(solution_handler)
-        |> tap(fn _ -> Shared.add_solution(solver_state.shared, solution) end)
-        |> tap(fn result -> check_stop_condition(stop_on_opt, result, solution, solver_state) end)
+        |> Solution.run_handler(solution_handler, space_state)
+        |> tap(fn _ -> Shared.add_solution(space_state.shared, solution) end)
+        |> tap(fn result -> check_stop_condition(stop_on_opt, result, solution, space_state) end)
       end
     end
   end
 
-  defp check_stop_condition(stop_on_opt, handler_result, solution, solver_state) do
+  defp check_stop_condition(stop_on_opt, handler_result, solution, space_state) do
     stop_on_opt &&
-      condition_fun(stop_on_opt).(handler_result, solution, solver_state) &&
-      Shared.set_complete(solver_state.shared)
+      condition_fun(stop_on_opt).(handler_result, solution, space_state) &&
+      Shared.set_complete(space_state.shared)
   end
 
   defp condition_fun({:max_solutions, max_solutions}) do
-    fn _handler_result, _solution, solver_state ->
-      solution_count = Shared.statistics(solver_state.shared) |> Map.get(:solution_count, 0)
+    fn _handler_result, _solution, space_state ->
+      solution_count = Shared.statistics(space_state.shared) |> Map.get(:solution_count, 0)
       max_solutions <= solution_count
     end
   end

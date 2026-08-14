@@ -27,6 +27,8 @@ defmodule CPSolver.Examples.TSP do
   @failure_symbol "\u1D350"
 
   def run(instance, opts \\ []) do
+    Logger.configure(level: :notice)
+
     model = model(instance, opts)
 
     opts =
@@ -162,18 +164,20 @@ defmodule CPSolver.Examples.TSP do
   end
 
   def solution_handler(model) do
-    fn solution ->
+    fn solution, space_state ->
       solution
       |> Enum.at(model.extra.n)
-      |> tap(fn {_ref, total} ->
-        ans_str = inspect({"total", total})
+      |> tap(fn {_ref, objective} ->
 
-        (check_solution(
+        if check_solution(
            Enum.map(solution, fn {_, val} -> val end),
            model
-         ) &&
-           Logger.warning("#{@checkmark_symbol} #{ans_str}")) ||
-          Logger.error("#{@failure_symbol} #{ans_str}" <> ": wrong -((")
+        ) do
+          Logger.notice("#{@checkmark_symbol} #{objective}")
+          Logger.notice(inspect(CPSolver.statistics(space_state.shared)))
+        else
+          Logger.error("#{@failure_symbol} #{objective}" <> ": wrong -((")
+        end
       end)
     end
   end
