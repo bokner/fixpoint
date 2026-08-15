@@ -257,13 +257,20 @@ defmodule CPSolver.Space do
     shutdown(data, :error)
   end
 
-  defp process_solutions(%{variables: variables} = data) do
+  defp process_solutions(%{variables: variables, opts: opts} = data) do
     ## Generate solutions and run them through solution handler.
     solver_state = get_solver(data)
+    solution_handler = opts[:solution_handler]
     try do
       Enum.map(variables, fn var ->
         Utils.domain_values(var)
       end)
+      ## Note:
+      ## The variables don't have to be fixed!
+      ## The propagation decides that the space is "solved"
+      ## when the reduction of domains is completed.
+      ## This can result in some of the variables domains to still have multiple values.
+      ## Hence, we construct the solutions as a cartesian product of all variable domains.
       |> Utils.lazy_cartesian(fn values ->
         values
         |> Enum.reverse()
@@ -271,7 +278,7 @@ defmodule CPSolver.Space do
         |> Map.new(fn {val, variable} ->
           {variable.name, val}
         end)
-        |> Solution.run_handler(data.opts[:solution_handler], solver_state)
+        |> Solution.run_handler(solution_handler, solver_state)
         |> tap(fn handler_result ->
           cond do
             CPSolver.complete?(solver_state) ->
