@@ -6,19 +6,24 @@ defmodule CPSolver.Solution do
     CPSolver.Solution.DefaultHandler
   end
 
-  def run_handler(solution, handler) when is_atom(handler) do
+  def run_handler(solution, handler, _args) when is_atom(handler) do
     handler.handle(solution)
   end
 
-  def run_handler(solution, handler) when is_function(handler) do
+  def run_handler(solution, handler, _args) when is_function(handler, 1) do
     handler.(solution)
   end
 
-  def solution_handler(handler, variables) do
+  def run_handler(solution, handler, args) when is_function(handler, 2) do
+    handler.(solution, args)
+  end
+
+
+  def solution_handler(handler, variables, space_state) do
     fn solution ->
       solution
       |> reconcile(variables)
-      |> run_handler(handler)
+      |> run_handler(handler, space_state)
     end
   end
 

@@ -34,8 +34,7 @@ defmodule CPSolver.Space do
 
   ## Top space creation
   def create(
-        %{variables: variables, propagators: propagators,
-        objective: objective} = _state,
+        %{variables: variables, propagators: propagators, objective: objective} = _state,
         space_opts \\ default_space_opts()
       ) do
     propagators =
@@ -72,9 +71,11 @@ defmodule CPSolver.Space do
        solver = get_solver(space_data)
        checkout?(solver)
        Shared.increment_node_counts(solver)
+
        top_space_data
        |> init_impl()
        |> propagate()
+
        checkin(solver)
      end)}
   end
@@ -112,7 +113,10 @@ defmodule CPSolver.Space do
   ## Here we are restoring the domains and do branching.
   ## Unfixed vars tracker:
   ## We also had to serialize the tracker - restoring it as well
-  def run_space(%{domains: domains, variables: variables, unfixed_tracker_serialized: tracker} = data, partition_fun) do
+  def run_space(
+        %{domains: domains, variables: variables, unfixed_tracker_serialized: tracker} = data,
+        partition_fun
+      ) do
     restored_variables =
       Vector.reduce(variables, Vector.new([]), fn var, acc ->
         domain = Map.get(domains, Interface.id(var))
@@ -158,13 +162,12 @@ defmodule CPSolver.Space do
       variable_copies: branch_variables,
       domain_changes: changes,
       unfixed_variables_tracker: tracker
-      } = partition_fun.(data)
+    } = partition_fun.(data)
 
     data
     |> Map.put(:variables, branch_variables)
     |> Map.put(:unfixed_variables_tracker, tracker)
     |> put_in([:opts, :changes], changes)
-
   end
 
   ## Prepare local data to be used on remote node.
@@ -243,13 +246,8 @@ defmodule CPSolver.Space do
   end
 
   defp handle_solved(data) do
-    process_solutions(data)
-  end
-
-  defp process_solutions(data) do
     maybe_tighten_objective_bound(data[:objective])
-    ## Generate solutions and run them through solution handler.
-    solutions(data)
+    process_solutions(data)
     shutdown(data, :solved)
   end
 
@@ -259,11 +257,20 @@ defmodule CPSolver.Space do
     shutdown(data, :error)
   end
 
-  defp solutions(%{variables: variables} = data) do
+  defp process_solutions(%{variables: variables, opts: opts} = data) do
+    ## Generate solutions and run them through solution handler.
+    solver_state = get_solver(data)
+    solution_handler = opts[:solution_handler]
     try do
       Enum.map(variables, fn var ->
         Utils.domain_values(var)
       end)
+      ## Note:
+      ## The variables don't have to be fixed!
+      ## The propagation decides that the space is "solved"
+      ## when the reduction of domains is completed.
+      ## This can result in some of the variables domains to still have multiple values.
+      ## Hence, we construct the solutions as a cartesian product of all variable domains.
       |> Utils.lazy_cartesian(fn values ->
         values
         |> Enum.reverse()
@@ -271,10 +278,10 @@ defmodule CPSolver.Space do
         |> Map.new(fn {val, variable} ->
           {variable.name, val}
         end)
-        |> Solution.run_handler(data.opts[:solution_handler])
+        |> Solution.run_handler(solution_handler, solver_state)
         |> tap(fn handler_result ->
           cond do
-            CPSolver.complete?(get_solver(data)) ->
+            CPSolver.complete?(solver_state) ->
               ## Stop producing solutions if the solving is complete
               throw(:complete)
 
@@ -360,7 +367,7 @@ defmodule CPSolver.Space do
       shutdown(data, :distribute)
     catch
       :all_vars_fixed ->
-        process_solutions(data)
+        handle_solved(data)
 
       :fail ->
         handle_failure(data, :failure)
