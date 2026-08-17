@@ -100,13 +100,6 @@ defmodule CPSolver.Examples.TSP do
     ordering_constraint = Less.new(zero_pred, zero_succ)
 
     [pred_index_constraint, ordering_constraint]
-    ##
-    # Enum.map(1..length(successors) - 1, fn idx ->
-    #   succ_var = Enum.at(successors, idx)
-    #   %{constraints: constraints} = imp(Equal.new(succ_var, 0), Less.new(zero_succ, ))
-    #   constraints
-    # end
-    # )
   end
 
   defp get_bounds(distances) do
