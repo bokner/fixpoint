@@ -55,15 +55,16 @@ defmodule CPSolver.Examples.TSP do
   def model(distances, opts) do
     n = length(distances)
 
-    symmetry_breaking = Keyword.get(opts, :symmetry_breaking, false)
+    symmetry_breaking = Keyword.get(opts, :symmetry_breaking, true)
     {lb, ub} = get_bounds(distances)
     ## successor[i] = j <=> location j follows location i
     successors =
       Enum.map(0..(n - 1), fn i ->
-        Variable.new(0..(n - 1), name: "succ_#{i}")
+        for j <- 0..(n-1), j != i do
+          j
+        end
+        |> Variable.new(name: "succ_#{i}")
       end)
-
-    # ++ [Variable.new(0, name: "succ_#{n - 1}")]
 
     ## Element constraints
     ## For each i, distance between i and it's successor must be in i-row of distance matrix
@@ -84,23 +85,28 @@ defmodule CPSolver.Examples.TSP do
         Circuit.new(successors),
         sum_constraint
       ] ++ element_constraints
-      ++ (symmetry_breaking && symmetry_constraints(successors) || []),
+      ++ (symmetry_breaking && symmetry_constraints(successors, n) || []),
 
       objective: Objective.minimize(total_distance),
       extra: %{n: n, distances: distances, lb: lb, ub: ub}
     )
   end
 
-  defp symmetry_constraints(successors) do
-    ## Predessor of succ[0]
-    ## has greater position than the successor of succ[0]
+  defp symmetry_constraints(successors, n) do
     zero_succ = hd(successors)
-    Enum.map(1..length(successors) - 1, fn idx ->
-      succ_var = Enum.at(successors, idx)
-      %{constraints: constraints} = imp(Equal.new(succ_var, 0), Less.new(zero_succ, idx))
-      constraints
-    end
-    )
+    zero_pred = Variable.new(0..n-2)
+    pred_index_constraint = element(successors, zero_pred, zero_succ)
+    ## For the start of the cycle, the index of predessor is less than the index of successor
+    ordering_constraint = Less.new(zero_pred, zero_succ)
+
+    [pred_index_constraint, ordering_constraint]
+    ##
+    # Enum.map(1..length(successors) - 1, fn idx ->
+    #   succ_var = Enum.at(successors, idx)
+    #   %{constraints: constraints} = imp(Equal.new(succ_var, 0), Less.new(zero_succ, ))
+    #   constraints
+    # end
+    # )
   end
 
   defp get_bounds(distances) do
