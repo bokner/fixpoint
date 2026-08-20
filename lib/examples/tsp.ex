@@ -12,8 +12,7 @@ defmodule CPSolver.Examples.TSP do
   """
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
-  alias CPSolver.Constraint.Circuit
-  alias CPSolver.Constraint.{Equal, Less}
+  alias CPSolver.Constraint.{Circuit, Less}
   alias CPSolver.Objective
   import CPSolver.Constraint.Factory
   import CPSolver.Utils
