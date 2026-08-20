@@ -12,7 +12,8 @@ defmodule CPSolver.Examples.TSP do
   """
   alias CPSolver.IntVariable, as: Variable
   alias CPSolver.Model
-  alias CPSolver.Constraint.{Circuit, Less}
+  alias CPSolver.Constraint.Circuit
+  alias CPSolver.Constraint.{Equal, Less}
   alias CPSolver.Objective
   import CPSolver.Constraint.Factory
   import CPSolver.Utils
@@ -110,30 +111,8 @@ defmodule CPSolver.Examples.TSP do
     end)
     end)
     dist_fun = fn from, to -> Enum.at(distances, to - 1) |> Enum.at(from - 1) end
-    {mst_edges, lb} = BitGraph.mst(graph, dist_fun: dist_fun)
-    {lb, upper_bound(mst_edges, distances)}
-  end
-
-  def upper_bound(mst_edges, distances) do
-    dist_fun = fn from, to -> Enum.at(distances, to - 1) |> Enum.at(from - 1) end
-
-    [{first_from, first_to} | tl] = mst_edges
-    circuit = Enum.reduce(tl, [first_from, first_to],
-      fn {from, to}, order_acc ->
-      order_acc =
-        if to in order_acc do
-          order_acc
-        else
-          [to | order_acc]
-        end
-        if from in order_acc do
-          order_acc
-        else
-          [from | order_acc]
-        end
-    end) ++ [first_from]
-    ##
-    Enum.reduce(0..length(circuit) - 2, 0, fn idx, acc -> acc + dist_fun.(idx, idx + 1) end)
+    {_edges, lb} = BitGraph.mst(graph, dist_fun: dist_fun)
+    {lb, 2 * lb}
   end
 
   def check_solution(solution, %{extra: %{distances: distances}} = _model) do
