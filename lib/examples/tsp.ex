@@ -35,7 +35,7 @@ defmodule CPSolver.Examples.TSP do
         [
           search: search(model),
           solution_handler: solution_handler(model),
-          timeout: :timer.minutes(5),
+          timeout: :timer.minutes(5)
         ],
         opts
       )
@@ -46,6 +46,7 @@ defmodule CPSolver.Examples.TSP do
 
   ## Read and compile data from instance file
   def model(data, opts \\ [])
+
   def model(data, opts) when is_binary(data) do
     {_n, distances} = parse_instance(data)
     model(distances, opts)
@@ -59,7 +60,7 @@ defmodule CPSolver.Examples.TSP do
     ## successor[i] = j <=> location j follows location i
     successors =
       Enum.map(0..(n - 1), fn i ->
-        for j <- 0..(n-1), j != i do
+        for j <- 0..(n - 1), j != i do
           j
         end
         |> Variable.new(name: "succ_#{i}")
@@ -83,9 +84,9 @@ defmodule CPSolver.Examples.TSP do
       [
         Circuit.new(successors),
         sum_constraint
-      ] ++ element_constraints
-      ++ (symmetry_breaking && symmetry_constraints(successors, n) || []),
-
+      ] ++
+        element_constraints ++
+        ((symmetry_breaking && symmetry_constraints(successors, n)) || []),
       objective: Objective.minimize(total_distance),
       extra: %{n: n, distances: distances, lb: lb, ub: ub}
     )
@@ -93,7 +94,7 @@ defmodule CPSolver.Examples.TSP do
 
   defp symmetry_constraints(successors, n) do
     zero_succ = hd(successors)
-    zero_pred = Variable.new(0..n-2)
+    zero_pred = Variable.new(0..(n - 2))
     pred_index_constraint = element(successors, zero_pred, zero_succ)
     ## For the start of the cycle, the index of predessor is less than the index of successor
     ordering_constraint = Less.new(zero_pred, zero_succ)
@@ -103,15 +104,51 @@ defmodule CPSolver.Examples.TSP do
 
   defp get_bounds(distances) do
     l = length(distances)
+
     graph =
-    Enum.reduce(1..l-1, BitGraph.new(), fn v1, acc ->
-      Enum.reduce((v1 + 1)..l, acc, fn v2, acc2 ->
-      BitGraph.add_edge(acc2, v1, v2)
-    end)
-    end)
+      Enum.reduce(1..(l - 1), BitGraph.new(), fn v1, acc ->
+        Enum.reduce((v1 + 1)..l, acc, fn v2, acc2 ->
+          BitGraph.add_edge(acc2, v1, v2)
+        end)
+      end)
+
     dist_fun = fn from, to -> Enum.at(distances, to - 1) |> Enum.at(from - 1) end
-    {_edges, lb} = BitGraph.mst(graph, dist_fun: dist_fun)
-    {lb, 2 * lb}
+    {mst_edges, lb} = BitGraph.mst(graph, dist_fun: dist_fun)
+    path_upper_bound = path_upper_bound(mst_edges, graph, dist_fun)
+    {lb, min(path_upper_bound, 2 * lb)}
+  end
+
+  defp path_upper_bound(mst_edges, graph, dist_fun) do
+    BitGraph.Algorithm.dfs(graph,
+      process_edge_fun: fn %{acc: acc} = _state, from, to ->
+        if {from, to} in mst_edges do
+          acc =
+            acc || []
+
+          acc =
+            if from in acc do
+              acc
+            else
+              [from | acc]
+            end
+
+          if to in acc do
+            acc
+          else
+            [to | acc]
+          end
+        else
+          acc
+        end
+      end
+    )
+    |> Map.get(:acc)
+    |> then(fn path ->
+      circuit = [List.last(path) | path]
+      Enum.reduce(0..length(circuit) - 2, 0, fn idx, acc ->
+        acc + dist_fun.(Enum.at(circuit, idx), Enum.at(circuit, idx + 1))
+      end)
+    end)
   end
 
   def check_solution(solution, %{extra: %{distances: distances}} = _model) do
@@ -143,15 +180,23 @@ defmodule CPSolver.Examples.TSP do
     end
 
     choose_variable_fun = fn %{
-      unfixed_variables_tracker: tracker,
-      variables: variables} = _space_data  ->
-      circuit_vars = Tracker.iterate(tracker, variables, [], fn v, acc ->
-        if v.index <= n do
-          [v | acc]
-        else
-          acc
-        end
-      end, false)
+                               unfixed_variables_tracker: tracker,
+                               variables: variables
+                             } = _space_data ->
+      circuit_vars =
+        Tracker.iterate(
+          tracker,
+          variables,
+          [],
+          fn v, acc ->
+            if v.index <= n do
+              [v | acc]
+            else
+              acc
+            end
+          end,
+          false
+        )
 
       if !Enum.empty?(circuit_vars) do
         difference_between_closest_distances(circuit_vars, tuple_matrix)
@@ -166,11 +211,10 @@ defmodule CPSolver.Examples.TSP do
       solution
       |> Enum.at(model.extra.n)
       |> tap(fn {_ref, objective} ->
-
         if check_solution(
-           Enum.map(solution, fn {_, val} -> val end),
-           model
-        ) do
+             Enum.map(solution, fn {_, val} -> val end),
+             model
+           ) do
           Logger.notice("#{@checkmark_symbol} #{objective}")
           Logger.notice(inspect(CPSolver.statistics(space_state.shared)))
         else
