@@ -122,20 +122,20 @@ defmodule CPSolver.Examples.TSP do
     BitGraph.Algorithm.dfs(graph,
       process_edge_fun: fn %{acc: acc} = _state, from, to ->
         if {from, to} in mst_edges do
-          acc =
-            acc || []
-
-          acc =
-            if from in acc do
+          if acc do
+            acc = if from in acc do
               acc
             else
               [from | acc]
             end
 
-          if to in acc do
-            acc
+            if to in acc do
+              acc
+            else
+              [to | acc]
+            end
           else
-            [to | acc]
+            [to, from]
           end
         else
           acc
