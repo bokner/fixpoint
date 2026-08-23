@@ -11,7 +11,7 @@ defmodule CPSolver.Objective do
         }
 
   def minimize(variable) do
-    bound_handle = init_bound_handle(Interface.variable(variable))
+    bound_handle = init_bound_handle()
     propagator = ObjectivePropagator.new(variable, bound_handle)
 
     %{
@@ -73,23 +73,23 @@ defmodule CPSolver.Objective do
     update_bound(bound_handle, Interface.max(variable) - 1)
   end
 
-  def init_bound_handle(variable) do
+  def init_bound_handle() do
     ref = :atomics.new(1, signed: true)
-    reset_bound(ref, Interface.max(variable))
+    reset_bound(ref)
     ref
   end
 
-  def reset_bound(%{bound_handle: ref} = _objective, value) do
-    reset_bound(ref, value)
+  def reset_bound(%{bound_handle: ref} = _objective) do
+    reset_bound(ref)
   end
 
-  def reset_bound(handle, value) when is_reference(handle) do
-    (on_primary_node?(handle) && reset_bound_impl(handle, value)) ||
-      remote_call(handle, :reset_bound_impl, [value])
+  def reset_bound(handle) when is_reference(handle) do
+    (on_primary_node?(handle) && reset_bound_impl(handle)) ||
+      remote_call(handle, :reset_bound_impl)
   end
 
-  def reset_bound_impl(ref, value) when is_reference(ref) do
-    :atomics.put(ref, 1, value)
+  def reset_bound_impl(ref) when is_reference(ref) do
+    :atomics.put(ref, 1, :atomics.info(ref).max)
   end
 
   def get_objective_value(%{target: target, bound_handle: handle} = _objective) do
