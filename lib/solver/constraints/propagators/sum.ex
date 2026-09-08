@@ -43,8 +43,7 @@ defmodule CPSolver.Propagator.Sum do
     {sum_fixed, sum_min, sum_max, updated_unfixed_ids} =
       apply_changes(all_vars, unfixed_ids, sum_fixed, changes)
 
-    state = filter_impl(all_vars, updated_unfixed_ids, sum_min, sum_max, sum_fixed)
-    {:state, state}
+    filter_impl(all_vars, updated_unfixed_ids, sum_min, sum_max, sum_fixed)
   end
 
   defp apply_changes(all_vars, unfixed_ids, sum_fixed, _changes) do
@@ -55,7 +54,7 @@ defmodule CPSolver.Propagator.Sum do
                                                                                    sum_max_acc,
                                                                                    unfixed_ids_acc
                                                                                  } ->
-      var = Propagator.arg_at(all_vars, pos)
+      var = all_vars[pos]
 
       if fixed?(var) do
         min_var = min(var)
@@ -75,11 +74,27 @@ defmodule CPSolver.Propagator.Sum do
       update_partial_sums(variables, unfixed_ids, sum_min, sum_max, sum_fixed)
 
     test_unsatisfiable(new_sum_min, new_sum_max, new_sum_fixed, new_unfixed_ids)
-    ## Enforce idempotence: we'll run filtering until there's no changes
-    if domain_changes? do
-      filter_impl(variables, new_unfixed_ids, new_sum_min, new_sum_max, new_sum_fixed)
-    else
-      %{sum_fixed: new_sum_fixed, unfixed_ids: new_unfixed_ids}
+
+    cond do
+      Enum.empty?(new_unfixed_ids) ->
+        :passive
+      MapSet.size(new_unfixed_ids) == 1 ->
+        ### Single unfixed variable.
+        ### We'll try to fix it to the value that would bring total sum
+        ### of fixed vars to 0.
+        ### Note: won't bother with extraction of the element from the set of ids,
+        ### as we only care about side effect (fixing the variable)
+        Enum.each(new_unfixed_ids, fn var_idx -> fix(variables[var_idx], -new_sum_fixed) end)
+
+        :passive
+      ## Enforce idempotence: we'll run filtering until there's no changes
+      domain_changes? ->
+        filter_impl(variables, new_unfixed_ids, new_sum_min, new_sum_max, new_sum_fixed)
+
+      true ->
+        {:state,
+          %{sum_fixed: new_sum_fixed, unfixed_ids: new_unfixed_ids}
+      }
     end
   end
 
@@ -89,7 +104,7 @@ defmodule CPSolver.Propagator.Sum do
                                                                                      s_fixed,
                                                                                      unfixed_ids_acc,
                                                                                      changed_acc?} ->
-      v = Propagator.arg_at(variables, pos)
+      v = variables[pos]
       min_v = min(v)
       max_v = max(v)
 
