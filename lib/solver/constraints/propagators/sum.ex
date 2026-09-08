@@ -21,6 +21,7 @@ defmodule CPSolver.Propagator.Sum do
       args
       |> Enum.reduce({0, 0, MapSet.new()}, fn var, {idx_acc, sum_acc, unfixed_acc} ->
         next_idx = idx_acc + 1
+
         (fixed?(var) && {next_idx, sum_acc + min(var), unfixed_acc}) ||
           {next_idx, sum_acc, MapSet.put(unfixed_acc, idx_acc)}
       end)
@@ -29,11 +30,8 @@ defmodule CPSolver.Propagator.Sum do
   end
 
   @impl true
-  def variables([y | x]) do
-    [
-      set_propagate_on(y, :domain_change)
-      | Enum.map(x, fn x_el -> set_propagate_on(x_el, :bound_change) end)
-    ]
+  def variables(vars) do
+    Enum.map(vars, fn var -> set_propagate_on(var, :bound_change) end)
   end
 
   @impl true
@@ -41,80 +39,83 @@ defmodule CPSolver.Propagator.Sum do
     filter(all_vars, initial_state(all_vars), changes)
   end
 
-  def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_ids: unfixed_ids} = _state, _changes) do
-    {unfixed_vars, updated_unfixed_ids, new_sum} = update_unfixed(all_vars, unfixed_ids)
-    updated_sum = sum_fixed + new_sum
-    {sum_min, sum_max} = sum_min_max(updated_sum, unfixed_vars)
+  def filter(all_vars, %{sum_fixed: sum_fixed, unfixed_ids: unfixed_ids} = _state, changes) do
+    {sum_fixed, sum_min, sum_max, updated_unfixed_ids} =
+      apply_changes(all_vars, unfixed_ids, sum_fixed, changes)
 
-    case filter_impl(unfixed_vars, sum_min, sum_max) do
-      :fail -> fail()
-      :ok -> {:state, %{sum_fixed: updated_sum, unfixed_ids: updated_unfixed_ids}}
-    end
+    state = filter_impl(all_vars, updated_unfixed_ids, sum_min, sum_max, sum_fixed)
+    {:state, state}
   end
 
-  defp update_unfixed(all_vars, unfixed_ids) do
-    Enum.reduce(unfixed_ids, {[], unfixed_ids, 0}, fn pos, {unfixed_acc, ids_acc, sum_acc} ->
+  defp apply_changes(all_vars, unfixed_ids, sum_fixed, _changes) do
+    Enum.reduce(unfixed_ids, {sum_fixed, sum_fixed, sum_fixed, MapSet.new()}, fn pos,
+                                                                                 {
+                                                                                   sum_acc,
+                                                                                   sum_min_acc,
+                                                                                   sum_max_acc,
+                                                                                   unfixed_ids_acc
+                                                                                 } ->
       var = Propagator.arg_at(all_vars, pos)
 
-      (fixed?(var) && {unfixed_acc, MapSet.delete(ids_acc, pos), sum_acc + min(var)}) ||
-        {[var | unfixed_acc], ids_acc, sum_acc}
+      if fixed?(var) do
+        min_var = min(var)
+        sum_min_acc = sum_min_acc + min_var
+        sum_max_acc = sum_max_acc + min_var
+        {sum_acc + min(var), sum_min_acc, sum_max_acc, unfixed_ids_acc}
+      else
+        sum_min_acc = sum_min_acc + min(var)
+        sum_max_acc = sum_max_acc + max(var)
+        {sum_acc, sum_min_acc, sum_max_acc, MapSet.put(unfixed_ids_acc, pos)}
+      end
     end)
   end
 
-  defp filter_impl(variables, sum_min, sum_max) do
-    if unsatisfiable(sum_min, sum_max) do
-      fail()
-    else
-      {new_sum_min, new_sum_max} = update_partial_sums(variables, sum_min, sum_max)
+  defp filter_impl(variables, unfixed_ids, sum_min, sum_max, sum_fixed) do
+    {new_sum_min, new_sum_max, new_sum_fixed, new_unfixed_ids, domain_changes?} =
+      update_partial_sums(variables, unfixed_ids, sum_min, sum_max, sum_fixed)
 
-      ## Enforce idempotence: we'll run filtering until there's no changes
-      ((new_sum_min != sum_min ||
-          new_sum_max != sum_max) && filter_impl(variables, new_sum_min, new_sum_max)) ||
-        :ok
+    test_unsatisfiable(new_sum_min, new_sum_max, new_sum_fixed, new_unfixed_ids)
+    ## Enforce idempotence: we'll run filtering until there's no changes
+    if domain_changes? do
+      filter_impl(variables, new_unfixed_ids, new_sum_min, new_sum_max, new_sum_fixed)
+    else
+      %{sum_fixed: new_sum_fixed, unfixed_ids: new_unfixed_ids}
     end
   end
 
-  defp update_partial_sums(variables, sum_min, sum_max) do
-    Enum.reduce(variables, {sum_min, sum_max}, fn v, {s_min, s_max} ->
+  defp update_partial_sums(variables, unfixed_ids, sum_min, sum_max, sum_fixed) do
+    Enum.reduce(unfixed_ids, {sum_min, sum_max, sum_fixed, MapSet.new(), false}, fn pos,
+                                                                                    {s_min, s_max,
+                                                                                     s_fixed,
+                                                                                     unfixed_ids_acc,
+                                                                                     changed_acc?} ->
+      v = Propagator.arg_at(variables, pos)
       min_v = min(v)
       max_v = max(v)
 
-      new_max = maybe_update_max(v, max_v, removeAbove(v, -(s_min - min_v)))
-      new_min = maybe_update_min(v, min_v, removeBelow(v, -(s_max - max_v)))
+      above_change = removeAbove(v, -(s_min - min_v))
+      below_change = removeBelow(v, -(s_max - max_v))
+      new_max = max(v)
+      new_min = min(v)
       new_sum_min = s_min + new_min - min_v
       new_sum_max = s_max + max_v - new_max
 
-      (unsatisfiable(new_sum_min, new_sum_max) && fail()) ||
-        {new_sum_min, new_sum_max}
+      {new_partial_sum, new_unfixed_ids_acc} =
+        if fixed?(v) do
+          {s_fixed + new_min, unfixed_ids_acc}
+        else
+          {s_fixed, MapSet.put(unfixed_ids_acc, pos)}
+        end
+
+      {new_sum_min, new_sum_max, new_partial_sum, new_unfixed_ids_acc,
+       changed_acc? || above_change != :no_change || below_change != :no_change}
     end)
   end
 
-  ## Some optimization: if removeAbove/removeBelow don't change the domain,
-  ## save the additional max/min call.
-  defp maybe_update_max(_var, current_max, :no_change) do
-    current_max
-  end
-
-  defp maybe_update_max(var, _current_max, _domain_change) do
-    max(var)
-  end
-
-  defp maybe_update_min(_var, current_min, :no_change) do
-    current_min
-  end
-
-  defp maybe_update_min(var, _current_min, _domain_change) do
-    min(var)
-  end
-
-  defp sum_min_max(sum_fixed, unfixed_variables) do
-    Enum.reduce(unfixed_variables, {sum_fixed, sum_fixed}, fn v, {s_min, s_max} = _acc ->
-      {s_min + min(v), s_max + max(v)}
-    end)
-  end
-
-  defp unsatisfiable(sum_min, sum_max) do
-    sum_min > 0 || sum_max < 0
+  defp test_unsatisfiable(sum_min, sum_max, sum_fixed, unfixed_ids) do
+    if sum_min > 0 || sum_max < 0 || (Enum.empty?(unfixed_ids) && sum_fixed != 0) do
+      fail()
+    end
   end
 
   defp fail() do
