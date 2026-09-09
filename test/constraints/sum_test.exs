@@ -42,5 +42,13 @@ defmodule CPSolverTest.Constraint.Sum do
                Enum.sum(Enum.take(s, length(s) - 1)) + c1 + c2 + c3 == List.last(s)
              end)
     end
+
+    test "domains with holes" do
+      ## Model for XKCD example has non-contigious domains
+      model = CPSolver.Examples.XKCD.NP.model()
+      {:ok, res} = CPSolver.solve(model)
+      assert 2 = length(res.solutions)
+      assert Enum.all?(res.solutions, fn sol -> CPSolver.Examples.XKCD.NP.check_solution(sol, model) end)
+    end
   end
 end
