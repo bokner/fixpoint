@@ -2,6 +2,8 @@ defmodule CPSolver.BitVectorDomain do
   import Bitwise
   import CPSolver.BitUtils
 
+  alias InPlace.SparseSet
+
   @failure_value (1 <<< 64) - 1
 
   def new([]) do
@@ -15,14 +17,29 @@ defmodule CPSolver.BitVectorDomain do
   def new(domain) when is_list(domain) or is_struct(domain, Range) or is_struct(domain, MapSet) do
     offset = -Enum.min(domain)
     domain_size = Enum.max(domain) + offset + 1
-    bv = :domain_bit_vector.new(domain_size)
+    bv = {_, atomics_ref} = :domain_bit_vector.new(domain_size)
     Enum.each(domain, fn idx -> :domain_bit_vector.set(bv, idx + offset) end)
 
     PackedMinMax.set_min(0, 0)
     |> PackedMinMax.set_max(Enum.max(domain) + offset)
     |> then(fn min_max -> set_min_max(bv, min_max) end)
 
-    %{bit_vector: bv, offset: offset}
+    %{bit_vector: bv, offset: offset, non_zero_tracker: init_non_zero_tracker(atomics_ref)}
+  end
+
+  defp init_non_zero_tracker(domain_ref) do
+    ## non-zero tracker keeps track of non-zero elements in the array behind the bit vector data.
+    ## The size of the tracker is the size of domain_ref less 1 (last element is reserved for min-max).
+    domain_arr_size = :atomics.info(domain_ref).size - 1
+
+    SparseSet.new(domain_arr_size)
+    |> tap(fn tracker ->
+      Enum.each(1..domain_arr_size, fn idx ->
+        if :atomics.get(domain_ref, idx) == 0 do
+          SparseSet.delete(tracker, idx)
+        end
+      end)
+    end)
   end
 
   def copy(%{bit_vector: {:domain_bit_vector, ref} = bit_vector, offset: offset} = _domain) do
@@ -52,15 +69,20 @@ defmodule CPSolver.BitVectorDomain do
     {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
 
     cond do
-      value + offset < min_value -> min_value - offset
-      value + offset >= max_value -> nil
+      value + offset < min_value ->
+        min_value - offset
+
+      value + offset >= max_value ->
+        nil
+
       true ->
         {block_index, position} = vector_address(value + offset)
+
         case next(block_index, position, ref, last_index(bit_vector)) do
           nil -> nil
           positional_value -> positional_value - offset
         end
-      end
+    end
   end
 
   defp next(block_index, _position, _atomics_ref, last_index) when block_index > last_index do
@@ -72,9 +94,12 @@ defmodule CPSolver.BitVectorDomain do
     ## Check if the block has bits on the right of the position of initial value.
     shift = position + 1
     shifted_left = block >>> shift
+
     case lsb(shifted_left) do
-      nil -> ## nothing in this block, try next one
+      ## nothing in this block, try next one
+      nil ->
         next(block_index + 1, -1, atomics_ref, last_index)
+
       next_lsb ->
         positional_value(block_index, next_lsb + shift)
     end
@@ -274,7 +299,9 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   def bits(%{bit_vector: {:domain_bit_vector, ref} = _bit_vector} = _domain) do
-    Enum.map(1..:atomics.info(ref)[:size] - 1, fn idx -> :atomics.get(ref, idx) |> Integer.to_string(2) |> String.reverse() end)
+    Enum.map(1..(:atomics.info(ref)[:size] - 1), fn idx ->
+      :atomics.get(ref, idx) |> Integer.to_string(2) |> String.reverse()
+    end)
   end
 
   ## Last byte of bit_vector contains (packed) min and max
@@ -430,7 +457,7 @@ defmodule CPSolver.BitVectorDomain do
               else
                 ## Reset all bits in the block to the left of the position
                 shift = position_in_block
-                lsb(non_zero_block >>> shift <<< shift)
+                lsb((non_zero_block >>> shift) <<< shift)
               end
 
             (block_lsb &&

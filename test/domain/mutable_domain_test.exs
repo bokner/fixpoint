@@ -9,8 +9,15 @@ defmodule CPSolverTest.MutableDomain do
 
       assert Domain.size(Domain.new(1..10)) == 10
 
-      int_list = [-1, 2, 4, 8, 10]
-      assert Domain.size(Domain.new(int_list)) == length(int_list)
+      int_list = [-1, 2, 4, 8, 10, 72, 130, 255]
+      domain = Domain.new(int_list)
+      assert Domain.size(domain) == length(int_list)
+      ## The domain values above will set element of atomics at index 4 to 0
+      ## due to a hole between last 2 values
+      {:domain_bit_vector, atomics_ref} = domain.bit_vector
+      assert 0 = :atomics.get(atomics_ref, 4)
+      ## non-zero tracker will have '4' excluded
+      assert InPlace.SparseSet.to_list(domain.non_zero_tracker) == [1, 2, 3, 5]
     end
 
     test "fixed?" do
