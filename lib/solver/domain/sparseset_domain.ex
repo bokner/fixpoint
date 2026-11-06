@@ -57,7 +57,7 @@ defmodule CPSolver.SparseSetDomain do
 
     new_bit_vector = {:domain_bit_vector, new_atomics_ref}
     set_min_max(new_bit_vector, get_min_max_impl(bit_vector) |> elem(1))
-    %{bit_vector: new_bit_vector, offset: offset, non_zero_tracker: SparseSet.copy(tracker)}
+    %{bit_vector: new_bit_vector, offset: offset, non_zero_tracker: SparseSet.new(new_atomics_size - 1)}
   end
 
   ## 'next' value in the domain
