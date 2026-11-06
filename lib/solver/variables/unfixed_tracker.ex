@@ -63,7 +63,7 @@ defmodule CPSolver.Variable.UnfixedTracker do
 
   def iterate(tracker, variables, initial, reducer, ordered?) when is_function(reducer, 2) do
     if ordered? do
-      SparseSet.iterate_ordered(tracker, initial, variable_iterator(tracker, variables, reducer))
+      SparseSet.iterate_ordered(tracker, initial, variable_iterator(tracker, variables, reducer), :asc)
     else
       SparseSet.iterate(tracker, initial, variable_iterator(tracker, variables, reducer))
     end
