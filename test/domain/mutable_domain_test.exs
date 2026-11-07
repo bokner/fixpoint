@@ -214,7 +214,7 @@ defmodule CPSolverTest.MutableDomain do
       end)
 
       bit_vector = {:domain_bit_vector, ref}
-      _domain = {bit_vector, data.raw.offset}
+      _domain = %{bit_vector: bit_vector, offset: data.raw.offset}
     end
 
     defp assert_domain(domain, values) do
