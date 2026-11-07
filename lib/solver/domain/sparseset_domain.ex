@@ -42,8 +42,13 @@ defmodule CPSolver.SparseSetDomain do
     end)
   end
 
-  def copy(%{bit_vector: {:domain_bit_vector, ref} = bit_vector, offset: offset, non_zero_tracker: tracker} = _domain) do
-
+  def copy(
+        %{
+          bit_vector: {:domain_bit_vector, ref} = bit_vector,
+          offset: offset,
+          non_zero_tracker: tracker
+        } = _domain
+      ) do
     new_atomics_size = SparseSet.size(tracker) + 1
     new_atomics_ref = :atomics.new(new_atomics_size, [{:signed, false}])
 
@@ -57,7 +62,12 @@ defmodule CPSolver.SparseSetDomain do
 
     new_bit_vector = {:domain_bit_vector, new_atomics_ref}
     set_min_max(new_bit_vector, get_min_max_impl(bit_vector) |> elem(1))
-    %{bit_vector: new_bit_vector, offset: offset, non_zero_tracker: SparseSet.new(new_atomics_size - 1)}
+
+    %{
+      bit_vector: new_bit_vector,
+      offset: offset,
+      non_zero_tracker: SparseSet.new(new_atomics_size - 1)
+    }
   end
 
   ## 'next' value in the domain
@@ -107,7 +117,11 @@ defmodule CPSolver.SparseSetDomain do
 
   ## Reduce over domain values
   def reduce(
-        %{bit_vector: {:domain_bit_vector, ref} = _bit_vector, offset: offset, non_zero_tracker: tracker} = domain,
+        %{
+          bit_vector: {:domain_bit_vector, ref} = _bit_vector,
+          offset: offset,
+          non_zero_tracker: tracker
+        } = domain,
         value_mapper_fun,
         acc_init \\ MapSet.new(),
         reduce_fun \\ &MapSet.union/2
@@ -182,6 +196,7 @@ defmodule CPSolver.SparseSetDomain do
         0 ->
           SparseSet.delete(tracker, idx)
           acc
+
         n ->
           n1 = (idx == current_min_block && n >>> min_offset) || n
           n2 = (idx == current_max_block && ((1 <<< (max_offset + 1)) - 1 &&& n1)) || n1
@@ -214,7 +229,14 @@ defmodule CPSolver.SparseSetDomain do
     end
   end
 
-  def remove(%{bit_vector: {:domain_bit_vector, atomics_ref} = bit_vector, offset: offset, non_zero_tracker: tracker} = domain, value) do
+  def remove(
+        %{
+          bit_vector: {:domain_bit_vector, atomics_ref} = bit_vector,
+          offset: offset,
+          non_zero_tracker: tracker
+        } = domain,
+        value
+      ) do
     {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
     vector_value = value + offset
 
@@ -223,8 +245,8 @@ defmodule CPSolver.SparseSetDomain do
       contains?(bit_vector, vector_value, min_value, max_value) ->
         domain_change =
           cond do
-            min_value == max_value && vector_value == min_value ->
-              ## Fixed value: fail on removing attempt
+            min_value == max_value && vector_value == max_value ->
+              ## Fixed value: fail on removal attempt
               fail(bit_vector)
 
             min_value == vector_value ->
@@ -243,8 +265,9 @@ defmodule CPSolver.SparseSetDomain do
 
           ## Remove zero block from tracker
           block_idx = block_index(vector_value)
+
           if :atomics.get(atomics_ref, block_idx) == 0 do
-              SparseSet.delete(tracker, block_idx)
+            SparseSet.delete(tracker, block_idx)
           end
         end)
 
@@ -253,7 +276,10 @@ defmodule CPSolver.SparseSetDomain do
     end
   end
 
-  def removeAbove(%{bit_vector: bit_vector, offset: offset, non_zero_tracker: tracker} = domain, value) do
+  def removeAbove(
+        %{bit_vector: bit_vector, offset: offset, non_zero_tracker: tracker} = domain,
+        value
+      ) do
     {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
     vector_value = value + offset
 
@@ -272,7 +298,10 @@ defmodule CPSolver.SparseSetDomain do
     end
   end
 
-  def removeBelow(%{bit_vector: bit_vector, offset: offset, non_zero_tracker: tracker} = domain, value) do
+  def removeBelow(
+        %{bit_vector: bit_vector, offset: offset, non_zero_tracker: tracker} = domain,
+        value
+      ) do
     {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
     vector_value = value + offset
 
@@ -440,33 +469,46 @@ defmodule CPSolver.SparseSetDomain do
          {:domain_bit_vector, atomics_ref} = bit_vector,
          tracker,
          starting_at,
-         _max_value
+         max_value
        ) do
-    {_rightmost_block, position_in_block} = vector_address(starting_at + 1)
+    {current_max_block, _} = vector_address(max_value)
+    {rightmost_block, position_in_block} = vector_address(starting_at + 1)
     ## Find a new min (on the right of the current one)
     min_value =
-      SparseSet.iterate_ordered(tracker, false, fn idx, min_block_empty? ->
-        case :atomics.get(atomics_ref, idx) do
-          0 ->
+      SparseSet.iterate_ordered(
+        tracker,
+        false,
+        fn
+          idx, min_block_empty? when idx < rightmost_block or idx > current_max_block ->
             SparseSet.delete(tracker, idx)
             {:cont, min_block_empty?}
 
-          non_zero_block ->
-            block_lsb =
-              if min_block_empty? do
-                lsb(non_zero_block)
-              else
-                ## Reset all bits in the block to the left of the position
-                shift = position_in_block
-                lsb((non_zero_block >>> shift) <<< shift)
-              end
+          idx, min_block_empty? ->
+            case :atomics.get(atomics_ref, idx) do
+              0 ->
+                SparseSet.delete(tracker, idx)
+                {:cont, min_block_empty?}
 
-            (block_lsb &&
-               {:halt, positional_value(idx, block_lsb)}) || {:cont, true}
-        end
-      end, :asc)
+              non_zero_block ->
+                block_lsb =
+                  if min_block_empty? do
+                    lsb(non_zero_block)
+                  else
+                    ## Reset all bits in the block to the left of the position
+                    shift = position_in_block
+                    lsb((non_zero_block >>> shift) <<< shift)
+                  end
 
-    (is_integer(min_value) && set_min(bit_vector, min_value)) || fail(bit_vector)
+                (block_lsb &&
+                   {:halt, positional_value(idx, block_lsb)}) || {:cont, true}
+            end
+        end,
+        :asc
+      )
+
+    (is_integer(min_value) &&
+       set_min(bit_vector, min_value)) ||
+      fail(bit_vector)
   end
 
   ## Update (cached) max
@@ -474,35 +516,41 @@ defmodule CPSolver.SparseSetDomain do
          {:domain_bit_vector, atomics_ref} = bit_vector,
          tracker,
          starting_at,
-         _min_value
+         min_value
        ) do
-    {_leftmost_block_idx, position_in_block} = vector_address(starting_at - 1)
+    {current_min_block, _} = vector_address(min_value)
     ## Find a new max (on the left of the current one)
+    {leftmost_block, position_in_block} = vector_address(starting_at - 1)
     ##
 
     max_value =
       SparseSet.iterate_ordered(
         tracker,
         false,
-        fn idx, max_block_empty? ->
-          case :atomics.get(atomics_ref, idx) do
-            0 ->
-              SparseSet.delete(tracker, idx)
-              {:cont, max_block_empty?}
+        fn
+          idx, min_block_empty? when idx > leftmost_block or idx < current_min_block ->
+            SparseSet.delete(tracker, idx)
+            {:cont, min_block_empty?}
 
-            non_zero_block ->
-              block_msb =
-                if max_block_empty? do
-                  msb(non_zero_block)
-                else
-                  ## Reset all bits in the block to the right of the position
-                  mask = (1 <<< (position_in_block + 1)) - 1
-                  msb(non_zero_block &&& mask)
-                end
+          idx, max_block_empty? ->
+            case :atomics.get(atomics_ref, idx) do
+              0 ->
+                SparseSet.delete(tracker, idx)
+                {:cont, max_block_empty?}
 
-              (block_msb &&
-                 {:halt, positional_value(idx, block_msb)}) || {:cont, true}
-          end
+              non_zero_block ->
+                block_msb =
+                  if max_block_empty? do
+                    msb(non_zero_block)
+                  else
+                    ## Reset all bits in the block to the right of the position
+                    mask = (1 <<< (position_in_block + 1)) - 1
+                    msb(non_zero_block &&& mask)
+                  end
+
+                (block_msb &&
+                   {:halt, positional_value(idx, block_msb)}) || {:cont, true}
+            end
         end,
         :desc
       )
