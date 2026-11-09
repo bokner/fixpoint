@@ -25,7 +25,7 @@ defmodule CPSolver.Examples.BinPacking do
 
   def solve(weights, capacity, opts \\ []) do
     upper_bound =
-      Keyword.get(opts, :upper_bound, UpperBound.first_fit_decreasing(weights, capacity))
+      Keyword.get(opts, :upper_bound, UpperBound.first_fit_decreasing(weights, capacity) |> elem(0))
 
     model = model(weights, capacity, upper_bound)
 

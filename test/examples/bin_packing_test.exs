@@ -31,7 +31,7 @@ defmodule CPSolverTest.Examples.BinPacking do
   test "first_fit_decreasing" do
     weights = [2, 5, 4, 7, 1, 3, 8]
     capacity = 10
-    assert 3 = UpperBound.first_fit_decreasing(weights, capacity)
+    assert {3, _bins_content} = UpperBound.first_fit_decreasing(weights, capacity)
   end
 
   defp test_bin_packing(dataset, upper_bound \\ nil) when is_binary(dataset) do
@@ -59,7 +59,16 @@ defmodule CPSolverTest.Examples.BinPacking do
     defp solve_and_assert(weights, capacity, upper_bound) do
       upper_bound =
         if upper_bound == :find_upper_bound do
-          UpperBound.first_fit_decreasing(weights, capacity)
+          {computed_ub, bins_content} = UpperBound.first_fit_decreasing(weights, capacity)
+          ## Validate first_fit results
+          assert computed_ub == map_size(bins_content)
+          all_items_in_bins = Enum.reduce(bins_content, MapSet.new(), fn {_bin_idx, bin_items}, acc ->
+            assert MapSet.intersection(bin_items, acc) == MapSet.new()
+            MapSet.union(bin_items, acc)
+          end)
+          assert MapSet.to_list(all_items_in_bins) |> Enum.sort() == Enum.to_list(1..length(weights))
+
+          computed_ub
         else
           upper_bound
         end

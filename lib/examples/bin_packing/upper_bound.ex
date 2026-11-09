@@ -17,14 +17,25 @@ defmodule CPSolver.Examples.BinPacking.UpperBound do
 
     remaining_bin_space = Array.new(length(weights), capacity)
 
-    Enum.reduce(weights, 1, fn w, count_acc ->
-      if place_item(remaining_bin_space, w, count_acc) do
-        count_acc
+    ## Map bin_idx => set_of_item_ids
+    bins = Map.new()
+
+    weights
+    |> Enum.with_index(1)
+    |> Enum.reduce({1, bins}, fn {w, item_idx}, {bin_number_acc, bins_content_acc} ->
+      if place_item(remaining_bin_space, w, bin_number_acc) do
+        {bin_number_acc, Map.update(bins_content_acc, bin_number_acc, MapSet.new([item_idx]),
+          fn s -> MapSet.put(s, item_idx) end
+        )
+      }
       else
-        (count_acc + 1)
+        bin_number_acc =
+        bin_number_acc + 1
         |> tap(fn new_bin_idx ->
           Array.update(remaining_bin_space, new_bin_idx, fn val -> val - w end)
         end)
+
+        {bin_number_acc, Map.put(bins_content_acc, bin_number_acc, MapSet.new([item_idx]))}
       end
     end)
   end
