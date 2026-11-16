@@ -1,7 +1,7 @@
 defmodule CPSolver.BitVectorDomain do
   import Bitwise
   import InPlace.BitUtils
-  
+
   @failure_value (1 <<< 64) - 1
 
   def new([]) do
@@ -52,15 +52,20 @@ defmodule CPSolver.BitVectorDomain do
     {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
 
     cond do
-      value + offset < min_value -> min_value - offset
-      value + offset >= max_value -> nil
+      value + offset < min_value ->
+        min_value - offset
+
+      value + offset >= max_value ->
+        nil
+
       true ->
         {block_index, position} = vector_address(value + offset)
+
         case next(block_index, position, ref, last_index(bit_vector)) do
           nil -> nil
           positional_value -> positional_value - offset
         end
-      end
+    end
   end
 
   defp next(block_index, _position, _atomics_ref, last_index) when block_index > last_index do
@@ -72,9 +77,12 @@ defmodule CPSolver.BitVectorDomain do
     ## Check if the block has bits on the right of the position of initial value.
     shift = position + 1
     shifted_left = block >>> shift
+
     case lsb(shifted_left) do
-      nil -> ## nothing in this block, try next one
+      ## nothing in this block, try next one
+      nil ->
         next(block_index + 1, -1, atomics_ref, last_index)
+
       next_lsb ->
         positional_value(block_index, next_lsb + shift)
     end
@@ -274,7 +282,9 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   def bits(%{bit_vector: {:domain_bit_vector, ref} = _bit_vector} = _domain) do
-    Enum.map(1..:atomics.info(ref)[:size] - 1, fn idx -> :atomics.get(ref, idx) |> Integer.to_string(2) |> String.reverse() end)
+    Enum.map(1..(:atomics.info(ref)[:size] - 1), fn idx ->
+      :atomics.get(ref, idx) |> Integer.to_string(2) |> String.reverse()
+    end)
   end
 
   ## Last byte of bit_vector contains (packed) min and max
@@ -430,7 +440,7 @@ defmodule CPSolver.BitVectorDomain do
               else
                 ## Reset all bits in the block to the left of the position
                 shift = position_in_block
-                lsb(non_zero_block >>> shift <<< shift)
+                lsb((non_zero_block >>> shift) <<< shift)
               end
 
             (block_lsb &&
