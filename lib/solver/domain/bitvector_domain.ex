@@ -1,7 +1,7 @@
 defmodule CPSolver.BitVectorDomain do
   import Bitwise
-  import CPSolver.BitUtils
-
+  import InPlace.BitUtils
+  
   @failure_value (1 <<< 64) - 1
 
   def new([]) do
