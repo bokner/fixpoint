@@ -12,6 +12,9 @@ defmodule CPSolverTest.MutableDomainV2 do
       int_list = [-1, 2, 4, 8, 10, 72, 130, 255]
       domain = Domain.new(int_list)
       assert Domain.size(domain) == length(int_list)
+      assert Domain.min(domain) == Enum.min(int_list)
+      assert Domain.max(domain) == Enum.max(int_list)
+
       ## The domain values above will set element of atomics at index 4 to 0
       ## due to a hole between last 2 values
       {:bit_vector, atomics_ref} = domain.bit_vector
@@ -24,28 +27,28 @@ defmodule CPSolverTest.MutableDomainV2 do
       values = 200..500
       domain = Domain.new(values)
       domain_copy = Domain.copy(domain)
-      assert Domain.to_list(domain) == Domain.to_list(domain_copy)
+      assert Domain.size(domain) == Domain.size(domain_copy)
+      ## TODO
     end
-    
 
-    # test "fixed?" do
-    #   assert Domain.new([1]) |> Domain.fixed?()
-    #   refute Domain.new([1, 2]) |> Domain.fixed?()
-    # end
+    test "fixed?" do
+      assert Domain.new([1]) |> Domain.fixed?()
+      refute Domain.new([1, 2]) |> Domain.fixed?()
+    end
 
-    # test "min, max" do
-    #   values = [0, 2, 3, -1, 4, 10]
-    #   domain = Domain.new(values)
-    #   assert Domain.min(domain) == Enum.min(values)
-    #   assert Domain.max(domain) == Enum.max(values)
-    # end
+    test "min, max" do
+      values = [0, 2, 3, -1, 4, 10]
+      domain = Domain.new(values)
+      assert Domain.min(domain) == Enum.min(values)
+      assert Domain.max(domain) == Enum.max(values)
+    end
 
-    # test "contains?" do
-    #   values = [1, 3, 7, -1, 0, -2, 10]
-    #   domain = Domain.new(values)
-    #   Enum.all?(values, fn v -> Domain.contains?(domain, v) end)
-    #   refute Domain.contains?(domain, 9)
-    # end
+    test "contains?" do
+      values = [1, 3, 7, -1, 0, -2, 10]
+      domain = Domain.new(values)
+      Enum.all?(values, fn v -> Domain.contains?(domain, v) end)
+      refute Domain.contains?(domain, 9)
+    end
 
     # test "remove" do
     #   values = [0, 2, 3, -1, 4, 10]

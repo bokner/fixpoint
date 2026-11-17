@@ -26,24 +26,31 @@ defmodule CPSolver.BitVectorDomainV2 do
     Array.put(max_block, 1, blocks_count)
 
     block_tracker = SparseSet.new(blocks_count)
-    ## Remove empty blocks
-    Enum.each(1..blocks_count, fn b_idx ->
-      if :atomics.get(atomics_ref, b_idx) == 0 do
-        SparseSet.delete(block_tracker, b_idx)
-      end
-    end)
 
-    %{bit_vector: bv, offset: offset, min_block: min_block, max_block: max_block, block_tracker: block_tracker}
+    %{
+      bit_vector: bv,
+      offset: offset,
+      min_block: min_block,
+      max_block: max_block,
+      block_tracker: block_tracker
+    }
+    |> tap(fn domain ->
+      ## Remove empty blocks
+      Enum.each(1..blocks_count, fn b_idx ->
+        if :atomics.get(atomics_ref, b_idx) == 0 do
+          delete_block(domain, b_idx)
+        end
+      end)
+    end)
   end
 
-  def copy(%{bit_vector: {:bit_vector, ref} = _bit_vector,
-  block_tracker: block_tracker} = domain) do
-
+  def copy(%{bit_vector: {:bit_vector, ref} = _bit_vector, block_tracker: block_tracker} = domain) do
     atomics_copy_size = SparseSet.size(block_tracker)
     atomics_copy_ref = :atomics.new(atomics_copy_size, [{:signed, false}])
     block_tracker_copy = SparseSet.new(atomics_copy_size)
 
-    SparseSet.each(block_tracker,
+    SparseSet.each(
+      block_tracker,
       fn block_idx ->
         block_val = :atomics.get(ref, block_idx)
         :atomics.put(atomics_copy_ref, block_idx, block_val)
@@ -63,20 +70,58 @@ defmodule CPSolver.BitVectorDomainV2 do
     |> Map.put(:max_block, max_block)
   end
 
-  def size(%{bit_vector: {:bit_vector, ref} = _bit_vector, block_tracker: block_tracker}) do
-
+  def size(%{bit_vector: {:bit_vector, ref} = _bit_vector, block_tracker: block_tracker} = domain) do
     SparseSet.reduce(block_tracker, 0, fn idx, acc ->
-    n = :atomics.get(ref, idx)
+      n = :atomics.get(ref, idx)
 
-    if n == 0 do
-      SparseSet.delete(block_tracker, idx)
-      acc
-    else
-      acc + bit_count(n)
-    end
-  end)
-end
+      if n == 0 do
+        delete_block(domain, idx)
+        acc
+      else
+        acc + bit_count(n)
+      end
+    end)
+  end
 
+  defp delete_block(
+         %{
+           bit_vector: {:bit_vector, ref},
+           block_tracker: tracker,
+           min_block: min_block,
+           max_block: max_block
+         } = domain,
+         idx
+       ) do
+    SparseSet.delete(tracker, idx)
+    |> tap(fn delete_res ->
+      if SparseSet.empty?(tracker), do: fail()
+
+      cond do
+        Array.get(min_block, 1) == idx ->
+          ## Find non-empty block with higher index
+          SparseSet.iterate_ordered(
+            tracker,
+            fn b_idx ->
+              {:halt, Array.put(min_block, 1, b_idx)}
+            end,
+            :asc
+          )
+
+        Array.get(max_block, 1) == idx ->
+          ## Find non-empty block with lower index
+          SparseSet.iterate_ordered(
+            tracker,
+            fn b_idx ->
+              {:halt, Array.put(max_block, 1, b_idx)}
+            end,
+            :desc
+          )
+
+        true ->
+          delete_res
+      end
+    end)
+  end
 
   ## 'next' value in the domain
   def next(%{bit_vector: {:domain_bit_vector, ref} = bit_vector, offset: offset} = _domain, value) do
@@ -168,50 +213,42 @@ end
       reduce(domain, value_mapper_fun, MapSet.new(), &MapSet.union/2)
   end
 
-  def fixed?(%{bit_vector: bit_vector} = _domain) do
-    {current_min_max, _min_max_idx, current_min, current_max} = get_min_max(bit_vector)
-    current_max == current_min && current_min_max != @failure_value
+  def fixed?(domain) do
+    min(domain) == max(domain)
   end
 
-  def failed?({:domain_bit_vector, _ref} = bit_vector) do
-    failed?(elem(get_min_max_impl(bit_vector), 1))
+  def failed?(%{block_tracker: tracker} = _domain) do
+    SparseSet.size(tracker) == 0
   end
 
-  def failed?(%{bit_vector: bit_vector} = _domain) do
-    failed?(bit_vector)
+  def min(
+        %{bit_vector: {:bit_vector, atomics_ref}, min_block: min_block, offset: offset} = domain
+      ) do
+    min_block_idx = Array.get(min_block, 1)
+    lsb(:atomics.get(atomics_ref, min_block_idx)) - offset
   end
 
-  def failed?(min_max_value) when is_integer(min_max_value) do
-    min_max_value == @failure_value
+  def max(
+        %{bit_vector: {:bit_vector, atomics_ref}, max_block: max_block, offset: offset} = domain
+      ) do
+    max_block_idx = Array.get(max_block, 1)
+    msb(:atomics.get(atomics_ref, max_block_idx)) + (max_block_idx - 1) * 64 - offset
   end
 
-  def min(%{bit_vector: bit_vector, offset: offset} = _domain) do
-    get_min(bit_vector) - offset
-  end
-
-  def max(%{bit_vector: bit_vector, offset: offset} = _domain) do
-    get_max(bit_vector) - offset
-  end
-
-
-  def contains?(%{bit_vector: bit_vector, offset: offset}, value) do
-    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+  def contains?(%{bit_vector: bit_vector, offset: offset} = domain, value) do
     vector_value = value + offset
-    contains?(bit_vector, vector_value, min_value, max_value)
+
+    vector_value >= min(domain) && vector_value <= max(domain) &&
+      BitVector.get(bit_vector, vector_value) == 1
   end
 
-  def contains?(bit_vector, vector_value, min_value, max_value) do
-    vector_value >= min_value && vector_value <= max_value &&
-      :domain_bit_vector.get(bit_vector, vector_value) == 1
-  end
-
-  def fix(%{bit_vector: bit_vector, offset: offset} = _domain, value) do
+  def fix(%{bit_vector: bit_vector, offset: offset} = domain, value) do
     min_max_info =
       {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
 
     vector_value = value + offset
 
-    if contains?(bit_vector, vector_value, min_value, max_value) do
+    if contains?(bit_vector, value) do
       set_fixed(bit_vector, value + offset, min_max_info)
     else
       fail(bit_vector)
@@ -224,7 +261,7 @@ end
 
     cond do
       ## No value in the domain, do nothing
-      contains?(bit_vector, vector_value, min_value, max_value) ->
+      contains?(domain, value) ->
         domain_change =
           cond do
             min_value == max_value && vector_value == min_value ->
@@ -294,7 +331,7 @@ end
     }
   end
 
-  def bits(%{bit_vector: {:domain_bit_vector, ref} = _bit_vector} = _domain) do
+  defp bits(%{bit_vector: {:domain_bit_vector, ref} = _bit_vector} = _domain) do
     Enum.map(1..(:atomics.info(ref)[:size] - 1), fn idx ->
       :atomics.get(ref, idx) |> Integer.to_string(2) |> String.reverse()
     end)
@@ -333,7 +370,7 @@ end
     end)
   end
 
-  defp get_min_max_impl({:domain_bit_vector, ref} = bit_vector) do
+  defp get_min_max_impl({:bit_vector, ref} = bit_vector) do
     min_max_index = min_max_index(bit_vector)
     {min_max_index, :atomics.get(ref, min_max_index)}
   end
@@ -503,8 +540,12 @@ end
     (is_integer(max_value) && set_max(bit_vector, max_value)) || fail(bit_vector)
   end
 
-  defp fail(bit_vector \\ nil) do
+  defp fail(bit_vector) do
     bit_vector && set_min_max(bit_vector, @failure_value)
+    fail()
+  end
+
+  defp fail() do
     throw(:fail)
   end
 
