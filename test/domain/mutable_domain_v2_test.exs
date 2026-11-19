@@ -26,9 +26,19 @@ defmodule CPSolverTest.MutableDomainV2 do
     test "copy" do
       values = 200..500
       domain = Domain.new(values)
+      Domain.removeAbove(domain, 300)
       domain_copy = Domain.copy(domain)
+      assert Domain.to_list(domain) == Domain.to_list(domain_copy)
       assert Domain.size(domain) == Domain.size(domain_copy)
-      ## TODO
+      assert Domain.min(domain) == Domain.min(domain_copy)
+      assert Domain.max(domain) == Domain.max(domain_copy)
+
+      Domain.removeBelow(domain_copy, 250)
+      domain_copy2 = Domain.copy(domain_copy)
+      assert Domain.to_list(domain_copy2) == Domain.to_list(domain_copy)
+      assert Domain.size(domain_copy2) == Domain.size(domain_copy)
+      assert Domain.min(domain_copy2) == Domain.min(domain_copy)
+      assert Domain.max(domain_copy2) == Domain.max(domain_copy)
     end
 
     test "fixed?" do
@@ -50,44 +60,74 @@ defmodule CPSolverTest.MutableDomainV2 do
       refute Domain.contains?(domain, 9)
     end
 
-    # test "remove" do
-    #   values = [0, 2, 3, -1, 4, 10]
-    #   domain = Domain.new(values)
+    test "fix" do
+      values = [-3, 7, -2, 4, 5, 6]
 
-    #   {:domain_change, domain} = Domain.remove(domain, 3)
-    #   refute Domain.contains?(domain, 3)
-    #   assert Domain.size(domain) == length(values) - 1
+      Enum.all?(values, fn val ->
 
-    #   {:min_change, domain} = Domain.remove(domain, -1)
-    #   {:max_change, domain} = Domain.remove(domain, 10)
+               domain = Domain.new(values)
+               assert :fixed = Domain.fix(domain, val)
+               assert :no_change = Domain.fix(domain, val)
 
-    #   assert 0 == Domain.min(domain)
-    #   assert 4 == Domain.max(domain)
-    #   {:domain_change, domain} = Domain.remove(domain, 2)
+               assert Domain.fixed?(domain)
+               #assert Domain.min(domain) == val
+               assert Domain.max(domain) == val
+             end)
 
-    #   {:fixed, _fixed} = Domain.remove(domain, 4)
+      ## Fixing non-existing value leads to a failure
+      domain = Domain.new(values)
+      assert catch_throw(Domain.fix(domain, 1)) == :fail
+    end
 
-    #   assert 0 == Domain.min(domain)
-    # end
+    test "to_list, map" do
+      values = [0, 2, 3, -1, 4, 10]
+      domain = Domain.new(values)
+      assert Enum.sort(Domain.to_list(domain)) == Enum.sort(values)
 
-    # test "removeBelow" do
-    #   values = [-1, 0, 2, 3, 4, 10]
-    #   domain = Domain.new(values)
+      mapper_fun = fn x -> 2 * x end
 
-    #   {:min_change, cutBelow} = Domain.removeBelow(domain, 1)
-    #   assert Domain.min(cutBelow) == 2
+      assert Domain.map(domain, mapper_fun) |> Enum.sort() ==
+               Enum.map(values, mapper_fun) |> Enum.sort()
+    end
 
-    #   assert Domain.size(domain) == 4
+    test "remove" do
+      values = [0, 2, 3, -1, 4, 10]
+      domain = Domain.new(values)
 
-    #   {:min_change, cutBelow} = Domain.removeBelow(domain, 3)
+      {:domain_change, domain} = Domain.remove(domain, 3)
+      refute Domain.contains?(domain, 3)
+      assert Domain.size(domain) == length(values) - 1
 
-    #   assert Domain.min(cutBelow) == 3
+      {:min_change, domain} = Domain.remove(domain, -1)
+      {:max_change, domain} = Domain.remove(domain, 10)
 
-    #   assert :no_change == Domain.removeBelow(domain, Enum.min(values))
-    #   {:fixed, _fixed} = Domain.removeBelow(domain, Enum.max(values))
-    #   assert Domain.fixed?(domain)
-    #   assert catch_throw(Domain.removeBelow(domain, Enum.max(values) + 1)) == :fail
-    # end
+      assert 0 == Domain.min(domain)
+      assert 4 == Domain.max(domain)
+      {:domain_change, domain} = Domain.remove(domain, 2)
+
+      {:fixed, _fixed} = Domain.remove(domain, 4)
+
+      assert 0 == Domain.min(domain)
+    end
+
+    test "removeBelow" do
+      values = [-1, 0, 2, 3, 4, 10]
+      domain = Domain.new(values)
+
+      {:min_change, cutBelow} = Domain.removeBelow(domain, 1)
+      assert Domain.min(cutBelow) == 2
+
+      assert Domain.size(domain) == 4
+
+      {:min_change, cutBelow} = Domain.removeBelow(domain, 3)
+
+      assert Domain.min(cutBelow) == 3
+
+      assert :no_change == Domain.removeBelow(domain, Enum.min(values))
+      {:fixed, _fixed} = Domain.removeBelow(domain, Enum.max(values))
+      assert Domain.fixed?(domain)
+      assert catch_throw(Domain.removeBelow(domain, Enum.max(values) + 1)) == :fail
+    end
 
     # test "removeAbove" do
     #   values = [-1, 0, 2, 3, 4, 10]
@@ -107,33 +147,6 @@ defmodule CPSolverTest.MutableDomainV2 do
     #   assert catch_throw(Domain.removeAbove(domain, Enum.min(values) - 1)) == :fail
     # end
 
-    # test "fix" do
-    #   values = [0, -2, 4, 5, 6]
-
-    #   assert Enum.all?(values, fn val ->
-    #            domain = Domain.new(values)
-    #            :fixed = Domain.fix(domain, val)
-
-    #            Domain.fixed?(domain) &&
-    #              Domain.min(domain) == val &&
-    #              Domain.max(domain) == val
-    #          end)
-
-    #   ## Fixing non-existing value leads to a failure
-    #   domain = Domain.new(values)
-    #   assert catch_throw(Domain.fix(domain, 1)) == :fail
-    # end
-
-    # test "to_list, map" do
-    #   values = [0, 2, 3, -1, 4, 10]
-    #   domain = Domain.new(values)
-    #   assert Enum.sort(Domain.to_list(domain)) == Enum.sort(values)
-
-    #   mapper_fun = fn x -> 2 * x end
-
-    #   assert Domain.map(domain, mapper_fun) |> Enum.sort() ==
-    #            Enum.map(values, mapper_fun) |> Enum.sort()
-    # end
 
     # test "copy" do
     #   values = 200..500

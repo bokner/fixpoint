@@ -4,8 +4,6 @@ defmodule CPSolver.BitVectorDomainV2 do
   alias InPlace.{Array, SparseSet}
   alias InPlace.Utils.BitVector
 
-  @failure_value (1 <<< 64) - 1
-
   def new([]) do
     fail()
   end
@@ -85,11 +83,10 @@ defmodule CPSolver.BitVectorDomainV2 do
 
   defp delete_block(
          %{
-           bit_vector: {:bit_vector, ref},
            block_tracker: tracker,
            min_block: min_block,
            max_block: max_block
-         } = domain,
+         } = _domain,
          idx
        ) do
     SparseSet.delete(tracker, idx)
@@ -125,23 +122,22 @@ defmodule CPSolver.BitVectorDomainV2 do
 
   ## 'next' value in the domain
   def next(%{bit_vector: {:domain_bit_vector, ref} = bit_vector, offset: offset} = _domain, value) do
-    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+    :todo
+    # cond do
+    #   value + offset < min_value ->
+    #     min_value - offset
 
-    cond do
-      value + offset < min_value ->
-        min_value - offset
+    #   value + offset >= max_value ->
+    #     nil
 
-      value + offset >= max_value ->
-        nil
+    #   true ->
+    #     {block_index, position} = vector_address(value + offset)
 
-      true ->
-        {block_index, position} = vector_address(value + offset)
-
-        case next(block_index, position, ref, last_index(bit_vector)) do
-          nil -> nil
-          positional_value -> positional_value - offset
-        end
-    end
+    #     case next(block_index, position, ref, last_index(bit_vector)) do
+    #       nil -> nil
+    #       positional_value -> positional_value - offset
+    #     end
+    # end
   end
 
   defp next(block_index, _position, _atomics_ref, last_index) when block_index > last_index do
@@ -170,22 +166,19 @@ defmodule CPSolver.BitVectorDomainV2 do
 
   ## Reduce over domain values
   def reduce(
-        %{bit_vector: {:domain_bit_vector, ref} = bit_vector, offset: offset} = domain,
+        %{bit_vector: {:bit_vector, ref} = _bit_vector, offset: offset, block_tracker: tracker} =
+          domain,
         value_mapper_fun,
         acc_init \\ MapSet.new(),
         reduce_fun \\ &MapSet.union/2
       ) do
-    %{
-      min_addr: %{block: current_min_block, offset: _min_offset},
-      max_addr: %{block: current_max_block, offset: _max_offset}
-    } = get_bound_addrs(bit_vector)
-
     lb = min(domain)
     ub = max(domain)
 
-    Enum.reduce(current_min_block..current_max_block, acc_init, fn block_idx, acc ->
+    SparseSet.reduce(tracker, acc_init, fn block_idx, acc ->
       case :atomics.get(ref, block_idx) do
         0 ->
+          delete_block(tracker, block_idx)
           acc
 
         block ->
@@ -222,106 +215,173 @@ defmodule CPSolver.BitVectorDomainV2 do
   end
 
   def min(
-        %{bit_vector: {:bit_vector, atomics_ref}, min_block: min_block, offset: offset} = domain
+        %{bit_vector: {:bit_vector, atomics_ref}, min_block: min_block, offset: offset} = _domain
       ) do
     min_block_idx = Array.get(min_block, 1)
-    lsb(:atomics.get(atomics_ref, min_block_idx)) - offset
-  end
 
-  def max(
-        %{bit_vector: {:bit_vector, atomics_ref}, max_block: max_block, offset: offset} = domain
-      ) do
-    max_block_idx = Array.get(max_block, 1)
-    msb(:atomics.get(atomics_ref, max_block_idx)) + (max_block_idx - 1) * 64 - offset
-  end
+    case lsb(:atomics.get(atomics_ref, min_block_idx)) do
+      nil ->
+        nil
 
-  def contains?(%{bit_vector: bit_vector, offset: offset} = domain, value) do
-    vector_value = value + offset
-
-    vector_value >= min(domain) && vector_value <= max(domain) &&
-      BitVector.get(bit_vector, vector_value) == 1
-  end
-
-  def fix(%{bit_vector: bit_vector, offset: offset} = domain, value) do
-    min_max_info =
-      {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
-
-    vector_value = value + offset
-
-    if contains?(bit_vector, value) do
-      set_fixed(bit_vector, value + offset, min_max_info)
-    else
-      fail(bit_vector)
+      lsb ->
+        lsb - offset
     end
   end
 
-  def remove(%{bit_vector: bit_vector, offset: offset} = domain, value) do
-    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+  def max(
+        %{bit_vector: {:bit_vector, atomics_ref}, max_block: max_block, offset: offset} = _domain
+      ) do
+    max_block_idx = Array.get(max_block, 1)
+
+    case msb(:atomics.get(atomics_ref, max_block_idx)) do
+      nil ->
+        nil
+
+      msb ->
+        msb + (max_block_idx - 1) * 64 - offset
+    end
+  end
+
+  def contains?(
+        %{bit_vector: bit_vector, offset: offset, block_tracker: tracker} = _domain,
+        value
+      ) do
     vector_value = value + offset
+    block_idx = block_index(vector_value)
 
-    cond do
-      ## No value in the domain, do nothing
-      contains?(domain, value) ->
-        domain_change =
-          cond do
-            min_value == max_value && vector_value == min_value ->
-              ## Fixed value: fail on removing attempt
-              fail(bit_vector)
+    SparseSet.member?(tracker, block_idx) &&
+      BitVector.get(bit_vector, vector_value) == 1
+  end
 
-            min_value == vector_value ->
-              tighten_min(bit_vector, min_value, max_value)
+  def fix(
+        %{bit_vector: {:bit_vector, ref}, offset: offset, block_tracker: tracker} = domain,
+        value
+      ) do
+    vector_value = value + offset
+    {fixed_block_index, block_offset} = vector_address(vector_value)
 
-            max_value == vector_value ->
-              tighten_max(bit_vector, max_value, min_value)
-
-            true ->
-              :domain_change
-          end
-
-        {domain_change, domain}
-        |> tap(fn _ -> :domain_bit_vector.clear(bit_vector, vector_value) end)
-
-      true ->
+    if contains?(domain, value) do
+      if fixed?(domain) do
         :no_change
+      else
+        ## In the block, reset all bits except the one at the "fixed" position
+        :atomics.put(ref, fixed_block_index, 1 <<< block_offset)
+        ## Remove all blocks that do not have fixed value
+        SparseSet.each(tracker, fn block_idx ->
+          if block_idx != fixed_block_index do
+            ## We do not use delete_block/1
+            ## to avoid unnecessary checks
+            delete_block(domain, block_idx)
+          end
+        end)
+
+        :fixed
+      end
+    else
+      fail()
+    end
+  end
+
+  def remove(
+        %{bit_vector: {:bit_vector, ref} = bit_vector, offset: offset, block_tracker: tracker} =
+          domain,
+        value
+      ) do
+    if contains?(domain, value) do
+      domain_change =
+        cond do
+          value == min(domain) -> :min_change
+          value == max(domain) -> :max_change
+          true -> :domain_change
+        end
+
+      vector_value = value + offset
+      block_index = block_index(vector_value)
+      BitVector.clear(bit_vector, vector_value)
+
+      if :atomics.get(ref, block_index) == 0 do
+        delete_block(tracker, block_index)
+      end
+
+      ## Adjust domain_change, if fixed
+      {(fixed?(domain) && :fixed) || domain_change, domain}
+      |> tap(fn _ -> BitVector.clear(bit_vector, vector_value) end)
+    else
+      ## No value in the domain, do nothing
+      :no_change
     end
   end
 
   def removeAbove(%{bit_vector: bit_vector, offset: offset} = domain, value) do
-    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
-    vector_value = value + offset
+    :todo
+    # {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+    # vector_value = value + offset
 
-    cond do
-      vector_value >= max_value ->
-        :no_change
+    # cond do
+    #   vector_value >= max_value ->
+    #     :no_change
 
-      vector_value < min_value ->
-        fail(bit_vector)
+    #   vector_value < min_value ->
+    #     fail(bit_vector)
 
-      true ->
-        ## The value is strictly less than max
-        domain_change = tighten_max(bit_vector, vector_value + 1, min_value)
+    #   true ->
+    #     ## The value is strictly less than max
+    #     domain_change = tighten_max(bit_vector, vector_value + 1, min_value)
 
-        {domain_change, domain}
-    end
+    #     {domain_change, domain}
+    # end
   end
 
-  def removeBelow(%{bit_vector: bit_vector, offset: offset} = domain, value) do
-    {_current_min_max, _min_max_idx, min_value, max_value} = get_min_max(bit_vector)
+  def removeBelow(
+        %{bit_vector: {:bit_vector, ref}, offset: offset, block_tracker: tracker} = domain,
+        value
+      ) do
     vector_value = value + offset
+    {value_block_idx, value_block_offset} = vector_address(vector_value)
 
-    cond do
-      vector_value <= min_value ->
-        :no_change
+    SparseSet.iterate_ordered(
+      tracker,
+      :no_change,
+      fn b_idx, domain_change ->
+        cond do
+          b_idx < value_block_idx ->
+            delete_block(domain, b_idx)
+            {:cont, :min_change}
 
-      vector_value > max_value ->
-        fail(bit_vector)
+          b_idx > value_block_idx ->
+            fail()
 
-      true ->
-        ## The value is strictly greater than min
-        domain_change = tighten_min(bit_vector, vector_value - 1, max_value)
+          b_idx == value_block_idx ->
+            ## This is the last block (we don't want to remove anything above it)
+            last_block_value = :atomics.get(ref, b_idx)
 
-        {domain_change, domain}
-    end
+            if lsb(last_block_value) >= value_block_offset do
+              ## The value is already below or equal to the "last block" value
+              {:halt, :no_change}
+            else
+              ## Shift lsb
+              last_block_value = unset_left(last_block_value, value_block_offset) #(last_block_value >>> value_block_offset) <<< value_block_offset
+
+              if last_block_value == 0 do
+                delete_block(domain, b_idx)
+              else
+                :atomics.put(ref, value_block_idx, last_block_value)
+              end
+
+              {:halt, :min_change}
+            end
+        end
+      end,
+      :asc
+    )
+    |> then(fn domain_change ->
+      cond do
+        domain_change == :no_change -> :no_change
+        fixed?(domain) -> {:fixed, domain}
+        domain_change -> {domain_change, domain}
+      end
+    end)
+
   end
 
   def raw(%{bit_vector: {:domain_bit_vector, ref} = _bit_vector, offset: offset} = _domain) do
@@ -331,233 +391,8 @@ defmodule CPSolver.BitVectorDomainV2 do
     }
   end
 
-  defp bits(%{bit_vector: {:domain_bit_vector, ref} = _bit_vector} = _domain) do
-    Enum.map(1..(:atomics.info(ref)[:size] - 1), fn idx ->
-      :atomics.get(ref, idx) |> Integer.to_string(2) |> String.reverse()
-    end)
-  end
-
-  ## Last byte of bit_vector contains (packed) min and max
-  def last_index({:domain_bit_vector, ref} = _bit_vector) do
-    :atomics.info(ref).size - 1
-  end
-
-  defp set_min_max({:domain_bit_vector, ref} = bit_vector, min_max) do
-    bit_vector
-    |> min_max_index()
-    |> tap(fn idx ->
-      :atomics.put(ref, idx, min_max)
-    end)
-  end
-
-  def get_min(bit_vector) do
-    get_min_max(bit_vector) |> elem(2)
-  end
-
-  def get_max(bit_vector) do
-    get_min_max(bit_vector) |> elem(3)
-  end
-
-  defp min_max_index(bit_vector) do
-    last_index(bit_vector) + 1
-  end
-
-  def get_min_max(bit_vector) do
-    get_min_max_impl(bit_vector)
-    |> then(fn {min_max_index, min_max} ->
-      min_max == @failure_value && fail(bit_vector)
-      {min_max, min_max_index, PackedMinMax.get_min(min_max), PackedMinMax.get_max(min_max)}
-    end)
-  end
-
-  defp get_min_max_impl({:bit_vector, ref} = bit_vector) do
-    min_max_index = min_max_index(bit_vector)
-    {min_max_index, :atomics.get(ref, min_max_index)}
-  end
-
-  def set_min(bit_vector, new_min) do
-    set_min(bit_vector, new_min, get_min_max(bit_vector))
-  end
-
-  def set_min({:domain_bit_vector, ref} = bit_vector, new_min, min_max_info) do
-    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
-
-    cond do
-      new_min > current_max ->
-        ## Inconsistency
-        fail(bit_vector)
-
-      new_min != current_min && current_min == current_max ->
-        ## Attempt to re-fix
-        fail(bit_vector)
-
-      true ->
-        ## Min change
-        min_max_value = PackedMinMax.set_min(current_min_max, new_min)
-
-        case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
-          :ok ->
-            cond do
-              new_min == current_max -> :fixed
-              new_min <= current_min -> :no_change
-              true -> :min_change
-            end
-
-          changed_by_other_thread ->
-            min2 = PackedMinMax.get_min(changed_by_other_thread)
-            max2 = PackedMinMax.get_max(changed_by_other_thread)
-            set_min(bit_vector, new_min, {changed_by_other_thread, min_max_idx, min2, max2})
-        end
-    end
-  end
-
-  def set_max(bit_vector, new_max) do
-    set_max(bit_vector, new_max, get_min_max(bit_vector))
-  end
-
-  def set_max({:domain_bit_vector, ref} = bit_vector, new_max, min_max_info) do
-    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
-
-    cond do
-      new_max < current_min ->
-        ## Inconsistency
-        fail(bit_vector)
-
-      new_max != current_max && current_min == current_max ->
-        ## Attempt to re-fix
-        fail(bit_vector)
-
-      true ->
-        ## Max change
-        min_max_value = PackedMinMax.set_max(current_min_max, new_max)
-
-        case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
-          :ok ->
-            cond do
-              new_max == current_min -> :fixed
-              new_max >= current_max -> :no_change
-              true -> :max_change
-            end
-
-          changed_by_other_thread ->
-            min2 = PackedMinMax.get_min(changed_by_other_thread)
-            max2 = PackedMinMax.get_max(changed_by_other_thread)
-            set_max(bit_vector, new_max, {changed_by_other_thread, min_max_idx, min2, max2})
-        end
-    end
-  end
-
-  def set_fixed({:domain_bit_vector, ref} = bit_vector, fixed_value, min_max_info) do
-    {current_min_max, min_max_idx, current_min, current_max} = min_max_info
-
-    if fixed_value != current_max && current_min == current_max do
-      ## Attempt to re-fix
-      fail(bit_vector)
-    else
-      min_max_value = PackedMinMax.set_min(0, fixed_value) |> PackedMinMax.set_max(fixed_value)
-
-      case :atomics.compare_exchange(ref, min_max_idx, current_min_max, min_max_value) do
-        :ok ->
-          :fixed
-
-        changed_by_other_thread ->
-          min2 = PackedMinMax.get_min(changed_by_other_thread)
-          max2 = PackedMinMax.get_max(changed_by_other_thread)
-          set_fixed(bit_vector, fixed_value, {changed_by_other_thread, min_max_idx, min2, max2})
-      end
-    end
-  end
-
-  ## Update (cached) min, if necessary
-  defp tighten_min(
-         {:domain_bit_vector, atomics_ref} = bit_vector,
-         starting_at,
-         max_value
-       ) do
-    {current_max_block, _} = vector_address(max_value)
-    {rightmost_block, position_in_block} = vector_address(starting_at + 1)
-    ## Find a new min (on the right of the current one)
-    min_value =
-      Enum.reduce_while(rightmost_block..current_max_block, false, fn idx, min_block_empty? ->
-        case :atomics.get(atomics_ref, idx) do
-          0 ->
-            {:cont, min_block_empty?}
-
-          non_zero_block ->
-            block_lsb =
-              if min_block_empty? do
-                lsb(non_zero_block)
-              else
-                ## Reset all bits in the block to the left of the position
-                shift = position_in_block
-                lsb((non_zero_block >>> shift) <<< shift)
-              end
-
-            (block_lsb &&
-               {:halt, positional_value(idx, block_lsb)}) || {:cont, true}
-        end
-      end)
-
-    (is_integer(min_value) && set_min(bit_vector, min_value)) || fail(bit_vector)
-  end
-
-  ## Update (cached) max
-  defp tighten_max(
-         {:domain_bit_vector, atomics_ref} = bit_vector,
-         starting_at,
-         min_value
-       ) do
-    {current_min_block_idx, _} = vector_address(min_value)
-    {leftmost_block_idx, position_in_block} = vector_address(starting_at - 1)
-    ## Find a new max (on the left of the current one)
-    ##
-
-    max_value =
-      Enum.reduce_while(
-        leftmost_block_idx..current_min_block_idx//-1,
-        false,
-        fn idx, max_block_empty? ->
-          case :atomics.get(atomics_ref, idx) do
-            0 ->
-              {:cont, max_block_empty?}
-
-            non_zero_block ->
-              block_msb =
-                if max_block_empty? do
-                  msb(non_zero_block)
-                else
-                  ## Reset all bits in the block to the right of the position
-                  mask = (1 <<< (position_in_block + 1)) - 1
-                  msb(non_zero_block &&& mask)
-                end
-
-              (block_msb &&
-                 {:halt, positional_value(idx, block_msb)}) || {:cont, true}
-          end
-        end
-      )
-
-    (is_integer(max_value) && set_max(bit_vector, max_value)) || fail(bit_vector)
-  end
-
-  defp fail(bit_vector) do
-    bit_vector && set_min_max(bit_vector, @failure_value)
-    fail()
-  end
-
   defp fail() do
     throw(:fail)
-  end
-
-  def get_bound_addrs(bit_vector) do
-    {_, _, current_min, current_max} = get_min_max(bit_vector)
-    {current_min_block, current_min_offset} = vector_address(current_min)
-    {current_max_block, current_max_offset} = vector_address(current_max)
-
-    %{
-      min_addr: %{block: current_min_block, offset: current_min_offset},
-      max_addr: %{block: current_max_block, offset: current_max_offset}
-    }
   end
 
   ## Find the index of atomics where the n-value resides
