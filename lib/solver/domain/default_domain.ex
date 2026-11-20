@@ -1,5 +1,5 @@
 defmodule CPSolver.DefaultDomain do
-  alias CPSolver.BitVectorDomain, as: Domain
+  alias CPSolver.BitVectorDomainV2, as: Domain
   alias Iter.Iterable.{Resource}
 
   defdelegate new(values), to: Domain
