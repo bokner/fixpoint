@@ -108,7 +108,7 @@ defmodule CPSolver.BitVectorDomain do
           reduce_fun.(
             acc,
             bit_positions(block, fn val ->
-              case val + 64 * (block_idx - 1) - offset do
+              case positional_value(block_idx, val - offset) do
                 value when value >= lb and value <= ub ->
                   value_mapper_fun.(value)
 
