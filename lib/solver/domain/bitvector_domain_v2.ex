@@ -97,7 +97,8 @@ defmodule CPSolver.BitVectorDomainV2 do
         Array.get(min_block, 1) == idx ->
           ## Find non-empty block with higher index
           SparseSet.reduce(
-            tracker, nil,
+            tracker,
+            nil,
             fn b_idx, _acc ->
               if b_idx > idx do
                 {:halt, Array.put(min_block, 1, b_idx)}
@@ -110,10 +111,11 @@ defmodule CPSolver.BitVectorDomainV2 do
         Array.get(max_block, 1) == idx ->
           ## Find non-empty block with lower index
           SparseSet.reduce(
-            tracker, nil,
+            tracker,
+            nil,
             fn b_idx, _acc ->
               if b_idx < idx do
-              {:halt, Array.put(max_block, 1, b_idx)}
+                {:halt, Array.put(max_block, 1, b_idx)}
               else
                 {:cont, nil}
               end
@@ -127,29 +129,42 @@ defmodule CPSolver.BitVectorDomainV2 do
   end
 
   ## 'next' value in the domain
-  def next(%{bit_vector: {:bit_vector, ref}, offset: offset, max_block: max_block} = domain, value) do
-    cond do
-      value  < min(domain) ->
+  def next(
+        %{bit_vector: {:bit_vector, ref}, offset: offset, max_block: max_block} = domain,
+        value
+      ) do
+    case address_next(domain, value) do
+      nil ->
         nil
+      {block_index, block_offset} ->
+        positional_value(block_index, block_offset + offset)
+      end
+    # cond do
+    #   value < min(domain) ->
+    #     nil
 
-      value  >= max(domain) ->
-        nil
+    #   value >= max(domain) ->
+    #     nil
 
-      true ->
-        {block_index, position} = vector_address(value + offset)
+    #   true ->
+    #     {block_index, position} = vector_address(value + offset)
 
-        case next(block_index, position, ref, Array.get(max_block, 1)) do
-          nil -> nil
-          positional_value -> positional_value - offset
-        end
-    end
+    #     case next_impl(block_index, position, ref, Array.get(max_block, 1)) do
+    #       nil -> nil
+    #       positional_value -> positional_value - offset
+    #     end
+    # end
   end
 
-  defp next(block_index, _position, _atomics_ref, last_index) when block_index > last_index do
+  defp address_next(%{offset: offset} = domain, value) do
+    {block_index, block_offset} = vector_value(value, offset)
+  end
+
+  defp next_impl(block_index, _position, _atomics_ref, last_index) when block_index > last_index do
     nil
   end
 
-  defp next(block_index, position, atomics_ref, last_index) do
+  defp next_impl(block_index, position, atomics_ref, last_index) do
     block = :atomics.get(atomics_ref, block_index)
     ## Check if the block has bits on the right of the position of initial value.
     shift = position + 1
@@ -158,7 +173,7 @@ defmodule CPSolver.BitVectorDomainV2 do
     case lsb(shifted_left) do
       ## nothing in this block, try next one
       nil ->
-        next(block_index + 1, -1, atomics_ref, last_index)
+        next_impl(block_index + 1, -1, atomics_ref, last_index)
 
       next_lsb ->
         positional_value(block_index, next_lsb + shift)
@@ -254,11 +269,11 @@ defmodule CPSolver.BitVectorDomainV2 do
     case vector_value(value, offset) do
       vector_value when vector_value < 0 ->
         false
-        vector_value ->
-    block_idx = block_index(vector_value)
 
-    SparseSet.member?(tracker, block_idx) &&
-      BitVector.get(bit_vector, vector_value) == 1
+      vector_value ->
+        block_idx = block_index(vector_value)
+        SparseSet.member?(tracker, block_idx) &&
+          BitVector.get(bit_vector, vector_value) == 1
     end
   end
 
@@ -267,31 +282,33 @@ defmodule CPSolver.BitVectorDomainV2 do
         value
       ) do
     case vector_value(value, offset) do
-      vector_value when vector_value < 0 -> fail()
+      vector_value when vector_value < 0 ->
+        fail()
+
       vector_value ->
-    {fixed_block_index, block_offset} = vector_address(vector_value)
+        {fixed_block_index, block_offset} = vector_address(vector_value)
 
-    if contains?(domain, value) do
-      if fixed?(domain) do
-        :no_change
-      else
-        ## In the block, reset all bits except the one at the "fixed" position
-        :atomics.put(ref, fixed_block_index, 1 <<< block_offset)
-        ## Remove all blocks that do not have fixed value
-        SparseSet.each(tracker, fn block_idx ->
-          if block_idx != fixed_block_index do
-            ## We do not use delete_block/1
-            ## to avoid unnecessary checks
-            delete_block(domain, block_idx)
+        if contains?(domain, value) do
+          if fixed?(domain) do
+            :no_change
+          else
+            ## In the block, reset all bits except the one at the "fixed" position
+            :atomics.put(ref, fixed_block_index, 1 <<< block_offset)
+            ## Remove all blocks that do not have fixed value
+            SparseSet.each(tracker, fn block_idx ->
+              if block_idx != fixed_block_index do
+                ## We do not use delete_block/1
+                ## to avoid unnecessary checks
+                delete_block(domain, block_idx)
+              end
+            end)
+
+            :fixed
           end
-        end)
-
-        :fixed
-      end
-    else
-      fail()
+        else
+          fail()
+        end
     end
-  end
   end
 
   def remove(
@@ -308,19 +325,21 @@ defmodule CPSolver.BitVectorDomainV2 do
         end
 
       case vector_value(value, offset) do
-        vector_value when vector_value < 0 -> :no_change
+        vector_value when vector_value < 0 ->
+          :no_change
+
         vector_value ->
-      block_index = block_index(vector_value)
-      BitVector.clear(bit_vector, vector_value)
+          block_index = block_index(vector_value)
+          BitVector.clear(bit_vector, vector_value)
 
-      if :atomics.get(ref, block_index) == 0 do
-        delete_block(domain, block_index)
+          if :atomics.get(ref, block_index) == 0 do
+            delete_block(domain, block_index)
+          end
+
+          ## Adjust domain_change, if fixed
+          {(fixed?(domain) && :fixed) || domain_change, domain}
+          |> tap(fn _ -> BitVector.clear(bit_vector, vector_value) end)
       end
-
-      ## Adjust domain_change, if fixed
-      {(fixed?(domain) && :fixed) || domain_change, domain}
-      |> tap(fn _ -> BitVector.clear(bit_vector, vector_value) end)
-    end
     else
       ## No value in the domain, do nothing
       :no_change
@@ -334,50 +353,52 @@ defmodule CPSolver.BitVectorDomainV2 do
     case vector_value(value, offset) do
       vector_value when vector_value < 0 ->
         fail()
-        vector_value ->
-    {value_block_idx, value_block_offset} = vector_address(vector_value)
 
-    SparseSet.reduce(
-      tracker,
-      :no_change,
-      fn b_idx, domain_change_acc ->
-        cond do
-          b_idx > value_block_idx ->
-            delete_block(domain, b_idx)
-            {:cont, :max_change}
+      vector_value ->
+        {value_block_idx, value_block_offset} = vector_address(vector_value)
 
-          b_idx < value_block_idx ->
-            {:cont, domain_change_acc}
-
-          b_idx == value_block_idx ->
-            ## This is the last block (we don't want to remove anything below it)
-            last_block_value = :atomics.get(ref, b_idx)
-
-            if msb(last_block_value) <= value_block_offset do
-              ## The value is already above or equal to the "last block" value
-              {:cont, domain_change_acc}
-            else
-              ## Shift msb
-              last_block_value = unset_right(last_block_value, value_block_offset)
-              if last_block_value == 0 do
+        SparseSet.reduce(
+          tracker,
+          :no_change,
+          fn b_idx, domain_change_acc ->
+            cond do
+              b_idx > value_block_idx ->
                 delete_block(domain, b_idx)
-              else
-                :atomics.put(ref, value_block_idx, last_block_value)
-              end
+                {:cont, :max_change}
 
-              {:cont, :max_change}
+              b_idx < value_block_idx ->
+                {:cont, domain_change_acc}
+
+              b_idx == value_block_idx ->
+                ## This is the last block (we don't want to remove anything below it)
+                last_block_value = :atomics.get(ref, b_idx)
+
+                if msb(last_block_value) <= value_block_offset do
+                  ## The value is already above or equal to the "last block" value
+                  {:cont, domain_change_acc}
+                else
+                  ## Shift msb
+                  last_block_value = unset_right(last_block_value, value_block_offset)
+
+                  if last_block_value == 0 do
+                    delete_block(domain, b_idx)
+                  else
+                    :atomics.put(ref, value_block_idx, last_block_value)
+                  end
+
+                  {:cont, :max_change}
+                end
             end
-        end
-      end
-    )
-    |> then(fn domain_change ->
-      cond do
-        domain_change == :no_change -> :no_change
-        fixed?(domain) -> {:fixed, domain}
-        domain_change -> {domain_change, domain}
-      end
-    end)
-  end
+          end
+        )
+        |> then(fn domain_change ->
+          cond do
+            domain_change == :no_change -> :no_change
+            fixed?(domain) -> {:fixed, domain}
+            domain_change -> {domain_change, domain}
+          end
+        end)
+    end
   end
 
   def removeBelow(
@@ -408,7 +429,7 @@ defmodule CPSolver.BitVectorDomainV2 do
               {:cont, domain_change_acc}
             else
               ## Shift lsb
-              last_block_value = unset_left(last_block_value, value_block_offset) #(last_block_value >>> value_block_offset) <<< value_block_offset
+              last_block_value = unset_left(last_block_value, value_block_offset)
 
               if last_block_value == 0 do
                 delete_block(domain, b_idx)
@@ -428,7 +449,6 @@ defmodule CPSolver.BitVectorDomainV2 do
         domain_change -> {domain_change, domain}
       end
     end)
-
   end
 
   def raw(%{bit_vector: {:domain_bit_vector, ref} = _bit_vector, offset: offset} = _domain) do
