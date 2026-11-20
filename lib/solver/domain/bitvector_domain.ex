@@ -1,7 +1,7 @@
 defmodule CPSolver.BitVectorDomain do
   import Bitwise
   import InPlace.BitUtils
-  
+
   @failure_value (1 <<< 64) - 1
 
   def new([]) do
@@ -430,7 +430,7 @@ defmodule CPSolver.BitVectorDomain do
               else
                 ## Reset all bits in the block to the left of the position
                 shift = position_in_block
-                lsb(non_zero_block >>> shift <<< shift)
+                lsb(unset_left(non_zero_block, shift))
               end
 
             (block_lsb &&
@@ -467,8 +467,7 @@ defmodule CPSolver.BitVectorDomain do
                   msb(non_zero_block)
                 else
                   ## Reset all bits in the block to the right of the position
-                  mask = (1 <<< (position_in_block + 1)) - 1
-                  msb(non_zero_block &&& mask)
+                  msb(unset_right(non_zero_block, position_in_block))
                 end
 
               (block_msb &&
