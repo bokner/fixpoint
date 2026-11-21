@@ -68,16 +68,17 @@ defmodule CPSolver.DefaultDomain do
 
 
   def iterator(domain) do
-    Resource.new(
-      fn -> min(domain) - 1 end,
-      fn current ->
-        case next(domain, current) do
-          nil -> {:halt, :done}
-          next -> {[next], next}
-        end
-      end,
-      fn acc -> acc end
-    )
+    Domain.to_list(domain)
+    # Resource.new(
+    #   fn -> min(domain) - 1 end,
+    #   fn current ->
+    #     case next(domain, current) do
+    #       nil -> {:halt, :done}
+    #       next -> {[next], next}
+    #     end
+    #   end,
+    #   fn acc -> acc end
+    # )
   end
 
   def copy(fixed) when is_integer(fixed) do
