@@ -122,10 +122,10 @@ defmodule CPSolverTest.MutableDomain do
       domain = Domain.new(values)
       Domain.removeAbove(domain, 300)
       domain_copy = Domain.copy(domain)
-      assert Domain.to_list(domain) == Domain.to_list(domain_copy)
-      assert Domain.size(domain) == Domain.size(domain_copy)
       assert Domain.min(domain) == Domain.min(domain_copy)
       assert Domain.max(domain) == Domain.max(domain_copy)
+      assert Domain.size(domain) == Domain.size(domain_copy)
+      assert Domain.to_list(domain) == Domain.to_list(domain_copy)
 
       Domain.removeBelow(domain_copy, 250)
       domain_copy2 = Domain.copy(domain_copy)

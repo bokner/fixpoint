@@ -87,9 +87,7 @@ defmodule CPSolver.BitVectorDomain do
   ## Reduce over domain values
   defp reduce(
         %{bit_vector: {:domain_bit_vector, ref} = bit_vector, offset: offset} = domain,
-        value_mapper_fun,
-        acc_init \\ MapSet.new(),
-        reduce_fun \\ &MapSet.union/2
+        value_mapper_fun
       ) do
     %{
       min_addr: %{block: current_min_block, offset: _min_offset},
@@ -99,26 +97,20 @@ defmodule CPSolver.BitVectorDomain do
     lb = min(domain)
     ub = max(domain)
 
-    Enum.reduce(current_min_block..current_max_block, acc_init, fn block_idx, acc ->
+    Enum.reduce(current_min_block..current_max_block, MapSet.new(), fn block_idx, acc ->
       case :atomics.get(ref, block_idx) do
         0 ->
           acc
 
         block ->
-          block_lsb = lsb(block)
-          block_msb = msb(block)
-          reduce_fun.(
-            acc,
-            bit_positions(block, block_lsb, block_msb, fn val ->
-              case positional_value(block_idx, val - offset) do
-                value when value >= lb and value <= ub ->
-                  value_mapper_fun.(value)
-
-                _out_of_bounds ->
-                  nil
+          InPlace.BitUtils.reduce(block, acc, fn pos, acc2 ->
+            case positional_value(block_idx, pos - offset) do
+              value when value >= lb and value <= ub ->
+                MapSet.put(acc2, value_mapper_fun.(value))
+              _out_of_bound ->
+                acc2
               end
-            end)
-          )
+          end)
       end
     end)
   end
@@ -127,8 +119,7 @@ defmodule CPSolver.BitVectorDomain do
         domain,
         value_mapper_fun \\ &Function.identity/1
       ) do
-    (fixed?(domain) && MapSet.new([value_mapper_fun.(min(domain))])) ||
-      reduce(domain, value_mapper_fun, MapSet.new(), &MapSet.union/2)
+      reduce(domain, value_mapper_fun)
   end
 
   def fixed?(%{bit_vector: bit_vector} = _domain) do
@@ -499,41 +490,5 @@ defmodule CPSolver.BitVectorDomain do
   ## Domain value, computed off the block index and position within the block
   defp positional_value(block_index, position) do
     (block_index - 1) * 64 + position
-  end
-
-  defp bit_positions(0, _, _, _mapper) do
-    MapSet.new()
-  end
-
-  defp bit_positions(n, lsb, msb, mapper) do
-
-    initial_set =
-      Enum.reduce([lsb, msb], MapSet.new(), fn value, acc ->
-        case mapper.(value) do
-          nil ->
-            acc
-
-          new_value ->
-            MapSet.put(acc, new_value)
-        end
-      end)
-
-    bit_positions(n >>> lsb, 1, lsb, msb, mapper, initial_set)
-  end
-
-  defp bit_positions(_n, _shift, iteration, msb, _mapper, positions) when iteration == msb do
-    positions
-  end
-
-  defp bit_positions(n, shift, iteration, msb, mapper, positions) do
-    acc =
-      ((n &&& shift) > 0 &&
-         case mapper.(iteration) do
-           nil -> positions
-           new_value -> MapSet.put(positions, new_value)
-         end) ||
-        positions
-
-    bit_positions(n, shift <<< 1, iteration + 1, msb, mapper, acc)
   end
 end
