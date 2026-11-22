@@ -85,7 +85,7 @@ defmodule CPSolver.BitVectorDomain do
   end
 
   ## Reduce over domain values
-  def reduce(
+  defp reduce(
         %{bit_vector: {:domain_bit_vector, ref} = bit_vector, offset: offset} = domain,
         value_mapper_fun,
         acc_init \\ MapSet.new(),
@@ -105,9 +105,11 @@ defmodule CPSolver.BitVectorDomain do
           acc
 
         block ->
+          block_lsb = lsb(block)
+          block_msb = msb(block)
           reduce_fun.(
             acc,
-            bit_positions(block, fn val ->
+            bit_positions(block, block_lsb, block_msb, fn val ->
               case positional_value(block_idx, val - offset) do
                 value when value >= lb and value <= ub ->
                   value_mapper_fun.(value)
@@ -266,17 +268,6 @@ defmodule CPSolver.BitVectorDomain do
     end
   end
 
-  def raw(%{bit_vector: {:domain_bit_vector, ref} = _bit_vector, offset: offset} = _domain) do
-    %{
-      offset: offset,
-      content: Enum.map(1..:atomics.info(ref).size, fn i -> :atomics.get(ref, i) end)
-    }
-  end
-
-  def bits(%{bit_vector: {:domain_bit_vector, ref} = _bit_vector} = _domain) do
-    Enum.map(1..:atomics.info(ref)[:size] - 1, fn idx -> :atomics.get(ref, idx) |> Integer.to_string(2) |> String.reverse() end)
-  end
-
   ## Last byte of bit_vector contains (packed) min and max
   def last_index({:domain_bit_vector, ref} = _bit_vector) do
     :atomics.info(ref).size - 1
@@ -290,11 +281,11 @@ defmodule CPSolver.BitVectorDomain do
     end)
   end
 
-  def get_min(bit_vector) do
+  defp get_min(bit_vector) do
     get_min_max(bit_vector) |> elem(2)
   end
 
-  def get_max(bit_vector) do
+  defp get_max(bit_vector) do
     get_min_max(bit_vector) |> elem(3)
   end
 
@@ -302,7 +293,7 @@ defmodule CPSolver.BitVectorDomain do
     last_index(bit_vector) + 1
   end
 
-  def get_min_max(bit_vector) do
+  defp get_min_max(bit_vector) do
     get_min_max_impl(bit_vector)
     |> then(fn {min_max_index, min_max} ->
       min_max == @failure_value && fail(bit_vector)
@@ -315,11 +306,11 @@ defmodule CPSolver.BitVectorDomain do
     {min_max_index, :atomics.get(ref, min_max_index)}
   end
 
-  def set_min(bit_vector, new_min) do
+  defp set_min(bit_vector, new_min) do
     set_min(bit_vector, new_min, get_min_max(bit_vector))
   end
 
-  def set_min({:domain_bit_vector, ref} = bit_vector, new_min, min_max_info) do
+  defp set_min({:domain_bit_vector, ref} = bit_vector, new_min, min_max_info) do
     {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     cond do
@@ -351,11 +342,11 @@ defmodule CPSolver.BitVectorDomain do
     end
   end
 
-  def set_max(bit_vector, new_max) do
+  defp set_max(bit_vector, new_max) do
     set_max(bit_vector, new_max, get_min_max(bit_vector))
   end
 
-  def set_max({:domain_bit_vector, ref} = bit_vector, new_max, min_max_info) do
+  defp set_max({:domain_bit_vector, ref} = bit_vector, new_max, min_max_info) do
     {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     cond do
@@ -387,7 +378,7 @@ defmodule CPSolver.BitVectorDomain do
     end
   end
 
-  def set_fixed({:domain_bit_vector, ref} = bit_vector, fixed_value, min_max_info) do
+  defp set_fixed({:domain_bit_vector, ref} = bit_vector, fixed_value, min_max_info) do
     {current_min_max, min_max_idx, current_min, current_max} = min_max_info
 
     if fixed_value != current_max && current_min == current_max do
@@ -426,13 +417,13 @@ defmodule CPSolver.BitVectorDomain do
           non_zero_block ->
             block_lsb =
               if min_block_empty? do
-                lsb(non_zero_block)
+                non_zero_block
               else
                 ## Reset all bits in the block to the left of the position
                 shift = position_in_block
-                lsb(unset_left(non_zero_block, shift))
+                unset_left(non_zero_block, shift)
               end
-
+              |> lsb()
             (block_lsb &&
                {:halt, positional_value(idx, block_lsb)}) || {:cont, true}
         end
@@ -464,11 +455,12 @@ defmodule CPSolver.BitVectorDomain do
             non_zero_block ->
               block_msb =
                 if max_block_empty? do
-                  msb(non_zero_block)
+                  non_zero_block
                 else
                   ## Reset all bits in the block to the right of the position
-                  msb(unset_right(non_zero_block, position_in_block))
+                  unset_right(non_zero_block, position_in_block)
                 end
+                |> msb()
 
               (block_msb &&
                  {:halt, positional_value(idx, block_msb)}) || {:cont, true}
@@ -484,7 +476,7 @@ defmodule CPSolver.BitVectorDomain do
     throw(:fail)
   end
 
-  def get_bound_addrs(bit_vector) do
+  defp get_bound_addrs(bit_vector) do
     {_, _, current_min, current_max} = get_min_max(bit_vector)
     {current_min_block, current_min_offset} = vector_address(current_min)
     {current_max_block, current_max_offset} = vector_address(current_max)
@@ -500,22 +492,20 @@ defmodule CPSolver.BitVectorDomain do
     div(n, 64) + 1
   end
 
-  def vector_address(n) do
+  defp vector_address(n) do
     {block_index(n), rem(n, 64)}
   end
 
   ## Domain value, computed off the block index and position within the block
-  def positional_value(block_index, position) do
+  defp positional_value(block_index, position) do
     (block_index - 1) * 64 + position
   end
 
-  def bit_positions(0, _mapper) do
+  defp bit_positions(0, _, _, _mapper) do
     MapSet.new()
   end
 
-  def bit_positions(n, mapper) do
-    lsb = lsb(n)
-    msb = msb(n)
+  defp bit_positions(n, lsb, msb, mapper) do
 
     initial_set =
       Enum.reduce([lsb, msb], MapSet.new(), fn value, acc ->
@@ -531,11 +521,11 @@ defmodule CPSolver.BitVectorDomain do
     bit_positions(n >>> lsb, 1, lsb, msb, mapper, initial_set)
   end
 
-  def bit_positions(_n, _shift, iteration, msb, _mapper, positions) when iteration == msb do
+  defp bit_positions(_n, _shift, iteration, msb, _mapper, positions) when iteration == msb do
     positions
   end
 
-  def bit_positions(n, shift, iteration, msb, mapper, positions) do
+  defp bit_positions(n, shift, iteration, msb, mapper, positions) do
     acc =
       ((n &&& shift) > 0 &&
          case mapper.(iteration) do
