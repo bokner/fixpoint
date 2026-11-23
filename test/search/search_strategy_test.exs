@@ -81,7 +81,7 @@ defmodule CPSolverTest.Search.Brancher do
       ## Left branch contains v2 variable fixed at 0
       assert Vector.at(b_left |> Map.get(:variable_copies), 2)
              |> Map.get(:domain)
-             |> then(fn domain -> Domain.size(domain) == 1 && Domain.min(domain) == 0 end)
+             |> then(fn domain -> Domain.fixed?(domain) && Domain.min(domain) == 0 end)
 
       ## Right branch contains v2 variable with 0 removed
       refute Vector.at(b_right |> Map.get(:variable_copies), 2) |> Map.get(:domain) |> Domain.contains?(0)
